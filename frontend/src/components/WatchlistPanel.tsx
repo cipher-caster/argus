@@ -40,23 +40,25 @@ function SortableWatchlistItem({ id, symbol, ticker, isActive, onRemove }: Sorta
   const urlSymbol = symbol.replace("/", "-");
 
   return (
-    <div ref={setNodeRef} style={style} className={`watchlist-item-wrapper ${isDragging ? "dragging" : ""}`}>
+    <div ref={setNodeRef} style={style} className={`watchlist-item-wrapper ${isDragging ? "dragging" : ""} ${isActive ? "active" : ""}`}>
       <div className="drag-handle" {...attributes} {...listeners}>
         <GripVertical size={14} />
       </div>
-      <Link href={`/chart/${urlSymbol}`} className={`watchlist-item ${isActive ? "active" : ""}`}>
+      <Link href={`/chart/${urlSymbol}`} className="watchlist-item-link">
         <div className="watchlist-left">
-          <Star size={12} fill={isActive ? "var(--accent-primary)" : "none"} stroke={isActive ? "var(--accent-primary)" : "currentColor"} />
           <span className="watchlist-symbol">{symbol.replace("/USDT", "")}</span>
         </div>
         <div className="watchlist-right">
-          <span className="watchlist-price">{ticker?.price?.toLocaleString(undefined, { maximumFractionDigits: 4 }) || "—"}</span>
-          <span className={`watchlist-change ${(ticker?.change_24h || 0) >= 0 ? "positive" : "negative"}`}>{ticker?.change_24h?.toFixed(2) || "0.00"}%</span>
+          <span className="watchlist-price">{ticker?.price?.toLocaleString(undefined, { maximumFractionDigits: ticker.price < 1 ? 4 : 2 }) || "—"}</span>
+          <span className={`watchlist-change ${(ticker?.change_24h || 0) >= 0 ? "positive" : "negative"}`}>
+            {(ticker?.change_24h || 0) >= 0 ? "+" : ""}
+            {ticker?.change_24h?.toFixed(2) || "0.00"}%
+          </span>
         </div>
-        <button className="watchlist-remove" onClick={onRemove} title="Remove from watchlist">
-          <X size={12} />
-        </button>
       </Link>
+      <button className="watchlist-remove" onClick={onRemove} title="Remove from watchlist">
+        <X size={14} />
+      </button>
     </div>
   );
 }
@@ -214,272 +216,6 @@ export function WatchlistPanel({ currentSymbol }: WatchlistPanelProps) {
           )}
         </div>
       </Panel>
-
-      <style jsx>{`
-        .watchlist-container {
-          display: flex;
-          flex-direction: column;
-        }
-
-        .search-section {
-          padding: 8px;
-          border-bottom: 1px solid var(--border-color);
-          position: relative;
-        }
-
-        .search-input-wrapper {
-          display: flex;
-          align-items: center;
-          gap: 8px;
-          background: var(--bg-tertiary);
-          border: 1px solid var(--border-color);
-          border-radius: 6px;
-          padding: 6px 10px;
-        }
-
-        .search-input-wrapper :global(.search-icon) {
-          color: var(--text-muted);
-          flex-shrink: 0;
-        }
-
-        .search-input {
-          flex: 1;
-          background: transparent;
-          border: none;
-          color: var(--text-primary);
-          font-size: 13px;
-          outline: none;
-        }
-
-        .search-input::placeholder {
-          color: var(--text-muted);
-        }
-
-        .search-results {
-          position: absolute;
-          top: 100%;
-          left: 8px;
-          right: 8px;
-          background: var(--bg-secondary);
-          border: 1px solid var(--border-color);
-          border-radius: 6px;
-          box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-          max-height: 300px;
-          overflow-y: auto;
-          z-index: 100;
-        }
-
-        .no-results {
-          padding: 16px;
-          text-align: center;
-          color: var(--text-muted);
-          font-size: 12px;
-        }
-
-        .search-result-item {
-          display: flex;
-          align-items: center;
-          justify-content: space-between;
-          width: 100%;
-          padding: 10px 12px;
-          background: transparent;
-          border: none;
-          cursor: pointer;
-          transition: background 0.1s;
-        }
-
-        .search-result-item:hover {
-          background: var(--bg-tertiary);
-        }
-
-        .search-result-item.in-watchlist {
-          background: rgba(79, 70, 229, 0.1);
-        }
-
-        .result-left {
-          display: flex;
-          align-items: center;
-          gap: 10px;
-        }
-
-        .result-symbol {
-          font-weight: 600;
-          color: var(--text-primary);
-          font-size: 13px;
-        }
-
-        .result-price {
-          font-size: 12px;
-          color: var(--text-muted);
-        }
-
-        .result-right {
-          display: flex;
-          align-items: center;
-          gap: 8px;
-        }
-
-        .result-change {
-          font-size: 12px;
-          font-weight: 600;
-        }
-
-        .result-change.positive {
-          color: var(--positive);
-        }
-
-        .result-change.negative {
-          color: var(--negative);
-        }
-
-        .result-right :global(.check-icon) {
-          color: var(--positive);
-        }
-
-        .result-right :global(.add-icon) {
-          color: var(--text-muted);
-        }
-
-        .watchlist-items {
-          flex: 1;
-          overflow-y: auto;
-          max-height: 360px; /* ~10 items at 36px each */
-        }
-
-        .watchlist-item-wrapper {
-          display: flex;
-          align-items: center;
-          padding-left: 4px;
-          position: relative;
-        }
-
-        .watchlist-item-wrapper:hover {
-          background: var(--bg-tertiary);
-        }
-
-        .drag-handle {
-          color: var(--text-muted);
-          cursor: grab;
-          padding: 8px 4px;
-          display: flex;
-          align-items: center;
-          opacity: 0;
-          transition: opacity 0.1s;
-        }
-
-        .watchlist-item-wrapper:hover .drag-handle {
-          opacity: 0.5;
-        }
-
-        .drag-handle:hover {
-          opacity: 1 !important;
-        }
-
-        .watchlist-item {
-          display: flex;
-          align-items: center;
-          justify-content: space-between;
-          padding: 8px 12px 8px 4px;
-          width: 100%;
-          text-decoration: none;
-          color: inherit;
-        }
-
-        .empty-state {
-          display: flex;
-          flex-direction: column;
-          align-items: center;
-          justify-content: center;
-          padding: 32px 16px;
-          gap: 12px;
-          color: var(--text-muted);
-        }
-
-        .empty-state p {
-          margin: 0;
-          font-size: 13px;
-        }
-
-        .empty-state button {
-          background: var(--accent-primary);
-          color: white;
-          border: none;
-          padding: 8px 16px;
-          border-radius: 6px;
-          font-size: 12px;
-          font-weight: 600;
-          cursor: pointer;
-          transition: opacity 0.15s;
-        }
-
-        .empty-state button:hover {
-          opacity: 0.9;
-        }
-
-        .watchlist-left {
-          display: flex;
-          align-items: center;
-          gap: 8px;
-        }
-
-        .watchlist-symbol {
-          font-weight: 600;
-          color: var(--text-primary);
-          font-size: 13px;
-        }
-
-        .watchlist-right {
-          display: flex;
-          flex-direction: column;
-          align-items: flex-end;
-          gap: 2px;
-          margin-left: auto;
-          margin-right: 8px;
-        }
-
-        .watchlist-price {
-          font-size: 13px;
-          font-weight: 600;
-          color: var(--text-primary);
-        }
-
-        .watchlist-change {
-          font-size: 11px;
-          font-weight: 600;
-        }
-
-        .watchlist-change.positive {
-          color: var(--positive);
-        }
-
-        .watchlist-change.negative {
-          color: var(--negative);
-        }
-
-        .watchlist-remove {
-          opacity: 0;
-          background: none;
-          border: none;
-          color: var(--text-muted);
-          cursor: pointer;
-          padding: 4px;
-          border-radius: 4px;
-          transition: all 0.1s;
-        }
-
-        .watchlist-remove:hover {
-          color: var(--negative);
-          background: rgba(239, 68, 68, 0.1);
-        }
-
-        .watchlist-item-wrapper:hover .watchlist-remove {
-          opacity: 1;
-        }
-
-        .watchlist-item.active {
-          background: rgba(79, 70, 229, 0.05);
-        }
-      `}</style>
     </div>
   );
 }

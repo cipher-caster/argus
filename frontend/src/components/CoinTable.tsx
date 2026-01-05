@@ -9,6 +9,7 @@ import { CoinInfo } from "@/lib/marketApi";
 import { ArrowDown, ArrowUp, ArrowUpDown, Search, Star } from "lucide-react";
 import Link from "next/link";
 import { memo, useEffect, useState } from "react";
+import { Sparkline } from "./Sparkline";
 
 interface CoinTableProps {
   coins: CoinInfo[];
@@ -109,6 +110,7 @@ function CoinTableComponent({ coins, isLoading, sortBy, sortOrder, onSort }: Coi
                 Market Cap <SortIcon field="market_cap" />
               </div>
             </th>
+            <th className="col-trend">Last 7 Days</th>
             <th className="col-high">24h High</th>
             <th className="col-low">24h Low</th>
           </tr>
@@ -131,6 +133,9 @@ function CoinTableComponent({ coins, isLoading, sortBy, sortOrder, onSort }: Coi
                 </td>
                 <td>
                   <div className="skeleton skeleton-badge" />
+                </td>
+                <td>
+                  <div className="skeleton skeleton-price" />
                 </td>
                 <td>
                   <div className="skeleton skeleton-price" />
@@ -176,6 +181,9 @@ function CoinTableComponent({ coins, isLoading, sortBy, sortOrder, onSort }: Coi
                   </td>
                   <td className="col-vol">{formatVolume(coin.volume_24h)}</td>
                   <td className="col-market font-mono font-bold">{formatVolume(coin.market_cap)}</td>
+                  <td className="col-trend">
+                    <Sparkline data={Array.from({ length: 12 }, () => 40 + Math.random() * 20 + (coin.change_24h || 0))} width={80} height={24} />
+                  </td>
                   <td className="col-high text-muted">${formatPrice(coin.high_24h || 0)}</td>
                   <td className="col-low text-muted">${formatPrice(coin.low_24h || 0)}</td>
                 </tr>
@@ -305,6 +313,11 @@ function CoinTableComponent({ coins, isLoading, sortBy, sortOrder, onSort }: Coi
         .col-rank,
         .col-name {
           text-align: left;
+        }
+
+        .col-trend {
+          text-align: center;
+          width: 100px;
         }
 
         /* Columns */

@@ -1,21 +1,26 @@
 "use client";
 
 import { IndicatorConfig, useIndicatorStore } from "@/stores/indicatorStore";
-import { BarChart2, CandlestickChart as CandleIcon, ChevronDown, Edit2, Eye, EyeOff, PlusCircle, Search, Trash2, X } from "lucide-react";
+import { BarChart2, CandlestickChart as CandleIcon, ChevronDown, ChevronLeft, Edit2, Eye, EyeOff, PlusCircle, Search, Trash2, X } from "lucide-react";
+import Link from "next/link";
 import { TimeframeSelector } from "../TimeframeSelector";
 import { Dropdown } from "../ui/Dropdown";
 
 interface ChartHeaderProps {
   symbol: string;
+  price?: number;
+  priceChangePercent?: number;
   isLoading?: boolean;
   timeframe?: string;
   onTimeframeChange?: (tf: string) => void;
   indicatorConfigs: IndicatorConfig[];
   onAddIndicator: () => void;
   onEditIndicator: (indicator: IndicatorConfig) => void;
+  onOpenSettings?: () => void;
+  provider?: string;
 }
 
-export function ChartHeader({ symbol, isLoading, timeframe, onTimeframeChange, indicatorConfigs, onAddIndicator, onEditIndicator }: ChartHeaderProps) {
+export function ChartHeader({ symbol, price, priceChangePercent, isLoading, timeframe, onTimeframeChange, indicatorConfigs, onAddIndicator, onEditIndicator, onOpenSettings, provider }: ChartHeaderProps) {
   const toggleVisibility = useIndicatorStore((s) => s.toggleVisibility);
   const removeIndicator = useIndicatorStore((s) => s.removeIndicator);
 
@@ -24,12 +29,32 @@ export function ChartHeader({ symbol, isLoading, timeframe, onTimeframeChange, i
   return (
     <>
       <div className="chart-header">
+        <Link href="/" className="back-btn" title="Back to Markets">
+          <ChevronLeft size={20} />
+        </Link>
+
+        {/* Brand / Home Link */}
+        <Link href="/" className="chart-brand">
+          <div className="brand-dot"></div>
+          <span className="brand-text">Argus</span>
+        </Link>
+
+        <div className="header-separator"></div>
+
         {/* Symbol Section */}
         <div className="header-group symbol-group">
-          <Search size={18} style={{ color: "var(--text-muted)", cursor: "pointer" }} />
-          <span className="chart-symbol">{symbol}</span>
-          <div className="provider-badge-small">
-            <div className="diamond-icon"></div>
+          <Search size={16} style={{ color: "var(--text-muted)", cursor: "pointer" }} />
+          <div className="symbol-details">
+            <span className="chart-symbol">{symbol}</span>
+            {price !== undefined && (
+              <div className="price-info">
+                <span className="chart-price">${price.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                <span className={`chart-change ${priceChangePercent !== undefined && priceChangePercent >= 0 ? "positive" : "negative"}`}>
+                  {priceChangePercent !== undefined ? (priceChangePercent >= 0 ? "+" : "") : ""}
+                  {priceChangePercent?.toFixed(2)}%
+                </span>
+              </div>
+            )}
           </div>
         </div>
 
@@ -117,6 +142,15 @@ export function ChartHeader({ symbol, isLoading, timeframe, onTimeframeChange, i
         </div>
 
         {isLoading && <span className="chart-loading">Loading...</span>}
+
+        <div className="header-right-actions">
+          {provider && <span className="chart-provider-badge">{provider.toUpperCase()}</span>}
+          {onOpenSettings && (
+            <button className="icon-btn settings-btn" onClick={onOpenSettings} title="Chart Settings">
+              <Edit2 size={16} />
+            </button>
+          )}
+        </div>
       </div>
 
       <style jsx global>{`
@@ -147,27 +181,102 @@ export function ChartHeader({ symbol, isLoading, timeframe, onTimeframeChange, i
           font-weight: 700;
           font-size: 14px;
           color: var(--text-primary);
-          margin: 0 4px;
+          margin-right: 8px;
         }
 
-        .chart-header .provider-badge-small {
+        .chart-header .back-btn {
           display: flex;
           align-items: center;
-          gap: 2px;
-          padding: 2px;
-          border-radius: 4px;
-          cursor: pointer;
+          justify-content: center;
+          color: var(--text-muted);
+          width: 32px;
+          height: 32px;
+          border-radius: 6px;
+          transition: all 0.2s;
         }
 
-        .chart-header .provider-badge-small:hover {
+        .chart-header .back-btn:hover {
+          color: var(--text-primary);
           background: var(--bg-tertiary);
         }
 
-        .chart-header .diamond-icon {
-          width: 12px;
-          height: 12px;
-          border: 1px solid var(--text-muted);
+        .chart-header .chart-brand {
+          display: flex;
+          align-items: center;
+          gap: 8px;
+          text-decoration: none;
+          padding: 0 4px;
+        }
+
+        .chart-header .brand-dot {
+          width: 8px;
+          height: 8px;
+          background: var(--accent-primary);
+          border-radius: 2px;
           transform: rotate(45deg);
+        }
+
+        .chart-header .brand-text {
+          font-weight: 800;
+          font-size: 16px;
+          color: var(--text-primary);
+          letter-spacing: -0.5px;
+        }
+
+        .chart-header .symbol-details {
+          display: flex;
+          align-items: center;
+          gap: 12px;
+          margin-left: 8px;
+        }
+
+        .chart-header .price-info {
+          display: flex;
+          align-items: center;
+          gap: 8px;
+          padding-left: 12px;
+          border-left: 1px solid var(--border-color);
+        }
+
+        .chart-header .chart-price {
+          font-weight: 700;
+          font-size: 14px;
+          color: var(--text-primary);
+        }
+
+        .chart-header .chart-change {
+          font-size: 12px;
+          font-weight: 600;
+        }
+
+        .chart-header .chart-change.positive {
+          color: var(--success);
+        }
+
+        .chart-header .chart-change.negative {
+          color: var(--danger);
+        }
+
+        .chart-header .header-right-actions {
+          margin-left: auto;
+          display: flex;
+          align-items: center;
+          gap: 12px;
+        }
+
+        .chart-header .chart-provider-badge {
+          font-size: 10px;
+          font-weight: 700;
+          color: var(--text-muted);
+          background: var(--bg-tertiary);
+          padding: 2px 6px;
+          border-radius: 4px;
+          border: 1px solid var(--border-color);
+          letter-spacing: 0.5px;
+        }
+
+        .chart-header .settings-btn {
+          color: var(--text-muted);
         }
 
         .chart-header .icon-btn-circle {

@@ -1,9 +1,8 @@
 "use client";
 
 import { CoinTable } from "@/components/CoinTable";
-import { ThemeToggle } from "@/components/ThemeToggle";
 import { useCoins } from "@/hooks/useMarketOverview";
-import { ArrowLeft, LayoutDashboard } from "lucide-react";
+import { ArrowLeft } from "lucide-react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useState } from "react";
@@ -68,22 +67,7 @@ export default function MarketCategoryPage() {
   };
 
   return (
-    <div className="app">
-      {/* Navbar (Simplified) */}
-      <nav className="navbar">
-        <div className="navbar-inner">
-          <div className="nav-left">
-            <Link href="/" className="brand">
-              <LayoutDashboard size={24} className="brand-icon" />
-              <span className="brand-name">Argus</span>
-            </Link>
-          </div>
-          <div className="nav-right">
-            <ThemeToggle />
-          </div>
-        </div>
-      </nav>
-
+    <div className="category-page">
       <main className="container">
         <div className="header-row">
           <Link href="/" className="back-link">
@@ -116,37 +100,9 @@ export default function MarketCategoryPage() {
       </main>
 
       <style jsx>{`
-        .app {
-          min-height: 100vh;
+        .category-page {
+          min-height: calc(100vh - 56px);
           background: var(--bg-primary);
-        }
-        .navbar {
-          height: 60px;
-          background: var(--bg-secondary);
-          border-bottom: 1px solid var(--border-color);
-          display: flex;
-          align-items: center;
-        }
-        .navbar-inner {
-          width: 100%;
-          max-width: 1440px;
-          margin: 0 auto;
-          padding: 0 24px;
-          display: flex;
-          justify-content: space-between;
-          align-items: center;
-        }
-        .brand {
-          display: flex;
-          align-items: center;
-          gap: 8px;
-          font-size: 20px;
-          font-weight: 800;
-          color: var(--text-primary);
-          text-decoration: none;
-        }
-        .brand-icon {
-          color: var(--accent-primary);
         }
         .container {
           max-width: 1440px;

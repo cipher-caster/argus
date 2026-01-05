@@ -1,5 +1,6 @@
 import { CoinInfo } from "@/lib/marketApi";
 import { memo } from "react";
+import { Sparkline } from "./Sparkline";
 
 interface StatsCardsProps {
   coins: CoinInfo[];
@@ -7,6 +8,18 @@ interface StatsCardsProps {
 }
 
 function StatsCardsComponent({ coins, isLoading }: StatsCardsProps) {
+  // Generate a mock trend for visualization
+  const getMockTrend = (trend: number | null) => {
+    const base = 50;
+    const count = 10;
+    const vals = [base];
+    for (let i = 1; i < count; i++) {
+      const change = (Math.random() - 0.5) * 5 + (trend || 0) / count;
+      vals.push(vals[i - 1] + change);
+    }
+    return vals;
+  };
+
   // Calculate stats from available coins
   const totalVolume = coins.reduce((acc, coin) => acc + (coin.volume_24h || 0), 0);
 
@@ -31,7 +44,7 @@ function StatsCardsComponent({ coins, isLoading }: StatsCardsProps) {
     <div className="stat-card">
       <div className="stat-header">
         <span className="stat-title">{title}</span>
-        {trend && <span className={`stat-trend ${trend >= 0 ? "positive" : "negative"}`}>{formatPercent(trend)}</span>}
+        {trend !== null && <span className={`stat-trend ${trend >= 0 ? "positive" : "negative"}`}>{formatPercent(trend)}</span>}
       </div>
       <div className="stat-content">
         <div className="stat-main">
@@ -39,10 +52,7 @@ function StatsCardsComponent({ coins, isLoading }: StatsCardsProps) {
           <span className="stat-sub">{subValue}</span>
         </div>
         <div className="mini-chart">
-          {/* Simple SVG curve based on color */}
-          <svg viewBox="0 0 100 40" className="chart-svg">
-            <path d="M0,35 Q25,5 50,20 T100,10" fill="none" stroke={chartColor} strokeWidth="2" />
-          </svg>
+          <Sparkline data={getMockTrend(trend)} width={80} height={30} color={chartColor} />
         </div>
       </div>
       <style jsx>{`
@@ -98,10 +108,6 @@ function StatsCardsComponent({ coins, isLoading }: StatsCardsProps) {
           width: 80px;
           height: 30px;
           opacity: 0.8;
-        }
-        .chart-svg {
-          width: 100%;
-          height: 100%;
         }
       `}</style>
     </div>

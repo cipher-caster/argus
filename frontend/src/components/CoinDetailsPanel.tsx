@@ -160,6 +160,8 @@ const styles = `
     gap: 16px;
     border-top: 1px solid var(--border-color);
     background: var(--bg-secondary);
+    overflow-y: auto;
+    flex-shrink: 0;
   }
 
   .loading-skeleton,

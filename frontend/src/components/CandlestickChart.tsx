@@ -27,9 +27,28 @@ interface CandlestickChartProps {
   timeframe?: string;
   onTimeframeChange?: (tf: string) => void;
   scrollToLatestRef?: React.MutableRefObject<(() => void) | null>;
+  price?: number;
+  priceChangePercent?: number;
+  provider?: string;
+  onOpenSettings?: () => void;
 }
 
-function CandlestickChartComponent({ candles, symbol, isLoading, indicatorResults = [], indicatorConfigs = [], onLoadMore, isLoadingMore, timeframe, onTimeframeChange, scrollToLatestRef }: CandlestickChartProps) {
+function CandlestickChartComponent({
+  candles,
+  symbol,
+  isLoading,
+  indicatorResults = [],
+  indicatorConfigs = [],
+  onLoadMore,
+  isLoadingMore,
+  timeframe,
+  onTimeframeChange,
+  scrollToLatestRef,
+  price,
+  priceChangePercent,
+  provider,
+  onOpenSettings,
+}: CandlestickChartProps) {
   const mainContainerRef = useRef<HTMLDivElement>(null);
   const paneRefs = useRef<Map<string, HTMLDivElement>>(new Map());
 
@@ -441,6 +460,10 @@ function CandlestickChartComponent({ candles, symbol, isLoading, indicatorResult
     <div className="chart-wrapper">
       <ChartHeader
         symbol={symbol}
+        price={price}
+        priceChangePercent={priceChangePercent}
+        provider={provider}
+        onOpenSettings={onOpenSettings}
         isLoading={isLoading}
         timeframe={timeframe}
         onTimeframeChange={onTimeframeChange}

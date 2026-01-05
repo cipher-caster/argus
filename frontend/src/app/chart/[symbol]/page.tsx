@@ -9,13 +9,10 @@ import { CandlestickChart } from "@/components/CandlestickChart";
 import { ChartSettingsModal } from "@/components/ChartSettingsModal";
 import { CoinDetailsPanel } from "@/components/CoinDetailsPanel";
 import { DrawingToolbar } from "@/components/DrawingToolbar";
-import { ThemeToggle } from "@/components/ThemeToggle";
 import { WatchlistPanel } from "@/components/WatchlistPanel";
 import { useAvailableIndicators, useCalculatedIndicators } from "@/hooks/useIndicators";
 import { useOHLCV, useProvider, useTicker } from "@/hooks/useMarketData";
 import { useIndicatorStore } from "@/stores/indicatorStore";
-import { ChevronLeft, LayoutDashboard, Settings } from "lucide-react";
-import Link from "next/link";
 import { useRef, useState } from "react";
 
 interface ChartPageProps {
@@ -56,43 +53,6 @@ export default function ChartPage({ params }: ChartPageProps) {
 
   return (
     <div className="chart-page">
-      {/* Header */}
-      <header className="header">
-        <div className="header-left">
-          <Link href="/" className="back-btn">
-            <ChevronLeft size={20} />
-          </Link>
-          <h1 className="logo">
-            <LayoutDashboard size={20} className="logo-icon" />
-            Argus
-          </h1>
-        </div>
-
-        <div className="header-center">
-          <div className="symbol-display">
-            {currentPrice && (
-              <>
-                <span className="current-price">${currentPrice.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
-                <span className={`price-change ${priceChangePercent >= 0 ? "positive" : "negative"}`}>
-                  {priceChangePercent >= 0 ? "+" : ""}
-                  {priceChangePercent.toFixed(2)}%
-                </span>
-              </>
-            )}
-          </div>
-        </div>
-
-        <div className="header-right">
-          <button className="icon-btn" onClick={() => setIsSettingsOpen(true)} title="Chart Settings">
-            <Settings size={20} />
-          </button>
-          <ThemeToggle />
-          <span className="provider-badge">{providerData?.provider?.toUpperCase() || "BINANCE"}</span>
-        </div>
-      </header>
-
-      <ChartSettingsModal isOpen={isSettingsOpen} onClose={() => setIsSettingsOpen(false)} />
-
       {/* Main Content - 3 Column Grid */}
       <main className="main">
         {/* Left: Drawing Tools */}
@@ -117,7 +77,12 @@ export default function ChartPage({ params }: ChartPageProps) {
             timeframe={timeframe}
             onTimeframeChange={setTimeframe}
             scrollToLatestRef={scrollToLatestRef}
+            price={currentPrice ?? undefined}
+            priceChangePercent={priceChangePercent}
+            provider={providerData?.provider}
+            onOpenSettings={() => setIsSettingsOpen(true)}
           />
+          <ChartSettingsModal isOpen={isSettingsOpen} onClose={() => setIsSettingsOpen(false)} />
         </div>
 
         {/* Right: Watchlist + Coin Details */}
@@ -133,17 +98,7 @@ export default function ChartPage({ params }: ChartPageProps) {
           flex-direction: column;
           height: 100vh;
           background: var(--bg-primary);
-        }
-
-        .header {
-          display: flex;
-          align-items: center;
-          justify-content: space-between;
-          padding: 8px 16px;
-          background: var(--bg-secondary);
-          border-bottom: 1px solid var(--border-color);
-          border-bottom: 1px solid var(--border-color);
-          gap: 16px;
+          overflow: hidden;
         }
 
         .icon-btn {
@@ -165,66 +120,32 @@ export default function ChartPage({ params }: ChartPageProps) {
           color: var(--text-primary);
         }
 
-        .header-left {
+        .symbol-info-detailed {
           display: flex;
           align-items: center;
-          gap: 12px;
+          gap: 16px;
         }
 
-        .back-btn {
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          width: 32px;
-          height: 32px;
-          background: var(--bg-tertiary);
-          border: 1px solid var(--border-color);
-          border-radius: 6px;
-          color: var(--text-secondary);
-          text-decoration: none;
-          transition: all 0.15s;
-        }
-
-        .back-btn:hover {
-          background: var(--accent-primary);
-          color: white;
-        }
-
-        .logo {
-          display: flex;
-          align-items: center;
-          gap: 8px;
-          font-size: 16px;
+        .symbol-name-title {
+          font-size: 15px;
           font-weight: 700;
           color: var(--text-primary);
         }
 
-        .header-center {
-          flex: 1;
+        .symbol-stats-inline {
           display: flex;
-          justify-content: center;
-        }
-
-        .symbol-display {
-          display: flex;
-          align-items: baseline;
-          gap: 12px;
-        }
-
-        .symbol-name {
-          font-size: 16px;
-          font-weight: 700;
-          color: var(--text-primary);
+          align-items: center;
+          gap: 10px;
         }
 
         .current-price {
-          font-size: 20px;
+          font-size: 16px;
           font-weight: 700;
           color: var(--text-primary);
         }
 
         .price-change {
-          font-size: 14px;
+          font-size: 13px;
           font-weight: 600;
         }
 
@@ -272,7 +193,9 @@ export default function ChartPage({ params }: ChartPageProps) {
         .right-sidebar {
           background: var(--bg-secondary);
           border-left: 1px solid var(--border-color);
-          overflow-y: auto;
+          display: flex;
+          flex-direction: column;
+          overflow: hidden;
         }
       `}</style>
     </div>

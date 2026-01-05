@@ -7,11 +7,9 @@
 
 import { CoinTable } from "@/components/CoinTable";
 import { StatsCards } from "@/components/StatsCards";
-import { ThemeToggle } from "@/components/ThemeToggle";
 import { TopCoinsWidgets } from "@/components/TopCoinsWidgets";
 import { useProvider } from "@/hooks/useMarketData";
 import { useCoins, useMarketSummary } from "@/hooks/useMarketOverview";
-import { LayoutDashboard, Search } from "lucide-react";
 import { useState } from "react";
 
 export default function MarketOverview() {
@@ -45,29 +43,6 @@ export default function MarketOverview() {
 
   return (
     <div className="app">
-      {/* Navbar */}
-      <nav className="navbar">
-        <div className="navbar-inner">
-          <div className="nav-left">
-            <h1 className="brand">
-              <LayoutDashboard size={24} className="brand-icon" />
-              <span className="brand-name">Argus</span>
-            </h1>
-            <div className="nav-links">
-              <span className="nav-link active">Home</span>
-            </div>
-          </div>
-
-          <div className="nav-right">
-            <div className="search-bar">
-              <Search size={14} className="search-icon" />
-              <input type="text" placeholder="Search coin..." value={search} onChange={(e) => setSearch(e.target.value)} />
-            </div>
-            <ThemeToggle />
-          </div>
-        </div>
-      </nav>
-
       {/* Main Content */}
       <main className="container">
         {/* Market Highlights */}
