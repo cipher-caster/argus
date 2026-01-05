@@ -13,6 +13,7 @@ export interface CoinInfo {
   volume_24h: number | null;
   high_24h: number | null;
   low_24h: number | null;
+  market_cap: number | null;
 }
 
 export interface CoinsResponse {

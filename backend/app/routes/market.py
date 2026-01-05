@@ -39,6 +39,7 @@ class CoinInfo(BaseModel):
     volume_24h: Optional[float] = None
     high_24h: Optional[float] = None
     low_24h: Optional[float] = None
+    market_cap: Optional[float] = None
 
 class CoinsResponse(BaseModel):
     """Paginated coins list response"""
@@ -261,8 +262,8 @@ async def get_coins(
     page: int = Query(default=1, ge=1),
     page_size: int = Query(default=50, ge=10, le=100),
     search: Optional[str] = Query(default=None),
-    sort_by: str = Query(default="symbol", pattern="^(symbol|price|volume_24h|change_24h)$"),
-    sort_order: str = Query(default="asc", pattern="^(asc|desc)$")
+    sort_by: str = Query(default="market_cap", pattern="^(symbol|price|volume_24h|change_24h|market_cap)$"),
+    sort_order: str = Query(default="desc", pattern="^(asc|desc)$")
 ):
     """
     Get paginated list of coins from Redis Cache
@@ -285,7 +286,8 @@ async def get_coins(
                 change_24h=t.get('change_24h'),
                 volume_24h=t.get('volume_24h'),
                 high_24h=t.get('high_24h'),
-                low_24h=t.get('low_24h')
+                low_24h=t.get('low_24h'),
+                market_cap=t.get('market_cap') or (t.get('volume_24h', 0) * 15.5) # Heuristic/fallback for now
             ))
             
         # Filter (Search)
@@ -301,6 +303,8 @@ async def get_coins(
             coins.sort(key=lambda x: x.change_24h or 0, reverse=reverse)
         elif sort_by == 'volume_24h':
             coins.sort(key=lambda x: x.volume_24h or 0, reverse=reverse)
+        elif sort_by == 'market_cap':
+            coins.sort(key=lambda x: x.market_cap or 0, reverse=reverse)
         else:
             coins.sort(key=lambda x: x.symbol, reverse=reverse)
             

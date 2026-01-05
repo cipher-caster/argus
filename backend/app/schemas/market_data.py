@@ -8,6 +8,7 @@ class MarketTicker(BaseModel):
     volume_24h: Optional[float] = None
     high_24h: Optional[float] = None
     low_24h: Optional[float] = None
+    market_cap: Optional[float] = None
     rank: Optional[int] = None
     name: Optional[str] = None
     provider: str = "binance"

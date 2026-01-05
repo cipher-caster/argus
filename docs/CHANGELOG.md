@@ -17,6 +17,7 @@ All notable changes to this project will be documented in this file.
   - Key stats: Volume, High, Low, Range (24H).
   - Visual price position bar within 24H range.
   - Performance indicator.
+- **Market Cap Sorting**: Added Market Cap column to the main coin table and set it as the default sorting method.
 - **Refresh Button**: Added to toolbar to scroll chart to latest candle.
 - **Chart Customization**: Added a new settings modal (gear icon) to configure custom colors for candlesticks (Body, Borders, Wick) for both Up and Down candles.
 - **Indicator Colors**: Added color picker to the "Add/Edit Indicator" modal, allowing users to choose custom colors for their indicators.

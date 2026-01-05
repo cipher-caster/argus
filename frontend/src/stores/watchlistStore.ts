@@ -11,6 +11,7 @@ interface WatchlistStore {
   addSymbol: (symbol: string) => void;
   removeSymbol: (symbol: string) => void;
   hasSymbol: (symbol: string) => boolean;
+  setItems: (items: WatchlistItem[]) => void;
 }
 
 export const useWatchlistStore = create<WatchlistStore>()(
@@ -34,6 +35,9 @@ export const useWatchlistStore = create<WatchlistStore>()(
 
       hasSymbol: (symbol: string) => {
         return !!get().items.find((item) => item.symbol === symbol);
+      },
+      setItems: (items: WatchlistItem[]) => {
+        set({ items });
       },
     }),
     {

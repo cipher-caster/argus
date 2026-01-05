@@ -104,6 +104,11 @@ function CoinTableComponent({ coins, isLoading, sortBy, sortOrder, onSort }: Coi
                 Volume (24h) <SortIcon field="volume_24h" />
               </div>
             </th>
+            <th className="col-market sortable" onClick={() => onSort("market_cap")}>
+              <div className="th-content right">
+                Market Cap <SortIcon field="market_cap" />
+              </div>
+            </th>
             <th className="col-high">24h High</th>
             <th className="col-low">24h Low</th>
           </tr>
@@ -170,6 +175,7 @@ function CoinTableComponent({ coins, isLoading, sortBy, sortOrder, onSort }: Coi
                     <div className={`change-badge ${(coin.change_24h ?? 0) >= 0 ? "positive" : "negative"}`}>{coin.change_24h !== null ? `${coin.change_24h >= 0 ? "+" : ""}${coin.change_24h.toFixed(2)}%` : "—"}</div>
                   </td>
                   <td className="col-vol">{formatVolume(coin.volume_24h)}</td>
+                  <td className="col-market font-mono font-bold">{formatVolume(coin.market_cap)}</td>
                   <td className="col-high text-muted">${formatPrice(coin.high_24h || 0)}</td>
                   <td className="col-low text-muted">${formatPrice(coin.low_24h || 0)}</td>
                 </tr>

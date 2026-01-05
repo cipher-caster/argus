@@ -17,7 +17,7 @@ import { useState } from "react";
 export default function MarketOverview() {
   const [page, setPage] = useState(1);
   const [search, setSearch] = useState("");
-  const [sortBy, setSortBy] = useState("price");
+  const [sortBy, setSortBy] = useState("market_cap");
   const [sortOrder, setSortOrder] = useState<"asc" | "desc">("desc");
   const pageSize = 50;
 

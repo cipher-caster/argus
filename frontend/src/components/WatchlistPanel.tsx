@@ -2,7 +2,10 @@
 
 import { Panel } from "@/components/ui";
 import { useWatchlistStore } from "@/stores/watchlistStore";
-import { Check, Plus, Search, Star, X } from "lucide-react";
+import { closestCenter, DndContext, DragEndEvent, KeyboardSensor, PointerSensor, useSensor, useSensors } from "@dnd-kit/core";
+import { arrayMove, SortableContext, sortableKeyboardCoordinates, useSortable, verticalListSortingStrategy } from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
+import { Check, GripVertical, Plus, Search, Star, X } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 
@@ -16,14 +19,67 @@ interface TickerData {
   change_24h: number;
 }
 
+interface SortableItemProps {
+  id: string;
+  symbol: string;
+  ticker?: TickerData;
+  isActive: boolean;
+  onRemove: (e: React.MouseEvent) => void;
+}
+
+function SortableWatchlistItem({ id, symbol, ticker, isActive, onRemove }: SortableItemProps) {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id });
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    zIndex: isDragging ? 10 : 1,
+    opacity: isDragging ? 0.5 : 1,
+  };
+
+  const urlSymbol = symbol.replace("/", "-");
+
+  return (
+    <div ref={setNodeRef} style={style} className={`watchlist-item-wrapper ${isDragging ? "dragging" : ""}`}>
+      <div className="drag-handle" {...attributes} {...listeners}>
+        <GripVertical size={14} />
+      </div>
+      <Link href={`/chart/${urlSymbol}`} className={`watchlist-item ${isActive ? "active" : ""}`}>
+        <div className="watchlist-left">
+          <Star size={12} fill={isActive ? "var(--accent-primary)" : "none"} stroke={isActive ? "var(--accent-primary)" : "currentColor"} />
+          <span className="watchlist-symbol">{symbol.replace("/USDT", "")}</span>
+        </div>
+        <div className="watchlist-right">
+          <span className="watchlist-price">{ticker?.price?.toLocaleString(undefined, { maximumFractionDigits: 4 }) || "—"}</span>
+          <span className={`watchlist-change ${(ticker?.change_24h || 0) >= 0 ? "positive" : "negative"}`}>{ticker?.change_24h?.toFixed(2) || "0.00"}%</span>
+        </div>
+        <button className="watchlist-remove" onClick={onRemove} title="Remove from watchlist">
+          <X size={12} />
+        </button>
+      </Link>
+    </div>
+  );
+}
+
 export function WatchlistPanel({ currentSymbol }: WatchlistPanelProps) {
-  const { items, removeSymbol, addSymbol, hasSymbol } = useWatchlistStore();
+  const { items, removeSymbol, addSymbol, hasSymbol, setItems } = useWatchlistStore();
   const [searchOpen, setSearchOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [tickerData, setTickerData] = useState<Record<string, TickerData>>({});
   const [allTickers, setAllTickers] = useState<TickerData[]>([]);
   const searchRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+
+  const sensors = useSensors(
+    useSensor(PointerSensor, {
+      activationConstraint: {
+        distance: 5,
+      },
+    }),
+    useSensor(KeyboardSensor, {
+      coordinateGetter: sortableKeyboardCoordinates,
+    })
+  );
 
   // Fetch live prices for watchlist items
   useEffect(() => {
@@ -68,6 +124,17 @@ export function WatchlistPanel({ currentSymbol }: WatchlistPanelProps) {
       inputRef.current.focus();
     }
   }, [searchOpen]);
+
+  function handleDragEnd(event: DragEndEvent) {
+    const { active, over } = event;
+
+    if (over && active.id !== over.id) {
+      const oldIndex = items.findIndex((item) => item.symbol === active.id);
+      const newIndex = items.findIndex((item) => item.symbol === over.id);
+
+      setItems(arrayMove(items, oldIndex, newIndex));
+    }
+  }
 
   // Filter search results
   const searchResults = searchQuery ? allTickers.filter((t) => t.symbol.toLowerCase().includes(searchQuery.toLowerCase())).slice(0, 10) : [];
@@ -137,27 +204,13 @@ export function WatchlistPanel({ currentSymbol }: WatchlistPanelProps) {
               <button onClick={() => setSearchOpen(true)}>Add coins</button>
             </div>
           ) : (
-            items.map((item) => {
-              const ticker = tickerData[item.symbol];
-              const isActive = currentSymbol === item.symbol;
-              const urlSymbol = item.symbol.replace("/", "-");
-
-              return (
-                <Link key={item.symbol} href={`/chart/${urlSymbol}`} className={`watchlist-item ${isActive ? "active" : ""}`}>
-                  <div className="watchlist-left">
-                    <Star size={12} fill={isActive ? "var(--accent-primary)" : "none"} stroke={isActive ? "var(--accent-primary)" : "currentColor"} />
-                    <span className="watchlist-symbol">{item.symbol.replace("/USDT", "")}</span>
-                  </div>
-                  <div className="watchlist-right">
-                    <span className="watchlist-price">{ticker?.price?.toLocaleString(undefined, { maximumFractionDigits: 4 }) || "—"}</span>
-                    <span className={`watchlist-change ${(ticker?.change_24h || 0) >= 0 ? "positive" : "negative"}`}>{ticker?.change_24h?.toFixed(2) || "0.00"}%</span>
-                  </div>
-                  <button className="watchlist-remove" onClick={(e) => handleRemoveCoin(item.symbol, e)} title="Remove from watchlist">
-                    <X size={12} />
-                  </button>
-                </Link>
-              );
-            })
+            <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+              <SortableContext items={items.map((i) => i.symbol)} strategy={verticalListSortingStrategy}>
+                {items.map((item) => (
+                  <SortableWatchlistItem key={item.symbol} id={item.symbol} symbol={item.symbol} ticker={tickerData[item.symbol]} isActive={currentSymbol === item.symbol} onRemove={(e) => handleRemoveCoin(item.symbol, e)} />
+                ))}
+              </SortableContext>
+            </DndContext>
           )}
         </div>
       </Panel>
@@ -290,6 +343,46 @@ export function WatchlistPanel({ currentSymbol }: WatchlistPanelProps) {
         .watchlist-items {
           flex: 1;
           overflow-y: auto;
+          max-height: 360px; /* ~10 items at 36px each */
+        }
+
+        .watchlist-item-wrapper {
+          display: flex;
+          align-items: center;
+          padding-left: 4px;
+          position: relative;
+        }
+
+        .watchlist-item-wrapper:hover {
+          background: var(--bg-tertiary);
+        }
+
+        .drag-handle {
+          color: var(--text-muted);
+          cursor: grab;
+          padding: 8px 4px;
+          display: flex;
+          align-items: center;
+          opacity: 0;
+          transition: opacity 0.1s;
+        }
+
+        .watchlist-item-wrapper:hover .drag-handle {
+          opacity: 0.5;
+        }
+
+        .drag-handle:hover {
+          opacity: 1 !important;
+        }
+
+        .watchlist-item {
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          padding: 8px 12px 8px 4px;
+          width: 100%;
+          text-decoration: none;
+          color: inherit;
         }
 
         .empty-state {
@@ -329,11 +422,38 @@ export function WatchlistPanel({ currentSymbol }: WatchlistPanelProps) {
           gap: 8px;
         }
 
+        .watchlist-symbol {
+          font-weight: 600;
+          color: var(--text-primary);
+          font-size: 13px;
+        }
+
         .watchlist-right {
           display: flex;
           flex-direction: column;
           align-items: flex-end;
           gap: 2px;
+          margin-left: auto;
+          margin-right: 8px;
+        }
+
+        .watchlist-price {
+          font-size: 13px;
+          font-weight: 600;
+          color: var(--text-primary);
+        }
+
+        .watchlist-change {
+          font-size: 11px;
+          font-weight: 600;
+        }
+
+        .watchlist-change.positive {
+          color: var(--positive);
+        }
+
+        .watchlist-change.negative {
+          color: var(--negative);
         }
 
         .watchlist-remove {
@@ -352,8 +472,12 @@ export function WatchlistPanel({ currentSymbol }: WatchlistPanelProps) {
           background: rgba(239, 68, 68, 0.1);
         }
 
-        :global(.watchlist-item:hover) .watchlist-remove {
+        .watchlist-item-wrapper:hover .watchlist-remove {
           opacity: 1;
+        }
+
+        .watchlist-item.active {
+          background: rgba(79, 70, 229, 0.05);
         }
       `}</style>
     </div>
