@@ -1,0 +1,3 @@
+"""
+Magus Backend App Package
+"""
