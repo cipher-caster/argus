@@ -106,3 +106,6 @@ h6 {
 .animate-fade-in {
   animation: fadeIn 0.3s ease-out;
 }
+
+/* Import shared component styles */
+@import "../styles/components.css";

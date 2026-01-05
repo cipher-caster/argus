@@ -7,10 +7,14 @@
 
 import { Candle } from "@/lib/api";
 import { IndicatorResult } from "@/lib/indicatorApi";
-import { IndicatorConfig } from "@/stores/indicatorStore";
+import { IndicatorConfig, useIndicatorStore } from "@/stores/indicatorStore";
 import { themes, useThemeStore } from "@/stores/themeStore";
 import { CandlestickData, ColorType, createChart, IChartApi, ISeriesApi, LineData, Time } from "lightweight-charts";
-import { memo, useEffect, useRef } from "react";
+import { BarChart2, CandlestickChart as CandleIcon, ChevronDown, Edit2, Eye, EyeOff, PlusCircle, Search, Trash2 } from "lucide-react";
+import { memo, useEffect, useRef, useState } from "react";
+import { IndicatorModal } from "./IndicatorModal";
+import { TimeframeSelector } from "./TimeframeSelector";
+import { Dropdown } from "./ui/Dropdown";
 
 interface CandlestickChartProps {
   candles: Candle[];
@@ -20,9 +24,11 @@ interface CandlestickChartProps {
   indicatorConfigs?: IndicatorConfig[];
   onLoadMore?: () => void;
   isLoadingMore?: boolean;
+  timeframe?: string;
+  onTimeframeChange?: (tf: string) => void;
 }
 
-function CandlestickChartComponent({ candles, symbol, isLoading, indicatorResults = [], indicatorConfigs = [], onLoadMore, isLoadingMore }: CandlestickChartProps) {
+function CandlestickChartComponent({ candles, symbol, isLoading, indicatorResults = [], indicatorConfigs = [], onLoadMore, isLoadingMore, timeframe, onTimeframeChange }: CandlestickChartProps) {
   const mainContainerRef = useRef<HTMLDivElement>(null);
   const paneRefs = useRef<Map<string, HTMLDivElement>>(new Map());
 
@@ -32,6 +38,14 @@ function CandlestickChartComponent({ candles, symbol, isLoading, indicatorResult
   const mainSeriesRef = useRef<ISeriesApi<"Candlestick"> | null>(null);
   const overlaySeriesRef = useRef<Map<string, ISeriesApi<"Line">[]>>(new Map());
   const paneSeriesRef = useRef<Map<string, ISeriesApi<"Line" | "Histogram">[]>>(new Map());
+
+  const theme = useThemeStore((s) => s.theme);
+
+  const [isIndicatorModalOpen, setIsIndicatorModalOpen] = useState(false);
+  const [editingIndicator, setEditingIndicator] = useState<IndicatorConfig | null>(null);
+
+  const toggleVisibility = useIndicatorStore((s) => s.toggleVisibility);
+  const removeIndicator = useIndicatorStore((s) => s.removeIndicator);
 
   // Track if we are already loading to avoid double calls
   const isLoadingMoreRef = useRef(false);
@@ -45,7 +59,6 @@ function CandlestickChartComponent({ candles, symbol, isLoading, indicatorResult
     onLoadMoreRef.current = onLoadMore;
   }, [onLoadMore]);
 
-  const theme = useThemeStore((s) => s.theme);
   const currentTheme = themes[theme];
 
   // Helper to create chart options
@@ -393,19 +406,104 @@ function CandlestickChartComponent({ candles, symbol, isLoading, indicatorResult
   return (
     <div className="chart-wrapper">
       <div className="chart-header">
-        <span className="chart-symbol">{symbol}</span>
-        {isLoading && <span className="chart-loading">Loading...</span>}
-        {indicatorConfigs.filter((i) => i.visible && i.indicatorType === "overlay").length > 0 && (
-          <div className="indicator-badges">
-            {indicatorConfigs
-              .filter((i) => i.visible && i.indicatorType === "overlay")
-              .map((i) => (
-                <span key={i.id} className="indicator-badge" style={{ borderColor: i.color, color: i.color }}>
-                  {i.displayName}
-                </span>
-              ))}
+        {/* Symbol Section */}
+        <div className="header-group symbol-group">
+          <Search size={18} className="icon-search" />
+          <span className="chart-symbol">{symbol}</span>
+          <div className="provider-badge-small">
+            <div className="diamond-icon"></div>
+            <ChevronDown size={12} className="icon-tiny" />
           </div>
-        )}
+        </div>
+
+        <div className="header-separator"></div>
+
+        {/* Comparison */}
+        <button className="icon-btn-circle" title="Compare or Add Symbol">
+          <PlusCircle size={18} />
+        </button>
+
+        <div className="header-separator"></div>
+
+        {/* Timeframes */}
+        <div className="header-group timeframe-group">{timeframe && onTimeframeChange && <TimeframeSelector selected={timeframe} onChange={onTimeframeChange} />}</div>
+
+        <div className="header-separator"></div>
+
+        {/* Chart Type */}
+        <div className="header-group">
+          <button className="icon-btn" title="Chart Style">
+            <CandleIcon size={20} />
+          </button>
+        </div>
+
+        <div className="header-separator"></div>
+
+        {/* Indicators */}
+        <div className="header-group">
+          <div className="indicators-button-group">
+            <button
+              className="text-icon-btn main-btn"
+              onClick={() => {
+                setEditingIndicator(null);
+                setIsIndicatorModalOpen(true);
+              }}
+            >
+              <BarChart2 size={18} />
+              <span>Indicators</span>
+            </button>
+            <Dropdown
+              trigger={
+                <button className="dropdown-arrow-btn">
+                  <ChevronDown size={14} />
+                </button>
+              }
+            >
+              <div className="active-indicators-menu">
+                <div className="menu-header">Active Indicators</div>
+                {indicatorConfigs.length === 0 ? (
+                  <div className="no-indicators">No indicators added</div>
+                ) : (
+                  indicatorConfigs.map((ind) => (
+                    <div key={ind.id} className="indicator-menu-item">
+                      <div className="indicator-info">
+                        <div className="color-dot" style={{ background: ind.color }}></div>
+                        <span className="display-name">{ind.displayName}</span>
+                      </div>
+                      <div className="indicator-menu-actions">
+                        <button onClick={() => toggleVisibility(ind.id)}>{ind.visible ? <Eye size={14} /> : <EyeOff size={14} />}</button>
+                        <button
+                          onClick={() => {
+                            setEditingIndicator(ind);
+                            setIsIndicatorModalOpen(true);
+                          }}
+                        >
+                          <Edit2 size={14} />
+                        </button>
+                        <button onClick={() => removeIndicator(ind.id)} className="delete">
+                          <Trash2 size={14} />
+                        </button>
+                      </div>
+                    </div>
+                  ))
+                )}
+              </div>
+            </Dropdown>
+          </div>
+          {indicatorConfigs.filter((i) => i.visible && i.indicatorType === "overlay").length > 0 && (
+            <div className="indicator-badges">
+              {indicatorConfigs
+                .filter((i) => i.visible && i.indicatorType === "overlay")
+                .map((i) => (
+                  <span key={i.id} className="indicator-badge" style={{ borderColor: i.color, color: i.color }}>
+                    {i.displayName}
+                  </span>
+                ))}
+            </div>
+          )}
+        </div>
+
+        {isLoading && <span className="chart-loading">Loading...</span>}
       </div>
 
       {/* Main Chart */}
@@ -429,6 +527,8 @@ function CandlestickChartComponent({ candles, symbol, isLoading, indicatorResult
         </div>
       ))}
 
+      <IndicatorModal isOpen={isIndicatorModalOpen} onClose={() => setIsIndicatorModalOpen(false)} editingIndicator={editingIndicator} />
+
       <style jsx>{`
         .chart-wrapper {
           width: 100%;
@@ -444,38 +544,243 @@ function CandlestickChartComponent({ candles, symbol, isLoading, indicatorResult
         .chart-header {
           display: flex;
           align-items: center;
-          gap: 12px;
-          padding: 12px 20px;
+          height: 38px;
+          padding: 0 12px;
           background: var(--bg-secondary);
           border-bottom: 1px solid var(--border-color);
+          gap: 4px;
+        }
+
+        .header-group {
+          display: flex;
+          align-items: center;
+          gap: 4px;
+        }
+
+        .header-separator {
+          width: 1px;
+          height: 20px;
+          background: var(--border-color);
+          margin: 0 4px;
         }
 
         .chart-symbol {
-          font-size: 18px;
-          font-weight: 600;
+          font-weight: 700;
+          font-size: 14px;
           color: var(--text-primary);
-          letter-spacing: 0.5px;
+          margin: 0 4px;
+        }
+
+        .icon-search {
+          color: var(--text-muted);
+          cursor: pointer;
+        }
+
+        .icon-search:hover {
+          color: var(--text-primary);
+        }
+
+        .provider-badge-small {
+          display: flex;
+          align-items: center;
+          gap: 2px;
+          padding: 2px;
+          border-radius: 4px;
+          cursor: pointer;
+        }
+
+        .provider-badge-small:hover {
+          background: var(--bg-tertiary);
+        }
+
+        .diamond-icon {
+          width: 12px;
+          height: 12px;
+          border: 1px solid var(--text-muted);
+          transform: rotate(45deg);
+        }
+
+        .icon-btn-circle {
+          width: 24px;
+          height: 24px;
+          border-radius: 50%;
+          border: 1px solid var(--border-color);
+          background: transparent;
+          color: var(--text-muted);
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          cursor: pointer;
+          transition: all 0.1s;
+        }
+
+        .icon-btn-circle:hover {
+          color: var(--text-primary);
+          border-color: var(--text-muted);
+          background: var(--bg-tertiary);
+        }
+
+        .icon-btn {
+          width: 28px;
+          height: 28px;
+          border: none;
+          background: transparent;
+          color: var(--text-muted);
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          cursor: pointer;
+          border-radius: 4px;
+        }
+
+        .icon-btn:hover {
+          color: var(--text-primary);
+          background: var(--bg-tertiary);
+        }
+
+        .indicators-button-group {
+          display: flex;
+          align-items: center;
+          background: transparent;
+          border-radius: 4px;
+          overflow: hidden;
+        }
+
+        .indicators-button-group:hover {
+          background: var(--bg-tertiary);
+        }
+
+        .text-icon-btn {
+          height: 28px;
+          padding: 0 6px;
+          border: none;
+          background: transparent;
+          color: var(--text-muted);
+          display: flex;
+          align-items: center;
+          gap: 4px;
+          cursor: pointer;
+          font-weight: 600;
+          font-size: 13px;
+        }
+
+        .text-icon-btn:hover {
+          color: var(--text-primary);
+        }
+
+        .dropdown-arrow-btn {
+          height: 28px;
+          padding: 0 2px;
+          border: none;
+          background: transparent;
+          color: var(--text-muted);
+          cursor: pointer;
+          display: flex;
+          align-items: center;
+        }
+
+        .dropdown-arrow-btn:hover {
+          color: var(--text-primary);
+          background: rgba(0, 0, 0, 0.05);
+        }
+
+        .active-indicators-menu {
+          min-width: 220px;
+          padding: 4px 0;
+        }
+
+        .active-indicators-menu .menu-header {
+          padding: 8px 12px;
+          font-size: 11px;
+          font-weight: 700;
+          color: var(--text-muted);
+          text-transform: uppercase;
+        }
+
+        .indicator-menu-item {
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          padding: 6px 12px;
+        }
+
+        .indicator-menu-item:hover {
+          background: var(--bg-tertiary);
+        }
+
+        .indicator-info {
+          display: flex;
+          align-items: center;
+          gap: 8px;
+        }
+
+        .color-dot {
+          width: 8px;
+          height: 8px;
+          border-radius: 50%;
+        }
+
+        .display-name {
+          font-size: 13px;
+          color: var(--text-primary);
+        }
+
+        .indicator-menu-actions {
+          display: flex;
+          gap: 4px;
+        }
+
+        .indicator-menu-actions button {
+          background: transparent;
+          border: none;
+          padding: 4px;
+          cursor: pointer;
+          color: var(--text-muted);
+          border-radius: 4px;
+          display: flex;
+          align-items: center;
+        }
+
+        .indicator-menu-actions button:hover {
+          color: var(--text-primary);
+          background: rgba(0, 0, 0, 0.05);
+        }
+
+        .indicator-menu-actions button.delete:hover {
+          color: var(--negative);
+        }
+
+        .no-indicators {
+          padding: 12px;
+          font-size: 12px;
+          color: var(--text-muted);
+          text-align: center;
+        }
+
+        .icon-tiny {
+          color: var(--text-muted);
         }
 
         .chart-loading {
-          font-size: 12px;
+          font-size: 11px;
           color: var(--accent-primary);
+          margin-left: auto;
           animation: pulse 1.5s ease-in-out infinite;
         }
 
         .indicator-badges {
           display: flex;
-          gap: 8px;
-          margin-left: auto;
+          gap: 4px;
+          margin-left: 8px;
         }
 
         .indicator-badge {
-          padding: 2px 8px;
-          font-size: 10px;
-          font-weight: 500;
+          padding: 1px 6px;
+          font-size: 9px;
+          font-weight: 600;
           border: 1px solid;
-          border-radius: 4px;
-          background: var(--bg-tertiary);
+          border-radius: 2px;
+          background: transparent;
         }
 
         @keyframes pulse {
@@ -505,14 +810,14 @@ function CandlestickChartComponent({ candles, symbol, isLoading, indicatorResult
         }
 
         .pane-header {
-          padding: 4px 10px;
-          font-size: 11px;
+          padding: 2px 10px;
+          font-size: 10px;
           font-weight: 600;
-          background: var(--bg-tertiary);
+          background: var(--bg-secondary);
         }
 
         .pane-chart {
-          height: 150px;
+          height: 120px;
         }
       `}</style>
     </div>

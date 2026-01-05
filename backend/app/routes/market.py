@@ -243,6 +243,19 @@ async def get_market_summary():
         raise HTTPException(status_code=500, detail=f"Failed to fetch summary: {str(e)}")
 
 
+@router.get("/market/tickers")
+async def get_market_tickers():
+    """Get all tickers from Redis cache for watchlist"""
+    try:
+        data = await RedisClient.get_json("market:tickers")
+        if not data:
+             return {"tickers": [], "provider": "cache-empty"}
+             
+        return {"tickers": data, "provider": "redis-cache"}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to fetch tickers: {str(e)}")
+
+
 @router.get("/market/coins", response_model=CoinsResponse)
 async def get_coins(
     page: int = Query(default=1, ge=1),
