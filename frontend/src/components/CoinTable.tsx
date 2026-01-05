@@ -19,6 +19,8 @@ interface CoinTableProps {
   onSort: (field: string) => void;
 }
 
+import { cn } from "@/lib/utils";
+
 function CoinTableComponent({ coins, isLoading, sortBy, sortOrder, onSort }: CoinTableProps) {
   const [favorites, setFavorites] = useState<string[]>([]);
   const [mounted, setMounted] = useState(false);
@@ -42,8 +44,8 @@ function CoinTableComponent({ coins, isLoading, sortBy, sortOrder, onSort }: Coi
   };
 
   const SortIcon = ({ field }: { field: string }) => {
-    if (sortBy !== field) return <ArrowUpDown size={12} className="sort-icon inactive" />;
-    return sortOrder === "asc" ? <ArrowUp size={12} className="sort-icon active" /> : <ArrowDown size={12} className="sort-icon active" />;
+    if (sortBy !== field) return <ArrowUpDown size={12} className="opacity-30 ml-1.5" />;
+    return sortOrder === "asc" ? <ArrowUp size={12} className="text-primary ml-1.5" /> : <ArrowDown size={12} className="text-primary ml-1.5" />;
   };
 
   const formatPrice = (price: number) => {
@@ -65,392 +67,136 @@ function CoinTableComponent({ coins, isLoading, sortBy, sortOrder, onSort }: Coi
     return `$${(vol / 1e3).toFixed(0)}K`;
   };
 
-  if (!mounted) return <div className="table-container" style={{ height: "400px" }}></div>;
+  if (!mounted) return <div className="bg-secondary border border-border rounded-xl h-[400px]"></div>;
 
   return (
-    <div className="table-container">
-      {/* 
-      <div className="table-header-controls">
-        <div className="tabs">
-          <button className="tab active">Favorites</button>
-          <button className="tab">Spot</button>
-          <button className="tab">Derivatives</button>
-        </div>
-        <div className="table-actions">
-          <button className="action-btn">Filter</button>
-          <button className="action-btn">Customize</button>
-        </div>
-      </div>
-      */}
-
-      <table className="table">
-        <thead>
+    <div className="bg-secondary border border-border rounded-xl overflow-hidden shadow-sm">
+      <table className="w-full border-collapse">
+        <thead className="bg-muted/50">
           <tr>
-            <th className="col-star"></th>
-            <th className="col-rank">#</th>
-            <th className="col-name sortable" onClick={() => onSort("symbol")}>
-              <div className="th-content">
+            <th className="w-8 pl-4 pr-0 py-3"></th>
+            <th className="w-10 px-4 py-3 text-[11px] font-bold text-muted-foreground uppercase tracking-wider text-center font-mono">#</th>
+            <th className="px-4 py-3 text-[11px] font-bold text-muted-foreground uppercase tracking-wider text-left cursor-pointer select-none hover:text-foreground transition-colors" onClick={() => onSort("symbol")}>
+              <div className="flex items-center">
                 Symbol <SortIcon field="symbol" />
               </div>
             </th>
 
-            <th className="col-price sortable" onClick={() => onSort("price")}>
-              <div className="th-content right">
+            <th className="px-4 py-3 text-[11px] font-bold text-muted-foreground uppercase tracking-wider text-right cursor-pointer select-none hover:text-foreground transition-colors" onClick={() => onSort("price")}>
+              <div className="flex items-center justify-end">
                 Price <SortIcon field="price" />
               </div>
             </th>
-            <th className="col-change">24h Change</th>
-            <th className="col-vol sortable" onClick={() => onSort("volume_24h")}>
-              <div className="th-content right">
+            <th className="px-4 py-3 text-[11px] font-bold text-muted-foreground uppercase tracking-wider text-right">24h Change</th>
+            <th className="px-4 py-3 text-[11px] font-bold text-muted-foreground uppercase tracking-wider text-right cursor-pointer select-none hover:text-foreground transition-colors" onClick={() => onSort("volume_24h")}>
+              <div className="flex items-center justify-end">
                 Volume (24h) <SortIcon field="volume_24h" />
               </div>
             </th>
-            <th className="col-market sortable" onClick={() => onSort("market_cap")}>
-              <div className="th-content right">
+            <th className="px-4 py-3 text-[11px] font-bold text-muted-foreground uppercase tracking-wider text-right cursor-pointer select-none hover:text-foreground transition-colors" onClick={() => onSort("market_cap")}>
+              <div className="flex items-center justify-end">
                 Market Cap <SortIcon field="market_cap" />
               </div>
             </th>
-            <th className="col-trend">Last 7 Days</th>
-            <th className="col-high">24h High</th>
-            <th className="col-low">24h Low</th>
+            <th className="px-4 py-3 text-[11px] font-bold text-muted-foreground uppercase tracking-wider text-center w-24">Last 7 Days</th>
+            <th className="px-4 py-3 text-[11px] font-bold text-muted-foreground uppercase tracking-wider text-right">24h High</th>
+            <th className="px-4 py-3 text-[11px] font-bold text-muted-foreground uppercase tracking-wider text-right">24h Low</th>
           </tr>
         </thead>
-        <tbody>
+        <tbody className="divide-y divide-border/50">
           {isLoading ? (
             Array.from({ length: 15 }).map((_, i) => (
-              <tr key={i} className="row-skeleton">
-                <td>
-                  <div className="skeleton skeleton-sm" />
+              <tr key={i} className="animate-pulse">
+                <td className="px-4 py-4">
+                  <div className="w-4 h-4 bg-muted rounded"></div>
                 </td>
-                <td>
-                  <div className="skeleton-coin">
-                    <div className="skeleton skeleton-avatar" />
-                    <div className="skeleton skeleton-text" />
+                <td className="px-4 py-4">
+                  <div className="w-4 h-4 bg-muted rounded mx-auto"></div>
+                </td>
+                <td className="px-4 py-4">
+                  <div className="flex items-center gap-3">
+                    <div className="w-7 h-7 bg-muted rounded-full"></div>
+                    <div className="w-16 h-4 bg-muted rounded"></div>
                   </div>
                 </td>
-                <td>
-                  <div className="skeleton skeleton-price" />
+                <td className="px-4 py-4">
+                  <div className="w-20 h-4 bg-muted rounded ml-auto"></div>
                 </td>
-                <td>
-                  <div className="skeleton skeleton-badge" />
+                <td className="px-4 py-4">
+                  <div className="w-16 h-6 bg-muted rounded-md ml-auto"></div>
                 </td>
-                <td>
-                  <div className="skeleton skeleton-price" />
+                <td className="px-4 py-4">
+                  <div className="w-16 h-4 bg-muted rounded ml-auto"></div>
                 </td>
-                <td>
-                  <div className="skeleton skeleton-price" />
+                <td className="px-4 py-4">
+                  <div className="w-20 h-4 bg-muted rounded ml-auto"></div>
                 </td>
-                <td>
-                  <div className="skeleton skeleton-price" />
+                <td className="px-4 py-4">
+                  <div className="w-20 h-6 bg-muted rounded mx-auto"></div>
                 </td>
-                <td>
-                  <div className="skeleton skeleton-price" />
+                <td className="px-4 py-4">
+                  <div className="w-16 h-4 bg-muted rounded ml-auto"></div>
+                </td>
+                <td className="px-4 py-4">
+                  <div className="w-16 h-4 bg-muted rounded ml-auto"></div>
                 </td>
               </tr>
             ))
           ) : coins.length === 0 ? (
             <tr>
-              <td colSpan={9} className="empty-state">
-                <div className="empty-icon">
-                  <Search size={32} />
+              <td colSpan={10} className="px-4 py-20 text-center">
+                <div className="flex flex-col items-center gap-3 text-muted-foreground">
+                  <Search size={32} className="opacity-20" />
+                  <p className="text-sm">No coins found matching criteria</p>
                 </div>
-                <div className="empty-text">No coins found matching criteria</div>
               </td>
             </tr>
           ) : (
             coins.map((coin) => {
               const isFav = favorites.includes(coin.symbol);
               return (
-                <tr key={coin.symbol} className="row-data">
-                  <td className="col-star">
-                    <Star size={14} className={`star-icon ${isFav ? "active" : ""}`} onClick={() => toggleFavorite(coin.symbol)} />
+                <tr key={coin.symbol} className="group hover:bg-muted transition-colors cursor-pointer">
+                  <td className="pl-4 pr-0 py-4 text-center">
+                    <Star
+                      size={14}
+                      className={cn("cursor-pointer transition-all", isFav ? "text-[#f59e0b] fill-[#f59e0b]" : "text-muted-foreground hover:text-[#f59e0b]")}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        toggleFavorite(coin.symbol);
+                      }}
+                    />
                   </td>
-                  <td className="col-rank">{coin.rank}</td>
-                  <td className="col-name">
-                    <Link href={`/chart/${coin.symbol.replace("/", "-")}`} className="coin-link">
-                      <div className="coin-avatar">{coin.name.slice(0, 1)}</div>
-                      <span className="coin-symbol">{coin.symbol}</span>
+                  <td className="px-4 py-4 text-[13px] text-muted-foreground font-mono text-center">{coin.rank}</td>
+                  <td className="px-4 py-4">
+                    <Link href={`/chart/${coin.symbol.replace("/", "-")}`} className="flex items-center gap-3 no-underline text-inherit hover:no-underline">
+                      <div className="w-7 h-7 rounded-full bg-primary text-white flex items-center justify-center text-[10px] font-extrabold shrink-0">{coin.name.slice(0, 1)}</div>
+                      <span className="font-bold text-[14px] text-foreground tracking-tight">{coin.symbol}</span>
                     </Link>
                   </td>
 
-                  <td className="col-price">
-                    <span className="price">${formatPrice(coin.price)}</span>
+                  <td className="px-4 py-4 text-right">
+                    <span className="font-mono font-semibold text-[13px] text-foreground tracking-tight">${formatPrice(coin.price)}</span>
                   </td>
-                  <td className="col-change">
-                    <div className={`change-badge ${(coin.change_24h ?? 0) >= 0 ? "positive" : "negative"}`}>{coin.change_24h !== null ? `${coin.change_24h >= 0 ? "+" : ""}${coin.change_24h.toFixed(2)}%` : "—"}</div>
+                  <td className="px-4 py-4 text-right">
+                    <div className={cn("inline-flex items-center justify-center px-2 py-1 rounded-md text-[12px] font-bold min-w-[70px] font-mono", (coin.change_24h ?? 0) >= 0 ? "bg-success/15 text-success" : "bg-danger/15 text-danger")}>
+                      {coin.change_24h !== null ? `${coin.change_24h >= 0 ? "+" : ""}${coin.change_24h.toFixed(2)}%` : "—"}
+                    </div>
                   </td>
-                  <td className="col-vol">{formatVolume(coin.volume_24h)}</td>
-                  <td className="col-market font-mono font-bold">{formatVolume(coin.market_cap)}</td>
-                  <td className="col-trend">
-                    <Sparkline data={Array.from({ length: 12 }, () => 40 + Math.random() * 20 + (coin.change_24h || 0))} width={80} height={24} />
+                  <td className="px-4 py-4 text-right font-mono text-[13px] text-foreground tracking-tight">{formatVolume(coin.volume_24h)}</td>
+                  <td className="px-4 py-4 text-right font-mono font-bold text-[13px] text-foreground tracking-tight">{formatVolume(coin.market_cap)}</td>
+                  <td className="px-4 py-4 text-center">
+                    <div className="inline-block">
+                      <Sparkline data={Array.from({ length: 12 }, () => 40 + Math.random() * 20 + (coin.change_24h || 0))} width={80} height={24} />
+                    </div>
                   </td>
-                  <td className="col-high text-muted">${formatPrice(coin.high_24h || 0)}</td>
-                  <td className="col-low text-muted">${formatPrice(coin.low_24h || 0)}</td>
+                  <td className="px-4 py-4 text-right text-muted-foreground text-[13px] font-mono">${formatPrice(coin.high_24h || 0)}</td>
+                  <td className="px-4 py-4 text-right text-muted-foreground text-[13px] font-mono">${formatPrice(coin.low_24h || 0)}</td>
                 </tr>
               );
             })
           )}
         </tbody>
       </table>
-
-      <style jsx>{`
-        .table-container {
-          background: var(--bg-secondary);
-          border: 1px solid var(--border-color);
-          border-radius: 12px;
-          overflow: hidden;
-          box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
-        }
-
-        .table-header-controls {
-          padding: 16px;
-          border-bottom: 1px solid var(--border-color);
-          display: flex;
-          justify-content: space-between;
-          align-items: center;
-          background: var(--bg-secondary);
-        }
-
-        .tabs {
-          display: flex;
-          gap: 24px;
-        }
-        .tab {
-          background: none;
-          border: none;
-          font-size: 14px;
-          font-weight: 600;
-          color: var(--text-muted);
-          cursor: pointer;
-          padding-bottom: 4px;
-          border-bottom: 2px solid transparent;
-        }
-        .tab.active {
-          color: var(--text-primary);
-          border-bottom-color: var(--accent-primary);
-        }
-
-        .table-actions {
-          display: flex;
-          gap: 12px;
-        }
-        .action-btn {
-          padding: 6px 12px;
-          background: var(--bg-tertiary);
-          border: 1px solid var(--border-color);
-          border-radius: 6px;
-          font-size: 12px;
-          font-weight: 500;
-          color: var(--text-secondary);
-          cursor: pointer;
-        }
-
-        .table {
-          width: 100%;
-          border-collapse: collapse;
-        }
-
-        /* Header */
-        thead tr {
-          background: var(--bg-tertiary);
-        }
-        th {
-          padding: 12px 16px;
-          font-size: 11px;
-          font-weight: 600;
-          color: var(--text-muted);
-          text-transform: uppercase;
-          border-bottom: 1px solid var(--border-color);
-          white-space: nowrap;
-        }
-
-        .th-content {
-          display: flex;
-          align-items: center;
-          gap: 6px;
-        }
-        .th-content.right {
-          justify-content: flex-end;
-        }
-
-        th.sortable {
-          cursor: pointer;
-          user-select: none;
-        }
-        th.sortable:hover {
-          color: var(--text-primary);
-        }
-
-        .sort-icon {
-          opacity: 0.3;
-          transition: opacity 0.2s;
-        }
-        .sort-icon.active {
-          opacity: 1;
-          color: var(--accent-primary);
-        }
-
-        /* Rows */
-        /* Rows */
-        .row-data {
-          transition: background 0.15s;
-          cursor: pointer;
-        }
-        .row-data:hover {
-          background: var(--bg-tertiary);
-        }
-        td {
-          padding: 14px 16px;
-          border-bottom: 1px solid var(--border-color);
-          vertical-align: middle;
-          text-align: right;
-          font-size: 13px;
-          color: var(--text-primary);
-        }
-
-        /* Specific Column Alignments */
-        .col-star,
-        .col-rank,
-        .col-name {
-          text-align: left;
-        }
-
-        .col-trend {
-          text-align: center;
-          width: 100px;
-        }
-
-        /* Columns */
-        .col-star {
-          width: 32px;
-          padding-right: 0;
-          text-align: center;
-        }
-        .col-rank {
-          color: var(--text-muted);
-          font-family: monospace;
-          width: 40px;
-          text-align: center;
-        }
-
-        :global(.star-icon) {
-          margin-right: 8px;
-          cursor: pointer;
-          color: var(--text-muted);
-          transition: color 0.2s;
-        }
-        :global(.star-icon:hover) {
-          color: var(--warning);
-        }
-        :global(.star-icon.active) {
-          color: #f59e0b; /* Amber-500 */
-          fill: #f59e0b;
-        }
-
-        .coin-link {
-          display: flex;
-          flex-direction: row;
-          align-items: center;
-          gap: 12px;
-          text-decoration: none !important;
-          color: inherit !important;
-          white-space: nowrap;
-          justify-content: flex-start;
-          width: 100%;
-        }
-        .coin-link:hover,
-        .coin-link:visited,
-        .coin-link:active {
-          text-decoration: none !important;
-          color: inherit !important;
-        }
-
-        .coin-avatar {
-          width: 28px;
-          height: 28px;
-          border-radius: 50%;
-          background: var(--accent-primary);
-          color: white;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          font-size: 10px;
-          font-weight: 800;
-          flex-shrink: 0;
-        }
-
-        .coin-symbol {
-          font-weight: 700;
-          font-size: 14px;
-          color: var(--text-primary);
-        }
-
-        /* Legacy .coin-info-row removed */
-
-        /* Legacy .coin-symbol removed or repurposed */
-        .col-price {
-          font-family: "SF Mono", monospace;
-          font-weight: 600;
-        }
-
-        .change-badge {
-          display: inline-block;
-          padding: 4px 8px;
-          border-radius: 4px;
-          font-family: "SF Mono", monospace;
-          font-weight: 600;
-          min-width: 70px;
-          text-align: center;
-        }
-        .change-badge.positive {
-          background: rgba(16, 185, 129, 0.15);
-          color: var(--success);
-        }
-        .change-badge.negative {
-          background: rgba(239, 68, 68, 0.15);
-          color: var(--danger);
-        }
-
-        .col-vol {
-          font-family: "SF Mono", monospace;
-        }
-        .text-muted {
-          color: var(--text-muted);
-        }
-
-        /* Loading */
-        .skeleton {
-          background: var(--bg-tertiary);
-          border-radius: 4px;
-          height: 14px;
-          animation: shimmer 1.5s infinite;
-        }
-        .skeleton-avatar {
-          width: 28px;
-          height: 28px;
-          border-radius: 50%;
-        }
-        .skeleton-text {
-          width: 80px;
-        }
-        .skeleton-badge {
-          width: 60px;
-          height: 24px;
-          margin-left: auto;
-        }
-
-        @keyframes shimmer {
-          0% {
-            opacity: 0.5;
-          }
-          50% {
-            opacity: 0.8;
-          }
-          100% {
-            opacity: 0.5;
-          }
-        }
-      `}</style>
     </div>
   );
 }

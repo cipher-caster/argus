@@ -51,16 +51,14 @@ function CandlestickChartComponent({
 }: CandlestickChartProps) {
   const mainContainerRef = useRef<HTMLDivElement>(null);
   const paneRefs = useRef<Map<string, HTMLDivElement>>(new Map());
-
   const mainChartRef = useRef<IChartApi | null>(null);
-  const paneChartRefs = useRef<Map<string, IChartApi>>(new Map());
-
   const mainSeriesRef = useRef<ISeriesApi<"Candlestick"> | null>(null);
   const overlaySeriesRef = useRef<Map<string, ISeriesApi<"Line">[]>>(new Map());
+  const paneChartRefs = useRef<Map<string, IChartApi>>(new Map());
   const paneSeriesRef = useRef<Map<string, ISeriesApi<"Line" | "Histogram">[]>>(new Map());
-
   const theme = useThemeStore((s) => s.theme);
-  const { colors: chartColors } = useChartSettingsStore();
+  const currentTheme = themes[theme];
+  const chartColors = useChartSettingsStore((s) => s.colors);
 
   const [isIndicatorModalOpen, setIsIndicatorModalOpen] = useState(false);
   const [editingIndicator, setEditingIndicator] = useState<IndicatorConfig | null>(null);
@@ -95,8 +93,6 @@ function CandlestickChartComponent({
       }
     };
   }, [scrollToLatestRef]);
-
-  const currentTheme = themes[theme];
 
   // Helper to create chart options
   const getChartOptions = (width: number, height: number) => ({
@@ -457,7 +453,7 @@ function CandlestickChartComponent({
   const visiblePaneConfigs = indicatorConfigs.filter((i) => i.visible && i.indicatorType === "pane");
 
   return (
-    <div className="chart-wrapper">
+    <div className="w-full h-full flex flex-col bg-card rounded-xl overflow-hidden border border-border shadow-inner">
       <ChartHeader
         symbol={symbol}
         price={price}
@@ -479,7 +475,7 @@ function CandlestickChartComponent({
       />
 
       {/* Main Chart */}
-      <div ref={mainContainerRef} className="chart-container main-chart" />
+      <div ref={mainContainerRef} className="flex-1 min-h-[200px] w-full" />
 
       {/* Pane Indicators */}
       {visiblePaneConfigs.map((config) => (
@@ -494,28 +490,6 @@ function CandlestickChartComponent({
       ))}
 
       <IndicatorModal isOpen={isIndicatorModalOpen} onClose={() => setIsIndicatorModalOpen(false)} editingIndicator={editingIndicator} />
-
-      <style jsx>{`
-        .chart-wrapper {
-          width: 100%;
-          height: 100%;
-          display: flex;
-          flex-direction: column;
-          background: var(--chart-bg);
-          border-radius: 12px;
-          overflow: hidden;
-          border: 1px solid var(--border-color);
-        }
-
-        .chart-container {
-          width: 100%;
-        }
-
-        .main-chart {
-          flex: 1;
-          min-height: 200px;
-        }
-      `}</style>
     </div>
   );
 }

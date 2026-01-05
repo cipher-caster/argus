@@ -1,5 +1,6 @@
 "use client";
 
+import { cn } from "@/lib/utils";
 import { TrendingDown, TrendingUp } from "lucide-react";
 import { useEffect, useState } from "react";
 
@@ -14,6 +15,14 @@ interface TickerDetails {
   volume_24h: number;
   high_24h: number;
   low_24h: number;
+}
+
+function formatVolume(volume: number): string {
+  if (!volume) return "—";
+  if (volume >= 1_000_000_000) return `$${(volume / 1_000_000_000).toFixed(2)}B`;
+  if (volume >= 1_000_000) return `$${(volume / 1_000_000).toFixed(2)}M`;
+  if (volume >= 1_000) return `$${(volume / 1_000).toFixed(2)}K`;
+  return `$${volume.toFixed(2)}`;
 }
 
 export function CoinDetailsPanel({ symbol }: CoinDetailsPanelProps) {
@@ -47,18 +56,16 @@ export function CoinDetailsPanel({ symbol }: CoinDetailsPanelProps) {
 
   if (loading && !details) {
     return (
-      <div className="coin-details-panel">
-        <div className="loading-skeleton">Loading...</div>
-        <style jsx>{styles}</style>
+      <div className="p-4 flex flex-col gap-4 border-t border-border bg-secondary shrink-0 overflow-y-auto">
+        <div className="p-6 text-center text-muted-foreground text-[12px]">Loading...</div>
       </div>
     );
   }
 
   if (!details) {
     return (
-      <div className="coin-details-panel">
-        <div className="no-data">No data available</div>
-        <style jsx>{styles}</style>
+      <div className="p-4 flex flex-col gap-4 border-t border-border bg-secondary shrink-0 overflow-y-auto">
+        <div className="p-6 text-center text-muted-foreground text-[12px]">No data available</div>
       </div>
     );
   }
@@ -68,17 +75,17 @@ export function CoinDetailsPanel({ symbol }: CoinDetailsPanelProps) {
   const currentPosition = priceRange > 0 ? ((details.price - details.low_24h) / priceRange) * 100 : 50;
 
   return (
-    <div className="coin-details-panel">
+    <div className="p-4 flex flex-col gap-4 border-t border-border bg-secondary shrink-0 overflow-y-auto scrollbar-thin scrollbar-thumb-muted">
       {/* Header */}
-      <div className="details-header">
-        <div className="coin-symbol">{symbol.replace("/USDT", "")}</div>
-        <div className="coin-pair">{symbol}</div>
+      <div className="flex items-baseline gap-2">
+        <div className="text-[18px] font-bold text-foreground">{symbol.replace("/USDT", "")}</div>
+        <div className="text-[12px] text-muted-foreground font-medium">{symbol}</div>
       </div>
 
       {/* Price */}
-      <div className="price-section">
-        <div className="current-price">${details.price?.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 6 })}</div>
-        <div className={`price-change ${isPositive ? "positive" : "negative"}`}>
+      <div className="flex items-baseline gap-3">
+        <div className="text-[24px] font-extrabold text-foreground tracking-tighter">${details.price?.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 6 })}</div>
+        <div className={cn("flex items-center gap-1 text-[14px] font-bold px-2 py-1 rounded-md", isPositive ? "text-success bg-success/15" : "text-danger bg-danger/15")}>
           {isPositive ? <TrendingUp size={14} /> : <TrendingDown size={14} />}
           <span>
             {isPositive ? "+" : ""}
@@ -88,241 +95,48 @@ export function CoinDetailsPanel({ symbol }: CoinDetailsPanelProps) {
       </div>
 
       {/* Key Stats */}
-      <div className="stats-section">
-        <div className="section-title">Key Stats (24H)</div>
+      <div className="flex flex-col gap-2">
+        <div className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider mb-1">Key Stats (24H)</div>
 
-        <div className="stat-row">
-          <span className="stat-label">Volume</span>
-          <span className="stat-value">{formatVolume(details.volume_24h)}</span>
-        </div>
-
-        <div className="stat-row">
-          <span className="stat-label">High</span>
-          <span className="stat-value">${details.high_24h?.toLocaleString(undefined, { maximumFractionDigits: 6 })}</span>
-        </div>
-
-        <div className="stat-row">
-          <span className="stat-label">Low</span>
-          <span className="stat-value">${details.low_24h?.toLocaleString(undefined, { maximumFractionDigits: 6 })}</span>
-        </div>
-
-        <div className="stat-row">
-          <span className="stat-label">Range</span>
-          <span className="stat-value">${priceRange.toLocaleString(undefined, { maximumFractionDigits: 6 })}</span>
-        </div>
+        {[
+          { label: "Volume", value: formatVolume(details.volume_24h) },
+          { label: "High", value: `$${details.high_24h?.toLocaleString(undefined, { maximumFractionDigits: 6 })}` },
+          { label: "Low", value: `$${details.low_24h?.toLocaleString(undefined, { maximumFractionDigits: 6 })}` },
+          { label: "Range", value: `$${priceRange.toLocaleString(undefined, { maximumFractionDigits: 6 })}` },
+        ].map((stat) => (
+          <div key={stat.label} className="flex justify-between items-center py-0.5">
+            <span className="text-[13px] text-muted-foreground font-medium">{stat.label}</span>
+            <span className="text-[13px] font-bold text-foreground font-mono">{stat.value}</span>
+          </div>
+        ))}
       </div>
 
       {/* Price Position Bar */}
-      <div className="range-section">
-        <div className="section-title">24H Price Position</div>
-        <div className="range-bar">
-          <div className="range-fill" style={{ width: `${currentPosition}%` }}></div>
-          <div className="range-indicator" style={{ left: `${currentPosition}%` }}></div>
+      <div className="flex flex-col gap-2 mt-1">
+        <div className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider mb-1">24H Price Position</div>
+        <div className="h-1.5 w-full bg-muted rounded-full relative overflow-visible">
+          <div className="h-full bg-gradient-to-r from-danger to-success rounded-full" />
+          <div className="absolute top-1/2 w-3 h-3 bg-foreground border-2 border-secondary rounded-full -translate-y-1/2 -translate-x-1/2 transition-all duration-500 shadow-sm" style={{ left: `${currentPosition}%` }} />
         </div>
-        <div className="range-labels">
-          <span className="range-low">${details.low_24h?.toLocaleString(undefined, { maximumFractionDigits: 2 })}</span>
-          <span className="range-high">${details.high_24h?.toLocaleString(undefined, { maximumFractionDigits: 2 })}</span>
+        <div className="flex justify-between text-[11px] font-bold text-muted-foreground font-mono">
+          <span>${details.low_24h?.toLocaleString(undefined, { maximumFractionDigits: 2 })}</span>
+          <span>${details.high_24h?.toLocaleString(undefined, { maximumFractionDigits: 2 })}</span>
         </div>
       </div>
 
       {/* Performance */}
-      <div className="performance-section">
-        <div className="section-title">Performance</div>
-        <div className="performance-grid">
-          <div className={`perf-box ${isPositive ? "positive" : "negative"}`}>
-            <div className="perf-value">
+      <div className="flex flex-col gap-2 mt-1">
+        <div className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider mb-1">Performance</div>
+        <div className="grid grid-cols-1 gap-2">
+          <div className={cn("p-3 rounded-xl text-center border transition-all", isPositive ? "bg-success/5 border-success/20" : "bg-danger/5 border-danger/20")}>
+            <div className={cn("text-[16px] font-extrabold font-mono", isPositive ? "text-success" : "text-danger")}>
               {isPositive ? "+" : ""}
               {details.change_24h?.toFixed(2)}%
             </div>
-            <div className="perf-label">24H</div>
+            <div className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest mt-0.5">24 Hour Change</div>
           </div>
         </div>
       </div>
-
-      <style jsx>{styles}</style>
     </div>
   );
 }
-
-function formatVolume(volume: number): string {
-  if (!volume) return "—";
-  if (volume >= 1_000_000_000) return `$${(volume / 1_000_000_000).toFixed(2)}B`;
-  if (volume >= 1_000_000) return `$${(volume / 1_000_000).toFixed(2)}M`;
-  if (volume >= 1_000) return `$${(volume / 1_000).toFixed(2)}K`;
-  return `$${volume.toFixed(2)}`;
-}
-
-const styles = `
-  .coin-details-panel {
-    padding: 16px;
-    display: flex;
-    flex-direction: column;
-    gap: 16px;
-    border-top: 1px solid var(--border-color);
-    background: var(--bg-secondary);
-    overflow-y: auto;
-    flex-shrink: 0;
-  }
-
-  .loading-skeleton,
-  .no-data {
-    padding: 24px;
-    text-align: center;
-    color: var(--text-muted);
-    font-size: 12px;
-  }
-
-  .details-header {
-    display: flex;
-    align-items: baseline;
-    gap: 8px;
-  }
-
-  .coin-symbol {
-    font-size: 18px;
-    font-weight: 700;
-    color: var(--text-primary);
-  }
-
-  .coin-pair {
-    font-size: 12px;
-    color: var(--text-muted);
-  }
-
-  .price-section {
-    display: flex;
-    align-items: baseline;
-    gap: 12px;
-  }
-
-  .current-price {
-    font-size: 24px;
-    font-weight: 700;
-    color: var(--text-primary);
-  }
-
-  .price-change {
-    display: flex;
-    align-items: center;
-    gap: 4px;
-    font-size: 14px;
-    font-weight: 600;
-    padding: 4px 8px;
-    border-radius: 6px;
-  }
-
-  .price-change.positive {
-    color: var(--positive);
-    background: rgba(34, 197, 94, 0.1);
-  }
-
-  .price-change.negative {
-    color: var(--negative);
-    background: rgba(239, 68, 68, 0.1);
-  }
-
-  .stats-section,
-  .range-section,
-  .performance-section {
-    display: flex;
-    flex-direction: column;
-    gap: 8px;
-  }
-
-  .section-title {
-    font-size: 11px;
-    font-weight: 600;
-    color: var(--text-muted);
-    text-transform: uppercase;
-    letter-spacing: 0.5px;
-    margin-bottom: 4px;
-  }
-
-  .stat-row {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-  }
-
-  .stat-label {
-    font-size: 13px;
-    color: var(--text-secondary);
-  }
-
-  .stat-value {
-    font-size: 13px;
-    font-weight: 600;
-    color: var(--text-primary);
-  }
-
-  .range-bar {
-    height: 6px;
-    background: var(--bg-tertiary);
-    border-radius: 3px;
-    position: relative;
-    overflow: hidden;
-  }
-
-  .range-fill {
-    height: 100%;
-    background: linear-gradient(90deg, var(--negative), var(--positive));
-    border-radius: 3px;
-  }
-
-  .range-indicator {
-    position: absolute;
-    top: 50%;
-    width: 12px;
-    height: 12px;
-    background: var(--text-primary);
-    border: 2px solid var(--bg-secondary);
-    border-radius: 50%;
-    transform: translate(-50%, -50%);
-  }
-
-  .range-labels {
-    display: flex;
-    justify-content: space-between;
-    font-size: 11px;
-    color: var(--text-muted);
-  }
-
-  .performance-grid {
-    display: grid;
-    grid-template-columns: repeat(3, 1fr);
-    gap: 8px;
-  }
-
-  .perf-box {
-    padding: 12px;
-    border-radius: 8px;
-    text-align: center;
-  }
-
-  .perf-box.positive {
-    background: rgba(34, 197, 94, 0.1);
-  }
-
-  .perf-box.negative {
-    background: rgba(239, 68, 68, 0.1);
-  }
-
-  .perf-value {
-    font-size: 14px;
-    font-weight: 700;
-  }
-
-  .perf-box.positive .perf-value {
-    color: var(--positive);
-  }
-
-  .perf-box.negative .perf-value {
-    color: var(--negative);
-  }
-
-  .perf-label {
-    font-size: 11px;
-    color: var(--text-muted);
-    margin-top: 4px;
-  }
-`;

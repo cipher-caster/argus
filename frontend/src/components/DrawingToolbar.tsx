@@ -9,35 +9,18 @@ interface DrawingToolbarProps {
 
 export function DrawingToolbar({ onScrollToLatest }: DrawingToolbarProps) {
   return (
-    <div className="drawing-toolbar">
+    <div className="flex flex-col gap-0.5 py-2 px-1 bg-secondary border-r border-border h-full">
       {/* Cursor - always active */}
       <IconButton active tooltip="Cursor">
         <MousePointer2 size={18} />
       </IconButton>
 
-      <div className="toolbar-divider" />
+      <div className="h-px mx-1 my-2 bg-border" />
 
       {/* Scroll to latest candle */}
       <IconButton tooltip="Go to Latest" onClick={onScrollToLatest}>
         <RefreshCw size={18} />
       </IconButton>
-
-      <style jsx>{`
-        .drawing-toolbar {
-          display: flex;
-          flex-direction: column;
-          gap: 2px;
-          padding: 8px 4px;
-          background: var(--bg-secondary);
-          border-right: 1px solid var(--border-color);
-          height: 100%;
-        }
-        .toolbar-divider {
-          height: 1px;
-          margin: 8px 4px;
-          background: var(--border-color);
-        }
-      `}</style>
     </div>
   );
 }

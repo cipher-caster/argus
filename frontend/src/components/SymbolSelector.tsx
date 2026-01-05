@@ -17,9 +17,15 @@ interface SymbolSelectorProps {
 // Popular coins to show at top
 const FAVORITES = ["BTC", "ETH", "SOL", "XRP", "BNB", "ADA", "DOGE", "AVAX", "DOT", "LINK"];
 
+import { cn } from "@/lib/utils";
+import { ChevronDown, Search } from "lucide-react";
+
 function SymbolSelectorComponent({ symbols, selected, onChange, isLoading }: SymbolSelectorProps) {
   const [search, setSearch] = useState("");
   const [isOpen, setIsOpen] = useState(false);
+
+  // Close on click outside would be good, but let's stick to the structure for now
+  // or wrap in a generic dropdown if possible. For now, let's just tailwind-ify.
 
   const filteredSymbols = useMemo(() => {
     if (!symbols.length) return [];
@@ -42,146 +48,51 @@ function SymbolSelectorComponent({ symbols, selected, onChange, isLoading }: Sym
   const selectedSymbol = symbols.find((s) => s.symbol === selected);
 
   return (
-    <div className="symbol-selector">
-      <button className="selector-trigger" onClick={() => setIsOpen(!isOpen)}>
-        <span className="selected-symbol">{selectedSymbol?.base || "BTC"}/USDT</span>
-        <svg className={`chevron ${isOpen ? "open" : ""}`} viewBox="0 0 24 24" fill="none" stroke="currentColor">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-        </svg>
+    <div className="relative">
+      <button className={cn("flex items-center gap-3 px-4 py-2.5 bg-secondary border border-border rounded-xl transition-all duration-200", "hover:border-primary/50 hover:shadow-lg active:scale-95")} onClick={() => setIsOpen(!isOpen)}>
+        <span className="text-sm font-bold tracking-tight">{selectedSymbol?.base || "BTC"}/USDT</span>
+        <ChevronDown size={16} className={cn("text-muted-foreground transition-transform duration-200", isOpen ? "rotate-180" : "rotate-0")} />
       </button>
 
       {isOpen && (
-        <div className="dropdown">
-          <input type="text" className="search-input" placeholder="Search coins..." value={search} onChange={(e) => setSearch(e.target.value)} autoFocus />
+        <div className="absolute top-[calc(100%+8px)] left-0 w-[280px] bg-card border border-border rounded-2xl shadow-2xl overflow-hidden z-50 animate-in fade-in zoom-in-95 duration-200">
+          <div className="relative">
+            <Search size={14} className="absolute left-4 top-1/2 -translate-y-1/2 text-muted-foreground" />
+            <input
+              type="text"
+              className="w-full pl-10 pr-4 py-3 bg-muted/30 border-b border-border text-sm outline-none focus:bg-muted/50 transition-colors"
+              placeholder="Search coins..."
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              autoFocus
+            />
+          </div>
 
-          <div className="symbol-list">
+          <div className="max-height-[400px] overflow-y-auto py-1">
             {isLoading ? (
-              <div className="loading">Loading symbols...</div>
+              <div className="p-8 text-center text-sm text-muted-foreground italic flex flex-col items-center gap-2">
+                <div className="w-5 h-5 border-2 border-primary/30 border-t-primary rounded-full animate-spin" />
+                Loading symbols...
+              </div>
             ) : (
               filteredSymbols.slice(0, 50).map((s) => (
                 <button
                   key={s.symbol}
-                  className={`symbol-item ${s.symbol === selected ? "active" : ""}`}
+                  className={cn("flex items-center w-full px-4 py-2.5 text-sm transition-all text-left", s.symbol === selected ? "bg-primary/10 border-l-[3px] border-primary" : "bg-transparent hover:bg-muted/50 border-l-[3px] border-transparent")}
                   onClick={() => {
                     onChange(s.symbol);
                     setIsOpen(false);
                     setSearch("");
                   }}
                 >
-                  <span className="symbol-base">{s.base}</span>
-                  <span className="symbol-quote">/{s.quote}</span>
+                  <span className="font-bold">{s.base}</span>
+                  <span className="text-muted-foreground">/{s.quote}</span>
                 </button>
               ))
             )}
           </div>
         </div>
       )}
-
-      <style jsx>{`
-        .symbol-selector {
-          position: relative;
-        }
-
-        .selector-trigger {
-          display: flex;
-          align-items: center;
-          gap: 8px;
-          padding: 10px 16px;
-          background: #12121a;
-          border: 1px solid #1a1a2e;
-          border-radius: 8px;
-          color: #ffffff;
-          font-size: 15px;
-          font-weight: 600;
-          cursor: pointer;
-          transition: all 0.2s ease;
-        }
-
-        .selector-trigger:hover {
-          border-color: #6366f1;
-        }
-
-        .chevron {
-          width: 16px;
-          height: 16px;
-          color: #a0a0b0;
-          transition: transform 0.2s ease;
-        }
-
-        .chevron.open {
-          transform: rotate(180deg);
-        }
-
-        .dropdown {
-          position: absolute;
-          top: calc(100% + 8px);
-          left: 0;
-          width: 240px;
-          background: #12121a;
-          border: 1px solid #1a1a2e;
-          border-radius: 12px;
-          overflow: hidden;
-          box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
-          z-index: 100;
-        }
-
-        .search-input {
-          width: 100%;
-          padding: 12px 16px;
-          background: #0a0a0f;
-          border: none;
-          border-bottom: 1px solid #1a1a2e;
-          color: #ffffff;
-          font-size: 14px;
-          outline: none;
-        }
-
-        .search-input::placeholder {
-          color: #606070;
-        }
-
-        .symbol-list {
-          max-height: 300px;
-          overflow-y: auto;
-        }
-
-        .symbol-item {
-          display: flex;
-          align-items: center;
-          width: 100%;
-          padding: 12px 16px;
-          background: transparent;
-          border: none;
-          color: #ffffff;
-          font-size: 14px;
-          cursor: pointer;
-          transition: background 0.15s ease;
-          text-align: left;
-        }
-
-        .symbol-item:hover {
-          background: #1a1a2e;
-        }
-
-        .symbol-item.active {
-          background: linear-gradient(90deg, rgba(99, 102, 241, 0.2) 0%, transparent 100%);
-          border-left: 3px solid #6366f1;
-        }
-
-        .symbol-base {
-          font-weight: 600;
-        }
-
-        .symbol-quote {
-          color: #606070;
-        }
-
-        .loading {
-          padding: 20px;
-          text-align: center;
-          color: #606070;
-        }
-      `}</style>
     </div>
   );
 }

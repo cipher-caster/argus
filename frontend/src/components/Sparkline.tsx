@@ -34,7 +34,7 @@ export function Sparkline({ data, width = 100, height = 30, color }: SparklinePr
   const trendColor = useMemo(() => {
     if (color) return color;
     if (!data || data.length < 2) return "var(--text-muted)";
-    return data[data.length - 1] >= data[0] ? "var(--success)" : "var(--danger)";
+    return data[data.length - 1] >= data[0] ? "hsl(var(--success))" : "hsl(var(--danger))";
   }, [data, color]);
 
   if (!data || data.length < 2) {

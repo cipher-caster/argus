@@ -105,10 +105,11 @@ const TOOLS: ToolDefinition[] = [
   },
 ];
 
+import { cn } from "@/lib/utils";
+
 function DrawingToolbarComponent() {
   const activeTool = useDrawingStore((s) => s.activeTool);
   const setActiveTool = useDrawingStore((s) => s.setActiveTool);
-  const clearAllDrawings = useDrawingStore((s) => s.clearAllDrawings);
   const selectedDrawingId = useDrawingStore((s) => s.selectedDrawingId);
   const deleteSelected = useDrawingStore((s) => s.deleteSelected);
 
@@ -117,81 +118,42 @@ function DrawingToolbarComponent() {
   };
 
   return (
-    <div className="drawing-toolbar">
+    <div className="flex flex-col gap-1 p-2 bg-secondary border border-border rounded-xl shadow-sm h-full overflow-y-auto w-12 items-center">
       {/* Tool Buttons */}
       {TOOLS.map((tool) => (
-        <button key={tool.type} className={`toolbar-btn ${activeTool === tool.type ? "active" : ""}`} onClick={() => handleToolClick(tool.type)} title={tool.label}>
-          {tool.icon}
+        <button
+          key={tool.type}
+          className={cn(
+            "flex items-center justify-center w-9 h-9 rounded-lg transition-all duration-200",
+            "text-muted-foreground hover:bg-muted hover:text-foreground active:scale-95 group",
+            activeTool === tool.type ? "bg-primary/20 text-primary shadow-inner" : "bg-transparent"
+          )}
+          onClick={() => handleToolClick(tool.type)}
+          title={tool.label}
+        >
+          <span className={cn("w-5 h-5", activeTool === tool.type ? "text-primary" : "text-muted-foreground group-hover:text-foreground")}>{tool.icon}</span>
         </button>
       ))}
 
-      <div className="toolbar-divider" />
+      <div className="w-full h-px bg-border my-1" />
 
       {/* Delete Selected */}
-      <button className="toolbar-btn delete-btn" onClick={deleteSelected} disabled={!selectedDrawingId} title="Delete Selected (Del)">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
+      <button
+        className={cn(
+          "flex items-center justify-center w-9 h-9 rounded-lg transition-all duration-200",
+          "text-muted-foreground hover:bg-destructive/10 hover:text-destructive active:scale-95 disabled:opacity-20 disabled:cursor-not-allowed",
+          "bg-transparent"
+        )}
+        onClick={deleteSelected}
+        disabled={!selectedDrawingId}
+        title="Delete Selected (Del)"
+      >
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} className="w-5 h-5">
           <path d="M3 6h18M8 6V4a1 1 0 011-1h6a1 1 0 011 1v2M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6" />
           <line x1="10" y1="11" x2="10" y2="17" />
           <line x1="14" y1="11" x2="14" y2="17" />
         </svg>
       </button>
-
-      <style jsx>{`
-        .drawing-toolbar {
-          display: flex;
-          flex-direction: column;
-          gap: 4px;
-          padding: 8px;
-          background: #12121a;
-          border-radius: 10px;
-          border: 1px solid #1a1a2e;
-        }
-
-        .toolbar-btn {
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          width: 36px;
-          height: 36px;
-          background: transparent;
-          border: none;
-          border-radius: 6px;
-          color: #606070;
-          cursor: pointer;
-          transition: all 0.15s ease;
-        }
-
-        .toolbar-btn:hover:not(:disabled) {
-          background: #1a1a2e;
-          color: #a0a0b0;
-        }
-
-        .toolbar-btn.active {
-          background: linear-gradient(135deg, rgba(99, 102, 241, 0.3) 0%, rgba(139, 92, 246, 0.3) 100%);
-          color: #a5b4fc;
-        }
-
-        .toolbar-btn:disabled {
-          opacity: 0.3;
-          cursor: not-allowed;
-        }
-
-        .toolbar-btn :global(svg) {
-          width: 18px;
-          height: 18px;
-        }
-
-        .toolbar-divider {
-          height: 1px;
-          background: #1a1a2e;
-          margin: 4px 0;
-        }
-
-        .delete-btn:hover:not(:disabled) {
-          background: rgba(239, 68, 68, 0.2);
-          color: #ef4444;
-        }
-      `}</style>
     </div>
   );
 }

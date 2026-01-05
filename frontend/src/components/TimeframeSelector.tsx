@@ -46,18 +46,22 @@ const ALL_INTERVALS = [
   },
 ];
 
-function TimeframeSelectorComponent({ selected, onChange }: TimeframeSelectorProps) {
-  const [customOpen, setCustomOpen] = useState(false);
+import { cn } from "@/lib/utils";
 
+function TimeframeSelectorComponent({ selected, onChange }: TimeframeSelectorProps) {
   // Check if selected is a favorite
   const isSelectedInFavorites = FAVORITES.some((f) => f.value === selected);
 
   return (
-    <div className="timeframe-wrapper">
+    <div className="flex items-center gap-0.5">
       {/* Quick favorites */}
-      <div className="favorites-list">
+      <div className="flex items-center">
         {FAVORITES.map((tf) => (
-          <button key={tf.value} className={`timeframe-btn ${selected === tf.value ? "active" : ""}`} onClick={() => onChange(tf.value)}>
+          <button
+            key={tf.value}
+            className={cn("h-8 px-2.5 text-[13px] font-bold transition-all duration-200 rounded-md", selected === tf.value ? "text-primary bg-primary/10 shadow-sm" : "text-muted-foreground hover:bg-muted hover:text-foreground")}
+            onClick={() => onChange(tf.value)}
+          >
             {tf.label}
           </button>
         ))}
@@ -66,138 +70,39 @@ function TimeframeSelectorComponent({ selected, onChange }: TimeframeSelectorPro
       {/* Dropdown for others */}
       <Dropdown
         trigger={
-          <button className={`timeframe-btn ${!isSelectedInFavorites ? "active" : ""}`}>
+          <button className={cn("h-8 px-2 flex items-center gap-1 text-[13px] font-bold rounded-md transition-all", !isSelectedInFavorites ? "text-primary bg-primary/10" : "text-muted-foreground hover:bg-muted hover:text-foreground")}>
             <ChevronDown size={14} />
             {!isSelectedInFavorites && <span>{selected}</span>}
           </button>
         }
       >
-        <div className="interval-menu">
+        <div className="w-[220px] bg-card border border-border rounded-xl shadow-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-200 py-1">
           {ALL_INTERVALS.map((group) => (
-            <div key={group.label} className="interval-group">
-              <div className="group-label">{group.label}</div>
+            <div key={group.label} className="py-1">
+              <div className="px-3 py-1 text-[10px] font-extrabold text-muted-foreground uppercase tracking-wider">{group.label}</div>
               {group.items.map((item) => (
-                <DropdownItem key={item.value} active={selected === item.value} onClick={() => onChange(item.value)}>
-                  <span style={{ width: 24, display: "inline-block" }}>{item.value}</span>
-                  {item.label}
+                <DropdownItem key={item.value} active={selected === item.value} onClick={() => onChange(item.value)} className="flex items-center gap-3 px-3 py-2 text-sm font-medium hover:bg-muted cursor-pointer transition-colors">
+                  <span className="w-6 font-bold text-muted-foreground/50">{item.value}</span>
+                  <span className="text-foreground">{item.label}</span>
                 </DropdownItem>
               ))}
             </div>
           ))}
 
-          <div className="custom-interval">
-            <div className="group-label">Custom</div>
-            <div className="custom-input-row">
-              <input type="number" placeholder="1" className="custom-input" min="1" max="59" />
-              <select className="custom-select">
+          <div className="mt-1 border-t border-border pt-2 px-3 pb-2">
+            <div className="text-[10px] font-extrabold text-muted-foreground uppercase tracking-wider mb-2">Custom</div>
+            <div className="flex gap-1.5">
+              <input type="number" placeholder="1" className="w-12 h-8 bg-secondary border border-border rounded-lg px-2 text-xs focus:ring-1 focus:ring-primary/30 outline-none" min="1" max="59" />
+              <select className="flex-1 h-8 bg-secondary border border-border rounded-lg px-1.5 text-xs focus:ring-1 focus:ring-primary/30 outline-none cursor-pointer">
                 <option value="m">min</option>
                 <option value="h">hour</option>
                 <option value="d">day</option>
               </select>
-              <button className="add-btn">Add</button>
+              <button className="h-8 px-3 bg-primary text-primary-foreground text-[11px] font-bold rounded-lg hover:bg-primary/90 transition-all shadow-sm">Add</button>
             </div>
           </div>
         </div>
       </Dropdown>
-
-      <style jsx>{`
-        .timeframe-wrapper {
-          display: flex;
-          align-items: center;
-          gap: 0px;
-        }
-
-        .favorites-list {
-          display: flex;
-          gap: 0px;
-        }
-
-        .timeframe-btn {
-          height: 32px;
-          min-width: 32px;
-          padding: 0 8px;
-          font-size: 14px;
-          font-weight: 500;
-          color: var(--text-muted);
-          background: transparent;
-          border: none;
-          border-radius: 4px;
-          cursor: pointer;
-          transition: all 0.1s;
-          display: flex;
-          justify-content: center;
-          align-items: center;
-          gap: 4px;
-        }
-
-        .timeframe-btn:hover:not(.active) {
-          color: var(--accent-primary);
-          background: var(--bg-tertiary);
-        }
-
-        .timeframe-btn.active {
-          color: var(--accent-primary);
-          font-weight: 700;
-          background: transparent;
-        }
-
-        .interval-menu {
-          width: 200px;
-          max-height: 400px;
-          overflow-y: auto;
-          padding: 4px 0;
-          background: var(--bg-secondary);
-          border-radius: 4px;
-          box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-          border: 1px solid var(--border-color);
-        }
-
-        .interval-group {
-          margin-bottom: 4px;
-        }
-
-        .group-label {
-          padding: 6px 14px 4px;
-          font-size: 11px;
-          color: var(--text-muted);
-          font-weight: 600;
-          text-transform: uppercase;
-        }
-
-        .custom-interval {
-          padding: 8px 12px;
-          border-top: 1px solid var(--border-color);
-        }
-
-        .custom-input-row {
-          display: flex;
-          gap: 4px;
-        }
-
-        .custom-input,
-        .custom-select {
-          background: var(--bg-tertiary);
-          border: 1px solid var(--border-color);
-          color: var(--text-primary);
-          border-radius: 4px;
-          padding: 4px;
-          font-size: 12px;
-        }
-
-        .custom-input {
-          width: 44px;
-        }
-
-        .add-btn {
-          background: var(--accent-primary);
-          color: white;
-          border: none;
-          border-radius: 4px;
-          padding: 2px 12px;
-          font-size: 12px;
-          cursor: pointer;
-        }
-      `}</style>
     </div>
   );
 }

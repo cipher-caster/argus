@@ -1,6 +1,6 @@
 "use client";
 
-import { BarChart2, ChevronDown, Cpu, Globe, Layers, LayoutDashboard, Search, TrendingUp } from "lucide-react";
+import { BarChart2, ChevronDown, LayoutDashboard, Search } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
@@ -11,6 +11,8 @@ interface NavDropdownProps {
   items: { label: string; icon: any; href: string }[];
   active?: boolean;
 }
+
+import { cn } from "@/lib/utils";
 
 function NavDropdown({ label, items, active }: NavDropdownProps) {
   const [isOpen, setIsOpen] = useState(false);
@@ -27,98 +29,25 @@ function NavDropdown({ label, items, active }: NavDropdownProps) {
   }, []);
 
   return (
-    <div className="nav-dropdown" ref={dropdownRef}>
-      <button className={`nav-link ${active ? "active" : ""} ${isOpen ? "open" : ""}`} onClick={() => setIsOpen(!isOpen)}>
+    <div className="relative flex items-center" ref={dropdownRef}>
+      <button
+        className={cn("flex items-center gap-1 px-3 h-9 text-sm font-semibold transition-colors whitespace-nowrap", active ? "text-primary" : "text-muted-foreground hover:text-foreground", isOpen && "text-foreground")}
+        onClick={() => setIsOpen(!isOpen)}
+      >
         <span>{label}</span>
-        <ChevronDown size={14} className={`chevron ${isOpen ? "rotated" : ""}`} />
+        <ChevronDown size={14} className={cn("transition-transform duration-200", isOpen && "rotate-180")} />
       </button>
 
       {isOpen && (
-        <div className="dropdown-menu">
+        <div className="absolute top-full left-0 min-w-[200px] bg-secondary border border-border rounded-xl p-2 shadow-2xl z-[1000] mt-2 animate-in fade-in zoom-in duration-200">
           {items.map((item) => (
-            <Link key={item.label} href={item.href} className="dropdown-item" onClick={() => setIsOpen(false)}>
-              <item.icon size={16} className="item-icon" />
+            <Link key={item.label} href={item.href} className="flex items-center gap-3 p-2.5 rounded-lg text-foreground no-underline text-sm font-medium transition-colors hover:bg-muted" onClick={() => setIsOpen(false)}>
+              <item.icon size={16} className="text-muted-foreground" />
               <span>{item.label}</span>
             </Link>
           ))}
         </div>
       )}
-
-      <style jsx>{`
-        .nav-dropdown {
-          position: relative;
-          display: flex;
-          align-items: center;
-        }
-
-        .nav-link {
-          background: none;
-          border: none;
-          display: flex;
-          align-items: center;
-          gap: 4px;
-          padding: 0 12px;
-          height: 36px;
-          font-size: 14px;
-          font-weight: 600;
-          color: var(--text-secondary);
-          cursor: pointer;
-          transition: color 0.2s;
-          white-space: nowrap;
-        }
-
-        .nav-link:hover,
-        .nav-link.open {
-          color: var(--text-primary);
-        }
-
-        .nav-link.active {
-          color: var(--accent-primary);
-        }
-
-        .chevron {
-          transition: transform 0.2s;
-        }
-
-        .chevron.rotated {
-          transform: rotate(180deg);
-        }
-
-        .dropdown-menu {
-          position: absolute;
-          top: 100%;
-          left: 0;
-          min-width: 200px;
-          background: var(--bg-secondary);
-          border: 1px solid var(--border-color);
-          border-radius: 12px;
-          padding: 8px;
-          box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.4);
-          z-index: 1000;
-          margin-top: 8px;
-        }
-
-        .dropdown-item {
-          display: flex;
-          align-items: center;
-          gap: 12px;
-          padding: 10px 12px;
-          border-radius: 8px;
-          color: var(--text-primary);
-          text-decoration: none;
-          font-size: 14px;
-          font-weight: 500;
-          transition: background 0.2s;
-        }
-
-        .dropdown-item:hover {
-          background: var(--bg-tertiary);
-        }
-
-        .item-icon {
-          color: var(--text-muted);
-        }
-      `}</style>
     </div>
   );
 }
@@ -126,16 +55,6 @@ function NavDropdown({ label, items, active }: NavDropdownProps) {
 export function Navbar() {
   const pathname = usePathname();
   const [search, setSearch] = useState("");
-
-  const cryptoItems = [
-    { label: "By Market Cap", icon: TrendingUp, href: "/" },
-    { label: "Categories", icon: Layers, href: "#" },
-  ];
-
-  const exchangeItems = [
-    { label: "Spot", icon: Globe, href: "#" },
-    { label: "Derivatives", icon: Cpu, href: "#" },
-  ];
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
@@ -147,151 +66,31 @@ export function Navbar() {
   if (pathname?.startsWith("/chart")) return null;
 
   return (
-    <nav className="navbar">
-      <div className="navbar-container">
-        <div className="nav-left">
-          <Link href="/" className="brand">
-            <LayoutDashboard size={24} className="brand-icon" />
-            <span className="brand-name">Argus</span>
+    <nav className="h-14 bg-background border-b border-border sticky top-0 z-[1000]">
+      <div className="max-w-[1440px] mx-auto h-full flex items-center justify-between px-5">
+        <div className="flex items-center gap-8">
+          <Link href="/" className="flex items-center gap-2.5 no-underline">
+            <LayoutDashboard size={24} className="text-primary" />
+            <span className="text-xl font-extrabold text-foreground tracking-tighter">Argus</span>
           </Link>
 
-          <div className="nav-menu">
-            <Link href="#" className="nav-static-link">
+          <div className="hidden lg:flex items-center gap-1">
+            <Link href="#" className="flex items-center gap-1.5 px-3 h-9 text-sm font-semibold text-muted-foreground no-underline rounded-lg transition-all hover:text-foreground hover:bg-muted">
               <BarChart2 size={16} />
               <span>Analytics</span>
             </Link>
           </div>
         </div>
 
-        <div className="nav-right">
-          <form className="search-bar" onSubmit={handleSearch}>
-            <Search size={14} className="search-icon" />
-            <input type="text" placeholder="Search coin..." value={search} onChange={(e) => setSearch(e.target.value)} />
+        <div className="flex items-center gap-4">
+          <form className="flex items-center gap-2 bg-muted border border-border rounded-lg px-3 h-[34px] w-48 transition-all duration-200 focus-within:w-60 focus-within:border-primary focus-within:bg-background" onSubmit={handleSearch}>
+            <Search size={14} className="text-muted-foreground" />
+            <input type="text" placeholder="Search coin..." className="bg-transparent border-none outline-none text-foreground text-[13px] w-full placeholder:text-muted-foreground/50" value={search} onChange={(e) => setSearch(e.target.value)} />
           </form>
-          <div className="divider" />
+          <div className="w-px h-5 bg-border" />
           <ThemeToggle />
         </div>
       </div>
-
-      <style jsx>{`
-        .navbar {
-          height: 56px;
-          background: var(--bg-primary);
-          border-bottom: 1px solid var(--border-color);
-          position: sticky;
-          top: 0;
-          z-index: 1000;
-        }
-
-        .navbar-container {
-          max-width: 1440px;
-          margin: 0 auto;
-          height: 100%;
-          display: flex;
-          align-items: center;
-          justify-content: space-between;
-          padding: 0 20px;
-        }
-
-        .nav-left {
-          display: flex;
-          align-items: center;
-          gap: 32px;
-        }
-
-        .brand {
-          display: flex;
-          align-items: center;
-          gap: 10px;
-          text-decoration: none;
-        }
-
-        .brand-icon {
-          color: var(--accent-primary);
-        }
-
-        .brand-name {
-          font-size: 20px;
-          font-weight: 800;
-          color: var(--text-primary);
-          letter-spacing: -0.5px;
-        }
-
-        .nav-menu {
-          display: flex;
-          align-items: center;
-          gap: 4px;
-        }
-
-        .nav-static-link {
-          display: flex;
-          align-items: center;
-          gap: 6px;
-          padding: 0 12px;
-          height: 36px;
-          font-size: 14px;
-          font-weight: 600;
-          color: var(--text-secondary);
-          text-decoration: none;
-          transition: all 0.2s;
-          border-radius: 8px;
-        }
-
-        .nav-static-link:hover {
-          color: var(--text-primary);
-          background: var(--bg-tertiary);
-        }
-
-        .nav-right {
-          display: flex;
-          align-items: center;
-          gap: 16px;
-        }
-
-        .search-bar {
-          display: flex;
-          align-items: center;
-          gap: 8px;
-          background: var(--bg-tertiary);
-          border: 1px solid var(--border-color);
-          border-radius: 8px;
-          padding: 0 12px;
-          height: 34px;
-          width: 200px;
-          transition: all 0.2s ease;
-        }
-
-        .search-bar:focus-within {
-          border-color: var(--accent-primary);
-          width: 240px;
-          background: var(--bg-secondary);
-        }
-
-        .search-icon {
-          color: var(--text-muted);
-        }
-
-        .search-bar input {
-          background: none;
-          border: none;
-          outline: none;
-          color: var(--text-primary);
-          font-size: 13px;
-          width: 100%;
-        }
-
-        .divider {
-          width: 1px;
-          height: 20px;
-          background: var(--border-color);
-        }
-
-        @media (max-width: 1024px) {
-          .nav-menu {
-            display: none;
-          }
-        }
-      `}</style>
     </nav>
   );
 }

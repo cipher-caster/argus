@@ -7,6 +7,8 @@ interface StatsCardsProps {
   isLoading: boolean;
 }
 
+import { cn } from "@/lib/utils";
+
 function StatsCardsComponent({ coins, isLoading }: StatsCardsProps) {
   // Generate a mock trend for visualization
   const getMockTrend = (trend: number | null) => {
@@ -22,11 +24,9 @@ function StatsCardsComponent({ coins, isLoading }: StatsCardsProps) {
 
   // Calculate stats from available coins
   const totalVolume = coins.reduce((acc, coin) => acc + (coin.volume_24h || 0), 0);
-
-  const topGainer = [...coins].sort((a, b) => (b.change_24h || 0) - (a.change_24h || 0))[0];
-  const topLoser = [...coins].sort((a, b) => (a.change_24h || 0) - (b.change_24h || 0))[0];
-
-  // Find highest volume coin (usually BTC)
+  const sorted = [...coins].sort((a, b) => (b.change_24h || 0) - (a.change_24h || 0));
+  const topGainer = sorted[0];
+  const topLoser = sorted[sorted.length - 1];
   const volLeader = [...coins].sort((a, b) => (b.volume_24h || 0) - (a.volume_24h || 0))[0];
 
   const formatCurrency = (val: number) => {
@@ -41,133 +41,39 @@ function StatsCardsComponent({ coins, isLoading }: StatsCardsProps) {
   };
 
   const StatCard = ({ title, value, subValue, trend, chartColor }: any) => (
-    <div className="stat-card">
-      <div className="stat-header">
-        <span className="stat-title">{title}</span>
-        {trend !== null && <span className={`stat-trend ${trend >= 0 ? "positive" : "negative"}`}>{formatPercent(trend)}</span>}
+    <div className="bg-secondary border border-border rounded-xl p-4 flex-1 min-w-[240px] shadow-sm hover:shadow-md transition-shadow">
+      <div className="flex justify-between mb-3">
+        <span className="text-[13px] text-muted-foreground font-bold uppercase tracking-tight">{title}</span>
+        {trend !== null && <span className={cn("text-[12px] font-bold px-1.5 py-0.5 rounded", trend >= 0 ? "text-success bg-success/15" : "text-danger bg-danger/15")}>{formatPercent(trend)}</span>}
       </div>
-      <div className="stat-content">
-        <div className="stat-main">
-          <span className="stat-value">{value}</span>
-          <span className="stat-sub">{subValue}</span>
+      <div className="flex justify-between items-end">
+        <div className="flex flex-col gap-0.5">
+          <span className="text-[20px] font-extrabold text-foreground tracking-tighter leading-none">{value}</span>
+          <span className="text-[12px] text-muted-foreground font-medium">{subValue}</span>
         </div>
-        <div className="mini-chart">
-          <Sparkline data={getMockTrend(trend)} width={80} height={30} color={chartColor} />
+        <div className="w-20 h-8 opacity-80">
+          <Sparkline data={getMockTrend(trend)} width={80} height={32} color={chartColor} />
         </div>
       </div>
-      <style jsx>{`
-        .stat-card {
-          background: var(--bg-secondary);
-          border: 1px solid var(--border-color);
-          border-radius: 12px;
-          padding: 16px;
-          flex: 1;
-          min-width: 240px;
-        }
-        .stat-header {
-          display: flex;
-          justify-content: space-between;
-          margin-bottom: 12px;
-        }
-        .stat-title {
-          font-size: 13px;
-          color: var(--text-muted);
-          font-weight: 500;
-        }
-        .stat-trend {
-          font-size: 12px;
-          font-weight: 600;
-        }
-        .stat-trend.positive {
-          color: var(--success);
-        }
-        .stat-trend.negative {
-          color: var(--danger);
-        }
-
-        .stat-content {
-          display: flex;
-          justify-content: space-between;
-          align-items: flex-end;
-        }
-        .stat-main {
-          display: flex;
-          flex-direction: column;
-          gap: 4px;
-        }
-        .stat-value {
-          font-size: 18px;
-          font-weight: 700;
-          color: var(--text-primary);
-        }
-        .stat-sub {
-          font-size: 12px;
-          color: var(--text-secondary);
-        }
-        .mini-chart {
-          width: 80px;
-          height: 30px;
-          opacity: 0.8;
-        }
-      `}</style>
     </div>
   );
 
   if (isLoading || coins.length === 0) {
     return (
-      <div className="stats-grid">
+      <div className="flex flex-wrap gap-4 mb-6">
         {[1, 2, 3, 4].map((i) => (
-          <div key={i} className="stat-card skeleton-card"></div>
+          <div key={i} className="h-24 bg-secondary border border-border rounded-xl flex-1 min-w-[240px] animate-pulse" />
         ))}
-        <style jsx>{`
-          .stats-grid {
-            display: flex;
-            gap: 16px;
-            margin-bottom: 24px;
-            flex-wrap: wrap;
-          }
-          .stat-card {
-            height: 100px;
-            background: var(--bg-secondary);
-            border: 1px solid var(--border-color);
-            border-radius: 12px;
-            flex: 1;
-            min-width: 240px;
-          }
-          .skeleton-card {
-            animation: pulse 1.5s infinite;
-          }
-          @keyframes pulse {
-            0% {
-              opacity: 0.6;
-            }
-            50% {
-              opacity: 1;
-            }
-            100% {
-              opacity: 0.6;
-            }
-          }
-        `}</style>
       </div>
     );
   }
 
   return (
-    <div className="stats-grid">
-      <StatCard title="24h Volume (Top 50)" value={formatCurrency(totalVolume)} subValue="Global Market Activity" trend={null} chartColor="var(--accent-primary)" />
-      <StatCard title="Top Gainer" value={topGainer?.symbol} subValue={formatCurrency(topGainer?.price || 0)} trend={topGainer?.change_24h} chartColor="var(--success)" />
-      <StatCard title="Top Loser" value={topLoser?.symbol} subValue={formatCurrency(topLoser?.price || 0)} trend={topLoser?.change_24h} chartColor="var(--danger)" />
+    <div className="flex flex-wrap gap-4 mb-6">
+      <StatCard title="24h Volume (Top 50)" value={formatCurrency(totalVolume)} subValue="Global Market Activity" trend={null} chartColor="hsl(var(--primary))" />
+      <StatCard title="Top Gainer" value={topGainer?.symbol} subValue={formatCurrency(topGainer?.price || 0)} trend={topGainer?.change_24h} chartColor="hsl(var(--success))" />
+      <StatCard title="Top Loser" value={topLoser?.symbol} subValue={formatCurrency(topLoser?.price || 0)} trend={topLoser?.change_24h} chartColor="hsl(var(--danger))" />
       <StatCard title="Vol Leader" value={volLeader?.symbol} subValue={formatCurrency(volLeader?.volume_24h || 0)} trend={volLeader?.change_24h} chartColor="#f59e0b" />
-
-      <style jsx>{`
-        .stats-grid {
-          display: flex;
-          gap: 16px;
-          margin-bottom: 24px;
-          flex-wrap: wrap;
-        }
-      `}</style>
     </div>
   );
 }

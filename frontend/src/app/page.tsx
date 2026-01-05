@@ -12,9 +12,10 @@ import { useProvider } from "@/hooks/useMarketData";
 import { useCoins, useMarketSummary } from "@/hooks/useMarketOverview";
 import { useState } from "react";
 
+import { ChevronLeft, ChevronRight } from "lucide-react";
+
 export default function MarketOverview() {
   const [page, setPage] = useState(1);
-  const [search, setSearch] = useState("");
   const [sortBy, setSortBy] = useState("market_cap");
   const [sortOrder, setSortOrder] = useState<"asc" | "desc">("desc");
   const pageSize = 50;
@@ -24,7 +25,6 @@ export default function MarketOverview() {
   const { data: coinsData, isLoading } = useCoins({
     page,
     pageSize,
-    search: search || undefined,
     sortBy,
     sortOrder,
   });
@@ -42,209 +42,58 @@ export default function MarketOverview() {
   const totalPages = coinsData ? Math.ceil(coinsData.total / pageSize) : 1;
 
   return (
-    <div className="app">
+    <div className="min-h-screen bg-background text-foreground">
       {/* Main Content */}
-      <main className="container">
+      <main className="max-w-[1440px] mx-auto p-6 md:p-8 space-y-10">
         {/* Market Highlights */}
-        <section className="section">
+        <section className="animate-in fade-in slide-in-from-bottom-2 duration-500">
           <StatsCards coins={coinsData?.coins || []} isLoading={isLoading} />
         </section>
 
         {/* Widgets Section */}
-        <section className="section">
-          <h2 className="section-title">Cryptocurrency Data Analysis</h2>
+        <section className="space-y-4 animate-in fade-in slide-in-from-bottom-4 duration-700 delay-100">
+          <h2 className="text-2xl font-extrabold tracking-tight">Data Analysis</h2>
           <TopCoinsWidgets coins={coinsData?.coins || []} isLoading={isLoading} />
         </section>
 
         {/* Main Table */}
-        <section className="section">
-          <CoinTable coins={coinsData?.coins || []} isLoading={isLoading} sortBy={sortBy} sortOrder={sortOrder} onSort={handleSort} />
+        <section className="space-y-6 animate-in fade-in slide-in-from-bottom-6 duration-1000 delay-200">
+          <div className="bg-secondary/30 rounded-2xl p-1 overflow-hidden">
+            <CoinTable coins={coinsData?.coins || []} isLoading={isLoading} sortBy={sortBy} sortOrder={sortOrder} onSort={handleSort} />
+          </div>
 
           {/* Pagination */}
           {totalPages > 1 && (
-            <div className="pagination">
-              <button className="page-btn" onClick={() => setPage(1)} disabled={page === 1}>
-                First
-              </button>
-              <button className="page-btn" onClick={() => setPage((p) => Math.max(1, p - 1))} disabled={page === 1}>
-                ← Prev
-              </button>
-              <span className="page-info">
-                Page <strong>{page}</strong> of <strong>{totalPages}</strong>
-              </span>
-              <button className="page-btn" onClick={() => setPage((p) => Math.min(totalPages, p + 1))} disabled={page >= totalPages}>
-                Next →
-              </button>
+            <div className="flex items-center justify-center gap-4 py-8">
+              <div className="flex items-center gap-1 bg-muted/30 p-1.5 rounded-xl border border-border/50">
+                <button className="px-4 py-2 text-xs font-bold rounded-lg transition-all hover:bg-muted disabled:opacity-30 disabled:pointer-events-none" onClick={() => setPage(1)} disabled={page === 1}>
+                  First
+                </button>
+                <button
+                  className="px-4 py-2 text-xs font-bold rounded-lg transition-all hover:bg-muted disabled:opacity-30 disabled:pointer-events-none flex items-center gap-1"
+                  onClick={() => setPage((p) => Math.max(1, p - 1))}
+                  disabled={page === 1}
+                >
+                  <ChevronLeft size={14} /> Prev
+                </button>
+                <div className="px-6 text-xs font-bold border-x border-border/50">
+                  <span className="text-muted-foreground mr-1">Page</span>
+                  <span className="text-foreground">{page}</span>
+                  <span className="text-muted-foreground mx-1">/</span>
+                  <span className="text-muted-foreground">{totalPages}</span>
+                </div>
+                <button
+                  className="px-4 py-2 text-xs font-bold rounded-lg transition-all hover:bg-muted disabled:opacity-30 disabled:pointer-events-none flex items-center gap-1"
+                  onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+                  disabled={page >= totalPages}
+                >
+                  Next <ChevronRight size={14} />
+                </button>
+              </div>
             </div>
           )}
         </section>
       </main>
-
-      <style jsx>{`
-        .app {
-          min-height: 100vh;
-          background: var(--bg-primary);
-        }
-
-        /* Navbar */
-        .navbar {
-          position: sticky;
-          top: 0;
-          z-index: 100;
-          background: var(--bg-secondary);
-          border-bottom: 1px solid var(--border-color);
-          height: 60px;
-        }
-
-        .navbar-inner {
-          max-width: 1440px;
-          margin: 0 auto;
-          padding: 0 24px;
-          height: 100%;
-          display: flex;
-          align-items: center;
-          justify-content: space-between;
-        }
-
-        .nav-left {
-          display: flex;
-          align-items: center;
-          gap: 32px;
-        }
-
-        .brand {
-          display: flex;
-          align-items: center;
-          gap: 8px;
-          font-size: 20px;
-          font-weight: 800;
-          color: var(--text-primary);
-          cursor: pointer;
-        }
-        .brand-icon {
-          color: var(--accent-primary);
-          font-size: 22px;
-        }
-
-        .nav-links {
-          display: flex;
-          gap: 24px;
-        }
-        .nav-link {
-          font-size: 14px;
-          font-weight: 500;
-          color: var(--text-secondary);
-          cursor: pointer;
-          transition: color 0.2s;
-        }
-        .nav-link:hover,
-        .nav-link.active {
-          color: var(--text-primary);
-        }
-
-        .nav-right {
-          display: flex;
-          align-items: center;
-          gap: 16px;
-        }
-
-        .search-bar {
-          position: relative;
-          background: var(--bg-tertiary);
-          border-radius: 8px;
-          padding: 6px 12px;
-          display: flex;
-          align-items: center;
-          gap: 8px;
-          border: 1px solid transparent;
-        }
-        .search-bar:focus-within {
-          border-color: var(--accent-primary);
-        }
-        .search-icon {
-          font-size: 12px;
-          opacity: 0.5;
-        }
-        .search-bar input {
-          background: none;
-          border: none;
-          outline: none;
-          color: var(--text-primary);
-          font-size: 13px;
-          width: 160px;
-        }
-
-        .connect-btn {
-          padding: 8px 16px;
-          background: var(--text-primary);
-          color: var(--bg-primary);
-          border: none;
-          border-radius: 6px;
-          font-size: 12px;
-          font-weight: 600;
-          cursor: pointer;
-        }
-
-        /* Container */
-        .container {
-          max-width: 1440px;
-          margin: 0 auto;
-          padding: 24px;
-        }
-
-        .section {
-          margin-bottom: 32px;
-        }
-        .section-title {
-          font-size: 20px;
-          font-weight: 700;
-          color: var(--text-primary);
-          margin-bottom: 20px;
-        }
-
-        /* Pagination */
-        .pagination {
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          gap: 12px;
-          margin-top: 24px;
-          padding: 20px;
-        }
-
-        .page-btn {
-          padding: 8px 16px;
-          background: var(--bg-secondary);
-          border: 1px solid var(--border-color);
-          border-radius: 6px;
-          font-size: 13px;
-          font-weight: 500;
-          color: var(--text-primary);
-          cursor: pointer;
-          transition: all 0.2s;
-        }
-
-        .page-btn:hover:not(:disabled) {
-          background: var(--accent-primary);
-          border-color: var(--accent-primary);
-          color: white;
-        }
-
-        .page-btn:disabled {
-          opacity: 0.4;
-          cursor: not-allowed;
-        }
-
-        .page-info {
-          font-size: 13px;
-          color: var(--text-secondary);
-          padding: 0 16px;
-        }
-
-        .page-info strong {
-          color: var(--text-primary);
-        }
-      `}</style>
     </div>
   );
 }

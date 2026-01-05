@@ -27,6 +27,8 @@ interface SortableItemProps {
   onRemove: (e: React.MouseEvent) => void;
 }
 
+import { cn } from "@/lib/utils";
+
 function SortableWatchlistItem({ id, symbol, ticker, isActive, onRemove }: SortableItemProps) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id });
 
@@ -40,23 +42,33 @@ function SortableWatchlistItem({ id, symbol, ticker, isActive, onRemove }: Sorta
   const urlSymbol = symbol.replace("/", "-");
 
   return (
-    <div ref={setNodeRef} style={style} className={`watchlist-item-wrapper ${isDragging ? "dragging" : ""} ${isActive ? "active" : ""}`}>
-      <div className="drag-handle" {...attributes} {...listeners}>
+    <div
+      ref={setNodeRef}
+      style={style}
+      className={cn("group flex items-center h-12 border-b border-white/5 transition-colors px-1 relative", isDragging && "bg-muted shadow-lg rounded-lg z-[100]", isActive && "bg-primary/10 border-l-2 border-primary pl-[2.5px]")}
+    >
+      <div className="flex items-center justify-center w-6 h-full text-muted-foreground cursor-grab opacity-0 group-hover:opacity-40 hover:!opacity-100 transition-opacity" {...attributes} {...listeners}>
         <GripVertical size={14} />
       </div>
-      <Link href={`/chart/${urlSymbol}`} className="watchlist-item-link">
-        <div className="watchlist-left">
-          <span className="watchlist-symbol">{symbol.replace("/USDT", "")}</span>
+
+      <Link href={`/chart/${urlSymbol}`} className="flex items-center justify-between flex-1 h-full px-2 no-underline text-inherit">
+        <div className="flex items-center">
+          <span className="font-bold text-[14px] text-foreground tracking-tight">{symbol.replace("/USDT", "")}</span>
         </div>
-        <div className="watchlist-right">
-          <span className="watchlist-price">{ticker?.price?.toLocaleString(undefined, { maximumFractionDigits: ticker.price < 1 ? 4 : 2 }) || "—"}</span>
-          <span className={`watchlist-change ${(ticker?.change_24h || 0) >= 0 ? "positive" : "negative"}`}>
+        <div className="flex flex-col items-end gap-[1px]">
+          <span className="text-[14px] font-semibold text-foreground leading-none">{ticker?.price?.toLocaleString(undefined, { maximumFractionDigits: ticker.price < 1 ? 4 : 2 }) || "—"}</span>
+          <span className={cn("text-[11px] font-bold leading-none", (ticker?.change_24h || 0) >= 0 ? "text-success" : "text-danger")}>
             {(ticker?.change_24h || 0) >= 0 ? "+" : ""}
             {ticker?.change_24h?.toFixed(2) || "0.00"}%
           </span>
         </div>
       </Link>
-      <button className="watchlist-remove" onClick={onRemove} title="Remove from watchlist">
+
+      <button
+        className="flex items-center justify-center w-7 h-7 p-0 mx-1 bg-transparent border-none text-muted-foreground rounded-md cursor-pointer opacity-0 group-hover/remove:opacity-100 group-hover:opacity-60 hover:!opacity-100 hover:bg-danger/15 hover:text-danger transition-all shrink-0"
+        onClick={onRemove}
+        title="Remove from watchlist"
+      >
         <X size={14} />
       </button>
     </div>
@@ -154,39 +166,49 @@ export function WatchlistPanel({ currentSymbol }: WatchlistPanelProps) {
   };
 
   return (
-    <div className="watchlist-container">
+    <div className="flex flex-col h-full min-h-0 bg-secondary">
       <Panel
         title="Watchlist"
         headerAction={
-          <button className="btn btn-ghost btn-sm" onClick={() => setSearchOpen(!searchOpen)} title={searchOpen ? "Close" : "Add coin"}>
+          <button className="p-1.5 hover:bg-accent rounded-md text-muted-foreground transition-colors" onClick={() => setSearchOpen(!searchOpen)} title={searchOpen ? "Close" : "Add coin"}>
             {searchOpen ? <X size={14} /> : <Plus size={14} />}
           </button>
         }
       >
         {/* Search/Add Section */}
         {searchOpen && (
-          <div className="search-section" ref={searchRef}>
-            <div className="search-input-wrapper">
-              <Search size={14} className="search-icon" />
-              <input ref={inputRef} className="search-input" placeholder="Search coins..." value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} />
+          <div className="p-3 border-b border-border relative bg-secondary" ref={searchRef}>
+            <div className="flex items-center gap-2 bg-muted border border-border rounded-lg px-3 py-2 transition-all focus-within:border-primary">
+              <Search size={14} className="text-muted-foreground shrink-0" />
+              <input
+                ref={inputRef}
+                className="flex-1 bg-transparent border-none text-foreground text-sm outline-none font-medium placeholder:text-muted-foreground"
+                placeholder="Search coins..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+              />
             </div>
 
             {searchQuery && (
-              <div className="search-results">
+              <div className="absolute top-full left-3 right-3 bg-secondary border border-border rounded-lg shadow-2xl max-h-60 overflow-y-auto z-[100] mt-1 overflow-x-hidden">
                 {searchResults.length === 0 ? (
-                  <div className="no-results">No coins found</div>
+                  <div className="p-4 text-center text-muted-foreground text-xs font-medium uppercase tracking-wider">No coins found</div>
                 ) : (
                   searchResults.map((ticker) => {
                     const inWatchlist = hasSymbol(ticker.symbol);
                     return (
-                      <button key={ticker.symbol} className={`search-result-item ${inWatchlist ? "in-watchlist" : ""}`} onClick={() => (inWatchlist ? removeSymbol(ticker.symbol) : handleAddCoin(ticker.symbol))}>
-                        <div className="result-left">
-                          <span className="result-symbol">{ticker.symbol.replace("/USDT", "")}</span>
-                          <span className="result-price">${ticker.price?.toLocaleString(undefined, { maximumFractionDigits: 4 })}</span>
+                      <button
+                        key={ticker.symbol}
+                        className={cn("flex items-center justify-between w-full px-3 py-2.5 transition-colors hover:bg-muted", inWatchlist && "bg-primary/5")}
+                        onClick={() => (inWatchlist ? removeSymbol(ticker.symbol) : handleAddCoin(ticker.symbol))}
+                      >
+                        <div className="flex items-center gap-2">
+                          <span className="font-bold text-[13px] text-foreground">{ticker.symbol.replace("/USDT", "")}</span>
+                          <span className="text-xs text-muted-foreground">${ticker.price?.toLocaleString(undefined, { maximumFractionDigits: 4 })}</span>
                         </div>
-                        <div className="result-right">
-                          <span className={`result-change ${(ticker.change_24h || 0) >= 0 ? "positive" : "negative"}`}>{ticker.change_24h?.toFixed(2)}%</span>
-                          {inWatchlist ? <Check size={14} className="check-icon" /> : <Plus size={14} className="add-icon" />}
+                        <div className="flex items-center gap-3">
+                          <span className={cn("text-xs font-bold", (ticker.change_24h || 0) >= 0 ? "text-success" : "text-danger")}>{ticker.change_24h?.toFixed(2)}%</span>
+                          {inWatchlist ? <Check size={14} className="text-success" /> : <Plus size={14} className="text-muted-foreground" />}
                         </div>
                       </button>
                     );
@@ -198,19 +220,23 @@ export function WatchlistPanel({ currentSymbol }: WatchlistPanelProps) {
         )}
 
         {/* Watchlist Items */}
-        <div className="watchlist-items">
+        <div className="flex-1 overflow-y-auto overflow-x-hidden scrollbar-thin scrollbar-thumb-muted">
           {items.length === 0 ? (
-            <div className="empty-state">
-              <Star size={24} />
-              <p>No coins in watchlist</p>
-              <button onClick={() => setSearchOpen(true)}>Add coins</button>
+            <div className="flex flex-col items-center justify-center py-10 px-5 text-center text-muted-foreground">
+              <Star size={24} className="opacity-20 mb-3" />
+              <p className="text-sm mb-4">No coins in watchlist</p>
+              <button className="bg-primary text-primary-foreground px-4 py-2 rounded-lg text-xs font-bold hover:opacity-90 transition-opacity" onClick={() => setSearchOpen(true)}>
+                Add coins
+              </button>
             </div>
           ) : (
             <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
               <SortableContext items={items.map((i) => i.symbol)} strategy={verticalListSortingStrategy}>
-                {items.map((item) => (
-                  <SortableWatchlistItem key={item.symbol} id={item.symbol} symbol={item.symbol} ticker={tickerData[item.symbol]} isActive={currentSymbol === item.symbol} onRemove={(e) => handleRemoveCoin(item.symbol, e)} />
-                ))}
+                <div className="flex flex-col">
+                  {items.map((item) => (
+                    <SortableWatchlistItem key={item.symbol} id={item.symbol} symbol={item.symbol} ticker={tickerData[item.symbol]} isActive={currentSymbol === item.symbol} onRemove={(e) => handleRemoveCoin(item.symbol, e)} />
+                  ))}
+                </div>
               </SortableContext>
             </DndContext>
           )}

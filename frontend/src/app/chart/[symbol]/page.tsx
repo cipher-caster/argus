@@ -52,16 +52,16 @@ export default function ChartPage({ params }: ChartPageProps) {
   const priceChangePercent = sortedCandles.length ? (((currentPrice ?? 0) - sortedCandles[0].close) / sortedCandles[0].close) * 100 : 0;
 
   return (
-    <div className="chart-page">
+    <div className="flex flex-col h-screen bg-background overflow-hidden">
       {/* Main Content - 3 Column Grid */}
-      <main className="main">
+      <main className="flex-1 grid grid-cols-[48px_1fr_280px] overflow-hidden">
         {/* Left: Drawing Tools */}
-        <aside className="left-sidebar">
+        <aside className="bg-secondary border-r border-border">
           <DrawingToolbar onScrollToLatest={() => scrollToLatestRef.current?.()} />
         </aside>
 
         {/* Center: Chart */}
-        <div className="chart-container">
+        <div className="overflow-hidden">
           <CandlestickChart
             candles={sortedCandles}
             symbol={symbol}
@@ -86,118 +86,11 @@ export default function ChartPage({ params }: ChartPageProps) {
         </div>
 
         {/* Right: Watchlist + Coin Details */}
-        <aside className="right-sidebar">
+        <aside className="bg-secondary border-l border-border flex flex-col overflow-hidden">
           <WatchlistPanel currentSymbol={symbol} />
           <CoinDetailsPanel symbol={symbol} />
         </aside>
       </main>
-
-      <style jsx>{`
-        .chart-page {
-          display: flex;
-          flex-direction: column;
-          height: 100vh;
-          background: var(--bg-primary);
-          overflow: hidden;
-        }
-
-        .icon-btn {
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          width: 32px;
-          height: 32px;
-          background: transparent;
-          border: none;
-          color: var(--text-secondary);
-          cursor: pointer;
-          border-radius: 6px;
-          transition: all 0.15s;
-        }
-
-        .icon-btn:hover {
-          background: var(--bg-tertiary);
-          color: var(--text-primary);
-        }
-
-        .symbol-info-detailed {
-          display: flex;
-          align-items: center;
-          gap: 16px;
-        }
-
-        .symbol-name-title {
-          font-size: 15px;
-          font-weight: 700;
-          color: var(--text-primary);
-        }
-
-        .symbol-stats-inline {
-          display: flex;
-          align-items: center;
-          gap: 10px;
-        }
-
-        .current-price {
-          font-size: 16px;
-          font-weight: 700;
-          color: var(--text-primary);
-        }
-
-        .price-change {
-          font-size: 13px;
-          font-weight: 600;
-        }
-
-        .price-change.positive {
-          color: var(--success);
-        }
-
-        .price-change.negative {
-          color: var(--danger);
-        }
-
-        .header-right {
-          display: flex;
-          align-items: center;
-          gap: 8px;
-        }
-
-        .provider-badge {
-          padding: 6px 12px;
-          background: var(--bg-tertiary);
-          border: 1px solid var(--border-color);
-          border-radius: 6px;
-          font-size: 11px;
-          font-weight: 600;
-          letter-spacing: 0.5px;
-          color: var(--text-secondary);
-        }
-
-        .main {
-          flex: 1;
-          display: grid;
-          grid-template-columns: 48px 1fr 280px;
-          overflow: hidden;
-        }
-
-        .left-sidebar {
-          background: var(--bg-secondary);
-          border-right: 1px solid var(--border-color);
-        }
-
-        .chart-container {
-          overflow: hidden;
-        }
-
-        .right-sidebar {
-          background: var(--bg-secondary);
-          border-left: 1px solid var(--border-color);
-          display: flex;
-          flex-direction: column;
-          overflow: hidden;
-        }
-      `}</style>
     </div>
   );
 }

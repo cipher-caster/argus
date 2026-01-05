@@ -29,13 +29,13 @@ function ChartSettingsModalComponent({ isOpen, onClose }: ChartSettingsModalProp
   };
 
   const ColorInput = ({ label, keyName, fallback }: { label: string; keyName: keyof ChartColorSettings; fallback: string }) => (
-    <div className="setting-row">
-      <label>{label}</label>
-      <div className="color-input-wrapper">
-        <input type="color" value={colors[keyName] || fallback} onChange={(e) => handleColorChange(keyName, e.target.value)} className="color-input" />
-        <span className="color-value">{colors[keyName] || "Auto"}</span>
+    <div className="flex items-center justify-between py-1">
+      <label className="text-sm text-muted-foreground">{label}</label>
+      <div className="flex items-center gap-2 bg-secondary border border-border p-1 rounded-lg">
+        <input type="color" value={colors[keyName] || fallback} onChange={(e) => handleColorChange(keyName, e.target.value)} className="w-6 h-6 p-0 border-none bg-transparent cursor-pointer rounded overflow-hidden" />
+        <span className="text-[10px] font-mono text-muted-foreground min-w-[50px] uppercase">{colors[keyName] || "Auto"}</span>
         {colors[keyName] && (
-          <button className="reset-field-btn" onClick={() => handleColorChange(keyName, "")} title="Reset to auto">
+          <button className="p-0.5 rounded-md hover:bg-muted text-muted-foreground transition-colors" onClick={() => handleColorChange(keyName, "")} title="Reset to auto">
             <X size={12} />
           </button>
         )}
@@ -46,43 +46,47 @@ function ChartSettingsModalComponent({ isOpen, onClose }: ChartSettingsModalProp
   return (
     <>
       {createPortal(
-        <div className="modal-overlay" onClick={onClose}>
-          <div className="modal-content" onClick={(e) => e.stopPropagation()}>
-            <div className="modal-header">
-              <h2>Chart Settings</h2>
-              <button className="close-btn" onClick={onClose}>
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-background/80 backdrop-blur-sm animate-in fade-in duration-200" onClick={onClose}>
+          <div className="bg-card border border-border rounded-2xl shadow-2xl w-full max-w-lg overflow-hidden animate-in fade-in zoom-in-95 slide-in-from-bottom-4 duration-300" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center justify-between px-6 py-4 border-b border-border bg-muted/30">
+              <h2 className="text-lg font-bold tracking-tight">Chart Settings</h2>
+              <button className="p-1.5 rounded-lg text-muted-foreground hover:bg-muted hover:text-foreground transition-all" onClick={onClose}>
                 <X size={20} />
               </button>
             </div>
 
-            <div className="modal-body">
-              <div className="settings-section">
-                <h3>Candlesticks</h3>
+            <div className="p-6 space-y-8">
+              <div className="space-y-4">
+                <h3 className="text-xs font-bold uppercase tracking-widest text-muted-foreground">Candlesticks</h3>
 
-                <div className="settings-grid">
-                  <div className="column">
-                    <h4>Up Candle (Bullish)</h4>
-                    <ColorInput label="Body" keyName="upColor" fallback={currentTheme.positive} />
-                    <ColorInput label="Borders" keyName="borderUpColor" fallback={currentTheme.positive} />
-                    <ColorInput label="Wick" keyName="wickUpColor" fallback={currentTheme.positive} />
+                <div className="grid grid-cols-2 gap-8">
+                  <div className="space-y-3">
+                    <h4 className="text-sm font-bold border-b border-border pb-2">Bullish (Up)</h4>
+                    <div className="space-y-1">
+                      <ColorInput label="Body" keyName="upColor" fallback={currentTheme.positive} />
+                      <ColorInput label="Borders" keyName="borderUpColor" fallback={currentTheme.positive} />
+                      <ColorInput label="Wick" keyName="wickUpColor" fallback={currentTheme.positive} />
+                    </div>
                   </div>
 
-                  <div className="column">
-                    <h4>Down Candle (Bearish)</h4>
-                    <ColorInput label="Body" keyName="downColor" fallback={currentTheme.negative} />
-                    <ColorInput label="Borders" keyName="borderDownColor" fallback={currentTheme.negative} />
-                    <ColorInput label="Wick" keyName="wickDownColor" fallback={currentTheme.negative} />
+                  <div className="space-y-3">
+                    <h4 className="text-sm font-bold border-b border-border pb-2">Bearish (Down)</h4>
+                    <div className="space-y-1">
+                      <ColorInput label="Body" keyName="downColor" fallback={currentTheme.negative} />
+                      <ColorInput label="Borders" keyName="borderDownColor" fallback={currentTheme.negative} />
+                      <ColorInput label="Wick" keyName="wickDownColor" fallback={currentTheme.negative} />
+                    </div>
                   </div>
                 </div>
               </div>
             </div>
 
-            <div className="modal-footer">
-              <button className="btn btn-secondary" onClick={resetColors}>
+            <div className="flex items-center justify-between px-6 py-4 bg-muted/30 border-t border-border">
+              <button className="flex items-center gap-2 px-4 py-2 text-sm font-bold text-muted-foreground hover:text-foreground hover:bg-muted rounded-xl transition-all" onClick={resetColors}>
                 <RotateCcw size={14} />
                 Reset Defaults
               </button>
-              <button className="btn btn-primary" onClick={onClose}>
+              <button className="px-6 py-2 text-sm font-bold bg-primary text-primary-foreground hover:bg-primary/90 rounded-xl shadow-lg shadow-primary/20 transition-all active:scale-95" onClick={onClose}>
                 Done
               </button>
             </div>
@@ -90,206 +94,6 @@ function ChartSettingsModalComponent({ isOpen, onClose }: ChartSettingsModalProp
         </div>,
         document.body
       )}
-
-      <style jsx global>{`
-        .modal-overlay {
-          position: fixed;
-          top: 0;
-          left: 0;
-          right: 0;
-          bottom: 0;
-          background: rgba(0, 0, 0, 0.5);
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          z-index: 9999;
-          backdrop-filter: blur(2px);
-          animation: fadeIn 0.15s ease;
-        }
-
-        .modal-content {
-          width: 100%;
-          max-width: 450px;
-          background: var(--bg-secondary);
-          border: 1px solid var(--border-color);
-          border-radius: 12px;
-          box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.5);
-          overflow: hidden;
-          animation: slideUp 0.2s ease;
-        }
-
-        .modal-header {
-          display: flex;
-          align-items: center;
-          justify-content: space-between;
-          padding: 16px 20px;
-          border-bottom: 1px solid var(--border-color);
-          background: var(--bg-secondary);
-        }
-
-        .modal-header h2 {
-          font-size: 16px;
-          font-weight: 600;
-          color: var(--text-primary);
-          margin: 0;
-        }
-
-        .close-btn {
-          background: transparent;
-          border: none;
-          color: var(--text-secondary);
-          cursor: pointer;
-          padding: 4px;
-          border-radius: 4px;
-        }
-
-        .close-btn:hover {
-          background: var(--bg-tertiary);
-          color: var(--text-primary);
-        }
-
-        .modal-body {
-          padding: 20px;
-          background: var(--bg-primary);
-        }
-
-        .settings-section h3 {
-          font-size: 14px;
-          font-weight: 600;
-          color: var(--text-muted);
-          margin: 0 0 16px 0;
-          text-transform: uppercase;
-        }
-
-        .settings-grid {
-          display: grid;
-          grid-template-columns: 1fr 1fr;
-          gap: 24px;
-        }
-
-        .column h4 {
-          font-size: 13px;
-          font-weight: 500;
-          color: var(--text-primary);
-          margin: 0 0 12px 0;
-          padding-bottom: 8px;
-          border-bottom: 1px solid var(--border-color);
-        }
-
-        .setting-row {
-          display: flex;
-          align-items: center;
-          justify-content: space-between;
-          margin-bottom: 12px;
-        }
-
-        .setting-row label {
-          font-size: 13px;
-          color: var(--text-secondary);
-        }
-
-        .color-input-wrapper {
-          display: flex;
-          align-items: center;
-          gap: 8px;
-          background: var(--bg-tertiary);
-          padding: 4px;
-          border-radius: 6px;
-          border: 1px solid var(--border-color);
-        }
-
-        .color-input {
-          width: 24px;
-          height: 24px;
-          padding: 0;
-          border: none;
-          background: none;
-          cursor: pointer;
-        }
-
-        .color-value {
-          font-size: 11px;
-          font-family: monospace;
-          color: var(--text-primary);
-          min-width: 50px;
-        }
-
-        .reset-field-btn {
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          background: transparent;
-          border: none;
-          color: var(--text-muted);
-          cursor: pointer;
-          padding: 2px;
-        }
-
-        .reset-field-btn:hover {
-          color: var(--text-primary);
-        }
-
-        .modal-footer {
-          padding: 16px 20px;
-          border-top: 1px solid var(--border-color);
-          background: var(--bg-secondary);
-          display: flex;
-          justify-content: space-between;
-          align-items: center;
-        }
-
-        .btn {
-          display: flex;
-          align-items: center;
-          gap: 6px;
-          padding: 8px 16px;
-          border-radius: 6px;
-          font-size: 13px;
-          font-weight: 500;
-          border: none;
-          cursor: pointer;
-        }
-
-        .btn-secondary {
-          background: transparent;
-          color: var(--text-secondary);
-          border: 1px solid var(--border-color);
-        }
-
-        .btn-secondary:hover {
-          background: var(--bg-tertiary);
-          color: var(--text-primary);
-        }
-
-        .btn-primary {
-          background: var(--accent-primary);
-          color: white;
-        }
-
-        .btn-primary:hover {
-          background: var(--accent-secondary);
-        }
-
-        @keyframes fadeIn {
-          from {
-            opacity: 0;
-          }
-          to {
-            opacity: 1;
-          }
-        }
-
-        @keyframes slideUp {
-          from {
-            transform: translateY(20px);
-            opacity: 0;
-          }
-          to {
-            transform: translateY(0);
-            opacity: 1;
-          }
-        }
-      `}</style>
     </>
   );
 }

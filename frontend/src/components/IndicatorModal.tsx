@@ -15,6 +15,9 @@ interface IndicatorModalProps {
   editingIndicator: IndicatorConfig | null;
 }
 
+import { cn } from "@/lib/utils";
+import { X } from "lucide-react";
+
 function IndicatorModalComponent({ isOpen, onClose, editingIndicator }: IndicatorModalProps) {
   const [mounted, setMounted] = useState(false);
   const availableIndicators = useIndicatorStore((s) => s.availableIndicators);
@@ -41,7 +44,6 @@ function IndicatorModalComponent({ isOpen, onClose, editingIndicator }: Indicato
       } else {
         setSelectedType("ema");
         setSelectedColor(getNextColor());
-        // Set defaults from first indicator
         const def = availableIndicators.find((i) => i.name === "ema");
         if (def) {
           const defaultParams: Record<string, number> = {};
@@ -67,7 +69,6 @@ function IndicatorModalComponent({ isOpen, onClose, editingIndicator }: Indicato
 
   const handleSubmit = () => {
     if (editingIndicator) {
-      // Update existing
       const def = availableIndicators.find((i) => i.name === editingIndicator.type);
       updateIndicator(editingIndicator.id, {
         params,
@@ -75,7 +76,6 @@ function IndicatorModalComponent({ isOpen, onClose, editingIndicator }: Indicato
         displayName: `${def?.display_name || editingIndicator.type}(${Object.values(params).join(",")})`,
       });
     } else {
-      // Add new
       addIndicator(selectedType, params, selectedColor);
     }
     onClose();
@@ -86,24 +86,26 @@ function IndicatorModalComponent({ isOpen, onClose, editingIndicator }: Indicato
   return (
     <>
       {createPortal(
-        <div className="indicator-modal-overlay" onClick={onClose}>
-          <div className="indicator-modal-content" onClick={(e) => e.stopPropagation()}>
-            <div className="indicator-modal-header">
-              <h2>{editingIndicator ? "Edit Indicator" : "Add Indicator"}</h2>
-              <button className="close-btn" onClick={onClose}>
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
-                  <path d="M18 6L6 18M6 6l12 12" />
-                </svg>
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-background/80 backdrop-blur-sm animate-in fade-in duration-200" onClick={onClose}>
+          <div className="bg-card border border-border rounded-2xl shadow-2xl w-full max-w-md overflow-hidden animate-in fade-in zoom-in-95 slide-in-from-bottom-4 duration-300" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center justify-between px-6 py-4 border-bottom border-border bg-muted/30">
+              <h2 className="text-lg font-bold tracking-tight">{editingIndicator ? "Edit Indicator" : "Add Indicator"}</h2>
+              <button className="p-1.5 rounded-lg text-muted-foreground hover:bg-muted hover:text-foreground transition-all" onClick={onClose}>
+                <X size={20} />
               </button>
             </div>
 
-            <div className="indicator-modal-body">
+            <div className="p-6 space-y-6">
               {/* Indicator Type Selector */}
               {!editingIndicator && (
-                <div className="form-group">
-                  <label>Indicator Type</label>
-                  <select value={selectedType} onChange={(e) => setSelectedType(e.target.value)}>
-                    <optgroup label="Overlays">
+                <div className="space-y-2">
+                  <label className="text-xs font-bold uppercase tracking-widest text-muted-foreground">Indicator Type</label>
+                  <select
+                    className="w-full bg-secondary border border-border rounded-xl px-4 py-3 text-sm focus:ring-2 focus:ring-primary/20 outline-none transition-all appearance-none cursor-pointer"
+                    value={selectedType}
+                    onChange={(e) => setSelectedType(e.target.value)}
+                  >
+                    <optgroup label="Overlays" className="bg-background">
                       {availableIndicators
                         .filter((i) => i.type === "overlay")
                         .map((i) => (
@@ -112,7 +114,7 @@ function IndicatorModalComponent({ isOpen, onClose, editingIndicator }: Indicato
                           </option>
                         ))}
                     </optgroup>
-                    <optgroup label="Oscillators">
+                    <optgroup label="Oscillators" className="bg-background">
                       {availableIndicators
                         .filter((i) => i.type === "pane")
                         .map((i) => (
@@ -126,261 +128,67 @@ function IndicatorModalComponent({ isOpen, onClose, editingIndicator }: Indicato
               )}
 
               {/* Parameter Inputs */}
-              {selectedDefinition?.params.map((param) => (
-                <div key={param.name} className="form-group">
-                  <label>
-                    {param.name.charAt(0).toUpperCase() + param.name.slice(1)}
-                    <span className="param-range">
-                      ({param.min} - {param.max})
-                    </span>
-                  </label>
-                  <input
-                    type="number"
-                    value={params[param.name] ?? param.default}
-                    min={param.min}
-                    max={param.max}
-                    onChange={(e) =>
-                      setParams((prev) => ({
-                        ...prev,
-                        [param.name]: Number(e.target.value),
-                      }))
-                    }
-                  />
-                </div>
-              ))}
+              <div className="space-y-4">
+                {selectedDefinition?.params.map((param) => (
+                  <div key={param.name} className="space-y-2">
+                    <label className="flex justify-between text-xs font-bold uppercase tracking-widest text-muted-foreground">
+                      {param.name}
+                      <span className="font-medium lowercase text-muted-foreground/60">
+                        ({param.min}-{param.max})
+                      </span>
+                    </label>
+                    <input
+                      type="number"
+                      className="w-full bg-secondary border border-border rounded-xl px-4 py-2.5 text-sm focus:ring-2 focus:ring-primary/20 outline-none transition-all"
+                      value={params[param.name] ?? param.default}
+                      min={param.min}
+                      max={param.max}
+                      onChange={(e) =>
+                        setParams((prev) => ({
+                          ...prev,
+                          [param.name]: Number(e.target.value),
+                        }))
+                      }
+                    />
+                  </div>
+                ))}
+              </div>
 
               {/* Description */}
-              {selectedDefinition && <p className="description">{selectedDefinition.description}</p>}
+              {selectedDefinition && (
+                <div className="p-3.5 bg-primary/5 rounded-xl border border-primary/10">
+                  <p className="text-[12px] leading-relaxed text-muted-foreground italic font-medium">{selectedDefinition.description}</p>
+                </div>
+              )}
 
               {/* Color Picker */}
-              <div className="form-group">
-                <label>Color</label>
-                <div className="color-picker-grid">
+              <div className="space-y-3">
+                <label className="text-xs font-bold uppercase tracking-widest text-muted-foreground">Visual Style</label>
+                <div className="flex flex-wrap gap-2.5">
                   {INDICATOR_COLORS.map((c) => (
-                    <button key={c} className={`color-swatch ${selectedColor === c ? "active" : ""}`} style={{ backgroundColor: c }} onClick={() => setSelectedColor(c)} />
+                    <button
+                      key={c}
+                      className={cn("w-7 h-7 rounded-full border-2 transition-all hover:scale-110 active:scale-95", selectedColor === c ? "border-foreground scale-110 shadow-lg" : "border-transparent")}
+                      style={{ backgroundColor: c }}
+                      onClick={() => setSelectedColor(c)}
+                    />
                   ))}
                 </div>
               </div>
             </div>
 
-            <div className="indicator-modal-footer">
-              <button className="btn btn-secondary" onClick={onClose}>
+            <div className="flex items-center justify-end gap-3 px-6 py-4 bg-muted/30 border-t border-border">
+              <button className="px-5 py-2 text-sm font-bold text-muted-foreground hover:text-foreground hover:bg-muted rounded-xl transition-all" onClick={onClose}>
                 Cancel
               </button>
-              <button className="btn btn-primary" onClick={handleSubmit}>
-                {editingIndicator ? "Update" : "Add"}
+              <button className="px-6 py-2 text-sm font-bold bg-primary text-primary-foreground hover:bg-primary/90 rounded-xl shadow-lg shadow-primary/20 transition-all active:scale-95" onClick={handleSubmit}>
+                {editingIndicator ? "Save Changes" : "Add Indicator"}
               </button>
             </div>
           </div>
         </div>,
         document.body
       )}
-
-      <style jsx global>{`
-        .color-picker-grid {
-          display: flex;
-          flex-wrap: wrap;
-          gap: 8px;
-          margin-top: 8px;
-        }
-
-        .color-swatch {
-          width: 24px;
-          height: 24px;
-          border-radius: 50%;
-          border: 2px solid transparent;
-          cursor: pointer;
-          transition: transform 0.1s;
-        }
-
-        .color-swatch.active {
-          border-color: var(--text-primary);
-          transform: scale(1.1);
-          box-shadow: 0 0 0 2px var(--bg-primary);
-        }
-
-        .color-swatch:hover {
-          transform: scale(1.1);
-        }
-        .indicator-modal-overlay {
-          position: fixed;
-          top: 0;
-          left: 0;
-          right: 0;
-          bottom: 0;
-          background: rgba(0, 0, 0, 0.5);
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          z-index: 9999;
-          animation: indicatorModalFadeIn 0.15s ease;
-          backdrop-filter: blur(2px);
-        }
-
-        @keyframes indicatorModalFadeIn {
-          from {
-            opacity: 0;
-          }
-          to {
-            opacity: 1;
-          }
-        }
-
-        .indicator-modal-content {
-          width: 100%;
-          max-width: 400px;
-          background: var(--bg-secondary);
-          border: 1px solid var(--border-color);
-          border-radius: 12px;
-          box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.5), 0 10px 10px -5px rgba(0, 0, 0, 0.2);
-          overflow: hidden;
-          animation: indicatorModalSlideUp 0.2s ease;
-        }
-
-        @keyframes indicatorModalSlideUp {
-          from {
-            transform: translateY(20px);
-            opacity: 0;
-          }
-          to {
-            transform: translateY(0);
-            opacity: 1;
-          }
-        }
-
-        .indicator-modal-header {
-          display: flex;
-          align-items: center;
-          justify-content: space-between;
-          padding: 16px 20px;
-          background: var(--bg-secondary);
-          border-bottom: 1px solid var(--border-color);
-        }
-
-        .indicator-modal-header h2 {
-          font-size: 16px;
-          font-weight: 600;
-          color: var(--text-primary);
-          margin: 0;
-        }
-
-        .indicator-modal-header .close-btn {
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          width: 28px;
-          height: 28px;
-          background: transparent;
-          border: none;
-          border-radius: 6px;
-          color: var(--text-secondary);
-          cursor: pointer;
-          transition: all 0.15s ease;
-        }
-
-        .indicator-modal-header .close-btn:hover {
-          background: var(--bg-tertiary);
-          color: var(--text-primary);
-        }
-
-        .indicator-modal-body {
-          padding: 20px;
-          background: var(--bg-primary);
-        }
-
-        .indicator-modal-body .form-group {
-          margin-bottom: 16px;
-        }
-
-        .indicator-modal-body .form-group label {
-          display: block;
-          font-size: 12px;
-          font-weight: 500;
-          color: var(--text-secondary);
-          margin-bottom: 6px;
-        }
-
-        .indicator-modal-body .param-range {
-          color: var(--text-muted);
-          font-weight: 400;
-          margin-left: 6px;
-        }
-
-        .indicator-modal-body .form-group select,
-        .indicator-modal-body .form-group input {
-          width: 100%;
-          padding: 10px 12px;
-          background: var(--bg-tertiary);
-          border: 1px solid var(--border-color);
-          border-radius: 6px;
-          color: var(--text-primary);
-          font-size: 14px;
-          outline: none;
-          transition: border-color 0.15s ease;
-        }
-
-        .indicator-modal-body .form-group select:focus,
-        .indicator-modal-body .form-group input:focus {
-          border-color: var(--accent-primary);
-          box-shadow: 0 0 0 2px rgba(99, 102, 241, 0.15);
-        }
-
-        .indicator-modal-body .form-group select option {
-          background: var(--bg-tertiary);
-          color: var(--text-primary);
-        }
-
-        .indicator-modal-body .description {
-          padding: 10px 12px;
-          background: rgba(99, 102, 241, 0.08);
-          border-radius: 6px;
-          border: 1px solid rgba(99, 102, 241, 0.15);
-          color: var(--text-secondary);
-          font-size: 12px;
-          line-height: 1.4;
-          margin: 0;
-        }
-
-        .indicator-modal-footer {
-          display: flex;
-          justify-content: flex-end;
-          gap: 10px;
-          padding: 16px 20px;
-          background: var(--bg-secondary);
-          border-top: 1px solid var(--border-color);
-        }
-
-        .indicator-modal-footer .btn {
-          padding: 8px 16px;
-          font-size: 13px;
-          font-weight: 500;
-          border: none;
-          border-radius: 6px;
-          cursor: pointer;
-          transition: all 0.2s ease;
-        }
-
-        .indicator-modal-footer .btn-secondary {
-          background: transparent;
-          border: 1px solid var(--border-color);
-          color: var(--text-secondary);
-        }
-
-        .indicator-modal-footer .btn-secondary:hover {
-          background: var(--bg-tertiary);
-          color: var(--text-primary);
-          border-color: var(--text-muted);
-        }
-
-        .indicator-modal-footer .btn-primary {
-          background: var(--accent-primary);
-          color: white;
-        }
-
-        .indicator-modal-footer .btn-primary:hover {
-          background: var(--accent-secondary);
-        }
-      `}</style>
     </>
   );
 }
