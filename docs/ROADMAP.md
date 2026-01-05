@@ -29,6 +29,7 @@
 - [x] Click-to-chart navigation
 - [x] Dark/light theme toggle
 - [x] UI Polish / CoinGlass Reskin (Lucide Icons, Stats Cards)
+- [x] **Tailwind CSS Migration** (Styling Refactor)
 
 ---
 
@@ -42,20 +43,20 @@
 - [ ] localStorage persistence
 - [ ] Keyboard shortcuts (Escape, Delete, Ctrl+Z)
 
----
-
-## Planned
-
-### Phase 6: Separate Pane Indicators
+### Phase 6: Separate Pane Indicators (Completed)
 
 - [x] RSI in separate pane below chart
 - [x] MACD histogram pane
 - [x] OBV pane
 - [x] Resizable panes
 
+---
+
+## Planned
+
 ### Phase 7: Advanced Features
 
-- [ ] Watchlist/favorites
+- [x] Watchlist/favorites
 - [ ] Price alerts
 - [ ] Portfolio tracking
 - [ ] Multi-chart layouts

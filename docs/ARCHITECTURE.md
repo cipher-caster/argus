@@ -49,6 +49,7 @@ graph TD
 ### Frontend
 
 - **Next.js 14**: Server-side rendering and static generation.
+- **Tailwind CSS**: Utility-first styling with **Shadcn UI** components.
 - **React Query**: Efficient server-state management.
 - **Zustand**: Client-side state (Theme, Indicators).
 

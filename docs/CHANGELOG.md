@@ -32,9 +32,28 @@ All notable changes to this project will be documented in this file.
 - **UI Cleanup**: Removed redundant "ChevronDown" icons from the chart header dropdowns.
 - **Settings Persistence**: Chart color settings are now persisted locally using Zustand.
 
+## [0.3.0] - 2026-01-05
+
+### Added
+
+- **Modern Design System**: Full migration to **Tailwind CSS** and **Shadcn UI** tokens.
+  - Replaced legacy CSS and `styled-jsx` with extensive utility classes.
+  - Implemented **HSL-based theming** in `globals.css` for consistent dark/light mode switching.
+- **Top Coins Widgets**: Added "Top Gainers," "Top Losers," and "Volume Leaders" widgets with real-time data and distinct coloring.
+- **Sparklines**: Added SVG sparklines to the "Last 7 Days" column in the coin table to visualize weekly trends.
+- **Volume Formatting**: Standardized volume display to Billions (B) and Millions (M) across all widgets.
+
+### Fixed
+
+- **UI Alignment**: Fixed horizontal alignment of price and name in `TopCoinsWidgets`.
+- **Theme Colors**: Restored missing `success` (green) and `danger` (red) colors for percentage changes and sparklines by correcting HSL variable definitions.
+- **Legacy Cleanup**: Removed `src/styles/components.css` and all deprecated CSS files.
+- **Alignment**: Fixed vertical alignment of prices in the "Top Coins" lists.
+
 ### Changed
 
-- **Drawing Toolbar**: Simplified to show only cursor and refresh icons (removed non-functional drawing tools).
+- **Frontend Styling**: All components (`Navbar`, `Sidebar`, `CoinTable`, `Chart`, `Modals`) now use Tailwind utility classes.
+- **Sparkline Rendering**: Updated SVG stroke colors to valid `hsl()` syntax to fix invisible lines.
 
 ## [0.2.0] - 2026-01-05
 

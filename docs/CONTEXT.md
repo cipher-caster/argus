@@ -24,14 +24,18 @@ This document provides context for continuing development on Argus.
 
 - **Framework**: Next.js 14 (App Router)
 - **State**: React Query + Zustand
-- **Styling**: Vanilla CSS
+- **Styling**: Tailwind CSS + Shadcn UI
 
 ## Current State
 
 ### What's Working
 
 - ✅ Market Overview landing page at `/`
+  - **New UI**: Professional layout with "Stats Cards" and "Top Coins" widgets.
+  - **Sorting**: Enhanced sorting by Price, Volume, Market Cap, and 24h Change.
 - ✅ Coin table with 400+ USDT pairs from Binance
+  - **Live Data**: Real-time prices, percentage changes (Green/Red indicators), and market cap.
+  - **Sparklines**: Mini trend charts for 7-day performance (Red/Green based on trend).
 - ✅ Sort by price (default: high to low), symbol
 - ✅ Search and pagination (50 per page)
 - **Interactive Chart (`/chart/[symbol]`)**:
@@ -45,7 +49,7 @@ This document provides context for continuing development on Argus.
   - **Watchlist**: Add/remove coins with search dropdown. Persisted in localStorage. Drag-drop reordering.
   - **Coin Details Panel**: Shows key stats (Volume, High, Low, Range), 24H price position, and performance.
 - ✅ Market Cap sorting on main page (default)
-- ✅ Dark/Light theme toggle
+- ✅ Dark/Light theme toggle (HSL-based theming)
 - ✅ Real-time price updates
 - ✅ Automated Test Coverage (Playwright)
 
@@ -106,17 +110,20 @@ python -m app.worker
 
 ### Frontend (`/frontend/src/`)
 
-| File                              | Purpose                 |
-| --------------------------------- | ----------------------- |
-| `app/page.tsx`                    | Market Overview landing |
-| `app/chart/[symbol]/page.tsx`     | Chart view              |
-| `components/CoinTable.tsx`        | Coins table             |
-| `components/CandlestickChart.tsx` | TradingView chart       |
-| `components/IndicatorToolbar.tsx` | Indicator management    |
-| `stores/themeStore.ts`            | Dark/light mode         |
-| `stores/indicatorStore.ts`        | Indicator state         |
-| `lib/marketApi.ts`                | Market API client       |
-| `hooks/useMarketOverview.ts`      | React Query hooks       |
+| File                              | Purpose                        |
+| --------------------------------- | ------------------------------ |
+| `app/page.tsx`                    | Market Overview landing        |
+| `app/chart/[symbol]/page.tsx`     | Chart view                     |
+| `app/globals.css`                 | Global styles & HSL theme vars |
+| `tailwind.config.ts`              | Tailwind theme config          |
+| `components/TopCoinsWidgets.tsx`  | Top Gainers/Losers/Vol widgets |
+| `components/CoinTable.tsx`        | Coins table                    |
+| `components/CandlestickChart.tsx` | TradingView chart              |
+| `components/IndicatorToolbar.tsx` | Indicator management           |
+| `stores/themeStore.ts`            | Dark/light mode                |
+| `stores/indicatorStore.ts`        | Indicator state                |
+| `lib/marketApi.ts`                | Market API client              |
+| `lib/utils.ts`                    | Tailwind `cn` utility          |
 
 ## Paused Features
 
