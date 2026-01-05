@@ -4,8 +4,20 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
-#### Added
+### Added
 
+- **Watchlist Enhancements**:
+  - Search dropdown to find and add coins from 400+ available pairs.
+  - Real-time prices and 24H change shown in search results.
+  - Visual indicator for coins already in watchlist.
+  - Click-to-add/remove functionality.
+  - Empty state with "Add coins" prompt.
+- **Coin Details Panel**: New sidebar component showing:
+  - Current price with change badge.
+  - Key stats: Volume, High, Low, Range (24H).
+  - Visual price position bar within 24H range.
+  - Performance indicator.
+- **Refresh Button**: Added to toolbar to scroll chart to latest candle.
 - **Chart Customization**: Added a new settings modal (gear icon) to configure custom colors for candlesticks (Body, Borders, Wick) for both Up and Down candles.
 - **Indicator Colors**: Added color picker to the "Add/Edit Indicator" modal, allowing users to choose custom colors for their indicators.
 - **Indicator Management**: Added a quick "Remove" (X) button directly to indicator badges on the chart toolbar.
@@ -13,9 +25,15 @@ All notable changes to this project will be documented in this file.
 
 ### Fixed
 
+- **Timeframe Switch Bug**: Fixed chart jumping to old historical data when switching timeframes (15m, 1h, etc.). Chart now correctly shows the most recent candles.
+- **Pane Sync Error**: Fixed "Value is null" runtime error in indicator pane synchronization by adding robust null checks.
 - **Theme Issues**: Fixed hardcoded dark theme colors in the "Add Indicator" modal to respect light/dark mode preferences.
 - **UI Cleanup**: Removed redundant "ChevronDown" icons from the chart header dropdowns.
 - **Settings Persistence**: Chart color settings are now persisted locally using Zustand.
+
+### Changed
+
+- **Drawing Toolbar**: Simplified to show only cursor and refresh icons (removed non-functional drawing tools).
 
 ## [0.2.0] - 2026-01-05
 

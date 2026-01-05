@@ -41,8 +41,9 @@ This document provides context for continuing development on Argus.
     - Custom color selection for indicators.
     - Interactive badges to Edit/Remove indicators directly from the chart.
   - **Timeframes**: 1m, 5m, 15m, 1h, 4h, 1d, 1w.
-  - **Drawing Tools**: (Currently paused/UI only)
-  - **Watchlist**: (Currently mock data)
+  - **Toolbar**: Cursor mode + Refresh button to scroll to latest candle.
+  - **Watchlist**: Add/remove coins with search dropdown. Persisted in localStorage.
+  - **Coin Details Panel**: Shows key stats (Volume, High, Low, Range), 24H price position, and performance.
 - ✅ Dark/Light theme toggle
 - ✅ Real-time price updates
 - ✅ Automated Test Coverage (Playwright)

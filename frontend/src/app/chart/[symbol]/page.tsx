@@ -7,6 +7,7 @@
 
 import { CandlestickChart } from "@/components/CandlestickChart";
 import { ChartSettingsModal } from "@/components/ChartSettingsModal";
+import { CoinDetailsPanel } from "@/components/CoinDetailsPanel";
 import { DrawingToolbar } from "@/components/DrawingToolbar";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { WatchlistPanel } from "@/components/WatchlistPanel";
@@ -15,7 +16,7 @@ import { useOHLCV, useProvider, useTicker } from "@/hooks/useMarketData";
 import { useIndicatorStore } from "@/stores/indicatorStore";
 import { ChevronLeft, LayoutDashboard, Settings } from "lucide-react";
 import Link from "next/link";
-import { useState } from "react";
+import { useRef, useState } from "react";
 
 interface ChartPageProps {
   params: { symbol: string };
@@ -25,6 +26,7 @@ export default function ChartPage({ params }: ChartPageProps) {
   const symbol = params.symbol.replace("-", "/");
   const [timeframe, setTimeframe] = useState("1h");
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+  const scrollToLatestRef = useRef<(() => void) | null>(null);
 
   // Fetch market data
   const ohlcvQuery = useOHLCV(symbol, timeframe, 1000);
@@ -95,7 +97,7 @@ export default function ChartPage({ params }: ChartPageProps) {
       <main className="main">
         {/* Left: Drawing Tools */}
         <aside className="left-sidebar">
-          <DrawingToolbar />
+          <DrawingToolbar onScrollToLatest={() => scrollToLatestRef.current?.()} />
         </aside>
 
         {/* Center: Chart */}
@@ -114,12 +116,14 @@ export default function ChartPage({ params }: ChartPageProps) {
             isLoadingMore={isFetchingNextPage}
             timeframe={timeframe}
             onTimeframeChange={setTimeframe}
+            scrollToLatestRef={scrollToLatestRef}
           />
         </div>
 
-        {/* Right: Watchlist */}
+        {/* Right: Watchlist + Coin Details */}
         <aside className="right-sidebar">
           <WatchlistPanel currentSymbol={symbol} />
+          <CoinDetailsPanel symbol={symbol} />
         </aside>
       </main>
 

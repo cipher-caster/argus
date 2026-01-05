@@ -26,9 +26,10 @@ interface CandlestickChartProps {
   isLoadingMore?: boolean;
   timeframe?: string;
   onTimeframeChange?: (tf: string) => void;
+  scrollToLatestRef?: React.MutableRefObject<(() => void) | null>;
 }
 
-function CandlestickChartComponent({ candles, symbol, isLoading, indicatorResults = [], indicatorConfigs = [], onLoadMore, isLoadingMore, timeframe, onTimeframeChange }: CandlestickChartProps) {
+function CandlestickChartComponent({ candles, symbol, isLoading, indicatorResults = [], indicatorConfigs = [], onLoadMore, isLoadingMore, timeframe, onTimeframeChange, scrollToLatestRef }: CandlestickChartProps) {
   const mainContainerRef = useRef<HTMLDivElement>(null);
   const paneRefs = useRef<Map<string, HTMLDivElement>>(new Map());
 
@@ -56,6 +57,25 @@ function CandlestickChartComponent({ candles, symbol, isLoading, indicatorResult
   useEffect(() => {
     onLoadMoreRef.current = onLoadMore;
   }, [onLoadMore]);
+
+  // Track previous timeframe to detect timeframe changes vs infinite scroll
+  const prevTimeframeRef = useRef(timeframe);
+
+  // Register scroll-to-latest function for external use
+  useEffect(() => {
+    if (scrollToLatestRef) {
+      scrollToLatestRef.current = () => {
+        if (mainChartRef.current) {
+          mainChartRef.current.timeScale().scrollToPosition(0, true);
+        }
+      };
+    }
+    return () => {
+      if (scrollToLatestRef) {
+        scrollToLatestRef.current = null;
+      }
+    };
+  }, [scrollToLatestRef]);
 
   const currentTheme = themes[theme];
 
@@ -192,10 +212,14 @@ function CandlestickChartComponent({ candles, symbol, isLoading, indicatorResult
         if (mainChartRef.current) {
           const main = mainChartRef.current;
           chart.timeScale().subscribeVisibleTimeRangeChange((range) => {
-            if (range) main.timeScale().setVisibleRange(range);
+            if (range && range.from && range.to) {
+              main.timeScale().setVisibleRange(range);
+            }
           });
           main.timeScale().subscribeVisibleTimeRangeChange((range) => {
-            if (range) chart?.timeScale().setVisibleRange(range);
+            if (range && range.from && range.to) {
+              chart?.timeScale().setVisibleRange(range);
+            }
           });
         }
       } else {
@@ -238,8 +262,13 @@ function CandlestickChartComponent({ candles, symbol, isLoading, indicatorResult
   useEffect(() => {
     if (!mainSeriesRef.current || !candles.length) return;
 
+    // Detect if this is a timeframe change vs. infinite scroll load
+    const isTimeframeChange = prevTimeframeRef.current !== timeframe;
+    prevTimeframeRef.current = timeframe;
+
     let savedRange: { from: number; to: number } | null = null;
-    if (mainChartRef.current) {
+    // Only preserve range during infinite scroll, not timeframe changes
+    if (!isTimeframeChange && mainChartRef.current) {
       const currentRange = mainChartRef.current.timeScale().getVisibleLogicalRange();
       if (currentRange) {
         savedRange = { from: currentRange.from, to: currentRange.to };
@@ -258,12 +287,14 @@ function CandlestickChartComponent({ candles, symbol, isLoading, indicatorResult
 
     if (mainChartRef.current) {
       if (savedRange) {
+        // Infinite scroll: preserve position
         mainChartRef.current.timeScale().setVisibleLogicalRange(savedRange);
       } else {
+        // Timeframe change or initial load: scroll to show latest candles
         mainChartRef.current.timeScale().scrollToPosition(0, true);
       }
     }
-  }, [candles]);
+  }, [candles, timeframe]);
 
   // --- Effect 5: Update Indicator Data (Both Overlay and Panes) ---
   useEffect(() => {
