@@ -35,11 +35,14 @@ export interface TickerResponse {
 /**
  * Fetch OHLCV candlestick data
  */
-export async function fetchOHLCV(symbol: string, timeframe: string = "1h", limit: number = 100): Promise<OHLCVResponse> {
+export async function fetchOHLCV(symbol: string, timeframe: string = "1h", limit: number = 100, end_timestamp?: number): Promise<OHLCVResponse> {
   const params = new URLSearchParams({
     timeframe,
     limit: limit.toString(),
   });
+  if (end_timestamp) {
+    params.append("end_timestamp", end_timestamp.toString());
+  }
 
   const response = await fetch(`${API_URL}/api/ohlcv/${encodeURIComponent(symbol)}?${params}`);
 

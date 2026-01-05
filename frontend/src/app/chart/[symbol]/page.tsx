@@ -27,18 +27,44 @@ export default function ChartPage({ params }: ChartPageProps) {
   const [timeframe, setTimeframe] = useState("1h");
 
   // Fetch market data
-  const { data: ohlcvData, isLoading: isLoadingOHLCV } = useOHLCV(symbol, timeframe, 300);
-  const { data: tickerData } = useTicker(symbol);
-  const { data: providerData } = useProvider();
+  const ohlcvQuery = useOHLCV(symbol, timeframe, 1000);
+  const { data: ohlcvData, isLoading: isLoadingOHLCV, fetchNextPage, hasNextPage, isFetchingNextPage } = ohlcvQuery;
+
+  // Debug: Log the actual query state
+  console.log("[Page] ohlcvQuery state:", {
+    hasNextPage,
+    isFetchingNextPage,
+    pagesCount: ohlcvData?.pages?.length,
+    pageParams: ohlcvData?.pageParams,
+  });
+
+  const tickerQuery = useTicker(symbol);
+  const providerQuery = useProvider();
+  const tickerData = tickerQuery.data;
+  const providerData = providerQuery.data;
 
   // Fetch indicator data
   useAvailableIndicators();
   const indicators = useIndicatorStore((s) => s.indicators);
   const { data: indicatorData, isLoading: isLoadingIndicators } = useCalculatedIndicators(symbol, timeframe);
 
+  // Flatten candles from all pages
+  const allCandles = ohlcvData?.pages.flatMap((page: { candles: any[] }) => page.candles) || [];
+  // Sort by timestamp asc (older -> newer) just in case, though API returns desc usually we need to check API.
+  // API market.py returns sorted by timestamp ASC at the end.
+  // But infinite query prepends older pages?
+  // No, pages are appended in the array [page1(latest), page2(older)...]
+  // So we need to reverse the pages order or just sort all candles.
+  const sortedCandles = [...allCandles].sort((a, b) => a.timestamp - b.timestamp);
+
   const currentPrice = tickerData?.price;
-  const priceChange = ohlcvData?.candles?.length ? (currentPrice ?? 0) - ohlcvData.candles[0].close : 0;
-  const priceChangePercent = ohlcvData?.candles?.length ? (priceChange / ohlcvData.candles[0].close) * 100 : 0;
+  const priceChange = sortedCandles.length ? (currentPrice ?? 0) - sortedCandles[sortedCandles.length - 1].close : 0; // compare with latest close? or 24h ago?
+  // Usually price change is 24h. OHLCV might not have 24h ago exactly if 1h timeframe and only 100 loaded.
+  // For now let's use the first candle of the *latest loaded* set?
+  // Let's just use the oldest loaded candle for simple diff if we want "change since start of chart"
+  // or better, rely on ticker data for 24h change if available.
+  // But here we used ohlcvData[0] before.
+  const priceChangePercent = sortedCandles.length ? (((currentPrice ?? 0) - sortedCandles[0].close) / sortedCandles[0].close) * 100 : 0;
 
   return (
     <div className="chart-page">
@@ -83,7 +109,21 @@ export default function ChartPage({ params }: ChartPageProps) {
             <IndicatorToolbar />
           </div>
           <div className="chart-area">
-            <CandlestickChart candles={ohlcvData?.candles || []} symbol={symbol} isLoading={isLoadingOHLCV || isLoadingIndicators} indicatorResults={indicatorData?.results || []} indicatorConfigs={indicators} />
+            <CandlestickChart
+              candles={sortedCandles}
+              symbol={symbol}
+              isLoading={isLoadingOHLCV || isLoadingIndicators}
+              indicatorResults={indicatorData?.results || []}
+              indicatorConfigs={indicators}
+              onLoadMore={() => {
+                console.log(`[Page] onLoadMore called. hasNextPage=${hasNextPage}, isFetchingNextPage=${isFetchingNextPage}`);
+                if (hasNextPage && !isFetchingNextPage) {
+                  console.log("[Page] Calling fetchNextPage...");
+                  fetchNextPage();
+                }
+              }}
+              isLoadingMore={isFetchingNextPage}
+            />
           </div>
         </div>
       </main>

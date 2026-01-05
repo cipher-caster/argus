@@ -6,9 +6,11 @@ Endpoints for fetching OHLCV data and symbol information
 from fastapi import APIRouter, HTTPException, Query
 from typing import List, Optional
 from pydantic import BaseModel
+from sqlmodel import select
 
-from app.providers import Candle, SymbolInfo
-
+from app.providers import Candle as ProviderCandle, SymbolInfo
+from app.storage import RedisClient, Database, ArqClient
+from app.schemas.candle import Candle as DbCandle
 
 router = APIRouter(prefix="/api", tags=["market"])
 
@@ -18,13 +20,36 @@ class OHLCVResponse(BaseModel):
     symbol: str
     timeframe: str
     provider: str
-    candles: List[Candle]
+    candles: List[ProviderCandle]
 
 
 class TickerResponse(BaseModel):
     """Response model for ticker price"""
     symbol: str
     price: Optional[float]
+    provider: str
+
+class CoinInfo(BaseModel):
+    """Coin information for display"""
+    rank: int
+    symbol: str
+    name: str
+    price: float
+    change_24h: Optional[float] = None
+    volume_24h: Optional[float] = None
+    high_24h: Optional[float] = None
+    low_24h: Optional[float] = None
+
+class CoinsResponse(BaseModel):
+    """Paginated coins list response"""
+    coins: List[CoinInfo]
+    total: int
+    page: int
+    page_size: int
+
+class MarketSummaryResponse(BaseModel):
+    """Market summary statistics"""
+    total_coins: int
     provider: str
 
 
@@ -48,28 +73,118 @@ def get_provider():
 @router.get("/ohlcv/{symbol:path}", response_model=OHLCVResponse)
 async def get_ohlcv(
     symbol: str,
-    timeframe: str = Query(default="1h", pattern="^(1m|5m|15m|30m|1h|4h|1d|1w)$"),
-    limit: int = Query(default=100, ge=1, le=500)
+    timeframe: str = Query(default="1h", pattern="^(1m|5m|15m|30m|1h|4h|12h|1d|1w)$"),
+    limit: int = Query(default=100, ge=1, le=1000),
+    end_timestamp: Optional[int] = Query(default=None, description="Fetch candles before this timestamp (ms)")
 ):
     """
-    Fetch OHLCV candlestick data for a trading pair
-    
-    - **symbol**: Trading pair (e.g., BTC/USDT)
-    - **timeframe**: Candle timeframe (1m, 5m, 15m, 30m, 1h, 4h, 1d, 1w)
-    - **limit**: Number of candles (1-500)
+    Fetch OHLCV candlestick data from Database.
+    If data is missing for the requested range, fetches directly from Binance and saves to DB.
     """
-    provider = get_provider()
+    from app.providers.binance_provider import BinanceProvider
+    from app.schemas.candle import Candle as CandleModel
     
     try:
-        candles = await provider.get_ohlcv(symbol, timeframe, limit)
-        return OHLCVResponse(
-            symbol=symbol,
-            timeframe=timeframe,
-            provider=provider.name,
-            candles=candles
-        )
+        async with Database.get_session() as session:
+            # Base query
+            query = select(DbCandle).where(
+                DbCandle.symbol == symbol,
+                DbCandle.timeframe == timeframe
+            )
+            
+            # Apply pagination (historical data)  
+            if end_timestamp:
+                query = query.where(DbCandle.timestamp < end_timestamp)
+                
+            # Order and limit
+            statement = query.order_by(DbCandle.timestamp.desc()).limit(limit)
+            
+            results = await session.execute(statement)
+            db_candles = results.scalars().all()
+            
+            # --- Direct Fetch if Missing ---
+            if not db_candles or len(db_candles) < limit // 2:
+                print(f"I: Missing/sparse data for {symbol} {timeframe} before {end_timestamp}. Fetching from Binance...")
+                try:
+                    provider = BinanceProvider()
+                    try:
+                        # Calculate 'since' timestamp for fetching older data
+                        # If end_timestamp provided, we need to fetch candles BEFORE it
+                        # CCXT 'since' = start timestamp, so we go back by limit * timeframe
+                        timeframe_ms = {
+                            '1m': 60 * 1000,
+                            '5m': 5 * 60 * 1000,
+                            '15m': 15 * 60 * 1000,
+                            '30m': 30 * 60 * 1000,
+                            '1h': 60 * 60 * 1000,
+                            '4h': 4 * 60 * 60 * 1000,
+                            '12h': 12 * 60 * 60 * 1000,
+                            '1d': 24 * 60 * 60 * 1000,
+                            '1w': 7 * 24 * 60 * 60 * 1000,
+                        }.get(timeframe, 60 * 60 * 1000)
+                        
+                        # Calculate 'since' to fetch 1000 candles ending at end_timestamp
+                        if end_timestamp:
+                            since_ts = end_timestamp - (1000 * timeframe_ms)
+                        else:
+                            since_ts = None  # Fetch latest
+                        
+                        print(f"I: Fetching from Binance with since={since_ts}")
+                        fresh_candles = await provider.get_ohlcv(symbol, timeframe=timeframe, limit=1000, since=since_ts)
+                        
+                        # Save to DB
+                        for c in fresh_candles:
+                            candle_db = CandleModel(
+                                symbol=symbol,
+                                provider="binance",
+                                timeframe=timeframe,
+                                timestamp=c.timestamp,
+                                open=c.open,
+                                high=c.high,
+                                low=c.low,
+                                close=c.close,
+                                volume=c.volume
+                            )
+                            await session.merge(candle_db)
+                        await session.commit()
+                        print(f"I: Saved {len(fresh_candles)} candles to DB")
+                        
+                        # Re-query to get filtered results
+                        results = await session.execute(statement)
+                        db_candles = results.scalars().all()
+                        
+                    finally:
+                        await provider.close()
+                        
+                except Exception as e:
+                    print(f"E: Failed to fetch from Binance: {e}")
+            # ---------------------------
+
+            # Sort ascending for frontend
+            db_candles = sorted(db_candles, key=lambda x: x.timestamp)
+            
+            # Convert to response format
+            candles = [
+                ProviderCandle(
+                    timestamp=c.timestamp,
+                    open=c.open,
+                    high=c.high,
+                    low=c.low,
+                    close=c.close,
+                    volume=c.volume
+                ) for c in db_candles
+            ]
+            
+            return OHLCVResponse(
+                symbol=symbol,
+                timeframe=timeframe,
+                provider="postgres-db" if db_candles else "empty",
+                candles=candles
+            )
     except Exception as e:
-        raise HTTPException(status_code=400, detail=f"Failed to fetch data: {str(e)}")
+        # For MVP, if DB empty/fails, we could fallback to provider? 
+        # But per strict architecture, we should just return error or empty.
+        raise HTTPException(status_code=500, detail=f"Failed to fetch data: {str(e)}")
 
 
 @router.get("/symbols", response_model=List[SymbolInfo])
@@ -85,63 +200,44 @@ async def get_symbols():
 
 @router.get("/ticker/{symbol:path}", response_model=TickerResponse)
 async def get_ticker(symbol: str):
-    """Get current price for a trading pair"""
-    provider = get_provider()
-    
+    """Get current price for a trading pair from Redis Cache or market:tickers"""
     try:
-        price = await provider.get_ticker_price(symbol)
-        return TickerResponse(
-            symbol=symbol,
-            price=price,
-            provider=provider.name
-        )
+        # Try direct key first
+        price = await RedisClient.get_json(f"ticker:{symbol}")
+        if price:
+            return TickerResponse(symbol=symbol, price=price, provider="cache")
+            
+        # Fallback: check market:tickers list
+        all_tickers = await RedisClient.get_json("market:tickers")
+        if all_tickers:
+            for ticker in all_tickers:
+                if ticker.get('symbol') == symbol:
+                    return TickerResponse(symbol=symbol, price=ticker.get('price'), provider="market-cache")
+        
+        # Still not found - return null price instead of 404
+        return TickerResponse(symbol=symbol, price=None, provider="not-found")
     except Exception as e:
-        raise HTTPException(status_code=400, detail=f"Failed to fetch ticker: {str(e)}")
+        raise HTTPException(status_code=404, detail=f"Ticker errors: {str(e)}")
 
 
 @router.get("/provider")
 async def get_provider_info():
     """Get current data provider information"""
-    provider = get_provider()
-    return {"provider": provider.name}
-
-
-class CoinInfo(BaseModel):
-    """Coin information for table display"""
-    rank: int
-    symbol: str
-    name: str
-    price: float
-    change_24h: Optional[float] = None
-    volume_24h: Optional[float] = None
-    high_24h: Optional[float] = None
-    low_24h: Optional[float] = None
-
-
-class CoinsResponse(BaseModel):
-    """Paginated coins list response"""
-    coins: List[CoinInfo]
-    total: int
-    page: int
-    page_size: int
-
-
-class MarketSummaryResponse(BaseModel):
-    """Market summary statistics"""
-    total_coins: int
-    provider: str
+    # Simply return generic
+    return {"provider": "redis-worker"}
 
 
 @router.get("/market/summary", response_model=MarketSummaryResponse)
 async def get_market_summary():
-    """Get market summary statistics"""
-    provider = get_provider()
-    
+    """Get market summary statistics from Redis"""
     try:
-        symbols = await provider.get_symbols()
+        data = await RedisClient.get_json("market:tickers")
+        if not data:
+             return MarketSummaryResponse(total_coins=0, provider="cache-empty")
+             
         return MarketSummaryResponse(
-            total_coins=len(symbols),
-            provider=provider.name
+            total_coins=len(data),
+            provider="redis-cache"
         )
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to fetch summary: {str(e)}")
@@ -156,61 +252,49 @@ async def get_coins(
     sort_order: str = Query(default="asc", pattern="^(asc|desc)$")
 ):
     """
-    Get paginated list of coins with prices
-    
-    - **page**: Page number (1-indexed)
-    - **page_size**: Items per page (10-100)
-    - **search**: Filter by symbol name
-    - **sort_by**: Sort field (symbol, price, volume_24h, change_24h)
-    - **sort_order**: Sort direction (asc, desc)
+    Get paginated list of coins from Redis Cache
     """
-    provider = get_provider()
-    
     try:
-        # Get all symbols
-        symbols = await provider.get_symbols()
-        
-        # Filter by search term
-        if search:
-            search_upper = search.upper()
-            symbols = [s for s in symbols if search_upper in s.symbol.upper()]
-        
-        # Batch fetch all tickers at once
-        all_tickers = await provider.get_all_tickers()
-        
-        # Build coins list with prices
+        # Fetch full list from Redis
+        raw_data = await RedisClient.get_json("market:tickers")
+        if not raw_data:
+            return CoinsResponse(coins=[], total=0, page=page, page_size=page_size)
+            
+        # Convert to CoinInfo objects
         coins = []
-        for idx, sym in enumerate(symbols):
-            ticker = all_tickers.get(sym.symbol)
-            if ticker:  # Only include coins with valid ticker data
-                price = ticker.get('last')
-                if price:
-                    coins.append(CoinInfo(
-                        rank=idx + 1,
-                        symbol=sym.symbol,
-                        name=sym.symbol.replace("/USDT", "").replace("/USD", ""),
-                        price=price,
-                        change_24h=ticker.get('percentage'),
-                        volume_24h=ticker.get('quoteVolume'),
-                        high_24h=ticker.get('high'),
-                        low_24h=ticker.get('low')
-                    ))
-        
+        for i, t in enumerate(raw_data):
+            # t is dict
+            coins.append(CoinInfo(
+                rank=0, # will resolve later
+                symbol=t['symbol'],
+                name=t['name'] or t['symbol'].split('/')[0],
+                price=t['price'],
+                change_24h=t.get('change_24h'),
+                volume_24h=t.get('volume_24h'),
+                high_24h=t.get('high_24h'),
+                low_24h=t.get('low_24h')
+            ))
+            
+        # Filter (Search)
+        if search:
+            s_upper = search.upper()
+            coins = [c for c in coins if s_upper in c.symbol.upper()]
+            
         # Sort
         reverse = sort_order == "desc"
-        if sort_by == "price":
-            coins.sort(key=lambda c: c.price, reverse=reverse)
-        elif sort_by == "volume_24h":
-            coins.sort(key=lambda c: c.volume_24h or 0, reverse=reverse)
-        elif sort_by == "change_24h":
-            coins.sort(key=lambda c: c.change_24h or 0, reverse=reverse)
+        if sort_by == 'price':
+            coins.sort(key=lambda x: x.price or 0, reverse=reverse)
+        elif sort_by == 'change_24h':
+            coins.sort(key=lambda x: x.change_24h or 0, reverse=reverse)
+        elif sort_by == 'volume_24h':
+            coins.sort(key=lambda x: x.volume_24h or 0, reverse=reverse)
         else:
-            coins.sort(key=lambda c: c.symbol, reverse=reverse)
-        
-        # Update ranks after sorting
-        for idx, coin in enumerate(coins):
-            coin.rank = idx + 1
-        
+            coins.sort(key=lambda x: x.symbol, reverse=reverse)
+            
+        # Rerank
+        for idx, c in enumerate(coins):
+            c.rank = idx + 1
+            
         # Paginate
         total = len(coins)
         start = (page - 1) * page_size

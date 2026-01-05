@@ -2,84 +2,76 @@
 
 ## Overview
 
-Argus is a full-stack cryptocurrency dashboard built with a Python backend and React frontend.
+Argus is a professional-grade cryptocurrency dashboard designed with a scalable, event-driven architecture.
+It uses a **Worker-Queue** pattern to decouple data ingestion from the user-facing API, ensuring low latency and high reliability.
 
-```
-┌─────────────────────────────────────────────────────────────┐
-│                        Frontend                              │
-│  Next.js 14 + React + TypeScript                            │
-│  ┌─────────────┐ ┌─────────────┐ ┌─────────────┐           │
-│  │ Market      │ │ Chart       │ │ Indicators  │           │
-│  │ Overview    │ │ View        │ │ System      │           │
-│  └─────────────┘ └─────────────┘ └─────────────┘           │
-│                         │                                    │
-│              ┌──────────┴──────────┐                        │
-│              │ React Query + Zustand│                        │
-│              └──────────┬──────────┘                        │
-└─────────────────────────┼───────────────────────────────────┘
-                          │ HTTP/REST
-┌─────────────────────────┼───────────────────────────────────┐
-│                         ▼                                    │
-│                    FastAPI Backend                           │
-│  ┌─────────────┐ ┌─────────────┐ ┌─────────────┐           │
-│  │ Market      │ │ OHLCV       │ │ Indicators  │           │
-│  │ Routes      │ │ Routes      │ │ Calculator  │           │
-│  └─────────────┘ └─────────────┘ └─────────────┘           │
-│                         │                                    │
-│              ┌──────────┴──────────┐                        │
-│              │   Data Providers     │                        │
-│              │  (CCXT: Binance/OKX) │                        │
-│              └─────────────────────┘                        │
-└─────────────────────────────────────────────────────────────┘
+### System Diagram
+
+```mermaid
+graph TD
+    User[User / Frontend] -->|HTTP| API[FastAPI API Service]
+    API -->|Read Hot Data| Redis[(Redis Cache)]
+    API -->|Read History| DB[(Postgres DB)]
+
+    Scheduler[Scheduler / Beat] -->|Push Jobs| Queue[(Redis Queue)]
+    API -->|Push On-Demand Jobs| Queue
+
+    Queue -->|Pop Jobs| Worker[Worker Service]
+
+    Worker -->|Fetch Data| Binance[Binance API]
+    Worker -->|Fetch Data| CoinGecko[CoinGecko API]
+
+    Worker -->|Write Hot Data| Redis
+    Worker -->|Write Persistent Data| DB
 ```
 
-## Backend
+## Tech Stack
 
-### Providers
+### Core Infrastructure (Dockerized)
 
-- `BinanceProvider` - Primary exchange using CCXT
-- `OKXProvider` - Alternative exchange support
-- Extensible for adding more exchanges
+- **Docker Compose**: Orchestrates all services (API, Worker, Redis, DB).
+- **Redis (Alpine)**:
+  - **Purpose**: High-speed cache for "Live Tickers" and "Market Summaries".
+  - **Role**: Message Broker for the Task Queue.
+- **PostgreSQL (16)**:
+  - **Purpose**: Persistent storage for historical OHLCV candles.
+  - **Schema**: Optimized time-series indexing `(symbol, provider, timeframe, timestamp)`.
 
-### Routes
+### Backend Components (Python)
 
-| Endpoint                         | Description             |
-| -------------------------------- | ----------------------- |
-| `GET /api/ohlcv/{symbol}`        | Candlestick data        |
-| `GET /api/symbols`               | Available trading pairs |
-| `GET /api/ticker/{symbol}`       | Current price           |
-| `GET /api/market/coins`          | Paginated coin list     |
-| `POST /api/indicators/calculate` | Technical indicators    |
+- **FastAPI**: Serves data to the frontend. No longer calls external APIs directly.
+- **Worker Service**: A dedicated background process using `arq` or `Celery`.
+  - **Responsibilities**: Rate-limit handling, data normalization, database writes.
+- **Providers**:
+  - `BinanceProvider`: For high-frequency trade data.
+  - `CoinGeckoProvider`: For rich metadata and rankings.
 
-### Indicators
+### Frontend
 
-Powered by `pandas-ta`:
+- **Next.js 14**: Server-side rendering and static generation.
+- **React Query**: Efficient server-state management.
+- **Zustand**: Client-side state (Theme, Indicators).
 
-- Overlay: EMA, SMA, Bollinger Bands, Linear Regression
-- Oscillators: RSI, MACD, OBV (Separate Panes)
+## Data Flow
 
-## Frontend
+1.  **Ingestion**:
+    - **Scheduled**: "Top 100 Coins" metadata fetched every 60s. Live prices cached every 5s.
+    - **On-Demand**: When a user views a chart, the API triggers a "Backfill" job if data is missing.
+2.  **Storage**:
+    - Hot data (Price, % Change) lives in **Redis** for <5ms access.
+    - Cold data (Historical 1h/1d candles) lives in **Postgres**.
+3.  **Serving**:
+    - The API simply queries Redis or Postgres. It never blocks on external API calls.
 
-### State Management
+## Testing Strategy
 
-- **Zustand** - Global stores for indicators, theme, drawings
-- **React Query** - Server state caching and refetching
+- **E2E (Playwright)**: Verifies that the Frontend correctly displays data fed by the Worker.
+- **Unit Tests**: Verify that Providers correctly parse external API responses.
 
-### Key Components
+---
 
-- `CandlestickChart` - Multi-instance TradingView chart (Main + Panes) with sync
+## Detailed Documentation
 
-- `CoinTable` - Market overview table
-- `IndicatorToolbar` - Indicator management
-- `ThemeToggle` - Dark/light mode
+For more detailed architecture documentation including sequence diagrams and modern standards compliance review, see:
 
-### Testing Strategy
-
-- **E2E Testing**: `Playwright` to verify critical user flows (Navigation, Charting, Search).
-
-### Routing
-
-| Route             | Component       |
-| ----------------- | --------------- |
-| `/`               | Market Overview |
-| `/chart/[symbol]` | Chart View      |
+- **[Data Architecture](./DATA_ARCHITECTURE.md)** - Complete data flow diagrams, storage strategy, and implementation patterns

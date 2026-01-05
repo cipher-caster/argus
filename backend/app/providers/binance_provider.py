@@ -33,15 +33,18 @@ class BinanceProvider(DataProvider):
         self, 
         symbol: str, 
         timeframe: str = "1h", 
-        limit: int = 100
+        limit: int = 100,
+        since: int = None  # Timestamp in ms to fetch data starting from
     ) -> List[Candle]:
         await self._ensure_loaded()
         
         # Fetch OHLCV data from Binance
+        # 'since' parameter tells CCXT to fetch candles STARTING from this timestamp
         ohlcv = await self._exchange.fetch_ohlcv(
             symbol, 
             timeframe=timeframe, 
-            limit=limit
+            limit=limit,
+            since=since
         )
         
         # Convert to Candle objects

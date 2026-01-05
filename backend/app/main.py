@@ -9,40 +9,26 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from dotenv import load_dotenv
 
-from app.routes import market_router, indicators_router, set_provider
-from app.providers import BinanceProvider, OKXProvider
-
+from app.routes import market_router
+from app.storage import Database
 
 load_dotenv()
 
-# Active provider instance
-_provider = None
-
-
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    """Manage provider lifecycle"""
-    global _provider
+    """Manage application lifecycle"""
     
-    # Get provider from environment (default to binance)
-    provider_name = os.getenv("DATA_PROVIDER", "binance").lower()
+    # Initialize Database (Storage)
+    Database.init()
+    print("✓ Magus Backend: Database initialized")
     
-    if provider_name == "okx":
-        _provider = OKXProvider()
-    else:
-        _provider = BinanceProvider()
-    
-    # Set provider for routes
-    set_provider(_provider)
-    
-    print(f"✓ Magus Backend started with {_provider.name} provider")
+    # We could also check Redis here if we wanted
     
     yield
     
     # Cleanup
-    if _provider:
-        await _provider.close()
-        print("✓ Provider connection closed")
+    await Database.close()
+    print("✓ Magus Backend: Storage closed")
 
 
 app = FastAPI(
@@ -66,7 +52,7 @@ app.add_middleware(
 
 # Include routers
 app.include_router(market_router)
-app.include_router(indicators_router)
+# app.include_router(indicators_router)
 
 
 @app.get("/health")

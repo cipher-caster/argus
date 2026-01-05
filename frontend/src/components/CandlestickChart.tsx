@@ -18,9 +18,11 @@ interface CandlestickChartProps {
   isLoading?: boolean;
   indicatorResults?: IndicatorResult[];
   indicatorConfigs?: IndicatorConfig[];
+  onLoadMore?: () => void;
+  isLoadingMore?: boolean;
 }
 
-function CandlestickChartComponent({ candles, symbol, isLoading, indicatorResults = [], indicatorConfigs = [] }: CandlestickChartProps) {
+function CandlestickChartComponent({ candles, symbol, isLoading, indicatorResults = [], indicatorConfigs = [], onLoadMore, isLoadingMore }: CandlestickChartProps) {
   const mainContainerRef = useRef<HTMLDivElement>(null);
   const paneRefs = useRef<Map<string, HTMLDivElement>>(new Map());
 
@@ -30,6 +32,18 @@ function CandlestickChartComponent({ candles, symbol, isLoading, indicatorResult
   const mainSeriesRef = useRef<ISeriesApi<"Candlestick"> | null>(null);
   const overlaySeriesRef = useRef<Map<string, ISeriesApi<"Line">[]>>(new Map());
   const paneSeriesRef = useRef<Map<string, ISeriesApi<"Line" | "Histogram">[]>>(new Map());
+
+  // Track if we are already loading to avoid double calls
+  const isLoadingMoreRef = useRef(false);
+  useEffect(() => {
+    isLoadingMoreRef.current = !!isLoadingMore;
+  }, [isLoadingMore]);
+
+  // Keep ref to latest onLoadMore to avoid stale closure issues
+  const onLoadMoreRef = useRef(onLoadMore);
+  useEffect(() => {
+    onLoadMoreRef.current = onLoadMore;
+  }, [onLoadMore]);
 
   const theme = useThemeStore((s) => s.theme);
   const currentTheme = themes[theme];
@@ -91,6 +105,18 @@ function CandlestickChartComponent({ candles, symbol, isLoading, indicatorResult
       const width = mainContainerRef.current.clientWidth;
       const height = mainContainerRef.current.clientHeight;
       const chart = createChart(mainContainerRef.current, getChartOptions(width, height));
+
+      // Infinite Scroll Handler
+      chart.timeScale().subscribeVisibleLogicalRangeChange((range) => {
+        if (!range) return;
+        console.log(`[Chart] Visible range: from=${range.from}, to=${range.to}, hasOnLoadMore=${!!onLoadMoreRef.current}, isLoadingMore=${isLoadingMoreRef.current}`);
+        if (!onLoadMoreRef.current) return;
+        // If we are close to the start (left side) and not already loading
+        if (range.from < 10 && !isLoadingMoreRef.current) {
+          console.log("[Chart] Triggering onLoadMore!");
+          onLoadMoreRef.current();
+        }
+      });
 
       const candlestickSeries = chart.addCandlestickSeries({
         upColor: currentTheme.positive,
@@ -197,6 +223,15 @@ function CandlestickChartComponent({ candles, symbol, isLoading, indicatorResult
   useEffect(() => {
     if (!mainSeriesRef.current || !candles.length) return;
 
+    // Save current visible range before update (to preserve scroll position)
+    let savedRange: { from: number; to: number } | null = null;
+    if (mainChartRef.current) {
+      const currentRange = mainChartRef.current.timeScale().getVisibleLogicalRange();
+      if (currentRange) {
+        savedRange = { from: currentRange.from, to: currentRange.to };
+      }
+    }
+
     const chartData: CandlestickData<Time>[] = candles.map((candle) => ({
       time: (candle.timestamp / 1000) as Time,
       open: candle.open,
@@ -208,7 +243,13 @@ function CandlestickChartComponent({ candles, symbol, isLoading, indicatorResult
     mainSeriesRef.current.setData(chartData);
 
     if (mainChartRef.current) {
-      mainChartRef.current.timeScale().fitContent();
+      if (savedRange) {
+        // Restore the saved visible range to keep the view stable
+        mainChartRef.current.timeScale().setVisibleLogicalRange(savedRange);
+      } else {
+        // First load - fit all content
+        mainChartRef.current.timeScale().fitContent();
+      }
     }
   }, [candles]);
 

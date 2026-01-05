@@ -6,6 +6,26 @@ This document provides context for continuing development on Argus.
 
 **Argus** is a professional cryptocurrency dashboard similar to CoinGecko/CoinGlass.
 
+## Tech Stack
+
+### Infrastructure
+
+- **Docker Compose**: Orchestrates all services (API, Worker, Redis, DB).
+- **PostgreSQL**: Persistent history.
+- **Redis**: Real-time cache & Job Queue.
+
+### Backend
+
+- **Framework**: FastAPI (Python 3.10+)
+- **Worker**: Python Background Service (Arq)
+- **Providers**: Binance (CCXT), CoinGecko
+
+### Frontend
+
+- **Framework**: Next.js 14 (App Router)
+- **State**: React Query + Zustand
+- **Styling**: Vanilla CSS
+
 ## Current State
 
 ### What's Working
@@ -25,22 +45,46 @@ This document provides context for continuing development on Argus.
 
 ### How to Run
 
+**Using Docker (Recommended)**
+
+```bash
+docker-compose up -d --build
+```
+
+This starts:
+
+- **Frontend**: http://localhost:3000
+- **Backend API**: http://localhost:8000/docs
+- **Worker**: Background data ingestion
+- **Redis**: Port 6379
+- **Postgres**: Port 5433
+
+**Database Credentials**
+
+- **Host**: `localhost`
+- **Port**: `5433` (mapped from 5432)
+- **User**: `argus`
+- **Password**: `argus_password`
+- **Database**: `argus_db`
+- **Connection URL**: `postgresql://argus:argus_password@localhost:5433/argus_db`
+
+**Manual Run (Dev)**
+
 ```bash
 # Terminal 1 - Backend
-cd /home/mjm/Documents/argus/backend
+cd backend
 source venv/bin/activate
 uvicorn app.main:app --reload
 
 # Terminal 2 - Frontend
-cd /home/mjm/Documents/argus/frontend
+cd frontend
 npm run dev
 
-# Run Tests
-npx playwright test
+# Terminal 3 - Worker
+cd backend
+source venv/bin/activate
+python -m app.worker
 ```
-
-- **App**: http://localhost:3000
-- **API**: http://localhost:8000/docs
 
 ## Key Files
 

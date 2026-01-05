@@ -5,17 +5,33 @@
  */
 
 import { fetchOHLCV, fetchProviderInfo, fetchSymbols, fetchTicker } from "@/lib/api";
-import { useQuery } from "@tanstack/react-query";
+import { useInfiniteQuery, useQuery } from "@tanstack/react-query";
 
 /**
- * Hook for fetching OHLCV candlestick data
+ * Hook for fetching OHLCV candlestick data with infinite scrolling
  */
-export function useOHLCV(symbol: string, timeframe: string = "1h", limit: number = 300) {
-  return useQuery({
-    queryKey: ["ohlcv", symbol, timeframe, limit],
-    queryFn: () => fetchOHLCV(symbol, timeframe, limit),
-    refetchInterval: 60000, // Refetch every minute
-    staleTime: 30000, // Consider data fresh for 30 seconds
+export function useOHLCV(symbol: string, timeframe: string = "1h", limit: number = 1000) {
+  return useInfiniteQuery({
+    queryKey: ["ohlcv", symbol, timeframe, limit] as const,
+    queryFn: async ({ pageParam }) => {
+      console.log(`[useOHLCV] Fetching page, pageParam=${pageParam}`);
+      const result = await fetchOHLCV(symbol, timeframe, limit, pageParam);
+      console.log(`[useOHLCV] Got ${result.candles?.length || 0} candles`);
+      return result;
+    },
+    getNextPageParam: (lastPage) => {
+      console.log(`[useOHLCV] getNextPageParam: candles=${lastPage.candles?.length}, limit=${limit}`);
+      if (!lastPage.candles || lastPage.candles.length === 0) {
+        console.log("[useOHLCV] No candles returned, no more pages");
+        return undefined;
+      }
+      const oldestTimestamp = lastPage.candles[0].timestamp;
+      console.log(`[useOHLCV] Next page param: ${oldestTimestamp}`);
+      return oldestTimestamp;
+    },
+    initialPageParam: undefined as number | undefined,
+    refetchInterval: 60000,
+    staleTime: 30000,
     enabled: !!symbol,
   });
 }
