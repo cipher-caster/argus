@@ -34,11 +34,15 @@ This document provides context for continuing development on Argus.
 - ✅ Coin table with 400+ USDT pairs from Binance
 - ✅ Sort by price (default: high to low), symbol
 - ✅ Search and pagination (50 per page)
-- ✅ Chart view at `/chart/[symbol]` (e.g., `/chart/BTC-USDT`)
-- ✅ Technical indicators: EMA, SMA, Bollinger Bands, RSI, MACD
-- ✅ Separate Pane Indicators: RSI, OBV, MACD (synchronized)
-- ✅ Modern UI with Lucide Icons and Market Stats
-
+- **Interactive Chart (`/chart/[symbol]`)**:
+  - TradingView-style candlestick chart using `lightweight-charts`.
+  - **Customization**: Users can configure candle colors (Body, Border, Wick) via a "Settings" modal.
+  - **Indicators**: Support for overlay indicators (SMA, EMA, BBands) and separate pane indicators (RSI, MACD, OBV).
+    - Custom color selection for indicators.
+    - Interactive badges to Edit/Remove indicators directly from the chart.
+  - **Timeframes**: 1m, 5m, 15m, 1h, 4h, 1d, 1w.
+  - **Drawing Tools**: (Currently paused/UI only)
+  - **Watchlist**: (Currently mock data)
 - ✅ Dark/Light theme toggle
 - ✅ Real-time price updates
 - ✅ Automated Test Coverage (Playwright)

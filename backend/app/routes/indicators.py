@@ -65,16 +65,33 @@ async def calculate_indicators(request: CalculateRequest):
     }
     ```
     """
-    provider = get_provider()
-    
     try:
-        # Fetch OHLCV data
-        candles = await provider.get_ohlcv(
-            request.symbol, 
-            request.timeframe, 
-            request.limit
-        )
+        # Fetch OHLCV data from Database (Historical)
+        # We assume the data is already populated by the main OHLCV endpoint (Redis/Worker/Market Route)
+        # This allows indicators to be calculated on the full available history in DB
+        from app.storage import Database
+        from app.schemas.candle import Candle as DbCandle
+        from sqlmodel import select
         
+        async with Database.get_session() as session:
+            query = select(DbCandle).where(
+                DbCandle.symbol == request.symbol,
+                DbCandle.timeframe == request.timeframe
+            ).order_by(DbCandle.timestamp.desc()).limit(request.limit)
+            
+            results = await session.execute(query)
+            db_candles = results.scalars().all()
+            
+        if not db_candles:
+            # Fallback for empty DB (e.g. fresh install) - try provider once
+            print(f"W: No data in DB for {request.symbol} {request.timeframe}. Fetching from provider...")
+            provider = get_provider()
+            candles = await provider.get_ohlcv(request.symbol, request.timeframe, request.limit)
+        else:
+            # Sort ascending for calculation (oldest to newest)
+            db_candles = sorted(db_candles, key=lambda x: x.timestamp)
+            candles = db_candles
+
         # Convert to DataFrame
         df = pd.DataFrame([
             {
@@ -102,4 +119,6 @@ async def calculate_indicators(request: CalculateRequest):
         )
         
     except Exception as e:
+        import traceback
+        traceback.print_exc()
         raise HTTPException(status_code=400, detail=f"Failed to calculate: {str(e)}")

@@ -4,6 +4,21 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+#### Added
+
+- **Chart Customization**: Added a new settings modal (gear icon) to configure custom colors for candlesticks (Body, Borders, Wick) for both Up and Down candles.
+- **Indicator Colors**: Added color picker to the "Add/Edit Indicator" modal, allowing users to choose custom colors for their indicators.
+- **Indicator Management**: Added a quick "Remove" (X) button directly to indicator badges on the chart toolbar.
+- **Indicator Editing**: Clicking an indicator badge now re-opens the settings modal for quick edits.
+
+### Fixed
+
+- **Theme Issues**: Fixed hardcoded dark theme colors in the "Add Indicator" modal to respect light/dark mode preferences.
+- **UI Cleanup**: Removed redundant "ChevronDown" icons from the chart header dropdowns.
+- **Settings Persistence**: Chart color settings are now persisted locally using Zustand.
+
+## [0.2.0] - 2026-01-05
+
 ### Added
 
 - **Separate Pane Indicators**: Added support for RSI, MACD, and OBV indicators displayed in separate panes below the main chart.
@@ -11,7 +26,7 @@ All notable changes to this project will be documented in this file.
   - Dynamic resizing of all chart panes.
 - **UI Enhancements**:
   - Integrated `lucide-react` for a unified and modern icon set.
-  - CoinGlass-inspired aesthetic updates to `CoinTable`, `IndicatorToolbar`, and `ChartPage`.
+  - CoinGlass-inspired aesthetic updates to `CoinTable`, `IndicatorToolbar`, `ChartPage`.
   - Added "StatsCards" for market overview highlights.
   - Added "TopCoinsWidgets" for gaining/losing coins.
 - **Market Widget Navigation**: Enabled "More >" links for Top Gainers/Losers/Volume to navigate to dedicated filtered views (`/markets/[type]`).

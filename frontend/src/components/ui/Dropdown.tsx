@@ -1,6 +1,5 @@
 "use client";
 
-import { ChevronDown } from "lucide-react";
 import { ReactNode, useEffect, useRef, useState } from "react";
 
 interface DropdownProps {
@@ -29,7 +28,6 @@ export function Dropdown({ trigger, children, align = "left", className = "" }: 
     <div ref={ref} className={`dropdown ${className}`}>
       <div className="dropdown-trigger" onClick={() => setIsOpen(!isOpen)}>
         {trigger}
-        <ChevronDown size={14} style={{ opacity: 0.6 }} />
       </div>
       {isOpen && <div className={`dropdown-menu ${align === "right" ? "dropdown-menu-right" : ""}`}>{children}</div>}
     </div>

@@ -33,7 +33,7 @@ interface IndicatorStore {
   availableIndicators: IndicatorDefinition[];
 
   // Actions
-  addIndicator: (type: string, params?: Record<string, number>) => void;
+  addIndicator: (type: string, params?: Record<string, number>, color?: string) => void;
   removeIndicator: (id: string) => void;
   updateIndicator: (id: string, updates: Partial<IndicatorConfig>) => void;
   toggleVisibility: (id: string) => void;
@@ -42,7 +42,7 @@ interface IndicatorStore {
 }
 
 // Preset colors for indicators
-const INDICATOR_COLORS = [
+export const INDICATOR_COLORS = [
   "#6366f1", // Indigo
   "#f59e0b", // Amber
   "#10b981", // Emerald
@@ -54,7 +54,7 @@ const INDICATOR_COLORS = [
 ];
 
 let colorIndex = 0;
-const getNextColor = () => {
+export const getNextColor = () => {
   const color = INDICATOR_COLORS[colorIndex % INDICATOR_COLORS.length];
   colorIndex++;
   return color;
@@ -64,7 +64,7 @@ export const useIndicatorStore = create<IndicatorStore>((set, get) => ({
   indicators: [],
   availableIndicators: [],
 
-  addIndicator: (type: string, params?: Record<string, number>) => {
+  addIndicator: (type: string, params?: Record<string, number>, color?: string) => {
     const available = get().availableIndicators.find((i) => i.name === type);
     if (!available) return;
 
@@ -80,7 +80,7 @@ export const useIndicatorStore = create<IndicatorStore>((set, get) => ({
       displayName: `${available.display_name}(${Object.values(defaultParams).join(",")})`,
       indicatorType: available.type,
       params: defaultParams,
-      color: getNextColor(),
+      color: color || getNextColor(),
       visible: true,
     };
 

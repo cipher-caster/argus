@@ -5,7 +5,7 @@
  * Settings modal for adding/editing indicators with configurable parameters
  */
 
-import { IndicatorConfig, useIndicatorStore } from "@/stores/indicatorStore";
+import { getNextColor, INDICATOR_COLORS, IndicatorConfig, useIndicatorStore } from "@/stores/indicatorStore";
 import { memo, useEffect, useState } from "react";
 import { createPortal } from "react-dom";
 
@@ -23,6 +23,7 @@ function IndicatorModalComponent({ isOpen, onClose, editingIndicator }: Indicato
 
   const [selectedType, setSelectedType] = useState<string>("ema");
   const [params, setParams] = useState<Record<string, number>>({});
+  const [selectedColor, setSelectedColor] = useState<string>(INDICATOR_COLORS[0]);
 
   const selectedDefinition = availableIndicators.find((i) => i.name === selectedType);
 
@@ -36,8 +37,10 @@ function IndicatorModalComponent({ isOpen, onClose, editingIndicator }: Indicato
       if (editingIndicator) {
         setSelectedType(editingIndicator.type);
         setParams(editingIndicator.params);
+        setSelectedColor(editingIndicator.color);
       } else {
         setSelectedType("ema");
+        setSelectedColor(getNextColor());
         // Set defaults from first indicator
         const def = availableIndicators.find((i) => i.name === "ema");
         if (def) {
@@ -68,11 +71,12 @@ function IndicatorModalComponent({ isOpen, onClose, editingIndicator }: Indicato
       const def = availableIndicators.find((i) => i.name === editingIndicator.type);
       updateIndicator(editingIndicator.id, {
         params,
+        color: selectedColor,
         displayName: `${def?.display_name || editingIndicator.type}(${Object.values(params).join(",")})`,
       });
     } else {
       // Add new
-      addIndicator(selectedType, params);
+      addIndicator(selectedType, params, selectedColor);
     }
     onClose();
   };
@@ -147,6 +151,16 @@ function IndicatorModalComponent({ isOpen, onClose, editingIndicator }: Indicato
 
               {/* Description */}
               {selectedDefinition && <p className="description">{selectedDefinition.description}</p>}
+
+              {/* Color Picker */}
+              <div className="form-group">
+                <label>Color</label>
+                <div className="color-picker-grid">
+                  {INDICATOR_COLORS.map((c) => (
+                    <button key={c} className={`color-swatch ${selectedColor === c ? "active" : ""}`} style={{ backgroundColor: c }} onClick={() => setSelectedColor(c)} />
+                  ))}
+                </div>
+              </div>
             </div>
 
             <div className="indicator-modal-footer">
@@ -163,13 +177,38 @@ function IndicatorModalComponent({ isOpen, onClose, editingIndicator }: Indicato
       )}
 
       <style jsx global>{`
+        .color-picker-grid {
+          display: flex;
+          flex-wrap: wrap;
+          gap: 8px;
+          margin-top: 8px;
+        }
+
+        .color-swatch {
+          width: 24px;
+          height: 24px;
+          border-radius: 50%;
+          border: 2px solid transparent;
+          cursor: pointer;
+          transition: transform 0.1s;
+        }
+
+        .color-swatch.active {
+          border-color: var(--text-primary);
+          transform: scale(1.1);
+          box-shadow: 0 0 0 2px var(--bg-primary);
+        }
+
+        .color-swatch:hover {
+          transform: scale(1.1);
+        }
         .indicator-modal-overlay {
           position: fixed;
           top: 0;
           left: 0;
           right: 0;
           bottom: 0;
-          background: rgba(0, 0, 0, 0.7);
+          background: rgba(0, 0, 0, 0.5);
           display: flex;
           align-items: center;
           justify-content: center;
@@ -190,8 +229,8 @@ function IndicatorModalComponent({ isOpen, onClose, editingIndicator }: Indicato
         .indicator-modal-content {
           width: 100%;
           max-width: 400px;
-          background: #1e1e24;
-          border: 1px solid #2d2d3d;
+          background: var(--bg-secondary);
+          border: 1px solid var(--border-color);
           border-radius: 12px;
           box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.5), 0 10px 10px -5px rgba(0, 0, 0, 0.2);
           overflow: hidden;
@@ -214,14 +253,14 @@ function IndicatorModalComponent({ isOpen, onClose, editingIndicator }: Indicato
           align-items: center;
           justify-content: space-between;
           padding: 16px 20px;
-          background: #25252e;
-          border-bottom: 1px solid #2d2d3d;
+          background: var(--bg-secondary);
+          border-bottom: 1px solid var(--border-color);
         }
 
         .indicator-modal-header h2 {
           font-size: 16px;
           font-weight: 600;
-          color: #ffffff;
+          color: var(--text-primary);
           margin: 0;
         }
 
@@ -234,18 +273,19 @@ function IndicatorModalComponent({ isOpen, onClose, editingIndicator }: Indicato
           background: transparent;
           border: none;
           border-radius: 6px;
-          color: #808090;
+          color: var(--text-secondary);
           cursor: pointer;
           transition: all 0.15s ease;
         }
 
         .indicator-modal-header .close-btn:hover {
-          background: #353545;
-          color: #ffffff;
+          background: var(--bg-tertiary);
+          color: var(--text-primary);
         }
 
         .indicator-modal-body {
           padding: 20px;
+          background: var(--bg-primary);
         }
 
         .indicator-modal-body .form-group {
@@ -256,12 +296,12 @@ function IndicatorModalComponent({ isOpen, onClose, editingIndicator }: Indicato
           display: block;
           font-size: 12px;
           font-weight: 500;
-          color: #a0a0b0;
+          color: var(--text-secondary);
           margin-bottom: 6px;
         }
 
         .indicator-modal-body .param-range {
-          color: #606070;
+          color: var(--text-muted);
           font-weight: 400;
           margin-left: 6px;
         }
@@ -270,10 +310,10 @@ function IndicatorModalComponent({ isOpen, onClose, editingIndicator }: Indicato
         .indicator-modal-body .form-group input {
           width: 100%;
           padding: 10px 12px;
-          background: #14141a;
-          border: 1px solid #2d2d3d;
+          background: var(--bg-tertiary);
+          border: 1px solid var(--border-color);
           border-radius: 6px;
-          color: #e0e0e0;
+          color: var(--text-primary);
           font-size: 14px;
           outline: none;
           transition: border-color 0.15s ease;
@@ -281,12 +321,13 @@ function IndicatorModalComponent({ isOpen, onClose, editingIndicator }: Indicato
 
         .indicator-modal-body .form-group select:focus,
         .indicator-modal-body .form-group input:focus {
-          border-color: #6366f1;
+          border-color: var(--accent-primary);
           box-shadow: 0 0 0 2px rgba(99, 102, 241, 0.15);
         }
 
         .indicator-modal-body .form-group select option {
-          background: #14141a;
+          background: var(--bg-tertiary);
+          color: var(--text-primary);
         }
 
         .indicator-modal-body .description {
@@ -294,7 +335,7 @@ function IndicatorModalComponent({ isOpen, onClose, editingIndicator }: Indicato
           background: rgba(99, 102, 241, 0.08);
           border-radius: 6px;
           border: 1px solid rgba(99, 102, 241, 0.15);
-          color: #c0c0d0;
+          color: var(--text-secondary);
           font-size: 12px;
           line-height: 1.4;
           margin: 0;
@@ -305,8 +346,8 @@ function IndicatorModalComponent({ isOpen, onClose, editingIndicator }: Indicato
           justify-content: flex-end;
           gap: 10px;
           padding: 16px 20px;
-          background: #25252e;
-          border-top: 1px solid #2d2d3d;
+          background: var(--bg-secondary);
+          border-top: 1px solid var(--border-color);
         }
 
         .indicator-modal-footer .btn {
@@ -321,23 +362,23 @@ function IndicatorModalComponent({ isOpen, onClose, editingIndicator }: Indicato
 
         .indicator-modal-footer .btn-secondary {
           background: transparent;
-          border: 1px solid #353545;
-          color: #a0a0b0;
+          border: 1px solid var(--border-color);
+          color: var(--text-secondary);
         }
 
         .indicator-modal-footer .btn-secondary:hover {
-          background: #353545;
-          color: #ffffff;
-          border-color: #454555;
+          background: var(--bg-tertiary);
+          color: var(--text-primary);
+          border-color: var(--text-muted);
         }
 
         .indicator-modal-footer .btn-primary {
-          background: #6366f1;
-          color: #ffffff;
+          background: var(--accent-primary);
+          color: white;
         }
 
         .indicator-modal-footer .btn-primary:hover {
-          background: #5558dd;
+          background: var(--accent-secondary);
         }
       `}</style>
     </>

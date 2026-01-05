@@ -6,6 +6,7 @@ Provides a registry of technical indicators with configurable parameters
 from typing import Dict, List, Any, Optional
 from pydantic import BaseModel
 import pandas as pd
+import importlib.metadata
 import pandas_ta as ta
 
 

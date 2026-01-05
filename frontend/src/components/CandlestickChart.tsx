@@ -7,10 +7,11 @@
 
 import { Candle } from "@/lib/api";
 import { IndicatorResult } from "@/lib/indicatorApi";
+import { useChartSettingsStore } from "@/stores/chartSettingsStore";
 import { IndicatorConfig, useIndicatorStore } from "@/stores/indicatorStore";
 import { themes, useThemeStore } from "@/stores/themeStore";
 import { CandlestickData, ColorType, createChart, IChartApi, ISeriesApi, LineData, Time } from "lightweight-charts";
-import { BarChart2, CandlestickChart as CandleIcon, ChevronDown, Edit2, Eye, EyeOff, PlusCircle, Search, Trash2 } from "lucide-react";
+import { BarChart2, CandlestickChart as CandleIcon, ChevronDown, Edit2, Eye, EyeOff, PlusCircle, Search, Trash2, X } from "lucide-react";
 import { memo, useEffect, useRef, useState } from "react";
 import { IndicatorModal } from "./IndicatorModal";
 import { TimeframeSelector } from "./TimeframeSelector";
@@ -40,6 +41,7 @@ function CandlestickChartComponent({ candles, symbol, isLoading, indicatorResult
   const paneSeriesRef = useRef<Map<string, ISeriesApi<"Line" | "Histogram">[]>>(new Map());
 
   const theme = useThemeStore((s) => s.theme);
+  const { colors: chartColors } = useChartSettingsStore();
 
   const [isIndicatorModalOpen, setIsIndicatorModalOpen] = useState(false);
   const [editingIndicator, setEditingIndicator] = useState<IndicatorConfig | null>(null);
@@ -109,54 +111,71 @@ function CandlestickChartComponent({ candles, symbol, isLoading, indicatorResult
     height,
   });
 
-  // Initialize charts (Main + Panes)
+  // --- Effect 1: Initialize Chart (Mount/Unmount) ---
   useEffect(() => {
     if (!mainContainerRef.current) return;
 
-    // --- Main Chart ---
-    if (!mainChartRef.current) {
-      const width = mainContainerRef.current.clientWidth;
-      const height = mainContainerRef.current.clientHeight;
-      const chart = createChart(mainContainerRef.current, getChartOptions(width, height));
+    // Create Main Chart
+    const width = mainContainerRef.current.clientWidth;
+    const height = mainContainerRef.current.clientHeight;
+    // Initial creation with current theme
+    const chart = createChart(mainContainerRef.current, getChartOptions(width, height));
 
-      // Infinite Scroll Handler
-      chart.timeScale().subscribeVisibleLogicalRangeChange((range) => {
-        if (!range) return;
-        console.log(`[Chart] Visible range: from=${range.from}, to=${range.to}, hasOnLoadMore=${!!onLoadMoreRef.current}, isLoadingMore=${isLoadingMoreRef.current}`);
-        if (!onLoadMoreRef.current) return;
-        // If we are close to the start (left side) and not already loading
-        if (range.from < 10 && !isLoadingMoreRef.current) {
-          console.log("[Chart] Triggering onLoadMore!");
-          onLoadMoreRef.current();
-        }
-      });
+    // Infinite Scroll Handler
+    chart.timeScale().subscribeVisibleLogicalRangeChange((range) => {
+      if (!range) return;
+      if (!onLoadMoreRef.current) return;
+      if (range.from < 10 && !isLoadingMoreRef.current) {
+        onLoadMoreRef.current();
+      }
+    });
 
-      const candlestickSeries = chart.addCandlestickSeries({
-        upColor: currentTheme.positive,
-        downColor: currentTheme.negative,
-        borderUpColor: currentTheme.positive,
-        borderDownColor: currentTheme.negative,
-        wickUpColor: currentTheme.positive,
-        wickDownColor: currentTheme.negative,
-      });
+    // Create Main Series (Initial)
+    const candlestickSeries = chart.addCandlestickSeries({
+      upColor: currentTheme.positive,
+      downColor: currentTheme.negative,
+      borderUpColor: currentTheme.positive,
+      borderDownColor: currentTheme.negative,
+      wickUpColor: currentTheme.positive,
+      wickDownColor: currentTheme.negative,
+    });
 
-      mainChartRef.current = chart;
-      mainSeriesRef.current = candlestickSeries;
-    } else {
-      // Update Options if theme changes
-      const width = mainContainerRef.current.clientWidth;
-      const height = mainContainerRef.current.clientHeight;
-      mainChartRef.current.applyOptions(getChartOptions(width, height));
-      mainSeriesRef.current?.applyOptions({
-        upColor: currentTheme.positive,
-        downColor: currentTheme.negative,
-        borderUpColor: currentTheme.positive,
-        borderDownColor: currentTheme.negative,
-        wickUpColor: currentTheme.positive,
-        wickDownColor: currentTheme.negative,
-      });
-    }
+    mainChartRef.current = chart;
+    mainSeriesRef.current = candlestickSeries;
 
+    // Cleanup function
+    return () => {
+      console.log("[CandlestickChart] Cleaning up chart");
+      chart.remove();
+      mainChartRef.current = null;
+      mainSeriesRef.current = null;
+    };
+  }, []); // Run once on mount
+
+  // --- Effect 2: Update Options (Theme/Settings/Resize) ---
+  useEffect(() => {
+    if (!mainChartRef.current || !mainContainerRef.current) return;
+
+    console.log("[CandlestickChart] Updating options with colors:", chartColors);
+
+    const width = mainContainerRef.current.clientWidth;
+    const height = mainContainerRef.current.clientHeight;
+
+    // Apply layout options
+    mainChartRef.current.applyOptions(getChartOptions(width, height));
+
+    // Apply series options
+    mainSeriesRef.current?.applyOptions({
+      upColor: chartColors.upColor || currentTheme.positive,
+      downColor: chartColors.downColor || currentTheme.negative,
+      borderUpColor: chartColors.borderUpColor || currentTheme.positive,
+      borderDownColor: chartColors.borderDownColor || currentTheme.negative,
+      wickUpColor: chartColors.wickUpColor || currentTheme.positive,
+      wickDownColor: chartColors.wickDownColor || currentTheme.negative,
+    });
+  }, [theme, currentTheme, chartColors]); // Run when theme or settings change
+  // --- Effect 3: Manage Pane Charts & Resize ---
+  useEffect(() => {
     // --- Pane Charts ---
     // Only create charts for "pane" type indicators that are visible
     const paneIndicators = indicatorConfigs.filter((i) => i.visible && i.indicatorType === "pane");
@@ -260,8 +279,8 @@ function CandlestickChartComponent({ candles, symbol, isLoading, indicatorResult
         // Restore the saved visible range to keep the view stable
         mainChartRef.current.timeScale().setVisibleLogicalRange(savedRange);
       } else {
-        // First load - fit all content
-        mainChartRef.current.timeScale().fitContent();
+        // First load - scroll to latest
+        mainChartRef.current.timeScale().scrollToPosition(0, true);
       }
     }
   }, [candles]);
@@ -316,7 +335,7 @@ function CandlestickChartComponent({ candles, symbol, isLoading, indicatorResult
         // Standard Line
         const lineSeries = mainChart.addLineSeries({ color, lineWidth: 2, priceLineVisible: false });
         const lineData: LineData<Time>[] = result.data
-          .filter((d) => d.value !== undefined)
+          .filter((d) => d.value !== undefined && d.value !== null && !isNaN(d.value))
           .map((d) => ({
             time: (d.timestamp / 1000) as Time,
             value: d.value!,
@@ -380,7 +399,7 @@ function CandlestickChartComponent({ candles, symbol, isLoading, indicatorResult
         newSeriesList.push(macdSeries, signalSeries, histSeries);
       } else if (result.name === "rsi") {
         const rsiSeries = chart.addLineSeries({ color, lineWidth: 1, title: "" });
-        const rsiData = result.data.map((d) => ({ time: (d.timestamp / 1000) as Time, value: d.value! }));
+        const rsiData = result.data.filter((d) => d.value !== undefined && d.value !== null && !isNaN(d.value)).map((d) => ({ time: (d.timestamp / 1000) as Time, value: d.value! }));
         rsiSeries.setData(rsiData);
 
         // Add levels (30/70)
@@ -391,7 +410,7 @@ function CandlestickChartComponent({ candles, symbol, isLoading, indicatorResult
       } else {
         // Generic Line Pane (OBV etc)
         const lineSeries = chart.addLineSeries({ color, lineWidth: 1, title: config.displayName });
-        const data = result.data.map((d) => ({ time: (d.timestamp / 1000) as Time, value: d.value! }));
+        const data = result.data.filter((d) => d.value !== undefined && d.value !== null && !isNaN(d.value)).map((d) => ({ time: (d.timestamp / 1000) as Time, value: d.value! }));
         lineSeries.setData(data);
         newSeriesList.push(lineSeries);
       }
@@ -412,7 +431,6 @@ function CandlestickChartComponent({ candles, symbol, isLoading, indicatorResult
           <span className="chart-symbol">{symbol}</span>
           <div className="provider-badge-small">
             <div className="diamond-icon"></div>
-            <ChevronDown size={12} className="icon-tiny" />
           </div>
         </div>
 
@@ -495,8 +513,25 @@ function CandlestickChartComponent({ candles, symbol, isLoading, indicatorResult
               {indicatorConfigs
                 .filter((i) => i.visible && i.indicatorType === "overlay")
                 .map((i) => (
-                  <span key={i.id} className="indicator-badge" style={{ borderColor: i.color, color: i.color }}>
+                  <span
+                    key={i.id}
+                    className="indicator-badge interactable"
+                    style={{ borderColor: i.color, color: i.color }}
+                    onClick={() => {
+                      setEditingIndicator(i);
+                      setIsIndicatorModalOpen(true);
+                    }}
+                  >
                     {i.displayName}
+                    <button
+                      className="indicator-remove-btn"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        removeIndicator(i.id);
+                      }}
+                    >
+                      <X size={10} />
+                    </button>
                   </span>
                 ))}
             </div>
@@ -818,6 +853,38 @@ function CandlestickChartComponent({ candles, symbol, isLoading, indicatorResult
 
         .pane-chart {
           height: 120px;
+        }
+
+        .indicator-badge.interactable {
+          cursor: pointer;
+          display: inline-flex;
+          align-items: center;
+          gap: 4px;
+          padding-right: 4px;
+        }
+
+        .indicator-badge.interactable:hover {
+          background: var(--bg-tertiary);
+        }
+
+        .indicator-remove-btn {
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          background: transparent;
+          border: none;
+          color: currentColor;
+          opacity: 0.6;
+          cursor: pointer;
+          padding: 0;
+          width: 14px;
+          height: 14px;
+          border-radius: 50%;
+        }
+
+        .indicator-remove-btn:hover {
+          opacity: 1;
+          background: rgba(0, 0, 0, 0.1);
         }
       `}</style>
     </div>

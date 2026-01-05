@@ -10,3 +10,4 @@ asyncpg>=0.29.0
 arq>=0.25.0
 sqlalchemy>=2.0.0
 sqlmodel>=0.0.14
+pandas-ta-openbb

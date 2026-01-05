@@ -6,13 +6,14 @@
  */
 
 import { CandlestickChart } from "@/components/CandlestickChart";
+import { ChartSettingsModal } from "@/components/ChartSettingsModal";
 import { DrawingToolbar } from "@/components/DrawingToolbar";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { WatchlistPanel } from "@/components/WatchlistPanel";
 import { useAvailableIndicators, useCalculatedIndicators } from "@/hooks/useIndicators";
 import { useOHLCV, useProvider, useTicker } from "@/hooks/useMarketData";
 import { useIndicatorStore } from "@/stores/indicatorStore";
-import { ChevronLeft, LayoutDashboard } from "lucide-react";
+import { ChevronLeft, LayoutDashboard, Settings } from "lucide-react";
 import Link from "next/link";
 import { useState } from "react";
 
@@ -23,6 +24,7 @@ interface ChartPageProps {
 export default function ChartPage({ params }: ChartPageProps) {
   const symbol = params.symbol.replace("-", "/");
   const [timeframe, setTimeframe] = useState("1h");
+  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
 
   // Fetch market data
   const ohlcvQuery = useOHLCV(symbol, timeframe, 1000);
@@ -33,14 +35,19 @@ export default function ChartPage({ params }: ChartPageProps) {
   const tickerData = tickerQuery.data;
   const providerData = providerQuery.data;
 
-  // Fetch indicator data
-  useAvailableIndicators();
-  const indicators = useIndicatorStore((s) => s.indicators);
-  const { data: indicatorData, isLoading: isLoadingIndicators } = useCalculatedIndicators(symbol, timeframe);
-
-  // Flatten and sort candles
+  // Flatten candles first to know total count
   const allCandles = ohlcvData?.pages.flatMap((page: { candles: any[] }) => page.candles) || [];
   const sortedCandles = [...allCandles].sort((a, b) => a.timestamp - b.timestamp);
+
+  // Fetch indicator data covering all loaded candles
+  const totalCandles = allCandles.length;
+  // Ensure we fetch enough data for indicators to stabilize (e.g. +200 for EMA200), but at least 1000 or current total
+  const indicatorLimit = Math.max(1000, totalCandles + 200);
+
+  useAvailableIndicators();
+  const indicators = useIndicatorStore((s) => s.indicators);
+  // Pass the dynamic limit based on loaded history
+  const { data: indicatorData, isLoading: isLoadingIndicators } = useCalculatedIndicators(symbol, timeframe, indicatorLimit);
 
   const currentPrice = tickerData?.price;
   const priceChangePercent = sortedCandles.length ? (((currentPrice ?? 0) - sortedCandles[0].close) / sortedCandles[0].close) * 100 : 0;
@@ -74,10 +81,15 @@ export default function ChartPage({ params }: ChartPageProps) {
         </div>
 
         <div className="header-right">
+          <button className="icon-btn" onClick={() => setIsSettingsOpen(true)} title="Chart Settings">
+            <Settings size={20} />
+          </button>
           <ThemeToggle />
           <span className="provider-badge">{providerData?.provider?.toUpperCase() || "BINANCE"}</span>
         </div>
       </header>
+
+      <ChartSettingsModal isOpen={isSettingsOpen} onClose={() => setIsSettingsOpen(false)} />
 
       {/* Main Content - 3 Column Grid */}
       <main className="main">
@@ -126,7 +138,27 @@ export default function ChartPage({ params }: ChartPageProps) {
           padding: 8px 16px;
           background: var(--bg-secondary);
           border-bottom: 1px solid var(--border-color);
+          border-bottom: 1px solid var(--border-color);
           gap: 16px;
+        }
+
+        .icon-btn {
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          width: 32px;
+          height: 32px;
+          background: transparent;
+          border: none;
+          color: var(--text-secondary);
+          cursor: pointer;
+          border-radius: 6px;
+          transition: all 0.15s;
+        }
+
+        .icon-btn:hover {
+          background: var(--bg-tertiary);
+          color: var(--text-primary);
         }
 
         .header-left {

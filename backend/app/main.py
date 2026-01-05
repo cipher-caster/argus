@@ -9,7 +9,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from dotenv import load_dotenv
 
-from app.routes import market_router
+from app.routes import market_router, indicators_router
 from app.storage import Database
 
 load_dotenv()
@@ -21,12 +21,20 @@ async def lifespan(app: FastAPI):
     # Initialize Database (Storage)
     Database.init()
     print("✓ Magus Backend: Database initialized")
+
+    # Initialize Data Provider
+    from app.providers.binance_provider import BinanceProvider
+    from app.routes.market import set_provider
+    provider = BinanceProvider()
+    set_provider(provider)
+    print("✓ Magus Backend: Provider initialized")
     
     # We could also check Redis here if we wanted
     
     yield
     
     # Cleanup
+    await provider.close()
     await Database.close()
     print("✓ Magus Backend: Storage closed")
 
@@ -52,7 +60,7 @@ app.add_middleware(
 
 # Include routers
 app.include_router(market_router)
-# app.include_router(indicators_router)
+app.include_router(indicators_router)
 
 
 @app.get("/health")
