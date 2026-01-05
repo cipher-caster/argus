@@ -28,6 +28,7 @@
 - [x] Pagination (50 coins per page)
 - [x] Click-to-chart navigation
 - [x] Dark/light theme toggle
+- [x] UI Polish / CoinGlass Reskin (Lucide Icons, Stats Cards)
 
 ---
 
@@ -47,10 +48,10 @@
 
 ### Phase 6: Separate Pane Indicators
 
-- [ ] RSI in separate pane below chart
-- [ ] MACD histogram pane
-- [ ] OBV pane
-- [ ] Resizable panes
+- [x] RSI in separate pane below chart
+- [x] MACD histogram pane
+- [x] OBV pane
+- [x] Resizable panes
 
 ### Phase 7: Advanced Features
 

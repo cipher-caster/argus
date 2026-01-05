@@ -6,8 +6,9 @@
  */
 
 import { CoinInfo } from "@/lib/marketApi";
+import { ArrowDown, ArrowUp, ArrowUpDown, Search, Star } from "lucide-react";
 import Link from "next/link";
-import { memo } from "react";
+import { memo, useEffect, useState } from "react";
 
 interface CoinTableProps {
   coins: CoinInfo[];
@@ -18,9 +19,30 @@ interface CoinTableProps {
 }
 
 function CoinTableComponent({ coins, isLoading, sortBy, sortOrder, onSort }: CoinTableProps) {
+  const [favorites, setFavorites] = useState<string[]>([]);
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+    const stored = localStorage.getItem("argus_favorites");
+    if (stored) {
+      try {
+        setFavorites(JSON.parse(stored));
+      } catch (e) {
+        console.error("Failed to parse favorites", e);
+      }
+    }
+  }, []);
+
+  const toggleFavorite = (symbol: string) => {
+    const newFavorites = favorites.includes(symbol) ? favorites.filter((s) => s !== symbol) : [...favorites, symbol];
+    setFavorites(newFavorites);
+    localStorage.setItem("argus_favorites", JSON.stringify(newFavorites));
+  };
+
   const SortIcon = ({ field }: { field: string }) => {
-    if (sortBy !== field) return <span className="sort-icon inactive">↕</span>;
-    return <span className="sort-icon active">{sortOrder === "asc" ? "↑" : "↓"}</span>;
+    if (sortBy !== field) return <ArrowUpDown size={12} className="sort-icon inactive" />;
+    return sortOrder === "asc" ? <ArrowUp size={12} className="sort-icon active" /> : <ArrowDown size={12} className="sort-icon active" />;
   };
 
   const formatPrice = (price: number) => {
@@ -42,8 +64,11 @@ function CoinTableComponent({ coins, isLoading, sortBy, sortOrder, onSort }: Coi
     return `$${(vol / 1e3).toFixed(0)}K`;
   };
 
+  if (!mounted) return <div className="table-container" style={{ height: "400px" }}></div>;
+
   return (
     <div className="table-container">
+      {/* 
       <div className="table-header-controls">
         <div className="tabs">
           <button className="tab active">Favorites</button>
@@ -55,24 +80,32 @@ function CoinTableComponent({ coins, isLoading, sortBy, sortOrder, onSort }: Coi
           <button className="action-btn">Customize</button>
         </div>
       </div>
+      */}
 
       <table className="table">
         <thead>
           <tr>
+            <th className="col-star"></th>
             <th className="col-rank">#</th>
             <th className="col-name sortable" onClick={() => onSort("symbol")}>
-              Symbol <SortIcon field="symbol" />
+              <div className="th-content">
+                Symbol <SortIcon field="symbol" />
+              </div>
             </th>
+
             <th className="col-price sortable" onClick={() => onSort("price")}>
-              Price <SortIcon field="price" />
+              <div className="th-content right">
+                Price <SortIcon field="price" />
+              </div>
             </th>
             <th className="col-change">24h Change</th>
             <th className="col-vol sortable" onClick={() => onSort("volume_24h")}>
-              Volume (24h) <SortIcon field="volume_24h" />
+              <div className="th-content right">
+                Volume (24h) <SortIcon field="volume_24h" />
+              </div>
             </th>
             <th className="col-high">24h High</th>
             <th className="col-low">24h Low</th>
-            <th className="col-action">Action</th>
           </tr>
         </thead>
         <tbody>
@@ -103,50 +136,45 @@ function CoinTableComponent({ coins, isLoading, sortBy, sortOrder, onSort }: Coi
                 <td>
                   <div className="skeleton skeleton-price" />
                 </td>
-                <td>
-                  <div className="skeleton skeleton-btn" />
-                </td>
               </tr>
             ))
           ) : coins.length === 0 ? (
             <tr>
-              <td colSpan={8} className="empty-state">
-                <div className="empty-icon">🔍</div>
+              <td colSpan={9} className="empty-state">
+                <div className="empty-icon">
+                  <Search size={32} />
+                </div>
                 <div className="empty-text">No coins found matching criteria</div>
               </td>
             </tr>
           ) : (
-            coins.map((coin) => (
-              <tr key={coin.symbol} className="row-data">
-                <td className="col-rank">
-                  <span className="star-icon">☆</span>
-                  {coin.rank}
-                </td>
-                <td className="col-name">
-                  <Link href={`/chart/${coin.symbol.replace("/", "-")}`} className="coin-link">
-                    <div className="coin-avatar">{coin.name.slice(0, 1)}</div>
-                    <div className="coin-details">
-                      <span className="coin-symbol">{coin.name}</span>
-                      <span className="coin-pair-sm">{coin.symbol}</span>
-                    </div>
-                  </Link>
-                </td>
-                <td className="col-price">
-                  <span className="price">${formatPrice(coin.price)}</span>
-                </td>
-                <td className="col-change">
-                  <div className={`change-badge ${(coin.change_24h ?? 0) >= 0 ? "positive" : "negative"}`}>{coin.change_24h !== null ? `${coin.change_24h >= 0 ? "+" : ""}${coin.change_24h.toFixed(2)}%` : "—"}</div>
-                </td>
-                <td className="col-vol">{formatVolume(coin.volume_24h)}</td>
-                <td className="col-high text-muted">${formatPrice(coin.high_24h || 0)}</td>
-                <td className="col-low text-muted">${formatPrice(coin.low_24h || 0)}</td>
-                <td className="col-action">
-                  <Link href={`/chart/${coin.symbol.replace("/", "-")}`} className="btn-analyze">
-                    Analyze
-                  </Link>
-                </td>
-              </tr>
-            ))
+            coins.map((coin) => {
+              const isFav = favorites.includes(coin.symbol);
+              return (
+                <tr key={coin.symbol} className="row-data">
+                  <td className="col-star">
+                    <Star size={14} className={`star-icon ${isFav ? "active" : ""}`} onClick={() => toggleFavorite(coin.symbol)} />
+                  </td>
+                  <td className="col-rank">{coin.rank}</td>
+                  <td className="col-name">
+                    <Link href={`/chart/${coin.symbol.replace("/", "-")}`} className="coin-link">
+                      <div className="coin-avatar">{coin.name.slice(0, 1)}</div>
+                      <span className="coin-symbol">{coin.symbol}</span>
+                    </Link>
+                  </td>
+
+                  <td className="col-price">
+                    <span className="price">${formatPrice(coin.price)}</span>
+                  </td>
+                  <td className="col-change">
+                    <div className={`change-badge ${(coin.change_24h ?? 0) >= 0 ? "positive" : "negative"}`}>{coin.change_24h !== null ? `${coin.change_24h >= 0 ? "+" : ""}${coin.change_24h.toFixed(2)}%` : "—"}</div>
+                  </td>
+                  <td className="col-vol">{formatVolume(coin.volume_24h)}</td>
+                  <td className="col-high text-muted">${formatPrice(coin.high_24h || 0)}</td>
+                  <td className="col-low text-muted">${formatPrice(coin.low_24h || 0)}</td>
+                </tr>
+              );
+            })
           )}
         </tbody>
       </table>
@@ -214,7 +242,6 @@ function CoinTableComponent({ coins, isLoading, sortBy, sortOrder, onSort }: Coi
         }
         th {
           padding: 12px 16px;
-          text-align: right;
           font-size: 11px;
           font-weight: 600;
           color: var(--text-muted);
@@ -222,9 +249,14 @@ function CoinTableComponent({ coins, isLoading, sortBy, sortOrder, onSort }: Coi
           border-bottom: 1px solid var(--border-color);
           white-space: nowrap;
         }
-        th:first-child,
-        th:nth-child(2) {
-          text-align: left;
+
+        .th-content {
+          display: flex;
+          align-items: center;
+          gap: 6px;
+        }
+        .th-content.right {
+          justify-content: flex-end;
         }
 
         th.sortable {
@@ -234,14 +266,21 @@ function CoinTableComponent({ coins, isLoading, sortBy, sortOrder, onSort }: Coi
         th.sortable:hover {
           color: var(--text-primary);
         }
+
         .sort-icon {
-          margin-left: 4px;
-          font-size: 10px;
+          opacity: 0.3;
+          transition: opacity 0.2s;
+        }
+        .sort-icon.active {
+          opacity: 1;
+          color: var(--accent-primary);
         }
 
         /* Rows */
+        /* Rows */
         .row-data {
           transition: background 0.15s;
+          cursor: pointer;
         }
         .row-data:hover {
           background: var(--bg-tertiary);
@@ -254,29 +293,59 @@ function CoinTableComponent({ coins, isLoading, sortBy, sortOrder, onSort }: Coi
           font-size: 13px;
           color: var(--text-primary);
         }
-        td:first-child,
-        td:nth-child(2) {
+
+        /* Specific Column Alignments */
+        .col-star,
+        .col-rank,
+        .col-name {
           text-align: left;
         }
 
         /* Columns */
+        .col-star {
+          width: 32px;
+          padding-right: 0;
+          text-align: center;
+        }
         .col-rank {
           color: var(--text-muted);
           font-family: monospace;
-          width: 60px;
+          width: 40px;
+          text-align: center;
         }
-        .star-icon {
+
+        :global(.star-icon) {
           margin-right: 8px;
           cursor: pointer;
+          color: var(--text-muted);
+          transition: color 0.2s;
+        }
+        :global(.star-icon:hover) {
+          color: var(--warning);
+        }
+        :global(.star-icon.active) {
+          color: #f59e0b; /* Amber-500 */
+          fill: #f59e0b;
         }
 
         .coin-link {
           display: flex;
+          flex-direction: row;
           align-items: center;
           gap: 12px;
-          text-decoration: none;
-          color: inherit;
+          text-decoration: none !important;
+          color: inherit !important;
+          white-space: nowrap;
+          justify-content: flex-start;
+          width: 100%;
         }
+        .coin-link:hover,
+        .coin-link:visited,
+        .coin-link:active {
+          text-decoration: none !important;
+          color: inherit !important;
+        }
+
         .coin-avatar {
           width: 28px;
           height: 28px;
@@ -288,20 +357,18 @@ function CoinTableComponent({ coins, isLoading, sortBy, sortOrder, onSort }: Coi
           justify-content: center;
           font-size: 10px;
           font-weight: 800;
-        }
-        .coin-details {
-          display: flex;
-          flex-direction: column;
-        }
-        .coin-symbol {
-          font-weight: 700;
-          font-size: 13px;
-        }
-        .coin-pair-sm {
-          font-size: 10px;
-          color: var(--text-muted);
+          flex-shrink: 0;
         }
 
+        .coin-symbol {
+          font-weight: 700;
+          font-size: 14px;
+          color: var(--text-primary);
+        }
+
+        /* Legacy .coin-info-row removed */
+
+        /* Legacy .coin-symbol removed or repurposed */
         .col-price {
           font-family: "SF Mono", monospace;
           font-weight: 600;
@@ -332,21 +399,6 @@ function CoinTableComponent({ coins, isLoading, sortBy, sortOrder, onSort }: Coi
           color: var(--text-muted);
         }
 
-        .btn-analyze {
-          padding: 6px 12px;
-          border: 1px solid var(--accent-primary);
-          color: var(--accent-primary);
-          border-radius: 6px;
-          font-size: 11px;
-          font-weight: 600;
-          text-decoration: none;
-          transition: all 0.2s;
-        }
-        .btn-analyze:hover {
-          background: var(--accent-primary);
-          color: white;
-        }
-
         /* Loading */
         .skeleton {
           background: var(--bg-tertiary);
@@ -365,11 +417,6 @@ function CoinTableComponent({ coins, isLoading, sortBy, sortOrder, onSort }: Coi
         .skeleton-badge {
           width: 60px;
           height: 24px;
-          margin-left: auto;
-        }
-        .skeleton-btn {
-          width: 60px;
-          height: 28px;
           margin-left: auto;
         }
 

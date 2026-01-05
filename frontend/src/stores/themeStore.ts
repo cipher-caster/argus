@@ -47,6 +47,8 @@ export const themes = {
     accent: "#6366f1",
     positive: "#10b981",
     negative: "#ef4444",
+    warning: "#f59e0b",
+    info: "#3b82f6",
     chart: {
       background: "#ffffff",
       gridLines: "#e8e8eb",
@@ -64,6 +66,8 @@ export const themes = {
     accent: "#6366f1",
     positive: "#00dc82",
     negative: "#ff4757",
+    warning: "#fdba74",
+    info: "#60a5fa",
     chart: {
       background: "#0a0a0f",
       gridLines: "#1a1a2e",

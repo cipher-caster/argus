@@ -22,7 +22,9 @@ function TopCoinsWidgetsComponent({ coins, isLoading }: TopCoinsWidgetsProps) {
     <div className="widget">
       <div className="widget-header">
         <span className="widget-title">{title}</span>
-        <span className="widget-more">More &gt;</span>
+        <Link href={`/markets/${type === "gain" ? "gainers" : type === "loss" ? "losers" : "volume"}`} className="widget-more">
+          More &gt;
+        </Link>
       </div>
       <div className="widget-list">
         {data.map((coin, i) => (
@@ -45,45 +47,65 @@ function TopCoinsWidgetsComponent({ coins, isLoading }: TopCoinsWidgetsProps) {
           background: var(--bg-secondary);
           border: 1px solid var(--border-color);
           border-radius: 12px;
-          padding: 16px;
+          padding: 20px;
           flex: 1;
-          min-width: 300px;
+          min-width: 320px;
+          box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
         }
         .widget-header {
           display: flex;
           justify-content: space-between;
-          margin-bottom: 12px;
-          font-size: 14px;
-          font-weight: 600;
+          align-items: center;
+          margin-bottom: 16px;
+          font-size: 15px;
+          font-weight: 700;
+          color: var(--text-primary);
         }
-        .widget-more {
-          font-size: 12px;
-          color: var(--text-secondary);
-          cursor: pointer;
+        /* Link Styles Reset */
+        .widget-list :global(a) {
+          text-decoration: none !important;
+          color: inherit !important;
         }
-        .widget-list {
-          display: flex;
-          flex-direction: column;
-          gap: 8px;
+
+        div.widget-row {
+          /* wrapper if needed, but Link is the container */
         }
-        .widget-row {
+
+        :global(.widget-row) {
           display: flex;
           justify-content: space-between;
           align-items: center;
-          padding: 8px 0;
-          border-bottom: 1px solid var(--border-color);
-          text-decoration: none;
-          color: inherit;
-          transition: background 0.2s;
+          padding: 10px 8px;
+          border-radius: 8px;
+          transition: all 0.2s;
+          text-decoration: none !important;
+          color: var(--text-primary) !important;
         }
-        .widget-row:hover {
+
+        :global(.widget-row:visited),
+        :global(.widget-row:active),
+        :global(.widget-row:focus) {
+          color: var(--text-primary) !important;
+          text-decoration: none !important;
+        }
+
+        :global(.widget-row:hover) {
           background: var(--bg-tertiary);
-          padding-left: 4px;
-          padding-right: 4px;
-          border-radius: 4px;
+          text-decoration: none !important;
+          color: var(--text-primary) !important;
         }
-        .widget-row:last-child {
-          border-bottom: none;
+
+        /* More Link */
+        :global(.widget-more) {
+          font-size: 12px;
+          color: var(--text-secondary) !important;
+          cursor: pointer;
+          transition: color 0.2s;
+          text-decoration: none !important;
+        }
+        :global(.widget-more:hover) {
+          color: var(--accent-primary) !important;
+          text-decoration: none !important;
         }
 
         .row-left {
@@ -92,27 +114,35 @@ function TopCoinsWidgetsComponent({ coins, isLoading }: TopCoinsWidgetsProps) {
           gap: 12px;
         }
         .row-rank {
-          width: 20px;
-          font-size: 12px;
+          width: 24px;
+          font-size: 13px;
           color: var(--text-muted);
           font-weight: 600;
+          text-align: center;
         }
         .row-coin {
           display: flex;
-          flex-direction: column;
+          flex-direction: row;
+          align-items: center;
+          gap: 8px;
         }
         .coin-symbol {
-          font-size: 13px;
+          font-size: 14px;
           font-weight: 700;
+          color: var(--text-primary);
+          line-height: 1.2;
         }
         .coin-price {
-          font-size: 12px;
+          font-size: 13px;
           color: var(--text-secondary);
+          font-weight: 500;
         }
 
         .row-change {
-          font-size: 13px;
+          font-size: 14px;
           font-weight: 600;
+          text-align: right;
+          min-width: 60px; /* Ensure strictly aligned column */
         }
         .row-change.positive {
           color: var(--success);

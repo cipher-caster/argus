@@ -152,7 +152,7 @@ async def get_coins(
     page: int = Query(default=1, ge=1),
     page_size: int = Query(default=50, ge=10, le=100),
     search: Optional[str] = Query(default=None),
-    sort_by: str = Query(default="symbol", pattern="^(symbol|price|volume_24h)$"),
+    sort_by: str = Query(default="symbol", pattern="^(symbol|price|volume_24h|change_24h)$"),
     sort_order: str = Query(default="asc", pattern="^(asc|desc)$")
 ):
     """
@@ -161,7 +161,7 @@ async def get_coins(
     - **page**: Page number (1-indexed)
     - **page_size**: Items per page (10-100)
     - **search**: Filter by symbol name
-    - **sort_by**: Sort field (symbol, price, volume_24h)
+    - **sort_by**: Sort field (symbol, price, volume_24h, change_24h)
     - **sort_order**: Sort direction (asc, desc)
     """
     provider = get_provider()
@@ -202,6 +202,8 @@ async def get_coins(
             coins.sort(key=lambda c: c.price, reverse=reverse)
         elif sort_by == "volume_24h":
             coins.sort(key=lambda c: c.volume_24h or 0, reverse=reverse)
+        elif sort_by == "change_24h":
+            coins.sort(key=lambda c: c.change_24h or 0, reverse=reverse)
         else:
             coins.sort(key=lambda c: c.symbol, reverse=reverse)
         

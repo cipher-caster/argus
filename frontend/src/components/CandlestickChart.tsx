@@ -21,96 +21,181 @@ interface CandlestickChartProps {
 }
 
 function CandlestickChartComponent({ candles, symbol, isLoading, indicatorResults = [], indicatorConfigs = [] }: CandlestickChartProps) {
-  const chartContainerRef = useRef<HTMLDivElement>(null);
-  const chartRef = useRef<IChartApi | null>(null);
-  const seriesRef = useRef<ISeriesApi<"Candlestick"> | null>(null);
-  const indicatorSeriesRef = useRef<Map<string, ISeriesApi<"Line">[]>>(new Map());
+  const mainContainerRef = useRef<HTMLDivElement>(null);
+  const paneRefs = useRef<Map<string, HTMLDivElement>>(new Map());
+
+  const mainChartRef = useRef<IChartApi | null>(null);
+  const paneChartRefs = useRef<Map<string, IChartApi>>(new Map());
+
+  const mainSeriesRef = useRef<ISeriesApi<"Candlestick"> | null>(null);
+  const overlaySeriesRef = useRef<Map<string, ISeriesApi<"Line">[]>>(new Map());
+  const paneSeriesRef = useRef<Map<string, ISeriesApi<"Line" | "Histogram">[]>>(new Map());
 
   const theme = useThemeStore((s) => s.theme);
   const currentTheme = themes[theme];
 
-  // Initialize chart
+  // Helper to create chart options
+  const getChartOptions = (width: number, height: number) => ({
+    layout: {
+      background: { type: ColorType.Solid, color: currentTheme.chart.background },
+      textColor: currentTheme.chart.text,
+    },
+    grid: {
+      vertLines: { color: currentTheme.chart.gridLines },
+      horzLines: { color: currentTheme.chart.gridLines },
+    },
+    crosshair: {
+      mode: 1,
+      vertLine: {
+        color: currentTheme.chart.crosshair,
+        width: 1 as 1,
+        style: 2,
+        labelBackgroundColor: currentTheme.backgroundSecondary,
+      },
+      horzLine: {
+        color: currentTheme.chart.crosshair,
+        width: 1 as 1,
+        style: 2,
+        labelBackgroundColor: currentTheme.backgroundSecondary,
+      },
+    },
+    rightPriceScale: {
+      borderColor: currentTheme.border,
+      scaleMargins: {
+        top: 0.1,
+        bottom: 0.1,
+      },
+      visible: true,
+    },
+    timeScale: {
+      borderColor: currentTheme.border,
+      timeVisible: true,
+      secondsVisible: false,
+    },
+    handleScale: {
+      axisPressedMouseMove: true,
+    },
+    handleScroll: {
+      vertTouchDrag: true,
+    },
+    width,
+    height,
+  });
+
+  // Initialize charts (Main + Panes)
   useEffect(() => {
-    if (!chartContainerRef.current) return;
+    if (!mainContainerRef.current) return;
 
-    const chart = createChart(chartContainerRef.current, {
-      layout: {
-        background: { type: ColorType.Solid, color: currentTheme.chart.background },
-        textColor: currentTheme.chart.text,
-      },
-      grid: {
-        vertLines: { color: currentTheme.chart.gridLines },
-        horzLines: { color: currentTheme.chart.gridLines },
-      },
-      crosshair: {
-        mode: 1,
-        vertLine: {
-          color: currentTheme.chart.crosshair,
-          width: 1,
-          style: 2,
-          labelBackgroundColor: currentTheme.backgroundSecondary,
-        },
-        horzLine: {
-          color: currentTheme.chart.crosshair,
-          width: 1,
-          style: 2,
-          labelBackgroundColor: currentTheme.backgroundSecondary,
-        },
-      },
-      rightPriceScale: {
-        borderColor: currentTheme.border,
-        scaleMargins: {
-          top: 0.1,
-          bottom: 0.2,
-        },
-      },
-      timeScale: {
-        borderColor: currentTheme.border,
-        timeVisible: true,
-        secondsVisible: false,
-      },
-      handleScale: {
-        axisPressedMouseMove: true,
-      },
-      handleScroll: {
-        vertTouchDrag: true,
-      },
-    });
+    // --- Main Chart ---
+    if (!mainChartRef.current) {
+      const width = mainContainerRef.current.clientWidth;
+      const height = mainContainerRef.current.clientHeight;
+      const chart = createChart(mainContainerRef.current, getChartOptions(width, height));
 
-    const candlestickSeries = chart.addCandlestickSeries({
-      upColor: currentTheme.positive,
-      downColor: currentTheme.negative,
-      borderUpColor: currentTheme.positive,
-      borderDownColor: currentTheme.negative,
-      wickUpColor: currentTheme.positive,
-      wickDownColor: currentTheme.negative,
-    });
+      const candlestickSeries = chart.addCandlestickSeries({
+        upColor: currentTheme.positive,
+        downColor: currentTheme.negative,
+        borderUpColor: currentTheme.positive,
+        borderDownColor: currentTheme.negative,
+        wickUpColor: currentTheme.positive,
+        wickDownColor: currentTheme.negative,
+      });
 
-    chartRef.current = chart;
-    seriesRef.current = candlestickSeries;
+      mainChartRef.current = chart;
+      mainSeriesRef.current = candlestickSeries;
+    } else {
+      // Update Options if theme changes
+      const width = mainContainerRef.current.clientWidth;
+      const height = mainContainerRef.current.clientHeight;
+      mainChartRef.current.applyOptions(getChartOptions(width, height));
+      mainSeriesRef.current?.applyOptions({
+        upColor: currentTheme.positive,
+        downColor: currentTheme.negative,
+        borderUpColor: currentTheme.positive,
+        borderDownColor: currentTheme.negative,
+        wickUpColor: currentTheme.positive,
+        wickDownColor: currentTheme.negative,
+      });
+    }
 
-    // Handle resize
-    const handleResize = () => {
-      if (chartContainerRef.current && chartRef.current) {
-        chartRef.current.applyOptions({
-          width: chartContainerRef.current.clientWidth,
-          height: chartContainerRef.current.clientHeight,
-        });
+    // --- Pane Charts ---
+    // Only create charts for "pane" type indicators that are visible
+    const paneIndicators = indicatorConfigs.filter((i) => i.visible && i.indicatorType === "pane");
+
+    // Cleanup removed panes
+    const currentPaneIds = new Set(paneIndicators.map((i) => i.id));
+    paneChartRefs.current.forEach((chart, id) => {
+      if (!currentPaneIds.has(id)) {
+        chart.remove();
+        paneChartRefs.current.delete(id);
+        paneSeriesRef.current.delete(id);
       }
-    };
+    });
 
-    window.addEventListener("resize", handleResize);
-    handleResize();
+    // Create/Update panes
+    paneIndicators.forEach((ind) => {
+      const container = paneRefs.current.get(ind.id);
+      if (!container) return;
+
+      let chart = paneChartRefs.current.get(ind.id);
+      if (!chart) {
+        // Pane height is fixed by CSS (150px), but we should read it
+        const width = container.clientWidth;
+        const height = container.clientHeight || 150;
+        chart = createChart(container, getChartOptions(width, height));
+        paneChartRefs.current.set(ind.id, chart);
+
+        // Sync with main chart
+        if (mainChartRef.current) {
+          const main = mainChartRef.current;
+          chart.timeScale().subscribeVisibleTimeRangeChange((range) => {
+            if (range) main.timeScale().setVisibleRange(range);
+          });
+          main.timeScale().subscribeVisibleTimeRangeChange((range) => {
+            if (range) chart?.timeScale().setVisibleRange(range);
+          });
+        }
+      } else {
+        const width = container.clientWidth;
+        const height = container.clientHeight || 150;
+        chart.applyOptions(getChartOptions(width, height));
+      }
+    });
+
+    // Resize Observer
+    const resizeObserver = new ResizeObserver((entries) => {
+      if (!entries || entries.length === 0) return;
+
+      // Main Chart Resize
+      if (mainContainerRef.current && mainChartRef.current) {
+        const width = mainContainerRef.current.clientWidth;
+        const height = mainContainerRef.current.clientHeight;
+        mainChartRef.current.applyOptions({ width, height });
+      }
+
+      // Pane Charts Resize
+      paneIndicators.forEach((ind) => {
+        const container = paneRefs.current.get(ind.id);
+        const chart = paneChartRefs.current.get(ind.id);
+        if (container && chart) {
+          const width = container.clientWidth;
+          const height = container.clientHeight;
+          chart.applyOptions({ width, height });
+        }
+      });
+    });
+
+    if (mainContainerRef.current) resizeObserver.observe(mainContainerRef.current);
+    paneRefs.current.forEach((el) => resizeObserver.observe(el));
 
     return () => {
-      window.removeEventListener("resize", handleResize);
-      chart.remove();
+      resizeObserver.disconnect();
     };
-  }, [theme, currentTheme]);
+  }, [theme, currentTheme, indicatorConfigs]);
 
-  // Update chart data when candles change
+  // Update Main Chart Data
   useEffect(() => {
-    if (!seriesRef.current || !candles.length) return;
+    if (!mainSeriesRef.current || !candles.length) return;
 
     const chartData: CandlestickData<Time>[] = candles.map((candle) => ({
       time: (candle.timestamp / 1000) as Time,
@@ -120,62 +205,43 @@ function CandlestickChartComponent({ candles, symbol, isLoading, indicatorResult
       close: candle.close,
     }));
 
-    seriesRef.current.setData(chartData);
+    mainSeriesRef.current.setData(chartData);
 
-    // Fit content to view
-    if (chartRef.current) {
-      chartRef.current.timeScale().fitContent();
+    if (mainChartRef.current) {
+      mainChartRef.current.timeScale().fitContent();
     }
   }, [candles]);
 
-  // Update indicator overlays
+  // Update Indicator Data (Both Overlay and Panes)
   useEffect(() => {
-    if (!chartRef.current) return;
+    if (!mainChartRef.current) return;
+    const mainChart = mainChartRef.current;
 
-    const chart = chartRef.current;
-
-    // Remove old indicator series
-    indicatorSeriesRef.current.forEach((seriesList) => {
+    // --- 1. Handle Overlays ---
+    // Remove old overlay series
+    overlaySeriesRef.current.forEach((seriesList) => {
       seriesList.forEach((series) => {
         try {
-          chart.removeSeries(series);
-        } catch (e) {
-          // Series may already be removed
-        }
+          mainChart.removeSeries(series);
+        } catch (e) {}
       });
     });
-    indicatorSeriesRef.current.clear();
+    overlaySeriesRef.current.clear();
 
-    // Add new indicator series for overlays only
+    // Populate Overlays
     indicatorResults.forEach((result, resultIndex) => {
       if (result.type !== "overlay") return;
 
-      // Find matching config for color
       const config = indicatorConfigs.find((c) => c.type === result.name && JSON.stringify(c.params) === JSON.stringify(result.params));
-      const color = config?.color || "#6366f1";
+      if (config && !config.visible) return;
 
+      const color = config?.color || "#6366f1";
       const seriesList: ISeriesApi<"Line">[] = [];
 
-      // Handle different indicator types
       if (result.name === "bbands") {
-        // Bollinger Bands: 3 lines
-        const upperSeries = chart.addLineSeries({
-          color: color,
-          lineWidth: 1,
-          lineStyle: 2,
-          priceLineVisible: false,
-        });
-        const middleSeries = chart.addLineSeries({
-          color: color,
-          lineWidth: 1,
-          priceLineVisible: false,
-        });
-        const lowerSeries = chart.addLineSeries({
-          color: color,
-          lineWidth: 1,
-          lineStyle: 2,
-          priceLineVisible: false,
-        });
+        const upperSeries = mainChart.addLineSeries({ color, lineWidth: 1, lineStyle: 2, priceLineVisible: false });
+        const middleSeries = mainChart.addLineSeries({ color, lineWidth: 1, priceLineVisible: false });
+        const lowerSeries = mainChart.addLineSeries({ color, lineWidth: 1, lineStyle: 2, priceLineVisible: false });
 
         const upperData: LineData<Time>[] = [];
         const middleData: LineData<Time>[] = [];
@@ -191,30 +257,97 @@ function CandlestickChartComponent({ candles, symbol, isLoading, indicatorResult
         upperSeries.setData(upperData);
         middleSeries.setData(middleData);
         lowerSeries.setData(lowerData);
-
         seriesList.push(upperSeries, middleSeries, lowerSeries);
       } else {
-        // Single line indicators (EMA, SMA, LinReg)
-        const lineSeries = chart.addLineSeries({
-          color: color,
-          lineWidth: 2,
-          priceLineVisible: false,
-        });
-
+        // Standard Line
+        const lineSeries = mainChart.addLineSeries({ color, lineWidth: 2, priceLineVisible: false });
         const lineData: LineData<Time>[] = result.data
           .filter((d) => d.value !== undefined)
           .map((d) => ({
             time: (d.timestamp / 1000) as Time,
             value: d.value!,
           }));
-
         lineSeries.setData(lineData);
         seriesList.push(lineSeries);
       }
-
-      indicatorSeriesRef.current.set(`${result.name}-${resultIndex}`, seriesList);
+      overlaySeriesRef.current.set(`${result.name}-${resultIndex}`, seriesList);
     });
-  }, [indicatorResults, indicatorConfigs]);
+
+    // --- 2. Handle Panes ---
+    const paneIndicators = indicatorConfigs.filter((i) => i.visible && i.indicatorType === "pane");
+
+    paneIndicators.forEach((config) => {
+      const chart = paneChartRefs.current.get(config.id);
+      if (!chart) return;
+
+      // Find result for this config
+      const result = indicatorResults.find((r) => r.name === config.type && JSON.stringify(r.params) === JSON.stringify(config.params));
+      if (!result) return;
+
+      // Clear existing series for this pane
+      const existingSeries = paneSeriesRef.current.get(config.id) || [];
+      existingSeries.forEach((s) => {
+        try {
+          chart.removeSeries(s);
+        } catch (e) {}
+      });
+
+      const newSeriesList: ISeriesApi<"Line" | "Histogram">[] = [];
+      const color = config.color;
+
+      if (result.name === "macd") {
+        // MACD Line
+        const macdSeries = chart.addLineSeries({ color: currentTheme.info || "#3b82f6", lineWidth: 1, title: "" });
+        // Signal Line
+        const signalSeries = chart.addLineSeries({ color: currentTheme.warning || "#f59e0b", lineWidth: 1, title: "" });
+        // Histogram
+        const histSeries = chart.addHistogramSeries({ title: "" });
+
+        const macdData: LineData<Time>[] = [];
+        const signalData: LineData<Time>[] = [];
+        const histData: any[] = [];
+
+        result.data.forEach((d) => {
+          const time = (d.timestamp / 1000) as Time;
+          if (d.macd !== undefined) macdData.push({ time, value: d.macd });
+          if (d.signal !== undefined) signalData.push({ time, value: d.signal });
+          if (d.histogram !== undefined) {
+            histData.push({
+              time,
+              value: d.histogram,
+              color: d.histogram >= 0 ? currentTheme.positive : currentTheme.negative,
+            });
+          }
+        });
+
+        macdSeries.setData(macdData);
+        signalSeries.setData(signalData);
+        histSeries.setData(histData);
+        newSeriesList.push(macdSeries, signalSeries, histSeries);
+      } else if (result.name === "rsi") {
+        const rsiSeries = chart.addLineSeries({ color, lineWidth: 1, title: "" });
+        const rsiData = result.data.map((d) => ({ time: (d.timestamp / 1000) as Time, value: d.value! }));
+        rsiSeries.setData(rsiData);
+
+        // Add levels (30/70)
+        rsiSeries.createPriceLine({ price: 70, color: currentTheme.chart.text, lineWidth: 1, lineStyle: 2, axisLabelVisible: false, title: "" });
+        rsiSeries.createPriceLine({ price: 30, color: currentTheme.chart.text, lineWidth: 1, lineStyle: 2, axisLabelVisible: false, title: "" });
+
+        newSeriesList.push(rsiSeries);
+      } else {
+        // Generic Line Pane (OBV etc)
+        const lineSeries = chart.addLineSeries({ color, lineWidth: 1, title: config.displayName });
+        const data = result.data.map((d) => ({ time: (d.timestamp / 1000) as Time, value: d.value! }));
+        lineSeries.setData(data);
+        newSeriesList.push(lineSeries);
+      }
+
+      paneSeriesRef.current.set(config.id, newSeriesList);
+      chart.timeScale().fitContent();
+    });
+  }, [indicatorResults, indicatorConfigs, candles]);
+
+  const visiblePaneConfigs = indicatorConfigs.filter((i) => i.visible && i.indicatorType === "pane");
 
   return (
     <div className="chart-wrapper">
@@ -233,12 +366,32 @@ function CandlestickChartComponent({ candles, symbol, isLoading, indicatorResult
           </div>
         )}
       </div>
-      <div ref={chartContainerRef} className="chart-container" />
+
+      {/* Main Chart */}
+      <div ref={mainContainerRef} className="chart-container main-chart" />
+
+      {/* Pane Indicators */}
+      {visiblePaneConfigs.map((config) => (
+        <div key={config.id} className="pane-wrapper">
+          <div className="pane-header">
+            <span className="pane-title" style={{ color: config.color }}>
+              {config.displayName}
+            </span>
+          </div>
+          <div
+            ref={(el) => {
+              if (el) paneRefs.current.set(config.id, el);
+              else paneRefs.current.delete(config.id);
+            }}
+            className="chart-container pane-chart"
+          />
+        </div>
+      ))}
 
       <style jsx>{`
         .chart-wrapper {
           width: 100%;
-          height: 100%;
+          min-height: 100%;
           display: flex;
           flex-direction: column;
           background: var(--chart-bg);
@@ -251,7 +404,7 @@ function CandlestickChartComponent({ candles, symbol, isLoading, indicatorResult
           display: flex;
           align-items: center;
           gap: 12px;
-          padding: 16px 20px;
+          padding: 12px 20px;
           background: var(--bg-secondary);
           border-bottom: 1px solid var(--border-color);
         }
@@ -276,8 +429,8 @@ function CandlestickChartComponent({ candles, symbol, isLoading, indicatorResult
         }
 
         .indicator-badge {
-          padding: 4px 10px;
-          font-size: 11px;
+          padding: 2px 8px;
+          font-size: 10px;
           font-weight: 500;
           border: 1px solid;
           border-radius: 4px;
@@ -295,8 +448,30 @@ function CandlestickChartComponent({ candles, symbol, isLoading, indicatorResult
         }
 
         .chart-container {
+          width: 100%;
+        }
+
+        .main-chart {
           flex: 1;
-          min-height: 400px;
+          min-height: 0;
+        }
+
+        .pane-wrapper {
+          border-top: 1px solid var(--border-color);
+          background: var(--bg-secondary);
+          display: flex;
+          flex-direction: column;
+        }
+
+        .pane-header {
+          padding: 4px 10px;
+          font-size: 11px;
+          font-weight: 600;
+          background: var(--bg-tertiary);
+        }
+
+        .pane-chart {
+          height: 150px;
         }
       `}</style>
     </div>

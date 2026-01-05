@@ -56,7 +56,7 @@ Argus is a full-stack cryptocurrency dashboard built with a Python backend and R
 Powered by `pandas-ta`:
 
 - Overlay: EMA, SMA, Bollinger Bands, Linear Regression
-- Oscillators: RSI, MACD, OBV
+- Oscillators: RSI, MACD, OBV (Separate Panes)
 
 ## Frontend
 
@@ -67,10 +67,15 @@ Powered by `pandas-ta`:
 
 ### Key Components
 
-- `CandlestickChart` - TradingView chart wrapper
+- `CandlestickChart` - Multi-instance TradingView chart (Main + Panes) with sync
+
 - `CoinTable` - Market overview table
 - `IndicatorToolbar` - Indicator management
 - `ThemeToggle` - Dark/light mode
+
+### Testing Strategy
+
+- **E2E Testing**: `Playwright` to verify critical user flows (Navigation, Charting, Search).
 
 ### Routing
 

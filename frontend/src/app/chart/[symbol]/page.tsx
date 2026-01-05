@@ -12,6 +12,7 @@ import { TimeframeSelector } from "@/components/TimeframeSelector";
 import { useAvailableIndicators, useCalculatedIndicators } from "@/hooks/useIndicators";
 import { useOHLCV, useProvider, useTicker } from "@/hooks/useMarketData";
 import { useIndicatorStore } from "@/stores/indicatorStore";
+import { ChevronLeft, LayoutDashboard } from "lucide-react";
 import Link from "next/link";
 import { useState } from "react";
 
@@ -45,12 +46,10 @@ export default function ChartPage({ params }: ChartPageProps) {
       <header className="header">
         <div className="header-left">
           <Link href="/" className="back-btn">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
-              <path d="M19 12H5M12 19l-7-7 7-7" />
-            </svg>
+            <ChevronLeft size={20} />
           </Link>
           <h1 className="logo">
-            <span className="logo-icon">◈</span>
+            <LayoutDashboard size={20} className="logo-icon" />
             Argus
           </h1>
         </div>
@@ -129,11 +128,6 @@ export default function ChartPage({ params }: ChartPageProps) {
         .back-btn:hover {
           background: var(--accent-primary);
           color: white;
-        }
-
-        .back-btn :global(svg) {
-          width: 18px;
-          height: 18px;
         }
 
         .logo {

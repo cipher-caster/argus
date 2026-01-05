@@ -6,6 +6,7 @@
  */
 
 import { IndicatorConfig, useIndicatorStore } from "@/stores/indicatorStore";
+import { Edit2, Plus, Trash2 } from "lucide-react";
 import { memo, useState } from "react";
 import { IndicatorModal } from "./IndicatorModal";
 
@@ -32,9 +33,7 @@ function IndicatorToolbarComponent() {
       <div className="indicator-toolbar">
         {/* Add Indicator Button */}
         <button className="toolbar-btn add-btn" onClick={handleAdd} title="Add Indicator">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
-            <path d="M12 5v14M5 12h14" />
-          </svg>
+          <Plus size={20} />
         </button>
 
         <div className="toolbar-divider" />
@@ -47,15 +46,10 @@ function IndicatorToolbarComponent() {
             </button>
             <div className="indicator-actions">
               <button className="action-btn" onClick={() => handleEdit(ind)} title="Edit">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
-                  <path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7" />
-                  <path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z" />
-                </svg>
+                <Edit2 size={16} />
               </button>
               <button className="action-btn delete-btn" onClick={() => removeIndicator(ind.id)} title="Remove">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
-                  <path d="M18 6L6 18M6 6l12 12" />
-                </svg>
+                <Trash2 size={16} />
               </button>
             </div>
           </div>
@@ -65,51 +59,56 @@ function IndicatorToolbarComponent() {
           .indicator-toolbar {
             display: flex;
             flex-direction: column;
-            gap: 4px;
-            padding: 8px;
+            gap: 8px;
+            padding: 12px;
             background: var(--bg-secondary);
-            border-radius: 10px;
+            border-radius: 12px;
             border: 1px solid var(--border-color);
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
           }
 
           .toolbar-btn {
             display: flex;
             align-items: center;
             justify-content: center;
-            width: 40px;
-            height: 40px;
+            width: 44px;
+            height: 44px;
             background: transparent;
             border: none;
-            border-radius: 8px;
+            border-radius: 10px;
             color: var(--text-secondary);
             cursor: pointer;
-            transition: all 0.2s ease;
+            transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
           }
 
           .toolbar-btn:hover {
             background: var(--bg-tertiary);
             color: var(--text-primary);
+            transform: translateY(-1px);
           }
 
-          .toolbar-btn svg {
-            width: 20px;
-            height: 20px;
+          .toolbar-btn:active {
+            transform: translateY(0);
           }
 
           .add-btn {
-            background: linear-gradient(135deg, rgba(99, 102, 241, 0.2) 0%, rgba(139, 92, 246, 0.2) 100%);
+            background: linear-gradient(135deg, rgba(99, 102, 241, 0.1) 0%, rgba(139, 92, 246, 0.1) 100%);
             color: var(--accent-primary);
+            border: 1px solid rgba(99, 102, 241, 0.2);
           }
 
           .add-btn:hover {
-            background: linear-gradient(135deg, rgba(99, 102, 241, 0.4) 0%, rgba(139, 92, 246, 0.4) 100%);
+            background: linear-gradient(135deg, rgba(99, 102, 241, 0.2) 0%, rgba(139, 92, 246, 0.2) 100%);
             color: var(--accent-secondary);
+            border-color: rgba(99, 102, 241, 0.4);
+            box-shadow: 0 4px 12px rgba(99, 102, 241, 0.2);
           }
 
           .toolbar-divider {
             height: 1px;
             background: var(--border-color);
             margin: 4px 0;
+            opacity: 0.5;
           }
 
           .indicator-item {
@@ -118,31 +117,37 @@ function IndicatorToolbarComponent() {
 
           .indicator-btn {
             border-left: 3px solid;
-            border-radius: 0 8px 8px 0;
+            border-radius: 4px 10px 10px 4px;
             padding-left: 8px;
+            width: 100%;
+            justify-content: flex-start;
           }
 
           .indicator-btn.hidden-indicator {
-            opacity: 0.4;
+            opacity: 0.5;
+            filter: grayscale(0.8);
           }
 
           .indicator-label {
-            font-size: 10px;
-            font-weight: 600;
+            font-size: 11px;
+            font-weight: 700;
             letter-spacing: 0.5px;
           }
 
           .indicator-actions {
             position: absolute;
-            left: 100%;
+            left: calc(100% + 8px);
             top: 0;
             display: none;
             flex-direction: row;
-            gap: 2px;
-            margin-left: 4px;
+            gap: 4px;
             background: var(--bg-tertiary);
-            border-radius: 6px;
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
             padding: 4px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+            z-index: 10;
+            animation: fadeIn 0.15s ease-out;
           }
 
           .indicator-item:hover .indicator-actions {
@@ -153,11 +158,11 @@ function IndicatorToolbarComponent() {
             display: flex;
             align-items: center;
             justify-content: center;
-            width: 28px;
-            height: 28px;
+            width: 32px;
+            height: 32px;
             background: transparent;
             border: none;
-            border-radius: 4px;
+            border-radius: 6px;
             color: var(--text-muted);
             cursor: pointer;
             transition: all 0.15s ease;
@@ -169,13 +174,19 @@ function IndicatorToolbarComponent() {
           }
 
           .action-btn.delete-btn:hover {
-            background: rgba(239, 68, 68, 0.2);
+            background: rgba(239, 68, 68, 0.15);
             color: var(--danger);
           }
 
-          .action-btn svg {
-            width: 14px;
-            height: 14px;
+          @keyframes fadeIn {
+            from {
+              opacity: 0;
+              transform: translateX(-5px);
+            }
+            to {
+              opacity: 1;
+              transform: translateX(0);
+            }
           }
         `}</style>
       </div>
