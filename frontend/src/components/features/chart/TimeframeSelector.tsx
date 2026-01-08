@@ -50,15 +50,71 @@ const ALL_INTERVALS = [
 
 import { cn } from "@/lib/utils";
 
+import { Star } from "lucide-react";
+import { useEffect, useState } from "react";
+
 function TimeframeSelectorComponent({ selected, onChange }: TimeframeSelectorProps) {
+  // Default favorites
+  const DEFAULT_FAVORITES = [
+    { value: "15m", label: "15m" },
+    { value: "1h", label: "1H" },
+    { value: "4h", label: "4H" },
+    { value: "12h", label: "12H" },
+    { value: "1d", label: "1D" },
+    { value: "3d", label: "3D" },
+    { value: "1w", label: "1W" },
+  ];
+
+  const [favorites, setFavorites] = useState<{ value: string; label: string }[]>(DEFAULT_FAVORITES);
+  const [mounted, setMounted] = useState(false);
+
+  // Load from localStorage on mount
+  useEffect(() => {
+    setMounted(true);
+    try {
+      const saved = localStorage.getItem("argus_favorite_timeframes");
+      if (saved) {
+        setFavorites(JSON.parse(saved));
+      }
+    } catch (e) {
+      console.error("Failed to load favorite timeframes", e);
+    }
+  }, []);
+
+  const toggleFavorite = (value: string, label: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    let newFavorites;
+    if (favorites.some((f) => f.value === value)) {
+      newFavorites = favorites.filter((f) => f.value !== value);
+    } else {
+      newFavorites = [...favorites, { value, label }].sort((a, b) => {
+        // Simple sort order logic based on ALL_INTERVALS order would be better, but for now append/remove
+        // To keep order correct, we might want to filter from a master list
+        const aIndex = getAllIntervalsFlat().findIndex((i) => i.value === a.value);
+        const bIndex = getAllIntervalsFlat().findIndex((i) => i.value === b.value);
+        return aIndex - bIndex;
+      });
+    }
+    setFavorites(newFavorites);
+    localStorage.setItem("argus_favorite_timeframes", JSON.stringify(newFavorites));
+  };
+
+  const getAllIntervalsFlat = () => {
+    return ALL_INTERVALS.flatMap((g) => g.items);
+  };
+
+  const isFavorite = (value: string) => favorites.some((f) => f.value === value);
+
   // Check if selected is a favorite
-  const isSelectedInFavorites = FAVORITES.some((f) => f.value === selected);
+  const isSelectedInFavorites = isFavorite(selected);
+
+  if (!mounted) return null;
 
   return (
     <div className="flex items-center gap-0.5">
       {/* Quick favorites */}
       <div className="flex items-center">
-        {FAVORITES.map((tf) => (
+        {favorites.map((tf) => (
           <button
             key={tf.value}
             className={cn("h-8 px-2.5 text-[13px] font-bold transition-all duration-200 rounded-md", selected === tf.value ? "text-primary bg-primary/10 shadow-sm" : "text-muted-foreground hover:bg-muted hover:text-foreground")}
@@ -83,9 +139,17 @@ function TimeframeSelectorComponent({ selected, onChange }: TimeframeSelectorPro
             <div key={group.label} className="py-1">
               <div className="px-3 py-1 text-[10px] font-extrabold text-muted-foreground uppercase tracking-wider">{group.label}</div>
               {group.items.map((item) => (
-                <DropdownItem key={item.value} active={selected === item.value} onClick={() => onChange(item.value)} className="flex items-center gap-3 px-3 py-2 text-sm font-medium hover:bg-muted cursor-pointer transition-colors">
-                  <span className="w-6 font-bold text-muted-foreground/50">{item.value}</span>
-                  <span className="text-foreground">{item.label}</span>
+                <DropdownItem key={item.value} active={selected === item.value} onClick={() => onChange(item.value)} className="flex items-center justify-between px-3 py-2 text-sm font-medium hover:bg-muted cursor-pointer transition-colors group">
+                  <div className="flex items-center gap-3">
+                    <span className="w-8 font-bold text-muted-foreground/50">{item.value}</span>
+                    <span className="text-foreground">{item.label}</span>
+                  </div>
+                  <button
+                    onClick={(e) => toggleFavorite(item.value, item.value.toUpperCase(), e)}
+                    className={cn("p-1 rounded-md hover:bg-background transition-colors", isFavorite(item.value) ? "text-yellow-400" : "text-muted-foreground/30 opacity-0 group-hover:opacity-100")}
+                  >
+                    <Star size={14} fill={isFavorite(item.value) ? "currentColor" : "none"} />
+                  </button>
                 </DropdownItem>
               ))}
             </div>
