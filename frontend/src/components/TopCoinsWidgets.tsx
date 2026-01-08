@@ -1,3 +1,4 @@
+import { Skeleton } from "@/components/ui/skeleton";
 import { CoinInfo } from "@/lib/marketApi";
 import Link from "next/link";
 import { memo } from "react";
@@ -58,7 +59,7 @@ function TopCoinsWidgetsComponent({ coins, isLoading }: TopCoinsWidgetsProps) {
     return (
       <div className="flex flex-wrap gap-4 mb-8">
         {[1, 2, 3].map((i) => (
-          <div key={i} className="h-[280px] bg-secondary border border-border rounded-2xl flex-1 min-w-[320px] animate-pulse" />
+          <Skeleton key={i} className="h-[280px] flex-1 min-w-[320px] rounded-2xl" />
         ))}
       </div>
     );

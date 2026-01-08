@@ -26,6 +26,12 @@ export function useOHLCV(symbol: string, timeframe: string = "1h", limit: number
         return undefined;
       }
       const oldestTimestamp = lastPage.candles[0].timestamp;
+
+      // If we got fewer candles than requested, we likely reached the end
+      if (lastPage.candles.length < limit) {
+        return undefined;
+      }
+
       console.log(`[useOHLCV] Next page param: ${oldestTimestamp}`);
       return oldestTimestamp;
     },

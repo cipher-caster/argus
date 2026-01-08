@@ -16,9 +16,9 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       </head>
       <body>
         <Providers>
-          <div className="layout-main">
+          <div className="layout-main h-full flex flex-col">
             <Navbar />
-            <div className="content-scrollable">{children}</div>
+            <div className="content-scrollable flex-1 min-h-0 relative">{children}</div>
           </div>
         </Providers>
       </body>

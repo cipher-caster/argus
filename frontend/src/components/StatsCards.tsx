@@ -1,3 +1,4 @@
+import { Skeleton } from "@/components/ui/skeleton";
 import { CoinInfo } from "@/lib/marketApi";
 import { memo } from "react";
 import { Sparkline } from "./Sparkline";
@@ -62,7 +63,7 @@ function StatsCardsComponent({ coins, isLoading }: StatsCardsProps) {
     return (
       <div className="flex flex-wrap gap-4 mb-6">
         {[1, 2, 3, 4].map((i) => (
-          <div key={i} className="h-24 bg-secondary border border-border rounded-xl flex-1 min-w-[240px] animate-pulse" />
+          <Skeleton key={i} className="h-[88px] flex-1 min-w-[240px] rounded-xl" />
         ))}
       </div>
     );

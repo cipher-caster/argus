@@ -5,6 +5,7 @@
  * Powered by TradingView's lightweight-charts
  */
 
+import { Skeleton } from "@/components/ui/skeleton";
 import { Candle } from "@/lib/api";
 import { IndicatorResult } from "@/lib/indicatorApi";
 import { useChartSettingsStore } from "@/stores/chartSettingsStore";
@@ -146,13 +147,39 @@ function CandlestickChartComponent({
     height,
   });
 
+  // Force resize on mount to handle flex layout settlement
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      window.dispatchEvent(new Event("resize"));
+    }, 100);
+    return () => clearTimeout(timer);
+  }, []);
+
   // --- Effect 1: Initialize Chart (Mount/Unmount) ---
   useEffect(() => {
-    if (!mainContainerRef.current) return;
+    // If showing skeleton, don't try to init
+    if (isLoading && candles.length === 0) return;
+
+    if (!mainContainerRef.current) {
+      return;
+    }
 
     const width = mainContainerRef.current.clientWidth;
     const height = mainContainerRef.current.clientHeight;
-    const chart = createChart(mainContainerRef.current, getChartOptions(width, height));
+
+    // Retry if dimensions are 0 (layout not settled)
+    // Retry if dimensions are 0 (layout not settled)
+    if (width === 0 || height === 0) {
+      // simple retry via timeout if needed, but resize observer should handle it
+    }
+
+    let chart: IChartApi;
+    try {
+      chart = createChart(mainContainerRef.current, getChartOptions(width, height));
+    } catch (e) {
+      console.error("Failed to create chart", e);
+      return;
+    }
 
     // Infinite Scroll Handler
     chart.timeScale().subscribeVisibleLogicalRangeChange((range) => {
@@ -175,12 +202,25 @@ function CandlestickChartComponent({
     mainChartRef.current = chart;
     mainSeriesRef.current = candlestickSeries;
 
+    // If we have data immediately, set it
+    if (candles.length > 0) {
+      const chartData = candles.map((candle) => ({
+        time: (candle.timestamp / 1000) as Time,
+        open: candle.open,
+        high: candle.high,
+        low: candle.low,
+        close: candle.close,
+      }));
+      candlestickSeries.setData(chartData);
+      chart.timeScale().scrollToPosition(0, true);
+    }
+
     return () => {
       chart.remove();
       mainChartRef.current = null;
       mainSeriesRef.current = null;
     };
-  }, []);
+  }, [isLoading, candles.length === 0]); // Re-run when skeleton state changes
 
   // --- Effect 2: Update Options (Theme/Settings/Resize) ---
   useEffect(() => {
@@ -279,7 +319,12 @@ function CandlestickChartComponent({
 
   // --- Effect 4: Update Main Chart Data ---
   useEffect(() => {
-    if (!mainSeriesRef.current || !candles.length) return;
+    if (!mainSeriesRef.current) return;
+
+    if (!candles.length) {
+      mainSeriesRef.current.setData([]);
+      return;
+    }
 
     // Detect if this is a timeframe change vs. infinite scroll load
     const isTimeframeChange = prevTimeframeRef.current !== timeframe;
@@ -456,6 +501,30 @@ function CandlestickChartComponent({
 
   const visiblePaneConfigs = indicatorConfigs.filter((i) => i.visible && i.indicatorType === "pane");
 
+  if (isLoading && candles.length === 0) {
+    return (
+      <div className="w-full h-full flex flex-col bg-card rounded-xl overflow-hidden border border-border shadow-inner">
+        <div className="border-b border-border p-3 flex justify-between items-center h-[60px]">
+          <div className="flex items-center gap-4">
+            <Skeleton className="h-8 w-32 rounded-lg" />
+            <Skeleton className="h-8 w-24 rounded-lg" />
+          </div>
+          <Skeleton className="h-8 w-48 rounded-lg" />
+        </div>
+        <div className="flex-1 relative">
+          <Skeleton className="absolute inset-0 w-full h-full rounded-none opacity-20" />
+          {/* Mock Grid Lines */}
+          <div className="absolute inset-0 flex flex-col justify-between p-8 opacity-10">
+            <div className="w-full h-px bg-foreground" />
+            <div className="w-full h-px bg-foreground" />
+            <div className="w-full h-px bg-foreground" />
+            <div className="w-full h-px bg-foreground" />
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="w-full h-full flex flex-col bg-card rounded-xl overflow-hidden border border-border shadow-inner">
       <ChartHeader
@@ -481,7 +550,15 @@ function CandlestickChartComponent({
       />
 
       {/* Main Chart */}
-      <div ref={mainContainerRef} className="flex-1 min-h-[200px] w-full" />
+      <div className="flex-1 min-h-[200px] w-full relative">
+        <div ref={mainContainerRef} className="absolute inset-0" />
+
+        {candles.length === 0 && !isLoading && (
+          <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-10 bg-background/50">
+            <span className="text-foreground text-lg font-bold">No chart data available</span>
+          </div>
+        )}
+      </div>
 
       {/* Pane Indicators */}
       {visiblePaneConfigs.map((config) => (

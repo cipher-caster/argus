@@ -1,6 +1,7 @@
 "use client";
 
 import { Panel } from "@/components/ui";
+import { Skeleton } from "@/components/ui/skeleton";
 import { useWatchlistStore } from "@/stores/watchlistStore";
 import { closestCenter, DndContext, DragEndEvent, KeyboardSensor, PointerSensor, useSensor, useSensors } from "@dnd-kit/core";
 import { arrayMove, SortableContext, sortableKeyboardCoordinates, useSortable, verticalListSortingStrategy } from "@dnd-kit/sortable";
@@ -56,11 +57,20 @@ function SortableWatchlistItem({ id, symbol, ticker, isActive, onRemove }: Sorta
           <span className="font-bold text-[14px] text-foreground tracking-tight">{symbol.replace("/USDT", "")}</span>
         </div>
         <div className="flex flex-col items-end gap-[1px]">
-          <span className="text-[14px] font-semibold text-foreground leading-none">{ticker?.price?.toLocaleString(undefined, { maximumFractionDigits: ticker.price < 1 ? 4 : 2 }) || "—"}</span>
-          <span className={cn("text-[11px] font-bold leading-none", (ticker?.change_24h || 0) >= 0 ? "text-success" : "text-danger")}>
-            {(ticker?.change_24h || 0) >= 0 ? "+" : ""}
-            {ticker?.change_24h?.toFixed(2) || "0.00"}%
-          </span>
+          {ticker ? (
+            <>
+              <span className="text-[14px] font-semibold text-foreground leading-none">{ticker.price.toLocaleString(undefined, { maximumFractionDigits: ticker.price < 1 ? 4 : 2 })}</span>
+              <span className={cn("text-[11px] font-bold leading-none", ticker.change_24h >= 0 ? "text-success" : "text-danger")}>
+                {ticker.change_24h >= 0 ? "+" : ""}
+                {ticker.change_24h.toFixed(2)}%
+              </span>
+            </>
+          ) : (
+            <div className="flex flex-col items-end gap-1">
+              <Skeleton className="h-[14px] w-16" />
+              <Skeleton className="h-[10px] w-10" />
+            </div>
+          )}
         </div>
       </Link>
 
@@ -81,8 +91,13 @@ export function WatchlistPanel({ currentSymbol }: WatchlistPanelProps) {
   const [searchQuery, setSearchQuery] = useState("");
   const [tickerData, setTickerData] = useState<Record<string, TickerData>>({});
   const [allTickers, setAllTickers] = useState<TickerData[]>([]);
+  const [isMounted, setIsMounted] = useState(false);
   const searchRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    setIsMounted(true);
+  }, []);
 
   const sensors = useSensors(
     useSensor(PointerSensor, {
@@ -229,7 +244,7 @@ export function WatchlistPanel({ currentSymbol }: WatchlistPanelProps) {
                 Add coins
               </button>
             </div>
-          ) : (
+          ) : isMounted ? (
             <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
               <SortableContext items={items.map((i) => i.symbol)} strategy={verticalListSortingStrategy}>
                 <div className="flex flex-col">
@@ -239,6 +254,12 @@ export function WatchlistPanel({ currentSymbol }: WatchlistPanelProps) {
                 </div>
               </SortableContext>
             </DndContext>
+          ) : (
+            <div className="flex flex-col">
+              {items.map((item) => (
+                <SortableWatchlistItem key={item.symbol} id={item.symbol} symbol={item.symbol} ticker={tickerData[item.symbol]} isActive={currentSymbol === item.symbol} onRemove={(e) => handleRemoveCoin(item.symbol, e)} />
+              ))}
+            </div>
           )}
         </div>
       </Panel>

@@ -1,5 +1,6 @@
 "use client";
 
+import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
 import { TrendingDown, TrendingUp } from "lucide-react";
 import { useEffect, useState } from "react";
@@ -57,7 +58,25 @@ export function CoinDetailsPanel({ symbol }: CoinDetailsPanelProps) {
   if (loading && !details) {
     return (
       <div className="p-4 flex flex-col gap-4 border-t border-border bg-secondary shrink-0 overflow-y-auto">
-        <div className="p-6 text-center text-muted-foreground text-[12px]">Loading...</div>
+        {/* Header Skeleton */}
+        <div className="flex gap-2">
+          <Skeleton className="h-6 w-20" />
+          <Skeleton className="h-4 w-12" />
+        </div>
+
+        {/* Price Skeleton */}
+        <div className="flex gap-3">
+          <Skeleton className="h-8 w-32" />
+          <Skeleton className="h-6 w-16" />
+        </div>
+
+        {/* Stats Skeleton */}
+        <div className="flex flex-col gap-2 mt-2">
+          <Skeleton className="h-3 w-24 mb-1" />
+          <Skeleton className="h-4 w-full" />
+          <Skeleton className="h-4 w-full" />
+          <Skeleton className="h-4 w-full" />
+        </div>
       </div>
     );
   }

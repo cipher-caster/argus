@@ -5,6 +5,7 @@
  * Professional CoinGlass-style table with rich data
  */
 
+import { Skeleton } from "@/components/ui/skeleton";
 import { CoinInfo } from "@/lib/marketApi";
 import { ArrowDown, ArrowUp, ArrowUpDown, Search, Star } from "lucide-react";
 import Link from "next/link";
@@ -108,37 +109,37 @@ function CoinTableComponent({ coins, isLoading, sortBy, sortOrder, onSort }: Coi
             Array.from({ length: 15 }).map((_, i) => (
               <tr key={i} className="animate-pulse">
                 <td className="px-4 py-4">
-                  <div className="w-4 h-4 bg-muted rounded"></div>
+                  <Skeleton className="w-4 h-4 rounded" />
                 </td>
                 <td className="px-4 py-4">
-                  <div className="w-4 h-4 bg-muted rounded mx-auto"></div>
+                  <Skeleton className="w-4 h-4 rounded mx-auto" />
                 </td>
                 <td className="px-4 py-4">
                   <div className="flex items-center gap-3">
-                    <div className="w-7 h-7 bg-muted rounded-full"></div>
-                    <div className="w-16 h-4 bg-muted rounded"></div>
+                    <Skeleton className="w-7 h-7 rounded-full" />
+                    <Skeleton className="w-16 h-4 rounded" />
                   </div>
                 </td>
                 <td className="px-4 py-4">
-                  <div className="w-20 h-4 bg-muted rounded ml-auto"></div>
+                  <Skeleton className="w-20 h-4 rounded ml-auto" />
                 </td>
                 <td className="px-4 py-4">
-                  <div className="w-16 h-6 bg-muted rounded-md ml-auto"></div>
+                  <Skeleton className="w-16 h-6 rounded-md ml-auto" />
                 </td>
                 <td className="px-4 py-4">
-                  <div className="w-16 h-4 bg-muted rounded ml-auto"></div>
+                  <Skeleton className="w-16 h-4 rounded ml-auto" />
                 </td>
                 <td className="px-4 py-4">
-                  <div className="w-20 h-4 bg-muted rounded ml-auto"></div>
+                  <Skeleton className="w-20 h-4 rounded ml-auto" />
                 </td>
                 <td className="px-4 py-4">
-                  <div className="w-20 h-6 bg-muted rounded mx-auto"></div>
+                  <Skeleton className="w-20 h-6 rounded mx-auto" />
                 </td>
                 <td className="px-4 py-4">
-                  <div className="w-16 h-4 bg-muted rounded ml-auto"></div>
+                  <Skeleton className="w-16 h-4 rounded ml-auto" />
                 </td>
                 <td className="px-4 py-4">
-                  <div className="w-16 h-4 bg-muted rounded ml-auto"></div>
+                  <Skeleton className="w-16 h-4 rounded ml-auto" />
                 </td>
               </tr>
             ))

@@ -67,7 +67,7 @@ export default function ChartPage({ params }: ChartPageProps) {
         </aside>
 
         {/* Center: Chart */}
-        <div className="overflow-hidden">
+        <div className="overflow-hidden h-full min-h-0 relative flex flex-col">
           <CandlestickChart
             candles={sortedCandles}
             symbol={symbol}
