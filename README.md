@@ -5,20 +5,22 @@ A professional cryptocurrency dashboard for real-time market data, charting, and
 ## Features
 
 - **Market Overview** - CoinGecko-style dashboard with 400+ coins
-- **Interactive Charts** - TradingView-powered candlestick charts
+- **Analytics Dashboard** - Charts for Funding Rates, Open Interest, and Long/Short Ratios
+- **Liquidation Heatmap** - Real-time visualization of market liquidations
+- **Interactive Charts** - TradingView-powered candlestick charts with Refresh capability
 - **Technical Indicators** - EMA, SMA, Bollinger Bands, RSI, MACD, and more
 - **Dark/Light Theme** - Toggle between themes
 - **Real-time Data** - Live prices from Binance
 
 ## Tech Stack
 
-| Layer    | Technology                     |
-| -------- | ------------------------------ |
-| Frontend | Next.js 14, React, TypeScript  |
-| State    | Zustand, React Query           |
-| Charts   | TradingView Lightweight Charts |
-| Backend  | FastAPI, Python                |
-| Data     | CCXT (Binance, OKX)            |
+| Layer    | Technology                               |
+| -------- | ---------------------------------------- |
+| Frontend | Next.js 14, React, Tailwind, Shadcn UI   |
+| State    | Zustand, React Query                     |
+| Charts   | TradingView Lightweight Charts, Chart.js |
+| Backend  | FastAPI, Python, Websockets              |
+| Data     | CCXT (Binance), Redis, Postgres          |
 
 ## Quick Start
 
@@ -34,6 +36,16 @@ uvicorn app.main:app --reload
 cd frontend
 npm install
 npm run dev
+```
+
+### Running Tests
+
+```bash
+# Backend Unit Tests
+docker compose exec backend sh -c "export PYTHONPATH=$PYTHONPATH:/app && pytest"
+
+# Frontend E2E Tests
+cd frontend && npx playwright test
 ```
 
 - **App**: http://localhost:3000

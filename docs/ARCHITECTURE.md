@@ -53,14 +53,19 @@ graph TD
 
 - **WebSocket Service**:
   - **Purpose**: Real-time ingestion of liquidation events (`liquidation_ws.py`).
-  - **Function**: Connects to Binance Futures WS, aggregates data, and broadcasts to frontend via polling/stream.
+  - **Function**: Connects to Binance Futures WS `!forceOrder@arr` stream.
+  - **Aggregation**: Buckets events by time (15s) and price (e.g. $50) into **Redis** for efficient heatmap rendering.
 
 ### Frontend
 
 - **Next.js 14**: Server-side rendering and static generation.
 - **Tailwind CSS**: Utility-first styling with **Shadcn UI** components.
-- **React Query**: Efficient server-state management.
+- **React Query**: Efficient server-state management (polling endpoints).
 - **Zustand**: Client-side state (Theme, Indicators).
+- **Visualization**:
+  - `lightweight-charts`: Candlestick data.
+  - `chart.js`: Analytics bars/lines.
+  - Custom Canvas: High-performance Heatmap rendering.
 
 ## Data Flow
 
