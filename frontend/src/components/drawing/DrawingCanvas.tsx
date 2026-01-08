@@ -6,6 +6,7 @@
  */
 
 import { calculateFibLevels, ChartDimensions, getLineDash, pixelsToPoint, pointToPixels } from "@/lib/drawingUtils";
+import { formatPrice } from "@/lib/formatters";
 import { Drawing, Point, useDrawingStore } from "@/stores/drawingStore";
 import { memo, useCallback, useEffect, useRef } from "react";
 
@@ -264,7 +265,7 @@ function renderHorizontalLine(ctx: CanvasRenderingContext2D, y: number, width: n
   // Price label
   ctx.fillStyle = ctx.strokeStyle;
   ctx.font = "11px Inter, sans-serif";
-  ctx.fillText(`$${price.toFixed(2)}`, width - 70, y - 5);
+  ctx.fillText(`$${formatPrice(price)}`, width - 70, y - 5);
 }
 
 function renderVerticalLine(ctx: CanvasRenderingContext2D, x: number, height: number) {

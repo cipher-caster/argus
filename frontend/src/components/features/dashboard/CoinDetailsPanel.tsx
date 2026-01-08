@@ -1,6 +1,7 @@
 "use client";
 
 import { Skeleton } from "@/components/ui/skeleton";
+import { formatChange, formatVolume } from "@/lib/formatters";
 import { cn } from "@/lib/utils";
 import { TrendingDown, TrendingUp } from "lucide-react";
 import { useEffect, useState } from "react";
@@ -16,14 +17,6 @@ interface TickerDetails {
   volume_24h: number;
   high_24h: number;
   low_24h: number;
-}
-
-function formatVolume(volume: number): string {
-  if (!volume) return "—";
-  if (volume >= 1_000_000_000) return `$${(volume / 1_000_000_000).toFixed(2)}B`;
-  if (volume >= 1_000_000) return `$${(volume / 1_000_000).toFixed(2)}M`;
-  if (volume >= 1_000) return `$${(volume / 1_000).toFixed(2)}K`;
-  return `$${volume.toFixed(2)}`;
 }
 
 export function CoinDetailsPanel({ symbol }: CoinDetailsPanelProps) {
@@ -106,10 +99,7 @@ export function CoinDetailsPanel({ symbol }: CoinDetailsPanelProps) {
         <div className="text-[24px] font-extrabold text-foreground tracking-tighter">${details.price?.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 6 })}</div>
         <div className={cn("flex items-center gap-1 text-[14px] font-bold px-2 py-1 rounded-md", isPositive ? "text-success bg-success/15" : "text-danger bg-danger/15")}>
           {isPositive ? <TrendingUp size={14} /> : <TrendingDown size={14} />}
-          <span>
-            {isPositive ? "+" : ""}
-            {details.change_24h?.toFixed(2)}%
-          </span>
+          <span>{formatChange(details.change_24h)}</span>
         </div>
       </div>
 
@@ -148,10 +138,7 @@ export function CoinDetailsPanel({ symbol }: CoinDetailsPanelProps) {
         <div className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider mb-1">Performance</div>
         <div className="grid grid-cols-1 gap-2">
           <div className={cn("p-3 rounded-xl text-center border transition-all", isPositive ? "bg-success/5 border-success/20" : "bg-danger/5 border-danger/20")}>
-            <div className={cn("text-[16px] font-extrabold font-mono", isPositive ? "text-success" : "text-danger")}>
-              {isPositive ? "+" : ""}
-              {details.change_24h?.toFixed(2)}%
-            </div>
+            <div className={cn("text-[16px] font-extrabold font-mono", isPositive ? "text-success" : "text-danger")}>{formatChange(details.change_24h)}</div>
             <div className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest mt-0.5">24 Hour Change</div>
           </div>
         </div>

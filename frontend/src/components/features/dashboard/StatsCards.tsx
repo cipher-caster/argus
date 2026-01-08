@@ -8,6 +8,7 @@ interface StatsCardsProps {
   isLoading: boolean;
 }
 
+import { formatChange, formatVolume } from "@/lib/formatters";
 import { cn } from "@/lib/utils";
 
 function StatsCardsComponent({ coins, isLoading }: StatsCardsProps) {
@@ -30,22 +31,11 @@ function StatsCardsComponent({ coins, isLoading }: StatsCardsProps) {
   const topLoser = sorted[sorted.length - 1];
   const volLeader = [...coins].sort((a, b) => (b.volume_24h || 0) - (a.volume_24h || 0))[0];
 
-  const formatCurrency = (val: number) => {
-    if (val >= 1e9) return `$${(val / 1e9).toFixed(2)}B`;
-    if (val >= 1e6) return `$${(val / 1e6).toFixed(2)}M`;
-    return `$${val.toLocaleString()}`;
-  };
-
-  const formatPercent = (val: number | null) => {
-    if (val === null) return "-";
-    return `${val >= 0 ? "+" : ""}${val.toFixed(2)}%`;
-  };
-
   const StatCard = ({ title, value, subValue, trend, chartColor }: any) => (
     <div className="bg-secondary border border-border rounded-xl p-4 flex-1 min-w-[240px] shadow-sm hover:shadow-md transition-shadow">
       <div className="flex justify-between mb-3">
         <span className="text-[13px] text-muted-foreground font-bold uppercase tracking-tight">{title}</span>
-        {trend !== null && <span className={cn("text-[12px] font-bold px-1.5 py-0.5 rounded", trend >= 0 ? "text-success bg-success/15" : "text-danger bg-danger/15")}>{formatPercent(trend)}</span>}
+        {trend !== null && <span className={cn("text-[12px] font-bold px-1.5 py-0.5 rounded", trend >= 0 ? "text-success bg-success/15" : "text-danger bg-danger/15")}>{formatChange(trend)}</span>}
       </div>
       <div className="flex justify-between items-end">
         <div className="flex flex-col gap-0.5">
@@ -71,10 +61,10 @@ function StatsCardsComponent({ coins, isLoading }: StatsCardsProps) {
 
   return (
     <div className="flex flex-wrap gap-4 mb-6">
-      <StatCard title="24h Volume (Top 50)" value={formatCurrency(totalVolume)} subValue="Global Market Activity" trend={null} chartColor="hsl(var(--primary))" />
-      <StatCard title="Top Gainer" value={topGainer?.symbol} subValue={formatCurrency(topGainer?.price || 0)} trend={topGainer?.change_24h} chartColor="hsl(var(--success))" />
-      <StatCard title="Top Loser" value={topLoser?.symbol} subValue={formatCurrency(topLoser?.price || 0)} trend={topLoser?.change_24h} chartColor="hsl(var(--danger))" />
-      <StatCard title="Vol Leader" value={volLeader?.symbol} subValue={formatCurrency(volLeader?.volume_24h || 0)} trend={volLeader?.change_24h} chartColor="#f59e0b" />
+      <StatCard title="24h Volume (Top 50)" value={formatVolume(totalVolume)} subValue="Global Market Activity" trend={null} chartColor="hsl(var(--primary))" />
+      <StatCard title="Top Gainer" value={topGainer?.symbol} subValue={formatVolume(topGainer?.price || 0)} trend={topGainer?.change_24h} chartColor="hsl(var(--success))" />
+      <StatCard title="Top Loser" value={topLoser?.symbol} subValue={formatVolume(topLoser?.price || 0)} trend={topLoser?.change_24h} chartColor="hsl(var(--danger))" />
+      <StatCard title="Vol Leader" value={volLeader?.symbol} subValue={formatVolume(volLeader?.volume_24h || 0)} trend={volLeader?.change_24h} chartColor="#f59e0b" />
     </div>
   );
 }

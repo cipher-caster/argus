@@ -28,6 +28,7 @@ interface SortableItemProps {
   onRemove: (e: React.MouseEvent) => void;
 }
 
+import { formatChange, formatPrice } from "@/lib/formatters";
 import { cn } from "@/lib/utils";
 
 function SortableWatchlistItem({ id, symbol, ticker, isActive, onRemove }: SortableItemProps) {
@@ -59,11 +60,8 @@ function SortableWatchlistItem({ id, symbol, ticker, isActive, onRemove }: Sorta
         <div className="flex flex-col items-end gap-[1px]">
           {ticker ? (
             <>
-              <span className="text-[14px] font-semibold text-foreground leading-none">{ticker.price.toLocaleString(undefined, { maximumFractionDigits: ticker.price < 1 ? 4 : 2 })}</span>
-              <span className={cn("text-[11px] font-bold leading-none", ticker.change_24h >= 0 ? "text-success" : "text-danger")}>
-                {ticker.change_24h >= 0 ? "+" : ""}
-                {ticker.change_24h.toFixed(2)}%
-              </span>
+              <span className="text-[14px] font-semibold text-foreground leading-none">{formatPrice(ticker.price)}</span>
+              <span className={cn("text-[11px] font-bold leading-none", ticker.change_24h >= 0 ? "text-success" : "text-danger")}>{formatChange(ticker.change_24h)}</span>
             </>
           ) : (
             <div className="flex flex-col items-end gap-1">
@@ -219,10 +217,10 @@ export function WatchlistPanel({ currentSymbol }: WatchlistPanelProps) {
                       >
                         <div className="flex items-center gap-2">
                           <span className="font-bold text-[13px] text-foreground">{ticker.symbol.replace("/USDT", "")}</span>
-                          <span className="text-xs text-muted-foreground">${ticker.price?.toLocaleString(undefined, { maximumFractionDigits: 4 })}</span>
+                          <span className="text-xs text-muted-foreground">${formatPrice(ticker.price)}</span>
                         </div>
                         <div className="flex items-center gap-3">
-                          <span className={cn("text-xs font-bold", (ticker.change_24h || 0) >= 0 ? "text-success" : "text-danger")}>{ticker.change_24h?.toFixed(2)}%</span>
+                          <span className={cn("text-xs font-bold", (ticker.change_24h || 0) >= 0 ? "text-success" : "text-danger")}>{formatChange(ticker.change_24h)}</span>
                           {inWatchlist ? <Check size={14} className="text-success" /> : <Plus size={14} className="text-muted-foreground" />}
                         </div>
                       </button>

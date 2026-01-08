@@ -1,6 +1,7 @@
 "use client";
 
 import { Dropdown } from "@/components/ui/Dropdown";
+import { formatChange, formatPrice } from "@/lib/formatters";
 import { cn } from "@/lib/utils";
 import { IndicatorConfig, useIndicatorStore } from "@/stores/indicatorStore";
 import { BarChart2, CandlestickChart as CandleIcon, ChevronDown, ChevronLeft, Edit2, Eye, EyeOff, Loader2, PlusCircle, RefreshCw, Search, Trash2, X } from "lucide-react";
@@ -50,11 +51,8 @@ export function ChartHeader({ symbol, price, priceChangePercent, isLoading, isRe
           <span className="font-bold text-[14px] text-foreground mr-2">{symbol}</span>
           {price !== undefined && (
             <div className="flex items-center gap-2 pl-3 border-l border-border">
-              <span className="font-bold text-[14px] text-foreground">${price.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
-              <span className={cn("text-[12px] font-semibold", priceChangePercent !== undefined && priceChangePercent >= 0 ? "text-success" : "text-danger")}>
-                {priceChangePercent !== undefined ? (priceChangePercent >= 0 ? "+" : "") : ""}
-                {priceChangePercent?.toFixed(2)}%
-              </span>
+              <span className="font-bold text-[14px] text-foreground">${formatPrice(price)}</span>
+              <span className={cn("text-[12px] font-semibold", priceChangePercent !== undefined && priceChangePercent >= 0 ? "text-success" : "text-danger")}>{formatChange(priceChangePercent)}</span>
             </div>
           )}
         </div>

@@ -6,6 +6,7 @@
  */
 
 import { useAnalyticsSymbols, useFundingRate, useLongShortRatio, useOpenInterest } from "@/hooks/useAnalyticsData";
+import { formatChange, formatVolume } from "@/lib/formatters";
 import { cn } from "@/lib/utils";
 import { BarChart3, Info, RefreshCw, TrendingUp, Users } from "lucide-react";
 import { useState } from "react";
@@ -225,9 +226,9 @@ function OpenInterestSummary({ data }: { data: { timestamp: number; open_interes
 
   return (
     <div className="grid grid-cols-4 gap-4">
-      <StatCard label="Current OI" value={`$${(latest.open_interest_value / 1e9).toFixed(2)}B`} />
-      <StatCard label="Period Change" value={`${change >= 0 ? "+" : ""}${change.toFixed(2)}%`} valueClass={change >= 0 ? "text-green-500" : "text-red-500"} />
-      <StatCard label="Period High" value={`$${(max / 1e9).toFixed(2)}B`} />
+      <StatCard label="Current OI" value={formatVolume(latest.open_interest_value)} />
+      <StatCard label="Period Change" value={formatChange(change)} valueClass={change >= 0 ? "text-green-500" : "text-red-500"} />
+      <StatCard label="Period High" value={formatVolume(max)} />
       <StatCard label="Data Points" value={data.length.toString()} />
     </div>
   );

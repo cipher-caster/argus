@@ -20,6 +20,7 @@ interface CoinTableProps {
   onSort: (field: string) => void;
 }
 
+import { formatChange, formatPrice, formatVolume } from "@/lib/formatters";
 import { cn } from "@/lib/utils";
 
 // Pseudo-random number generator seeded by string
@@ -96,25 +97,6 @@ function CoinTableComponent({ coins, isLoading, sortBy, sortOrder, onSort }: Coi
   const SortIcon = ({ field }: { field: string }) => {
     if (sortBy !== field) return <ArrowUpDown size={12} className="opacity-30 ml-1.5" />;
     return sortOrder === "asc" ? <ArrowUp size={12} className="text-primary ml-1.5" /> : <ArrowDown size={12} className="text-primary ml-1.5" />;
-  };
-
-  const formatPrice = (price: number) => {
-    if (price >= 1000) {
-      return price.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-    } else if (price >= 1) {
-      return price.toFixed(2);
-    } else if (price >= 0.0001) {
-      return price.toFixed(5);
-    } else {
-      return price.toFixed(8);
-    }
-  };
-
-  const formatVolume = (vol: number | null) => {
-    if (!vol) return "—";
-    if (vol >= 1e9) return `$${(vol / 1e9).toFixed(2)}B`;
-    if (vol >= 1e6) return `$${(vol / 1e6).toFixed(2)}M`;
-    return `$${(vol / 1e3).toFixed(0)}K`;
   };
 
   if (!mounted) return <div className="bg-secondary border border-border rounded-xl h-[400px]"></div>;
@@ -229,7 +211,7 @@ function CoinTableComponent({ coins, isLoading, sortBy, sortOrder, onSort }: Coi
                   </td>
                   <td className="px-4 py-4 text-right">
                     <div className={cn("inline-flex items-center justify-center px-2 py-1 rounded-md text-[12px] font-bold min-w-[70px] font-mono", (coin.change_24h ?? 0) >= 0 ? "bg-success/15 text-success" : "bg-danger/15 text-danger")}>
-                      {coin.change_24h !== null ? `${coin.change_24h >= 0 ? "+" : ""}${coin.change_24h.toFixed(2)}%` : "—"}
+                      {formatChange(coin.change_24h)}
                     </div>
                   </td>
                   <td className="px-4 py-4 text-right font-mono text-[13px] text-foreground tracking-tight">{formatVolume(coin.volume_24h)}</td>

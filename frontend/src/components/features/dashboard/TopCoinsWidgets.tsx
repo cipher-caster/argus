@@ -8,25 +8,13 @@ interface TopCoinsWidgetsProps {
   isLoading: boolean;
 }
 
+import { formatChange, formatPrice, formatVolume } from "@/lib/formatters";
 import { cn } from "@/lib/utils";
 
 function TopCoinsWidgetsComponent({ coins, isLoading }: TopCoinsWidgetsProps) {
   const getTopGainers = () => [...coins].sort((a, b) => (b.change_24h || 0) - (a.change_24h || 0)).slice(0, 5);
   const getTopLosers = () => [...coins].sort((a, b) => (a.change_24h || 0) - (b.change_24h || 0)).slice(0, 5);
   const getTopVolume = () => [...coins].sort((a, b) => (b.volume_24h || 0) - (a.volume_24h || 0)).slice(0, 5);
-
-  const formatPrice = (val: number) => {
-    if (val < 1) return val.toFixed(4);
-    if (val < 10) return val.toFixed(3);
-    return val.toLocaleString(undefined, { maximumFractionDigits: 2 });
-  };
-
-  const formatVolume = (vol: number | null) => {
-    if (!vol) return "—";
-    if (vol >= 1e9) return `$${(vol / 1e9).toFixed(2)}B`;
-    if (vol >= 1e6) return `$${(vol / 1e6).toFixed(1)}M`;
-    return `$${(vol / 1e3).toFixed(0)}K`;
-  };
 
   const CoinList = ({ title, data, type }: { title: string; data: CoinInfo[]; type: "gain" | "loss" | "vol" }) => (
     <div className="bg-secondary border border-border rounded-2xl p-5 flex-1 min-w-[320px] shadow-sm">
@@ -47,7 +35,7 @@ function TopCoinsWidgetsComponent({ coins, isLoading }: TopCoinsWidgetsProps) {
               </div>
             </div>
             <div className={cn("text-[14px] font-bold font-mono tracking-tight", type === "gain" ? "text-success" : type === "loss" ? "text-danger" : "text-foreground")}>
-              {type === "vol" ? formatVolume(coin.volume_24h) : `${(coin.change_24h || 0) > 0 ? "+" : ""}${(coin.change_24h || 0).toFixed(2)}%`}
+              {type === "vol" ? formatVolume(coin.volume_24h) : formatChange(coin.change_24h)}
             </div>
           </Link>
         ))}
