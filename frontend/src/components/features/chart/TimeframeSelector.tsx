@@ -2,7 +2,7 @@
 
 import { Dropdown, DropdownItem } from "@/components/ui/Dropdown";
 import { ChevronDown } from "lucide-react";
-import { memo, useState } from "react";
+import { memo } from "react";
 
 interface TimeframeSelectorProps {
   selected: string;
@@ -13,7 +13,9 @@ const FAVORITES = [
   { value: "15m", label: "15m" },
   { value: "1h", label: "1H" },
   { value: "4h", label: "4H" },
+  { value: "12h", label: "12H" },
   { value: "1d", label: "1D" },
+  { value: "3d", label: "3D" },
   { value: "1w", label: "1W" },
 ];
 

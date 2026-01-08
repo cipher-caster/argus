@@ -74,7 +74,7 @@ def get_provider():
 @router.get("/ohlcv/{symbol:path}", response_model=OHLCVResponse)
 async def get_ohlcv(
     symbol: str,
-    timeframe: str = Query(default="1h", pattern="^(1m|5m|15m|30m|1h|4h|12h|1d|1w)$"),
+    timeframe: str = Query(default="1h", pattern="^(1m|5m|15m|30m|1h|4h|12h|1d|3d|1w)$"),
     limit: int = Query(default=100, ge=1, le=1000),
     end_timestamp: Optional[int] = Query(default=None, description="Fetch candles before this timestamp (ms)")
 ):
@@ -113,6 +113,7 @@ async def get_ohlcv(
                 '4h': 4 * 60 * 60 * 1000,
                 '12h': 12 * 60 * 60 * 1000,
                 '1d': 24 * 60 * 60 * 1000,
+                '3d': 3 * 24 * 60 * 60 * 1000,
                 '1w': 7 * 24 * 60 * 60 * 1000,
             }.get(timeframe, 60 * 60 * 1000)
 

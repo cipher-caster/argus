@@ -21,7 +21,7 @@ interface ChartPageProps {
 
 export default function ChartPage({ params }: ChartPageProps) {
   const symbol = params.symbol.replace("-", "/");
-  const [timeframe, setTimeframe] = useState("1h");
+  const [timeframe, setTimeframe] = useState("4h");
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const scrollToLatestRef = useRef<(() => void) | null>(null);
 

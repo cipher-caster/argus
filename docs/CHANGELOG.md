@@ -48,6 +48,7 @@ All notable changes to this project will be documented in this file.
   - Performance indicator.
 - **Market Cap Sorting**: Added Market Cap column to the main coin table and set it as the default sorting method.
 - **Refresh Button**: Added to toolbar to scroll chart to latest candle.
+- **Chart Timeframes**: Updated default timeframe to 4H and expanded quick selector options to include 12H, 3D.
 - **Chart Customization**: Added a new settings modal (gear icon) to configure custom colors for candlesticks (Body, Borders, Wick) for both Up and Down candles.
 - **Indicator Colors**: Added color picker to the "Add/Edit Indicator" modal, allowing users to choose custom colors for their indicators.
 - **Indicator Management**: Added a quick "Remove" (X) button directly to indicator badges on the chart toolbar.
