@@ -2,7 +2,7 @@
 
 import { cn } from "@/lib/utils";
 import { IndicatorConfig, useIndicatorStore } from "@/stores/indicatorStore";
-import { BarChart2, CandlestickChart as CandleIcon, ChevronDown, ChevronLeft, Edit2, Eye, EyeOff, PlusCircle, Search, Trash2, X } from "lucide-react";
+import { BarChart2, CandlestickChart as CandleIcon, ChevronDown, ChevronLeft, Edit2, Eye, EyeOff, Loader2, PlusCircle, RefreshCw, Search, Trash2, X } from "lucide-react";
 import Link from "next/link";
 import { TimeframeSelector } from "../TimeframeSelector";
 import { Dropdown } from "../ui/Dropdown";
@@ -12,16 +12,18 @@ interface ChartHeaderProps {
   price?: number;
   priceChangePercent?: number;
   isLoading?: boolean;
+  isRefreshing?: boolean;
   timeframe?: string;
   onTimeframeChange?: (tf: string) => void;
   indicatorConfigs: IndicatorConfig[];
   onAddIndicator: () => void;
   onEditIndicator: (indicator: IndicatorConfig) => void;
   onOpenSettings?: () => void;
+  onRefresh?: () => void;
   provider?: string;
 }
 
-export function ChartHeader({ symbol, price, priceChangePercent, isLoading, timeframe, onTimeframeChange, indicatorConfigs, onAddIndicator, onEditIndicator, onOpenSettings, provider }: ChartHeaderProps) {
+export function ChartHeader({ symbol, price, priceChangePercent, isLoading, isRefreshing, timeframe, onTimeframeChange, indicatorConfigs, onAddIndicator, onEditIndicator, onOpenSettings, onRefresh, provider }: ChartHeaderProps) {
   const toggleVisibility = useIndicatorStore((s) => s.toggleVisibility);
   const removeIndicator = useIndicatorStore((s) => s.removeIndicator);
 
@@ -110,13 +112,17 @@ export function ChartHeader({ symbol, price, priceChangePercent, isLoading, time
                       <span className="text-[13px] text-foreground">{ind.displayName}</span>
                     </div>
                     <div className="flex gap-1">
-                      <button className="bg-transparent border-none p-1 cursor-pointer text-muted-foreground rounded-md flex items-center hover:text-foreground hover:bg-black/5" onClick={() => toggleVisibility(ind.id)}>
+                      <button
+                        className="bg-transparent border-none p-1 cursor-pointer text-muted-foreground rounded-md flex items-center hover:text-foreground hover:bg-black/5"
+                        onClick={() => toggleVisibility(ind.id)}
+                        title={ind.visible ? "Hide Indicator" : "Show Indicator"}
+                      >
                         {ind.visible ? <Eye size={14} /> : <EyeOff size={14} />}
                       </button>
-                      <button className="bg-transparent border-none p-1 cursor-pointer text-muted-foreground rounded-md flex items-center hover:text-foreground hover:bg-black/5" onClick={() => onEditIndicator(ind)}>
+                      <button className="bg-transparent border-none p-1 cursor-pointer text-muted-foreground rounded-md flex items-center hover:text-foreground hover:bg-black/5" onClick={() => onEditIndicator(ind)} title="Edit Indicator">
                         <Edit2 size={14} />
                       </button>
-                      <button className="bg-transparent border-none p-1 cursor-pointer text-muted-foreground rounded-md flex items-center hover:text-danger hover:bg-black/5" onClick={() => removeIndicator(ind.id)}>
+                      <button className="bg-transparent border-none p-1 cursor-pointer text-muted-foreground rounded-md flex items-center hover:text-danger hover:bg-black/5" onClick={() => removeIndicator(ind.id)} title="Remove Indicator">
                         <Trash2 size={14} />
                       </button>
                     </div>
@@ -143,6 +149,7 @@ export function ChartHeader({ symbol, price, priceChangePercent, isLoading, time
                     e.stopPropagation();
                     removeIndicator(i.id);
                   }}
+                  title="Remove Indicator"
                 >
                   <X size={10} />
                 </button>
@@ -152,10 +159,20 @@ export function ChartHeader({ symbol, price, priceChangePercent, isLoading, time
         )}
       </div>
 
-      {isLoading && <span className="text-[11px] text-primary ml-auto animate-pulse">Loading...</span>}
+      {isLoading && <Loader2 size={16} className="ml-auto animate-spin text-primary" />}
 
       <div className="ml-auto flex items-center gap-3">
         {provider && <span className="text-[10px] font-bold text-muted-foreground bg-muted px-1.5 py-[2px] rounded-[4px] border border-border tracking-wider uppercase">{provider}</span>}
+        {onRefresh && (
+          <button
+            className={cn("w-7 h-7 border-none bg-transparent text-muted-foreground flex items-center justify-center cursor-pointer rounded-md hover:text-foreground hover:bg-muted transition-colors", isRefreshing && "animate-spin")}
+            onClick={onRefresh}
+            title="Refresh Chart Data"
+            disabled={isRefreshing}
+          >
+            <RefreshCw size={16} />
+          </button>
+        )}
         {onOpenSettings && (
           <button className="w-7 h-7 border-none bg-transparent text-muted-foreground flex items-center justify-center cursor-pointer rounded-md hover:text-foreground hover:bg-muted transition-colors" onClick={onOpenSettings} title="Chart Settings">
             <Edit2 size={16} />

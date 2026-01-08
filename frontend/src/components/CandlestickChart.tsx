@@ -31,6 +31,8 @@ interface CandlestickChartProps {
   priceChangePercent?: number;
   provider?: string;
   onOpenSettings?: () => void;
+  onRefresh?: () => void;
+  isRefreshing?: boolean;
 }
 
 function CandlestickChartComponent({
@@ -48,6 +50,8 @@ function CandlestickChartComponent({
   priceChangePercent,
   provider,
   onOpenSettings,
+  onRefresh,
+  isRefreshing,
 }: CandlestickChartProps) {
   const mainContainerRef = useRef<HTMLDivElement>(null);
   const paneRefs = useRef<Map<string, HTMLDivElement>>(new Map());
@@ -460,6 +464,8 @@ function CandlestickChartComponent({
         priceChangePercent={priceChangePercent}
         provider={provider}
         onOpenSettings={onOpenSettings}
+        onRefresh={onRefresh}
+        isRefreshing={isRefreshing}
         isLoading={isLoading}
         timeframe={timeframe}
         onTimeframeChange={onTimeframeChange}

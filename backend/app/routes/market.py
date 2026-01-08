@@ -103,26 +103,44 @@ async def get_ohlcv(
             results = await session.execute(statement)
             db_candles = results.scalars().all()
             
-            # --- Direct Fetch if Missing ---
-            if not db_candles or len(db_candles) < limit // 2:
-                print(f"I: Missing/sparse data for {symbol} {timeframe} before {end_timestamp}. Fetching from Binance...")
+            # Helper for timeframe ms
+            timeframe_ms = {
+                '1m': 60 * 1000,
+                '5m': 5 * 60 * 1000,
+                '15m': 15 * 60 * 1000,
+                '30m': 30 * 60 * 1000,
+                '1h': 60 * 60 * 1000,
+                '4h': 4 * 60 * 60 * 1000,
+                '12h': 12 * 60 * 60 * 1000,
+                '1d': 24 * 60 * 60 * 1000,
+                '1w': 7 * 24 * 60 * 60 * 1000,
+            }.get(timeframe, 60 * 60 * 1000)
+
+            # Check staleness
+            import time
+            now_ms = int(time.time() * 1000)
+            is_stale = False
+            if db_candles and not end_timestamp:
+                # db_candles[0] is newest (desc sort)
+                latest_ts = db_candles[0].timestamp
+                # If latest candle is older than timeframe, we are stale
+                # e.g. 1H candle at 10:00 (covers 10-11). Now is 11:05. 
+                # Diff = 65 min. timeframe = 60 min. stale.
+                if (now_ms - latest_ts) > timeframe_ms:
+                    is_stale = True
+                    print(f"I: Data stale for {symbol} {timeframe}. Latest: {latest_ts}, Now: {now_ms}")
+
+            # --- Direct Fetch if Missing or Stale ---
+            if not db_candles or len(db_candles) < limit // 2 or is_stale:
+                print(f"I: Fetching from Binance... (Reason: Missing={not db_candles}, Sparse={len(db_candles) < limit//2 if db_candles else False}, Stale={is_stale})")
                 try:
                     provider = BinanceProvider()
                     try:
                         # Calculate 'since' timestamp for fetching older data
                         # If end_timestamp provided, we need to fetch candles BEFORE it
                         # CCXT 'since' = start timestamp, so we go back by limit * timeframe
-                        timeframe_ms = {
-                            '1m': 60 * 1000,
-                            '5m': 5 * 60 * 1000,
-                            '15m': 15 * 60 * 1000,
-                            '30m': 30 * 60 * 1000,
-                            '1h': 60 * 60 * 1000,
-                            '4h': 4 * 60 * 60 * 1000,
-                            '12h': 12 * 60 * 60 * 1000,
-                            '1d': 24 * 60 * 60 * 1000,
-                            '1w': 7 * 24 * 60 * 60 * 1000,
-                        }.get(timeframe, 60 * 60 * 1000)
+                        # timeframe_ms map moved up
+
                         
                         # Calculate 'since' to fetch 1000 candles ending at end_timestamp
                         if end_timestamp:

@@ -51,8 +51,14 @@ export default function ChartPage({ params }: ChartPageProps) {
   const currentPrice = tickerData?.price;
   const priceChangePercent = sortedCandles.length ? (((currentPrice ?? 0) - sortedCandles[0].close) / sortedCandles[0].close) * 100 : 0;
 
+  const handleRefresh = async () => {
+    await Promise.all([ohlcvQuery.refetch(), tickerQuery.refetch()]);
+  };
+
+  const isRefreshing = ohlcvQuery.isRefetching || tickerQuery.isRefetching;
+
   return (
-    <div className="flex flex-col h-screen bg-background overflow-hidden">
+    <div className="flex flex-col h-full bg-background overflow-hidden">
       {/* Main Content - 3 Column Grid */}
       <main className="flex-1 grid grid-cols-[48px_1fr_280px] overflow-hidden">
         {/* Left: Drawing Tools */}
@@ -81,6 +87,8 @@ export default function ChartPage({ params }: ChartPageProps) {
             priceChangePercent={priceChangePercent}
             provider={providerData?.provider}
             onOpenSettings={() => setIsSettingsOpen(true)}
+            onRefresh={handleRefresh}
+            isRefreshing={isRefreshing}
           />
           <ChartSettingsModal isOpen={isSettingsOpen} onClose={() => setIsSettingsOpen(false)} />
         </div>

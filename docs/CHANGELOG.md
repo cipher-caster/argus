@@ -2,7 +2,36 @@
 
 All notable changes to this project will be documented in this file.
 
-## [Unreleased]
+## [0.4.0] - Unreleased
+
+### Added
+
+- **Analytics Dashboard**: New `/analytics` page featuring professional-grade market analysis tools:
+  - **Funding Rate Chart**: Visualizes funding rates across top exchanges to gauge market sentiment.
+  - **Open Interest Chart**: Tracks total open interest over time.
+  - **Long/Short Ratio**: Stacked bar chart showing the ratio of long vs short positions.
+  - **Educational Insights**: Added "What is this?" and "Trading Tips" sections for each metric.
+- **Liquidation Heatmap**:
+  - Implemented backend WebSocket service (`liquidation_ws.py`) to ingest real-time liquidation events from Binance Futures.
+  - Created `/liquidation` page with a sophisticated heatmap visualization.
+  - Added backend aggregation logic to store and serve historical heatmap data.
+- **Chart Enhancements**:
+  - **Refresh Button**: Added a dedicated button to the chart header to force-refresh OHLCV and Ticker data, complete with a spinner animation.
+  - **Tooltips**: Added informative tooltips to all chart header icons (Indicators, Settings, Refresh, etc.).
+  - **Full-Width Layout**: Navbar now dynamically expands to full width on Chart and Analytics pages for immersive viewing.
+- **Navigation**:
+  - Added a "Charts" link with active state highlighting to the main Navbar.
+  - Improved Navbar visibility logic to ensure it appears consistently across all pages.
+
+### Fixed
+
+- **Data Stale Issue**: Fixed a critical backend bug where the OHLCV endpoint returned stale database records. Implemented a staleness check to force a fresh fetch from Binance if the latest candle is outdated.
+- **Loading UX**: Replaced the text-based "Loading..." indicator in the chart header with a modern spinner icon (`Loader2`).
+- **Navbar Duplication**: Resolved an issue where the Navbar appeared twice on the chart page by correctly managing layout nesting.
+
+### Changed
+
+- **Refetch Interval**: Reduced the default OHLCV data refetch interval from 60s to 15s for tighter synchronization with live prices.
 
 ### Added
 

@@ -1,6 +1,6 @@
 "use client";
 
-import { BarChart2, ChevronDown, LayoutDashboard, Search } from "lucide-react";
+import { BarChart2, ChevronDown, LayoutDashboard, LineChart, Search } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
@@ -63,11 +63,12 @@ export function Navbar() {
     window.location.href = `/chart/${cleanSymbol}-USDT`;
   };
 
-  if (pathname?.startsWith("/chart")) return null;
+  const isLiquidationPage = pathname === "/liquidation";
+  const isFullWidthPage = pathname?.startsWith("/chart") || pathname === "/analytics";
 
   return (
     <nav className="h-14 bg-background border-b border-border sticky top-0 z-[1000]">
-      <div className="max-w-[1440px] mx-auto h-full flex items-center justify-between px-5">
+      <div className={cn("h-full flex items-center justify-between px-5", !isFullWidthPage && "max-w-[1440px] mx-auto")}>
         <div className="flex items-center gap-8">
           <Link href="/" className="flex items-center gap-2.5 no-underline">
             <LayoutDashboard size={24} className="text-primary" />
@@ -75,10 +76,32 @@ export function Navbar() {
           </Link>
 
           <div className="hidden lg:flex items-center gap-1">
-            <Link href="#" className="flex items-center gap-1.5 px-3 h-9 text-sm font-semibold text-muted-foreground no-underline rounded-lg transition-all hover:text-foreground hover:bg-muted">
+            <Link
+              href="/chart/BTC-USDT"
+              className={cn(
+                "flex items-center gap-1.5 px-3 h-9 text-sm font-semibold no-underline rounded-lg transition-all",
+                pathname?.startsWith("/chart") ? "text-primary bg-primary/10" : "text-muted-foreground hover:text-foreground hover:bg-muted"
+              )}
+            >
+              <LineChart size={16} />
+              <span>Charts</span>
+            </Link>
+            <Link
+              href="/analytics"
+              className={cn("flex items-center gap-1.5 px-3 h-9 text-sm font-semibold no-underline rounded-lg transition-all", pathname === "/analytics" ? "text-primary bg-primary/10" : "text-muted-foreground hover:text-foreground hover:bg-muted")}
+            >
               <BarChart2 size={16} />
               <span>Analytics</span>
             </Link>
+            {/* Liquidations link hidden - keeping code for future use
+            <Link
+              href="/liquidation"
+              className={cn("flex items-center gap-1.5 px-3 h-9 text-sm font-semibold no-underline rounded-lg transition-all", isLiquidationPage ? "text-orange-500 bg-orange-500/10" : "text-muted-foreground hover:text-foreground hover:bg-muted")}
+            >
+              <Flame size={16} />
+              <span>Liquidations</span>
+            </Link>
+            */}
           </div>
         </div>
 

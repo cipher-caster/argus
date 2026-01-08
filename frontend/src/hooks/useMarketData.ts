@@ -30,8 +30,8 @@ export function useOHLCV(symbol: string, timeframe: string = "1h", limit: number
       return oldestTimestamp;
     },
     initialPageParam: undefined as number | undefined,
-    refetchInterval: 60000,
-    staleTime: 30000,
+    refetchInterval: 15000, // Refresh every 15 seconds to stay in sync with ticker
+    staleTime: 10000,
     enabled: !!symbol,
   });
 }
