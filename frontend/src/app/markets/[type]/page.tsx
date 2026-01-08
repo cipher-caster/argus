@@ -1,6 +1,6 @@
 "use client";
 
-import { CoinTable } from "@/components/CoinTable";
+import { CoinTable } from "@/components/features/dashboard/CoinTable";
 import { useCoins } from "@/hooks/useMarketOverview";
 import { ArrowLeft } from "lucide-react";
 import Link from "next/link";

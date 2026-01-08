@@ -1,11 +1,11 @@
 "use client";
 
+import { Dropdown } from "@/components/ui/Dropdown";
 import { cn } from "@/lib/utils";
 import { IndicatorConfig, useIndicatorStore } from "@/stores/indicatorStore";
 import { BarChart2, CandlestickChart as CandleIcon, ChevronDown, ChevronLeft, Edit2, Eye, EyeOff, Loader2, PlusCircle, RefreshCw, Search, Trash2, X } from "lucide-react";
 import Link from "next/link";
 import { TimeframeSelector } from "../TimeframeSelector";
-import { Dropdown } from "../ui/Dropdown";
 
 interface ChartHeaderProps {
   symbol: string;

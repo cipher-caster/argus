@@ -5,8 +5,8 @@
  * Displays a CoinGlass-style liquidation heatmap for crypto futures
  */
 
-import { LiquidationControls } from "@/components/LiquidationControls";
-import { HeatmapLegend, LiquidationHeatmap } from "@/components/LiquidationHeatmap";
+import { LiquidationControls } from "@/components/features/liquidation/LiquidationControls";
+import { HeatmapLegend, LiquidationHeatmap } from "@/components/features/liquidation/LiquidationHeatmap";
 import { useLiquidationHeatmap, useLiquidationSymbols } from "@/hooks/useLiquidationData";
 import { Flame } from "lucide-react";
 import { useState } from "react";

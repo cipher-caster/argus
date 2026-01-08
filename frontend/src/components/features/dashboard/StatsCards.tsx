@@ -1,7 +1,7 @@
+import { Sparkline } from "@/components/features/chart/Sparkline";
 import { Skeleton } from "@/components/ui/skeleton";
 import { CoinInfo } from "@/lib/marketApi";
 import { memo } from "react";
-import { Sparkline } from "./Sparkline";
 
 interface StatsCardsProps {
   coins: CoinInfo[];

@@ -5,9 +5,9 @@
  * Professional CoinGlass-style layout
  */
 
-import { CoinTable } from "@/components/CoinTable";
-import { StatsCards } from "@/components/StatsCards";
-import { TopCoinsWidgets } from "@/components/TopCoinsWidgets";
+import { CoinTable } from "@/components/features/dashboard/CoinTable";
+import { StatsCards } from "@/components/features/dashboard/StatsCards";
+import { TopCoinsWidgets } from "@/components/features/dashboard/TopCoinsWidgets";
 import { useProvider } from "@/hooks/useMarketData";
 import { useCoins, useMarketSummary } from "@/hooks/useMarketOverview";
 import { useState } from "react";

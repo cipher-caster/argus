@@ -5,11 +5,11 @@
  * TradingView-style interactive chart with drawing tools and watchlist
  */
 
-import { CandlestickChart } from "@/components/CandlestickChart";
-import { ChartSettingsModal } from "@/components/ChartSettingsModal";
-import { CoinDetailsPanel } from "@/components/CoinDetailsPanel";
-import { DrawingToolbar } from "@/components/DrawingToolbar";
-import { WatchlistPanel } from "@/components/WatchlistPanel";
+import { CandlestickChart } from "@/components/features/chart/CandlestickChart";
+import { ChartSettingsModal } from "@/components/features/chart/ChartSettingsModal";
+import { DrawingToolbar } from "@/components/features/chart/DrawingToolbar";
+import { CoinDetailsPanel } from "@/components/features/dashboard/CoinDetailsPanel";
+import { WatchlistPanel } from "@/components/features/dashboard/WatchlistPanel";
 import { useAvailableIndicators, useCalculatedIndicators } from "@/hooks/useIndicators";
 import { useOHLCV, useProvider, useTicker } from "@/hooks/useMarketData";
 import { useIndicatorStore } from "@/stores/indicatorStore";
