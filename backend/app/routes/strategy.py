@@ -111,10 +111,14 @@ async def get_candles_df(symbol: str, timeframe: str, limit: int = 500) -> pd.Da
 async def get_oracle_strategy(
     symbol: str,
     micro_tf: str = Query(default="1h", description="Timeframe for voters"),
-    macro_tf: str = Query(default="1d", description="Timeframe for trend")
+    macro_tf: str = Query(default="1d", description="Timeframe for trend"),
+    strategy_mode: str = Query(default="prophet", pattern="^(prophet|earnest)$")
 ):
     """
-    Runs the Oracle (Prophet v9.0) Strategy on a symbol.
+    Runs the Oracle Strategy on a symbol.
+    Modes:
+    - prophet: Trend Following (Requires Daily Alignment)
+    - earnest: Pure Momentum (Scalping/Counter-trend)
     """
     try:
         # Fetch Data concurrently could be better, but sequential is safer for now
@@ -125,7 +129,7 @@ async def get_oracle_strategy(
              raise HTTPException(status_code=404, detail=f"Insufficient data for {symbol}")
              
         # Run Strategy
-        result = oracle.analyze(df_micro, df_macro)
+        result = oracle.analyze(df_micro, df_macro, mode=strategy_mode)
         
         # Add metadata
         result['symbol'] = symbol

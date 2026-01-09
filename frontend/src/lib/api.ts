@@ -297,6 +297,11 @@ export interface OracleStrategyResponse {
     signal: string;
     price: number;
   }>;
+  performance: {
+    total_trades: number;
+    win_rate: number;
+    net_profit: number;
+  };
 }
 
 /**
@@ -305,11 +310,13 @@ export interface OracleStrategyResponse {
 export async function fetchOracleStrategy(
   symbol: string,
   micro_tf: string = "1h",
-  macro_tf: string = "1d"
+  macro_tf: string = "1d",
+  strategy_mode: string = "prophet"
 ): Promise<OracleStrategyResponse> {
   const params = new URLSearchParams({
     micro_tf,
     macro_tf,
+    strategy_mode,
   });
 
   const response = await fetch(`${API_URL}/api/strategy/oracle/${encodeURIComponent(symbol)}?${params}`);

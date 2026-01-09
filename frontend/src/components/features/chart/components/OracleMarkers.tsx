@@ -8,11 +8,12 @@ import { Time, SeriesMarker } from "lightweight-charts";
 interface OracleMarkersProps {
   symbol: string;
   timeframe: string;
+  mode: string;
 }
 
-export function OracleMarkers({ symbol, timeframe }: OracleMarkersProps) {
+export function OracleMarkers({ symbol, timeframe, mode }: OracleMarkersProps) {
   const { chart, mainSeries } = useChart();
-  const { data } = useStrategyOracle(symbol, timeframe);
+  const { data } = useStrategyOracle(symbol, timeframe, "1d", mode);
 
   useEffect(() => {
     if (!mainSeries || !data?.historical_signals) return;

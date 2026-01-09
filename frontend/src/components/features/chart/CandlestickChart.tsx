@@ -54,8 +54,9 @@ function CandlestickChartComponent({
   const [isIndicatorModalOpen, setIsIndicatorModalOpen] = useState(false);
   const [editingIndicator, setEditingIndicator] = useState<IndicatorConfig | null>(null);
 
-  // Check if Oracle Strategy is active
-  const isOracleActive = indicatorConfigs.some((i) => i.type === "oracle_strategy" && i.visible);
+  // Check active strategy
+  const activeStrategy = indicatorConfigs.find((i) => (i.type === "prophet_strategy" || i.type === "earnest_strategy") && i.visible);
+  const strategyMode = activeStrategy?.type === "earnest_strategy" ? "earnest" : "prophet";
 
   // Loading State - Use Skeleton
   if (isLoading && candles.length === 0) {
@@ -96,10 +97,10 @@ function CandlestickChartComponent({
 
         {/* Main Chart Area */}
         <div className="flex-1 w-full relative min-h-[400px]">
-          {isOracleActive && <StrategyOraclePanel symbol={symbol} timeframe={timeframe} />}
+          {activeStrategy && <StrategyOraclePanel symbol={symbol} timeframe={timeframe} mode={strategyMode} />}
           <ChartCanvas className="absolute inset-0 w-full h-full">
             <MainChartSeries candles={candles} timeframe={timeframe} onLoadMore={onLoadMore} isLoadingMore={isLoadingMore} />
-            {isOracleActive && <OracleMarkers symbol={symbol} timeframe={timeframe} />}
+            {activeStrategy && <OracleMarkers symbol={symbol} timeframe={timeframe} mode={strategyMode} />}
             <ChartIndicators indicatorResults={indicatorResults} indicatorConfigs={indicatorConfigs} />
             <ScrollToLatestRegistrar scrollToLatestRef={scrollToLatestRef} />
 

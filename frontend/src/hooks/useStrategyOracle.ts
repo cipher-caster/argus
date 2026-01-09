@@ -9,11 +9,12 @@ import { fetchOracleStrategy } from "@/lib/api";
 export function useStrategyOracle(
   symbol: string,
   microTf: string = "1h",
-  macroTf: string = "1d"
+  macroTf: string = "1d",
+  mode: string = "prophet"
 ) {
   return useQuery({
-    queryKey: ["strategy-oracle", symbol, microTf, macroTf],
-    queryFn: () => fetchOracleStrategy(symbol, microTf, macroTf),
+    queryKey: ["strategy-oracle", symbol, microTf, macroTf, mode],
+    queryFn: () => fetchOracleStrategy(symbol, microTf, macroTf, mode),
     refetchInterval: 30000, // Refresh every 30 seconds
     enabled: !!symbol,
     staleTime: 10000,

@@ -20,11 +20,12 @@ class OracleStrategy:
         self.vol_threshold = 1.3
         self.atr_gap_mult = 3.0
 
-    def analyze(self, df_micro: pd.DataFrame, df_macro: pd.DataFrame) -> Dict[str, Any]:
+    def analyze(self, df_micro: pd.DataFrame, df_macro: pd.DataFrame, mode: str = "prophet") -> Dict[str, Any]:
         """
         Main analysis entry point.
         :param df_micro: DataFrame for the trading timeframe (e.g., 1H)
         :param df_macro: DataFrame for the trend timeframe (e.g., 1D)
+        :param mode: 'prophet' (Trend Following) or 'earnest' (Pure Momentum)
         """
         if df_micro.empty or df_macro.empty:
             return {"error": "Insufficient data"}
@@ -49,11 +50,12 @@ class OracleStrategy:
         # 6. Targets & Advice
         targets = self._calculate_targets(micro, macro, macro_result['bias'])
 
-        # 7. Historical Signals (Backtest)
-        signals = self._calculate_historical_signals(df_micro, df_macro)
+        # 7. Historical Signals & Backtest Simulation
+        backtest = self._run_backtest(df_micro, df_macro, mode)
         
         return {
-            "signal": self._synthesize_signal(earnest_result['score'], macro_result['score']),
+            "mode": mode,
+            "signal": self._synthesize_signal(earnest_result['score'], macro_result['score'], mode),
             "confidence": f"{abs(earnest_result['score'])}/4",
             "bias": macro_result['bias'],
             "state": state_result['state'],
@@ -61,44 +63,116 @@ class OracleStrategy:
             "earnest": earnest_result,
             "macro": macro_result,
             "targets": targets,
-            "advice": self._generate_advice(earnest_result, macro_result, state_result, targets),
-            "historical_signals": signals
+            "advice": self._generate_advice(earnest_result, macro_result, state_result, targets, mode),
+            "historical_signals": backtest['signals'],
+            "performance": backtest['stats']
         }
 
-    def _calculate_historical_signals(self, df_micro: pd.DataFrame, df_macro: pd.DataFrame) -> list:
-        """Calculates BUY/SELL signals for all historical candles."""
+    def _run_backtest(self, df_micro: pd.DataFrame, df_macro: pd.DataFrame, mode: str) -> Dict[str, Any]:
+        """
+        Simulates trades based on signals and calculates performance.
+        Returns signals list and performance stats.
+        """
         signals = []
-        
-        # For each candle in micro (skipping early ones without indicators)
-        # We need a macro bias for each micro timestamp.
-        # We can simplify by taking the macro bias at that time.
+        trades = []
         
         # Pre-calculate macro biases
         macro_biases = {}
         for idx, row in df_macro.iterrows():
             macro_biases[row['timestamp']] = self._calculate_macro_bias(row)
 
+        # Simulation State
+        active_trade = None # {'type': 'LONG', 'entry': 100, 'tp': 110, 'sl': 90}
+        
         for idx, row in df_micro.iterrows():
+            # 1. Manage Active Trade
+            if active_trade:
+                high = row['high']
+                low = row['low']
+                
+                # Check outcome
+                result = None
+                pnl = 0
+                
+                if active_trade['type'] == 'LONG':
+                    if low <= active_trade['sl']:
+                        result = 'LOSS'
+                        pnl = (active_trade['sl'] - active_trade['entry']) / active_trade['entry']
+                    elif high >= active_trade['tp']:
+                        result = 'WIN'
+                        pnl = (active_trade['tp'] - active_trade['entry']) / active_trade['entry']
+                
+                elif active_trade['type'] == 'SHORT':
+                    if high >= active_trade['sl']:
+                        result = 'LOSS'
+                        pnl = (active_trade['entry'] - active_trade['sl']) / active_trade['entry']
+                    elif low <= active_trade['tp']:
+                        result = 'WIN'
+                        pnl = (active_trade['entry'] - active_trade['tp']) / active_trade['entry']
+                
+                if result:
+                    active_trade['result'] = result
+                    active_trade['pnl'] = pnl
+                    active_trade['exit_time'] = int(row['timestamp'].timestamp() * 1000)
+                    trades.append(active_trade)
+                    active_trade = None
+                    # Don't enter new trade on same bar as exit
+                    continue
+
+            # 2. Check for New Entry (if no active trade)
             if pd.isna(row['rsi']) or pd.isna(row['ema200']):
                 continue
                 
-            # Find corresponding macro bias (nearest previous or same day)
-            # Simplification: use the most recent macro bias relative to micro timestamp
             macro_ts = [ts for ts in macro_biases.keys() if ts <= row['timestamp']]
             if not macro_ts: continue
             m_bias = macro_biases[max(macro_ts)]
             
             e_score = self._calculate_earnest_score(row)['score']
-            sig = self._synthesize_signal(e_score, m_bias['score'])
+            sig = self._synthesize_signal(e_score, m_bias['score'], mode)
             
             if sig in ["STRONG_BUY", "BUY", "STRONG_SELL", "SELL"]:
+                # Record Signal
                 signals.append({
                     "timestamp": int(row['timestamp'].timestamp() * 1000),
                     "signal": sig,
                     "price": float(row['close'])
                 })
+                
+                # Enter Trade Simulation
+                atr = float(row['atr']) if not pd.isna(row['atr']) else (float(row['close']) * 0.01)
+                price = float(row['close'])
+                
+                if "BUY" in sig:
+                    active_trade = {
+                        "type": "LONG",
+                        "entry": price,
+                        "tp": price + (atr * 3.0), # 3R Target
+                        "sl": price - (atr * 1.5), # 1.5R Stop
+                        "start_time": int(row['timestamp'].timestamp() * 1000)
+                    }
+                elif "SELL" in sig:
+                    active_trade = {
+                        "type": "SHORT",
+                        "entry": price,
+                        "tp": price - (atr * 3.0),
+                        "sl": price + (atr * 1.5),
+                        "start_time": int(row['timestamp'].timestamp() * 1000)
+                    }
+
+        # Calculate Stats
+        total_trades = len(trades)
+        wins = len([t for t in trades if t['result'] == 'WIN'])
+        win_rate = (wins / total_trades * 100) if total_trades > 0 else 0
+        total_pnl = sum([t['pnl'] for t in trades]) * 100
         
-        return signals
+        stats = {
+            "total_trades": total_trades,
+            "win_rate": round(win_rate, 1),
+            "net_profit": round(total_pnl, 2),
+            "trades": trades[-5:] # Return last 5 trades for detail
+        }
+        
+        return {"signals": signals, "stats": stats}
 
     def _add_indicators(self, df: pd.DataFrame):
         """Adds technical indicators to the DataFrame in-place."""
@@ -264,8 +338,18 @@ class OracleStrategy:
         else:
             return {"tp1": 0.0, "tp2": 0.0, "sl": 0.0}
 
-    def _synthesize_signal(self, earnest_score: int, macro_score: int) -> str:
+    def _synthesize_signal(self, earnest_score: int, macro_score: int, mode: str) -> str:
         """Combines Micro and Macro for a final verdict."""
+        
+        # --- EARNEST MODE (Pure Momentum) ---
+        if mode == "earnest":
+            if earnest_score >= 3:
+                return "STRONG_BUY" if earnest_score == 4 else "BUY"
+            elif earnest_score <= -3:
+                return "STRONG_SELL" if earnest_score == -4 else "SELL"
+            return "NEUTRAL"
+
+        # --- PROPHET MODE (Trend Following) ---
         # Strong Buy: Macro Bullish + Earnest > 2
         if macro_score >= 2 and earnest_score >= 3:
             return "STRONG_BUY"
@@ -281,12 +365,19 @@ class OracleStrategy:
         
         return "NEUTRAL"
 
-    def _generate_advice(self, earnest, macro, state, targets) -> str:
+    def _generate_advice(self, earnest, macro, state, targets, mode) -> str:
         """Generates human-readable advice string."""
-        signal = self._synthesize_signal(earnest['score'], macro['score'])
+        signal = self._synthesize_signal(earnest['score'], macro['score'], mode)
         
         if state['volatility_tag'] == "DANGER":
             return "High Volatility. Reduce leverage."
+            
+        if mode == "earnest":
+            if "BUY" in signal:
+                return f"Momentum Long. Score {earnest['score']}/4."
+            elif "SELL" in signal:
+                return f"Momentum Short. Score {abs(earnest['score'])}/4."
+            return "No momentum setup."
         
         if signal == "STRONG_BUY":
             return f"TITAN BULL. Full alignment. TP: {targets['tp1']:.2f}"
