@@ -9,7 +9,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from dotenv import load_dotenv
 
-from app.routes import market_router, indicators_router
+from app.routes import market_router, indicators_router, strategy_router
 from app.routes.liquidation import router as liquidation_router
 from app.routes.analytics import router as analytics_router
 from app.storage import Database
@@ -67,6 +67,7 @@ app.add_middleware(
 # Include routers
 app.include_router(market_router)
 app.include_router(indicators_router)
+app.include_router(strategy_router)
 app.include_router(liquidation_router)
 app.include_router(analytics_router)
 

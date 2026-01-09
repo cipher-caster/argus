@@ -24,7 +24,17 @@ export function useAvailableIndicators() {
   // Update store when data loads
   useEffect(() => {
     if (query.data) {
-      setAvailableIndicators(query.data);
+      const enhancedData = [
+        ...query.data,
+        {
+          name: "oracle_strategy",
+          display_name: "Argus Oracle v9.0",
+          type: "overlay",
+          params: [],
+          description: "AI-powered predictive analytics combining Earnest v2.6 and Prophet v9.0 strategies.",
+        },
+      ];
+      setAvailableIndicators(enhancedData);
     }
   }, [query.data, setAvailableIndicators]);
 
@@ -36,7 +46,8 @@ export function useAvailableIndicators() {
  */
 export function useCalculatedIndicators(symbol: string, timeframe: string, limit: number = 300, endTimestamp?: number) {
   const indicators = useIndicatorStore((s) => s.indicators);
-  const visibleIndicators = indicators.filter((i) => i.visible);
+  // Filter out client-side strategies (like Oracle) that don't use the standard indicator API
+  const visibleIndicators = indicators.filter((i) => i.visible && i.type !== "oracle_strategy");
 
   return useQuery({
     queryKey: ["calculated-indicators", symbol, timeframe, endTimestamp, limit, visibleIndicators.map((i) => `${i.type}-${JSON.stringify(i.params)}`)],

@@ -264,3 +264,59 @@ export async function fetchAnalyticsSymbols(): Promise<AnalyticsSymbolsResponse>
 
   return response.json();
 }
+
+// --- Strategy Types ---
+
+export interface OracleStrategyResponse {
+  symbol: string;
+  micro_tf: string;
+  macro_tf: string;
+  price: number;
+  signal: "STRONG_BUY" | "BUY" | "STRONG_SELL" | "SELL" | "NEUTRAL";
+  confidence: string;
+  bias: "BULLISH" | "BEARISH" | "NEUTRAL";
+  state: string;
+  volatility: string;
+  earnest: {
+    score: number;
+    voters: Record<string, number>;
+  };
+  macro: {
+    score: number;
+    bias: string;
+    details: Record<string, boolean>;
+  };
+  targets: {
+    tp1: number;
+    tp2: number;
+    sl: number;
+  };
+  advice: string;
+  historical_signals: Array<{
+    timestamp: number;
+    signal: string;
+    price: number;
+  }>;
+}
+
+/**
+ * Fetch Oracle Strategy analysis
+ */
+export async function fetchOracleStrategy(
+  symbol: string,
+  micro_tf: string = "1h",
+  macro_tf: string = "1d"
+): Promise<OracleStrategyResponse> {
+  const params = new URLSearchParams({
+    micro_tf,
+    macro_tf,
+  });
+
+  const response = await fetch(`${API_URL}/api/strategy/oracle/${encodeURIComponent(symbol)}?${params}`);
+
+  if (!response.ok) {
+    throw new Error(`Failed to fetch oracle strategy: ${response.statusText}`);
+  }
+
+  return response.json();
+}

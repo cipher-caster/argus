@@ -9,6 +9,8 @@ import { ChartHeader } from "./components/ChartHeader";
 import { ChartIndicators } from "./components/ChartIndicators";
 import { ChartPanes } from "./components/ChartPanes";
 import { MainChartSeries } from "./components/MainChartSeries";
+import { OracleMarkers } from "./components/OracleMarkers";
+import { StrategyOraclePanel } from "./components/StrategyOraclePanel";
 import { ChartProvider, useChart } from "./context/ChartContext";
 import { IndicatorModal } from "./IndicatorModal";
 
@@ -52,6 +54,9 @@ function CandlestickChartComponent({
   const [isIndicatorModalOpen, setIsIndicatorModalOpen] = useState(false);
   const [editingIndicator, setEditingIndicator] = useState<IndicatorConfig | null>(null);
 
+  // Check if Oracle Strategy is active
+  const isOracleActive = indicatorConfigs.some((i) => i.type === "oracle_strategy" && i.visible);
+
   // Loading State - Use Skeleton
   if (isLoading && candles.length === 0) {
     return (
@@ -91,8 +96,10 @@ function CandlestickChartComponent({
 
         {/* Main Chart Area */}
         <div className="flex-1 w-full relative min-h-[400px]">
+          {isOracleActive && <StrategyOraclePanel symbol={symbol} timeframe={timeframe} />}
           <ChartCanvas className="absolute inset-0 w-full h-full">
             <MainChartSeries candles={candles} timeframe={timeframe} onLoadMore={onLoadMore} isLoadingMore={isLoadingMore} />
+            {isOracleActive && <OracleMarkers symbol={symbol} timeframe={timeframe} />}
             <ChartIndicators indicatorResults={indicatorResults} indicatorConfigs={indicatorConfigs} />
             <ScrollToLatestRegistrar scrollToLatestRef={scrollToLatestRef} />
 
