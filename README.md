@@ -6,6 +6,8 @@ A professional cryptocurrency dashboard for real-time market data, charting, and
 
 - **Market Overview** - CoinGecko-style dashboard with 400+ coins
 - **Analytics Dashboard** - Charts for Funding Rates, Open Interest, and Long/Short Ratios
+- **Argus Oracle** - Professional trading strategies (Earnest & Prophet) with live backtesting
+- **Strategy Performance** - Real-time Win Rate and Net PnL tracking for active strategies
 - **Liquidation Heatmap** - Real-time visualization of market liquidations
 - **Interactive Charts** - TradingView-powered candlestick charts with Refresh capability
 - **Technical Indicators** - EMA, SMA, Bollinger Bands, RSI, MACD, and more

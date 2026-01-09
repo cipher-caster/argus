@@ -1,49 +1,58 @@
-# Argus Oracle Strategy (v9.0)
+# Argus Trading Strategies
 
-The **Argus Oracle** is a unified predictive analytics engine that ports logic from the **Earnest v2.6** and **Prophet v9.0** TradingView scripts into the Argus platform.
+Argus includes professional-grade trading strategies ported from Pine Script (TradingView) to Python, allowing for real-time market scanning and live backtesting.
 
-## Architecture
+## Available Strategies
 
-The strategy uses a **confluence-based voting system** across multiple timeframes to determine market bias and entry signals.
+You can toggle these strategies from the **Indicators** menu on any chart.
 
-### 1. The Earnest "Brain" (Micro-Analysis)
-Calculated on the active chart timeframe (e.g., 1H, 15m). It uses 4 voters to generate a confidence score:
+### 1. Earnest Strategy (v2.6) - Pure Momentum
+A high-frequency scalping strategy that focuses on immediate price action and momentum. It ignores the daily trend to capture fast moves.
 
-| Voter | Logic | Bullish | Bearish |
+*   **Logic**: Uses the 4-voter "Brain" (RSI, Bollinger, ADX, EMA).
+*   **Signals**: Fires whenever momentum confluence is high (Score >= 3).
+*   **Best for**: Lower timeframes (1m, 5m, 15m) and range-bound markets.
+
+### 2. Prophet Strategy (v9.0) - Trend Following
+A robust swing-trading strategy that adds a "Macro Context" filter to the Earnest engine. It only takes trades that align with the daily trend.
+
+*   **Logic**: Earnest Brain + Daily Trend Filter (EMA 200, Ichimoku Cloud, OBV Volume).
+*   **Signals**: Fires when momentum aligns with the **Titan Trend** (Daily).
+*   **Best for**: Higher timeframes (1H, 4H) and trending markets.
+
+---
+
+## The "Earnest Brain" (Voting System)
+
+Both strategies use a confluence-based voting system to generate a confidence score:
+
+| Voter | Logic | Bullish (+1) | Bearish (-1) |
 |-------|-------|---------|---------|
 | **RSI** | Momentum | 50 < RSI < 70 | 30 < RSI < 50 |
-| **Bollinger** | Volatility | Price > Upper + 10% | Price < Lower - 10% |
+| **Bollinger** | Volatility | Breaking out above Mid | Breaking out below Mid |
 | **ADX** | Strength | Trend > 20 & P > EMA | Trend > 20 & P < EMA |
 | **EMA** | Trend | Price > EMA 200 | Price < EMA 200 |
 
-### 2. The Prophet "Macro" (Big Picture)
-Calculated on the Daily (1D) timeframe to ensure the micro-signal aligns with the broader trend:
+---
 
-- **Titan Trend**: Price vs EMA 200 (Daily).
-- **Ichimoku Cloud**: Price vs Leading Spans.
-- **Volume Flow**: On-Balance Volume (OBV) vs its 20-period moving average.
+## Live Backtesting & Performance
 
-## Signals
+Argus runs a real-time simulation on all visible chart history to calculate the efficacy of the selected strategy.
 
-- **STRONG BUY**: Macro Bullish + Earnest Score >= 3.
-- **BUY**: Earnest Score >= 3 (Macro Neutral or early reversal).
-- **STRONG SELL**: Macro Bearish + Earnest Score <= -3.
-- **SELL**: Earnest Score <= -3.
+### Performance Metrics
+Displayed in the floating **Strategy Panel**:
+- **Win Rate**: Percentage of trades that hit Target (3R) before Stop Loss (1.5R).
+- **Net PnL**: Cumulative percentage gain/loss across all simulated trades.
+- **Total Trades**: Number of signals detected in the current history.
 
-## Visual Integration
+### Visual Verification
+- **Arrows**: Green (Buy) and Red (Sell) markers are plotted on historical candles where the strategy entered.
+- **Advice**: A human-readable summary of the current market state and trade potential.
 
-### Oracle Panel
-A high-contrast, floating panel on the chart providing:
-- Real-time Signal & Confidence.
-- Macro Bias breakdown.
-- Human-readable advice.
-- Target & Stop Loss levels (calculated via ATR).
-
-### Chart Markers
-Historical BUY/SELL arrows are plotted directly on the main series, allowing for visual backtesting and verification of strategy efficacy.
+---
 
 ## Implementation Details
 
-- **Backend**: `app/strategies/oracle.py` (Pandas + Pandas-TA).
-- **Frontend**: `useStrategyOracle` hook + `StrategyOraclePanel` component.
-- **Data**: Orchestrated to fetch both micro and macro candle history in a single request.
+- **Backend Engine**: `backend/app/strategies/oracle.py`
+- **Backtest Logic**: `_run_backtest()` simulates trades with ATR-based targets.
+- **API Endpoint**: `GET /api/strategy/oracle/{symbol}?strategy_mode=[prophet\|earnest]`
