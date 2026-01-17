@@ -1,16 +1,20 @@
-FROM node:20-alpine
-
+FROM node:20-alpine AS base
 WORKDIR /app
 
-# Install dependencies
+# Dependencies stage - cached unless package*.json changes
+FROM base AS deps
 COPY package.json package-lock.json* ./
-RUN npm install
+RUN npm ci --prefer-offline
+
+# Final stage
+FROM base AS final
+
+# Copy node_modules from deps stage
+COPY --from=deps /app/node_modules ./node_modules
 
 # Copy source
 COPY . .
 
-# Expose port
 EXPOSE 3000
 
-# Run development server
 CMD ["npm", "run", "dev"]

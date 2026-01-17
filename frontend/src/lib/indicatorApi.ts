@@ -82,3 +82,45 @@ export async function calculateIndicators(symbol: string, timeframe: string, ind
 
   return response.json();
 }
+
+// Dashboard Market Indicators
+
+export interface IndicatorValue {
+  value: number;
+  label: string;
+  timestamp?: string;
+  min_value?: number;
+  max_value?: number;
+  history: number[];
+}
+
+export interface MarketCapStats {
+  value: number;
+  change_1d: number;
+  regime: "BULLISH" | "NEUTRAL" | "BEARISH";
+  regime_detail?: string;
+  min_value: number;
+  max_value: number;
+  history: number[];
+}
+
+export interface DashboardIndicators {
+  btc_volatility: IndicatorValue | null;
+  market_adx: IndicatorValue | null;
+  total_market_cap: MarketCapStats | null;
+  btc_dominance: IndicatorValue | null;
+  updated_at: string;
+}
+
+/**
+ * Fetch dashboard market indicators
+ */
+export async function fetchDashboardIndicators(): Promise<DashboardIndicators> {
+  const response = await fetch(`${API_URL}/api/indicators/market/dashboard`);
+
+  if (!response.ok) {
+    throw new Error(`Failed to fetch dashboard indicators: ${response.statusText}`);
+  }
+
+  return response.json();
+}

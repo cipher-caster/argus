@@ -29,14 +29,14 @@ export function useAvailableIndicators() {
         {
           name: "prophet_strategy",
           display_name: "Prophet Strategy (Trend)",
-          type: "overlay",
+          type: "overlay" as const,
           params: [],
           description: "Trend-following strategy. Requires Daily Trend alignment. Best for swing trading.",
         },
         {
           name: "earnest_strategy",
           display_name: "Earnest Strategy (Momentum)",
-          type: "overlay",
+          type: "overlay" as const,
           params: [],
           description: "Pure momentum strategy. Ignores Daily Trend. Aggressive scalping logic.",
         },
@@ -75,7 +75,7 @@ export function useCalculatedIndicators(symbol: string, timeframe: string, limit
         symbol,
         timeframe,
         visibleIndicators.map((i) => ({ type: i.type, params: i.params })),
-        limit
+        limit,
       );
     },
     refetchInterval: 60000, // Refetch with OHLCV
