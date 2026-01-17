@@ -52,6 +52,14 @@ This document provides context for continuing development on Argus.
 - ✅ Dark/Light theme toggle (HSL-based theming)
 - ✅ Real-time price updates
 - ✅ Automated Test Coverage (Playwright)
+- ✅ **AI Integration (Argus Oracle v9.0)**:
+  - **Earnest Brain**: 4-voter confluence engine (RSI, Bollinger, ADX, EMA).
+  - **Prophet Strategy**: Trend-following logic with daily filters.
+  - **Live Backtesting**: Real-time simulation of strategies on chart history.
+  - **Signal Markers**: Buy/Sell arrows on candles.
+- ✅ **Analytics Dashboard**:
+  - Funding Rates, Open Interest, and Long/Short Ratios.
+  - Professional charts for market sentiment.
 
 ### How to Run
 
@@ -179,6 +187,9 @@ To prevent regressions and ensure stability, follow these steps when adding feat
   - New debugging skills or critical fix patterns.
   - Any "gotchas" discovered during development.
 
-1. Complete drawing tools (trendlines, fib retracements)
-2. Watchlist/favorites feature
-3. Portfolio tracking
+## Next Steps
+
+1. Complete drawing tools (trendlines, fib retracements) - _Paused_
+2. Portfolio tracking & User Accounts
+3. Real-time Radar Scanner / Screener
+4. WebSocket push for ticker updates

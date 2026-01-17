@@ -54,12 +54,12 @@
 
 ## Planned
 
-### Phase 7: Advanced Features
+### Phase 7: Advanced Features (Partially ✓)
 
 - [x] Watchlist/favorites
-- [ ] Price alerts
+- [x] Analytics Dashboard (Funding, OI, Long/Short)
 - [ ] Portfolio tracking
-- [ ] Multi-chart layouts
+- [ ] Price alerts
 
 ### Phase 8: AI Integration (Completed ✓)
 
@@ -67,8 +67,20 @@
 - [x] Pattern recognition (Earnest Brain)
 - [x] Trading signals (Buy/Sell Markers)
 
-### Phase 9: Radar Scanner
+---
+
+## In Progress / Paused
+
+### Phase 5: Drawing Tools (Paused ⏸️)
+
+- [ ] Trendlines, horizontal/vertical lines
+- [ ] Fibonacci retracements (customizable levels)
+- [ ] Rectangles and text annotations
+- [ ] localStorage persistence
+
+### Phase 9: Radar Scanner (Up Next 🚀)
 
 - [ ] Real-time screener
 - [ ] Custom filters
 - [ ] Alert notifications
+- [ ] WebSocket push updates

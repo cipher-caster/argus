@@ -46,19 +46,6 @@ All notable changes to this project will be documented in this file.
 - **Navigation**:
   - Added a "Charts" link with active state highlighting to the main Navbar.
   - Improved Navbar visibility logic to ensure it appears consistently across all pages.
-
-### Fixed
-
-- **Data Stale Issue**: Fixed a critical backend bug where the OHLCV endpoint returned stale database records. Implemented a staleness check to force a fresh fetch from Binance if the latest candle is outdated.
-- **Loading UX**: Replaced the text-based "Loading..." indicator in the chart header with a modern spinner icon (`Loader2`).
-- **Navbar Duplication**: Resolved an issue where the Navbar appeared twice on the chart page by correctly managing layout nesting.
-
-### Changed
-
-- **Refetch Interval**: Reduced the default OHLCV data refetch interval from 60s to 15s for tighter synchronization with live prices.
-
-### Added
-
 - **Watchlist Enhancements**:
   - Search dropdown to find and add coins from 400+ available pairs.
   - Real-time prices and 24H change shown in search results.
@@ -77,6 +64,16 @@ All notable changes to this project will be documented in this file.
 - **Indicator Colors**: Added color picker to the "Add/Edit Indicator" modal, allowing users to choose custom colors for their indicators.
 - **Indicator Management**: Added a quick "Remove" (X) button directly to indicator badges on the chart toolbar.
 - **Indicator Editing**: Clicking an indicator badge now re-opens the settings modal for quick edits.
+
+### Fixed
+
+- **Data Stale Issue**: Fixed a critical backend bug where the OHLCV endpoint returned stale database records. Implemented a staleness check to force a fresh fetch from Binance if the latest candle is outdated.
+- **Loading UX**: Replaced the text-based "Loading..." indicator in the chart header with a modern spinner icon (`Loader2`).
+- **Navbar Duplication**: Resolved an issue where the Navbar appeared twice on the chart page by correctly managing layout nesting.
+
+### Changed
+
+- **Refetch Interval**: Reduced the default OHLCV data refetch interval from 60s to 15s for tighter synchronization with live prices.
 
 ### Fixed
 

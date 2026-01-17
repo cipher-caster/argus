@@ -76,10 +76,7 @@ argus/
 
 ## Documentation
 
-See the [docs/](./docs/) folder for:
-
-- [Architecture](./docs/ARCHITECTURE.md)
-- [Roadmap](./docs/ROADMAP.md)
+For detailed technical documentation, architecture diagrams, and the project roadmap, please see the **[Documentation Hub](./docs/README.md)**.
 
 ## License
 
