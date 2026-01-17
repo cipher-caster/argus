@@ -8,6 +8,8 @@ This document details the data flow architecture for Argus, focusing on how mark
 
 ## Architecture Diagram
 
+> **Note**: For details on how we handle coin metadata (logos/names) vs real-time prices, see [Coin Metadata Sync & Hybrid Architecture](./COIN_METADATA_SYNC.md).
+
 ```mermaid
 graph TB
     subgraph "Frontend (Next.js)"
@@ -53,7 +55,49 @@ graph TB
 
 ## Data Flow Patterns
 
-### 1. Real-Time Ticker Data (Hot Path)
+### 1. Hybrid Market State (Snapshot + Live Overlay)
+
+**Pattern**: Periodic Snapshot (CoinGecko) + Real-Time Overlay (Binance)
+**Storage**: Redis
+
+This architecture solves the "Coverage vs Speed" dilemma. We use CoinGecko for broad coverage (1000+ coins, metadata) and Binance for real-time speed (top 300 coins).
+
+```mermaid
+graph LR
+    subgraph "Ingestion Layers"
+        CG[CoinGecko Snapshot Worker]
+        BN[Binance Live Worker]
+    end
+
+    subgraph "Redis Storage"
+        Snapshot[market:snapshot]
+        Live[market:tickers]
+    end
+
+    subgraph "Serving Layer"
+        API[API Endpoint]
+    end
+
+    CG --"Every 5 mins (Base state)"--> Snapshot
+    BN --"Every 30s (Live prices)"--> Live
+
+    API --"Reads & Merges"--> Snapshot
+    API --"Reads & Merges"--> Live
+
+    Snapshot --"Merged Response"--> API
+    Live --"Merged Response"--> API
+```
+
+**Why This Approach?**
+
+1.  **Massive Coverage**: We get 1000+ coins from CoinGecko (Base State).
+2.  **Real-Time Speed**: Top 300 active coins get live price updates from Binance.
+3.  **Rate Limit Safe**: We only hit CoinGecko once every 5 minutes (server-side), completely safe.
+4.  **Single Source of Truth**: Frontend never guesses; it gets one merged list from the API.
+
+---
+
+### 2. Real-Time Ticker Data (Hot Path)
 
 **Pattern**: Worker → Redis → API → Frontend
 **Latency**: < 50ms
@@ -62,21 +106,22 @@ graph TB
 sequenceDiagram
     participant Worker
     participant Binance
-    participant Redis
+    participant Redis(Live)
+    participant Redis(Base)
     participant API
     participant Frontend
 
     loop Every 30 seconds
         Worker->>Binance: fetch_all_tickers()
-        Binance-->>Worker: [100 tickers]
-        Worker->>Redis: SET market:tickers [JSON]
-        Worker->>Redis: SET market:summary [JSON]
+        Binance-->>Worker: [300 live tickers]
+        Worker->>Redis(Live): SET market:tickers [JSON]
     end
 
     Frontend->>API: GET /api/market/summary
-    API->>Redis: GET market:summary
-    Redis-->>API: {total_volume, top_gainers...}
-    API-->>Frontend: 200 OK
+    API->>Redis(Base): GET market:snapshot (1000 coins)
+    API->>Redis(Live): GET market:tickers (Top 300 live)
+    Note over API: Merge Live into Base
+    API-->>Frontend: 200 OK (Merged List)
 ```
 
 **Why This Approach?**
@@ -166,11 +211,12 @@ sequenceDiagram
 
 ### Redis (Hot Data)
 
-| Key               | TTL                   | Contents                         |
-| ----------------- | --------------------- | -------------------------------- |
-| `market:tickers`  | ∞ (updated every 30s) | All coin prices + 24h changes    |
-| `market:summary`  | ∞ (updated every 30s) | Total volume, top gainers/losers |
-| `ticker:{symbol}` | Optional              | Individual ticker price          |
+| Key               | TTL                   | Contents                            |
+| ----------------- | --------------------- | ----------------------------------- |
+| `market:tickers`  | ∞ (updated every 30s) | Live prices + 24h changes (Binance) |
+| `market:snapshot` | ∞ (updated every 5m)  | Base market state (CoinGecko)       |
+| `market:summary`  | ∞ (updated every 30s) | Total volume, top gainers/losers    |
+| `ticker:{symbol}` | Optional              | Individual ticker price             |
 
 ### PostgreSQL (Cold Data)
 

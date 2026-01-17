@@ -1,4 +1,6 @@
+import { CoinIcon } from "@/components/features/dashboard/CoinIcon";
 import { Skeleton } from "@/components/ui/skeleton";
+import { useCoinMeta } from "@/hooks/useCoinMeta";
 import { CoinInfo } from "@/lib/marketApi";
 import Link from "next/link";
 import { memo } from "react";
@@ -12,6 +14,8 @@ import { formatChange, formatPrice, formatVolume } from "@/lib/formatters";
 import { cn } from "@/lib/utils";
 
 function TopCoinsWidgetsComponent({ coins, isLoading }: TopCoinsWidgetsProps) {
+  const { coinMeta } = useCoinMeta();
+
   const getTopGainers = () => [...coins].sort((a, b) => (b.change_24h || 0) - (a.change_24h || 0)).slice(0, 5);
   const getTopLosers = () => [...coins].sort((a, b) => (a.change_24h || 0) - (b.change_24h || 0)).slice(0, 5);
   const getTopVolume = () => [...coins].sort((a, b) => (b.volume_24h || 0) - (a.volume_24h || 0)).slice(0, 5);
@@ -25,20 +29,23 @@ function TopCoinsWidgetsComponent({ coins, isLoading }: TopCoinsWidgetsProps) {
         </Link>
       </div>
       <div className="space-y-1">
-        {data.map((coin, i) => (
-          <Link href={`/chart/${coin.symbol.replace("/", "-")}`} key={coin.symbol} className="flex justify-between items-center p-2.5 rounded-xl transition-all duration-200 hover:bg-muted group no-underline text-inherit">
-            <div className="flex items-center gap-3">
-              <span className="w-5 text-[13px] font-bold text-muted-foreground text-center">{i + 1}</span>
-              <div className="flex items-center gap-2">
-                <span className="text-[14px] font-bold text-foreground group-hover:text-primary transition-colors w-28 truncate">{coin.name}</span>
-                <span className="text-[13px] font-medium text-muted-foreground">${formatPrice(coin.price)}</span>
+        {data.map((coin, i) => {
+          return (
+            <Link href={`/chart/${coin.symbol.replace("/", "-")}`} key={coin.symbol} className="flex justify-between items-center p-2.5 rounded-xl transition-all duration-200 hover:bg-muted group no-underline text-inherit">
+              <div className="flex items-center gap-3">
+                <span className="w-5 text-[13px] font-bold text-muted-foreground text-center">{i + 1}</span>
+                <div className="flex items-center gap-2">
+                  <CoinIcon symbol={coin.symbol} coinMeta={coinMeta} size={20} />
+                  <span className="text-[14px] font-bold text-foreground group-hover:text-primary transition-colors w-16 truncate">{coin.symbol.split("/")[0]}</span>
+                  <span className="text-[13px] font-medium text-muted-foreground">${formatPrice(coin.price)}</span>
+                </div>
               </div>
-            </div>
-            <div className={cn("text-[14px] font-bold font-mono tracking-tight", type === "gain" ? "text-success" : type === "loss" ? "text-danger" : "text-foreground")}>
-              {type === "vol" ? formatVolume(coin.volume_24h) : formatChange(coin.change_24h)}
-            </div>
-          </Link>
-        ))}
+              <div className={cn("text-[14px] font-bold font-mono tracking-tight", type === "gain" ? "text-success" : type === "loss" ? "text-danger" : "text-foreground")}>
+                {type === "vol" ? formatVolume(coin.volume_24h) : formatChange(coin.change_24h)}
+              </div>
+            </Link>
+          );
+        })}
       </div>
     </div>
   );

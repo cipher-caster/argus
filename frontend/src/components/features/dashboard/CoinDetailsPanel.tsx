@@ -1,6 +1,8 @@
 "use client";
 
+import { CoinIcon } from "@/components/features/dashboard/CoinIcon";
 import { Skeleton } from "@/components/ui/skeleton";
+import { getCoinName, useCoinMeta } from "@/hooks/useCoinMeta";
 import { formatChange, formatVolume } from "@/lib/formatters";
 import { cn } from "@/lib/utils";
 import { TrendingDown, TrendingUp } from "lucide-react";
@@ -22,8 +24,10 @@ interface TickerDetails {
 export function CoinDetailsPanel({ symbol }: CoinDetailsPanelProps) {
   const [details, setDetails] = useState<TickerDetails | null>(null);
   const [loading, setLoading] = useState(true);
+  const { coinMeta } = useCoinMeta();
 
   useEffect(() => {
+    // ... (keep existing fetch logic)
     const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
 
     async function fetchDetails() {
@@ -48,7 +52,9 @@ export function CoinDetailsPanel({ symbol }: CoinDetailsPanelProps) {
     return () => clearInterval(interval);
   }, [symbol]);
 
+  // ... (keep loading and null checks)
   if (loading && !details) {
+    // ... (keep skeleton)
     return (
       <div className="p-4 flex flex-col gap-4 border-t border-border bg-secondary shrink-0 overflow-y-auto">
         {/* Header Skeleton */}
@@ -75,6 +81,7 @@ export function CoinDetailsPanel({ symbol }: CoinDetailsPanelProps) {
   }
 
   if (!details) {
+    // ...
     return (
       <div className="p-4 flex flex-col gap-4 border-t border-border bg-secondary shrink-0 overflow-y-auto">
         <div className="p-6 text-center text-muted-foreground text-[12px]">No data available</div>
@@ -86,12 +93,17 @@ export function CoinDetailsPanel({ symbol }: CoinDetailsPanelProps) {
   const priceRange = details.high_24h - details.low_24h;
   const currentPosition = priceRange > 0 ? ((details.price - details.low_24h) / priceRange) * 100 : 50;
 
+  const coinName = getCoinName(symbol, coinMeta);
+
   return (
     <div className="p-4 flex flex-col gap-4 border-t border-border bg-secondary shrink-0 overflow-y-auto scrollbar-thin scrollbar-thumb-muted">
       {/* Header */}
-      <div className="flex items-baseline gap-2">
-        <div className="text-[18px] font-bold text-foreground">{symbol.replace("/USDT", "")}</div>
-        <div className="text-[12px] text-muted-foreground font-medium">{symbol}</div>
+      <div className="flex items-center gap-3">
+        <CoinIcon symbol={symbol} coinMeta={coinMeta} size={32} />
+        <div>
+          <div className="text-[18px] font-bold text-foreground leading-tight">{coinName !== symbol ? coinName : symbol.replace("/USDT", "")}</div>
+          <div className="text-[12px] text-muted-foreground font-medium">{symbol}</div>
+        </div>
       </div>
 
       {/* Price */}

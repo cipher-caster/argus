@@ -87,6 +87,65 @@ async def sync_market_summary(ctx):
     except Exception as e:
         logger.error(f"Job Failed: sync_market_summary: {e}", exc_info=True)
 
+async def sync_market_snapshot(ctx):
+    """
+    Fetch comprehensive market data (Top 500) from CoinGecko.
+    
+    This forms the "Base State" of the market (prices, mcap, volume).
+    Runs every 5 minutes.
+    """
+    import httpx
+    logger.info("Job: Syncing Market Snapshot (CoinGecko)...")
+    
+    base_url = "https://api.coingecko.com/api/v3/coins/markets"
+    all_coins = []
+    
+    try:
+        async with httpx.AsyncClient() as client:
+            # Fetch 2 pages (500 coins)
+            for page in range(1, 3):
+                params = {
+                    "vs_currency": "usd",
+                    "order": "market_cap_desc",
+                    "per_page": 250,
+                    "page": page,
+                    "sparkline": "true"
+                }
+                
+                resp = await client.get(base_url, params=params, timeout=30.0)
+                if resp.status_code == 200:
+                    data = resp.json()
+                    all_coins.extend(data)
+                    # Small delay to be polite to API
+                    await asyncio.sleep(1.0)
+                else:
+                    logger.error(f"CoinGecko API Error (Page {page}): {resp.status_code}")
+                    break
+        
+        if all_coins:
+            # Transform to standard structure
+            snapshot = []
+            for coin in all_coins:
+                sparkline = coin.get("sparkline_in_7d", {}).get("price", [])
+                
+                snapshot.append({
+                    "symbol": coin["symbol"].upper() + "/USDT",
+                    "price": coin["current_price"],
+                    "change_24h": coin["price_change_percentage_24h"],
+                    "volume_24h": coin["total_volume"],
+                    "market_cap": coin["market_cap"],
+                    "rank": coin["market_cap_rank"],
+                    "image": coin["image"],
+                    "name": coin["name"],
+                    "sparkline_in_7d": sparkline
+                })
+                
+            await RedisClient.set_json("market:snapshot", snapshot, ttl=600)
+            logger.info(f"Job: Market Snapshot Synced ({len(snapshot)} coins)")
+            
+    except Exception as e:
+        logger.error(f"Job Failed: sync_market_snapshot: {e}")
+
 # --- Worker Settings ---
 
 from arq.connections import RedisSettings
@@ -96,7 +155,7 @@ from urllib.parse import urlparse
 class WorkerSettings:
     # Only the market summary job is needed now
     # Historical candle data is fetched on-demand by the API
-    functions = [sync_market_summary]
+    functions = [sync_market_summary, sync_market_snapshot]
     on_startup = startup
     on_shutdown = shutdown
     
@@ -114,9 +173,10 @@ class WorkerSettings:
             database=0
         )
 
-    # Cron: Only market summary every 30 seconds
+    # Jobs
     cron_jobs = [
-        cron(sync_market_summary, second={0, 30}),
+        cron(sync_market_summary, second={0, 30}), # Live data (Binance)
+        cron(sync_market_snapshot, minute={0, 5, 10, 15, 20, 25, 30, 35, 40, 45, 50, 55}), # Snapshot (CoinGecko) every 5m
     ]
 
 if __name__ == "__main__":

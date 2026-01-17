@@ -20,18 +20,21 @@ interface TickerData {
   change_24h: number;
 }
 
+import { CoinIcon } from "@/components/features/dashboard/CoinIcon";
+import { CoinMeta, useCoinMeta } from "@/hooks/useCoinMeta";
+import { formatChange, formatPrice } from "@/lib/formatters";
+import { cn } from "@/lib/utils";
+
 interface SortableItemProps {
   id: string;
   symbol: string;
   ticker?: TickerData;
   isActive: boolean;
   onRemove: (e: React.MouseEvent) => void;
+  coinMeta: Map<string, CoinMeta>;
 }
 
-import { formatChange, formatPrice } from "@/lib/formatters";
-import { cn } from "@/lib/utils";
-
-function SortableWatchlistItem({ id, symbol, ticker, isActive, onRemove }: SortableItemProps) {
+function SortableWatchlistItem({ id, symbol, ticker, isActive, onRemove, coinMeta }: SortableItemProps) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id });
 
   const style = {
@@ -54,7 +57,8 @@ function SortableWatchlistItem({ id, symbol, ticker, isActive, onRemove }: Sorta
       </div>
 
       <Link href={`/chart/${urlSymbol}`} className="flex items-center justify-between flex-1 h-full px-2 no-underline text-inherit">
-        <div className="flex items-center">
+        <div className="flex items-center gap-2">
+          <CoinIcon symbol={symbol} coinMeta={coinMeta} size={20} />
           <span className="font-bold text-[14px] text-foreground tracking-tight">{symbol.replace("/USDT", "")}</span>
         </div>
         <div className="flex flex-col items-end gap-[1px]">
@@ -93,10 +97,13 @@ export function WatchlistPanel({ currentSymbol }: WatchlistPanelProps) {
   const searchRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
+  const { coinMeta } = useCoinMeta();
+
   useEffect(() => {
     setIsMounted(true);
   }, []);
 
+  // ... (keep creating sensors)
   const sensors = useSensors(
     useSensor(PointerSensor, {
       activationConstraint: {
@@ -105,7 +112,7 @@ export function WatchlistPanel({ currentSymbol }: WatchlistPanelProps) {
     }),
     useSensor(KeyboardSensor, {
       coordinateGetter: sortableKeyboardCoordinates,
-    })
+    }),
   );
 
   // Fetch live prices for watchlist items
@@ -209,6 +216,7 @@ export function WatchlistPanel({ currentSymbol }: WatchlistPanelProps) {
                 ) : (
                   searchResults.map((ticker) => {
                     const inWatchlist = hasSymbol(ticker.symbol);
+
                     return (
                       <button
                         key={ticker.symbol}
@@ -216,6 +224,7 @@ export function WatchlistPanel({ currentSymbol }: WatchlistPanelProps) {
                         onClick={() => (inWatchlist ? removeSymbol(ticker.symbol) : handleAddCoin(ticker.symbol))}
                       >
                         <div className="flex items-center gap-2">
+                          <CoinIcon symbol={ticker.symbol} coinMeta={coinMeta} size={18} />
                           <span className="font-bold text-[13px] text-foreground">{ticker.symbol.replace("/USDT", "")}</span>
                           <span className="text-xs text-muted-foreground">${formatPrice(ticker.price)}</span>
                         </div>
@@ -247,7 +256,7 @@ export function WatchlistPanel({ currentSymbol }: WatchlistPanelProps) {
               <SortableContext items={items.map((i) => i.symbol)} strategy={verticalListSortingStrategy}>
                 <div className="flex flex-col">
                   {items.map((item) => (
-                    <SortableWatchlistItem key={item.symbol} id={item.symbol} symbol={item.symbol} ticker={tickerData[item.symbol]} isActive={currentSymbol === item.symbol} onRemove={(e) => handleRemoveCoin(item.symbol, e)} />
+                    <SortableWatchlistItem key={item.symbol} id={item.symbol} symbol={item.symbol} ticker={tickerData[item.symbol]} isActive={currentSymbol === item.symbol} onRemove={(e) => handleRemoveCoin(item.symbol, e)} coinMeta={coinMeta} />
                   ))}
                 </div>
               </SortableContext>
@@ -255,7 +264,7 @@ export function WatchlistPanel({ currentSymbol }: WatchlistPanelProps) {
           ) : (
             <div className="flex flex-col">
               {items.map((item) => (
-                <SortableWatchlistItem key={item.symbol} id={item.symbol} symbol={item.symbol} ticker={tickerData[item.symbol]} isActive={currentSymbol === item.symbol} onRemove={(e) => handleRemoveCoin(item.symbol, e)} />
+                <SortableWatchlistItem key={item.symbol} id={item.symbol} symbol={item.symbol} ticker={tickerData[item.symbol]} isActive={currentSymbol === item.symbol} onRemove={(e) => handleRemoveCoin(item.symbol, e)} coinMeta={coinMeta} />
               ))}
             </div>
           )}

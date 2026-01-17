@@ -14,6 +14,8 @@ export interface CoinInfo {
   high_24h: number | null;
   low_24h: number | null;
   market_cap: number | null;
+  image?: string;
+  sparkline_in_7d?: number[];
 }
 
 export interface CoinsResponse {

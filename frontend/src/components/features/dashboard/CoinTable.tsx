@@ -6,8 +6,13 @@
  */
 
 import { Sparkline } from "@/components/features/chart/Sparkline";
+import { CoinIcon } from "@/components/features/dashboard/CoinIcon";
 import { Skeleton } from "@/components/ui/skeleton";
+import { getCoinName, useCoinMeta } from "@/hooks/useCoinMeta";
+import { generateDeterministicSparkline } from "@/lib/chartUtils";
+import { formatChange, formatPrice, formatVolume } from "@/lib/formatters";
 import { CoinInfo } from "@/lib/marketApi";
+import { cn } from "@/lib/utils";
 import { ArrowDown, ArrowUp, ArrowUpDown, Search, Star } from "lucide-react";
 import Link from "next/link";
 import { memo, useEffect, useState } from "react";
@@ -20,13 +25,10 @@ interface CoinTableProps {
   onSort: (field: string) => void;
 }
 
-import { generateDeterministicSparkline } from "@/lib/chartUtils";
-import { formatChange, formatPrice, formatVolume } from "@/lib/formatters";
-import { cn } from "@/lib/utils";
-
 function CoinTableComponent({ coins, isLoading, sortBy, sortOrder, onSort }: CoinTableProps) {
   const [favorites, setFavorites] = useState<string[]>([]);
   const [mounted, setMounted] = useState(false);
+  const { coinMeta } = useCoinMeta();
 
   useEffect(() => {
     setMounted(true);
@@ -153,8 +155,11 @@ function CoinTableComponent({ coins, isLoading, sortBy, sortOrder, onSort }: Coi
                   <td className="px-4 py-4 text-[13px] text-muted-foreground font-mono text-center">{coin.rank}</td>
                   <td className="px-4 py-4">
                     <Link href={`/chart/${coin.symbol.replace("/", "-")}`} className="flex items-center gap-3 no-underline text-inherit hover:no-underline">
-                      <div className="w-7 h-7 rounded-full bg-primary text-white flex items-center justify-center text-[10px] font-extrabold shrink-0">{coin.name.slice(0, 1)}</div>
-                      <span className="font-bold text-[14px] text-foreground tracking-tight">{coin.symbol}</span>
+                      <CoinIcon symbol={coin.symbol} coinMeta={coinMeta} size={28} />
+                      <div className="flex flex-col">
+                        <span className="font-bold text-[14px] text-foreground tracking-tight">{coin.symbol.split("/")[0]}</span>
+                        <span className="text-[11px] text-muted-foreground">{getCoinName(coin.symbol, coinMeta)}</span>
+                      </div>
                     </Link>
                   </td>
 
@@ -170,7 +175,7 @@ function CoinTableComponent({ coins, isLoading, sortBy, sortOrder, onSort }: Coi
                   <td className="px-4 py-4 text-right font-mono font-bold text-[13px] text-foreground tracking-tight">{formatVolume(coin.market_cap)}</td>
                   <td className="px-4 py-4 text-center">
                     <div className="inline-block">
-                      <Sparkline data={generateDeterministicSparkline(coin.symbol, coin.price, coin.change_24h || 0)} width={80} height={24} />
+                      <Sparkline data={coin.sparkline_in_7d && coin.sparkline_in_7d.length > 0 ? coin.sparkline_in_7d : generateDeterministicSparkline(coin.symbol, coin.price, coin.change_24h || 0)} width={80} height={24} />
                     </div>
                   </td>
                   <td className="px-4 py-4 text-right text-muted-foreground text-[13px] font-mono">${formatPrice(coin.high_24h || 0)}</td>

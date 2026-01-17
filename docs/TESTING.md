@@ -29,6 +29,9 @@ Ensures the environment matches production.
 
 ```bash
 docker compose exec backend sh -c "export PYTHONPATH=$PYTHONPATH:/app && pytest"
+
+# OR specific test file
+docker exec argus-backend-1 pytest tests/test_market_merge.py
 ```
 
 **Option 2: Local Venv**

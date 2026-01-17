@@ -6,6 +6,19 @@ All notable changes to this project will be documented in this file.
 
 ### Added
 
+- **Market Indicator Cards**: Replaced StatsCards with professional dashboard indicators:
+  - **BTC Volatility**: 14-day volatility with gauge and sparkline.
+  - **Market ADX**: Trend strength indicator (Ranging/Trending/Strong).
+  - **24h Volume**: Top 100 coins total volume with market regime.
+  - **BTC Dominance**: BTC volume share among top 100 coins.
+  - Tooltips explaining how to read each indicator.
+  - New `/api/indicators/market/dashboard` endpoint.
+  - Separated `market_indicators.py` from chart-level `calculator.py`.
+- **Hybrid Market Architecture**:
+  - Implemented accurate "Two-Brain" data system merging real-time Binance prices with rich CoinGecko metadata.
+  - **7-Day Sparklines**: Added real historical price graphs to the main coin table (sourced from CoinGecko).
+  - **Fallback Logic**: Ensuring even non-Binance coins (e.g. stETH) appear in the dashboard via Snapshot fallback.
+  - **Deterministic Icons**: Added visual fallback for coins with missing logos.
 - **Analytics Dashboard**: New `/analytics` page featuring professional-grade market analysis tools:
   - **Funding Rate Chart**: Visualizes funding rates across top exchanges to gauge market sentiment.
   - **Open Interest Chart**: Tracks total open interest over time.
