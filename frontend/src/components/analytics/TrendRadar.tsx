@@ -19,28 +19,15 @@ export function TrendRadar() {
   if (error) return <div className="p-10 text-center text-red-500">Failed to load Trend Radar</div>;
   if (!data) return null;
 
-  const getBucketLabel = (bucket: string) => {
-    switch (bucket) {
-      case "RETESTING":
-        return "🟢 RETEST ZONE (BUY)";
-      case "BULLISH":
-        return "🔵 TRENDING";
-      case "OVEREXTENDED":
-        return "⚠️ EXTENDED (RISK)";
-      case "FLIPPENING":
-        return "🔮 FLIPPENING (WATCH)";
-      case "LOST":
-        return "🔴 LOST (AVOID)";
-      default:
-        return bucket;
-    }
-  };
-
-  // Order of rows
-  const bucketsOrder = ["RETESTING", "FLIPPENING", "BULLISH", "OVEREXTENDED", "LOST"];
+  // Group buckets
+  const retesting = data.map.filter((i) => i.status === "RETESTING");
+  const trending = data.map.filter((i) => i.status === "BULLISH");
+  const flippening = data.map.filter((i) => i.status === "FLIPPENING");
+  const extended = data.map.filter((i) => i.status === "OVEREXTENDED");
+  const lost = data.map.filter((i) => i.status === "LOST");
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-6">
       <div className="flex items-center justify-between">
         <h2 className="text-xl font-bold flex items-center gap-2">
           <Layers className="text-primary" />
@@ -56,50 +43,125 @@ export function TrendRadar() {
         </div>
       </div>
 
-      <div className="space-y-8">
-        {bucketsOrder.map((bucketKey) => {
-          const items = data.map.filter((i) => i.status === bucketKey);
-          if (items.length === 0) return null; // Hide empty rows to save space
-
-          return (
-            <div key={bucketKey} className="space-y-3">
-              <div className="flex items-center gap-2 border-b border-border/30 pb-2">
-                <h3 className="text-sm font-black tracking-widest">{getBucketLabel(bucketKey)}</h3>
-                <span className="text-xs font-medium text-muted-foreground bg-secondary/50 px-2 py-0.5 rounded-full">{items.length}</span>
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {/* Left Column: Opportunities */}
+        <div className="space-y-6">
+          {/* Retest Zone - Priority */}
+          <div className="bg-secondary/20 border border-border/50 rounded-xl p-4">
+            <h3 className="text-sm font-bold text-green-500 mb-3 flex items-center gap-2">
+              <div className="flex h-4 w-4 shrink-0 items-center justify-center rounded-full bg-green-500/10">
+                <div className="h-2 w-2 rounded-full bg-green-500" />
               </div>
-
-              <div className="flex gap-3 overflow-x-auto pb-4 scrollbar-thin scrollbar-thumb-secondary scrollbar-track-transparent">
-                {items.map((item) => (
-                  <Link href={`/chart/${item.symbol}`} key={item.symbol} className="shrink-0">
-                    <div className="w-[200px] h-[100px] bg-secondary/10 hover:bg-secondary/30 border border-border/50 hover:border-border rounded-xl p-4 transition-all flex flex-col justify-between group">
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-2">
-                          <CoinIcon symbol={item.symbol} coinMeta={coinMeta} size={24} />
-                          <span className="font-bold text-sm">{item.symbol}</span>
-                        </div>
-                        {bucketKey === "FLIPPENING" && <Activity size={14} className="text-purple-500 animate-pulse" />}
-                      </div>
-
-                      <div className="flex items-end justify-between">
-                        <div className="text-xs text-muted-foreground group-hover:text-foreground transition-colors">
-                          {item.distance_pct > 0 ? "+" : ""}
-                          {item.distance_pct}% EMA
-                        </div>
-                        <div className="text-sm font-mono font-medium">{item.price.toFixed(item.price < 1 ? 4 : 2)}</div>
-                      </div>
-                    </div>
-                  </Link>
-                ))}
-              </div>
+              RETEST ZONE (BUY THE DIP)
+            </h3>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+              {retesting.length === 0 && <span className="text-xs text-muted-foreground">No retests detected.</span>}
+              {retesting.map((item) => (
+                <TrendCard key={item.symbol} item={item} coinMeta={coinMeta} color="text-green-500" />
+              ))}
             </div>
-          );
-        })}
-      </div>
+          </div>
 
-      <div className="bg-secondary/30 p-4 rounded-lg text-xs text-muted-foreground border border-border/50">
-        <strong className="text-primary block mb-1">STRATEGY NOTE:</strong>
-        "Retest Zone" coins are dipping into the 200 EMA (High R:R entries). "Overextended" coins are {">"}30% above EMA (Avoid longs). "Flippening" coins are fighting to reclaim or lose the trend right now.
+          {/* Flippening - Watch */}
+          <div className="bg-secondary/20 border border-border/50 rounded-xl p-4">
+            <h3 className="text-sm font-bold text-purple-500 mb-3 flex items-center gap-2">
+              <Activity size={16} /> FLIPPENING (WATCH)
+            </h3>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+              {flippening.length === 0 && <span className="text-xs text-muted-foreground">No setups detected.</span>}
+              {flippening.map((item) => (
+                <TrendCard key={item.symbol} item={item} coinMeta={coinMeta} color="text-purple-500" />
+              ))}
+            </div>
+          </div>
+
+          {/* Trending - Momentum */}
+          <div className="bg-secondary/20 border border-border/50 rounded-xl p-4">
+            <h3 className="text-sm font-bold text-blue-500 mb-3 flex items-center gap-2">
+              <div className="flex h-4 w-4 shrink-0 items-center justify-center rounded-full bg-blue-500/10">
+                <div className="h-2 w-2 rounded-full bg-blue-500" />
+              </div>
+              TRENDING (MOMENTUM)
+            </h3>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+              {trending.length === 0 && <span className="text-xs text-muted-foreground">No trending assets.</span>}
+              {trending.map((item) => (
+                <TrendCard key={item.symbol} item={item} coinMeta={coinMeta} color="text-blue-500" />
+              ))}
+            </div>
+          </div>
+        </div>
+
+        {/* Right Column: Risks & Avoid */}
+        <div className="space-y-6">
+          {/* Overextended - Risk */}
+          <div className="bg-secondary/20 border border-border/50 rounded-xl p-4">
+            <h3 className="text-sm font-bold text-yellow-500 mb-3 flex items-center gap-2">
+              <div className="flex h-4 w-4 shrink-0 items-center justify-center rounded-full bg-yellow-500/10">
+                <div className="h-2 w-2 rounded-full bg-yellow-500" />
+              </div>
+              OVEREXTENDED (RISK)
+            </h3>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+              {extended.length === 0 && <span className="text-xs text-muted-foreground">No extensions detected.</span>}
+              {extended.map((item) => (
+                <TrendCard key={item.symbol} item={item} coinMeta={coinMeta} color="text-yellow-500" />
+              ))}
+            </div>
+          </div>
+
+          {/* Lost - Bearish */}
+          <div className="bg-secondary/20 border border-border/50 rounded-xl p-4">
+            <h3 className="text-sm font-bold text-red-500 mb-3 flex items-center gap-2">
+              <div className="flex h-4 w-4 shrink-0 items-center justify-center rounded-full bg-red-500/10">
+                <div className="h-2 w-2 rounded-full bg-red-500" />
+              </div>
+              LOST (MACRO BEAR)
+            </h3>
+            <p className="text-xs text-muted-foreground mb-4">Assets trading below the 200 EMA. Macro downtrend.</p>
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+              {lost.map((item) => (
+                <Link href={`/chart/${item.symbol}`} key={item.symbol}>
+                  <div className="flex items-center gap-2 p-2 rounded hover:bg-white/5 border border-transparent hover:border-white/10 transition-colors cursor-pointer opacity-60 hover:opacity-100">
+                    <CoinIcon symbol={item.symbol} coinMeta={coinMeta} size={20} />
+                    <span className="text-xs font-mono">{item.symbol}</span>
+                  </div>
+                </Link>
+              ))}
+            </div>
+          </div>
+        </div>
       </div>
     </div>
+  );
+}
+
+function TrendCard({ item, coinMeta, color }: { item: any; coinMeta: any; color?: string }) {
+  const getTooltip = () => {
+    if (item.status === "RETESTING") return "Long Setup: Pullback to 200 EMA support";
+    if (item.status === "FLIPPENING") return "Watch: Price crossing 200 EMA";
+    if (item.status === "BULLISH") return "Trend Follow: Established uptrend";
+    if (item.status === "OVEREXTENDED") return `High Risk: ${item.distance_pct}% above EMA`;
+    return "Bearish: Trading below 200 EMA";
+  };
+
+  return (
+    <Link href={`/chart/${item.symbol}`} className="block">
+      <div title={getTooltip()} className="bg-background/60 hover:bg-background p-3 rounded-lg border border-transparent hover:border-border transition-all flex items-center justify-between group cursor-pointer">
+        <div className="flex items-center gap-2">
+          <CoinIcon symbol={item.symbol} coinMeta={coinMeta} />
+          <div>
+            <div className="font-bold text-xs">{item.symbol}</div>
+            <div className={`text-[10px] opacity-80 ${color}`}>
+              {item.distance_pct > 0 ? "+" : ""}
+              {item.distance_pct}% EMA
+            </div>
+          </div>
+        </div>
+        <div className="text-right">
+          <div className="text-xs font-mono">{item.price}</div>
+        </div>
+      </div>
+    </Link>
   );
 }

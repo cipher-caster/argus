@@ -12,8 +12,6 @@ The analytics engine focuses on five key dimensions of market data:
 4. **Volatility Exhaustion** (Contrarian Radar)
 5. **Relative Alpha** (Relative Strength)
 
-6. **Relative Alpha** (Relative Strength)
-
 ## Detailed Documentation
 
 For a deep dive into the logic, thresholds, and trading actionable for each engine, read the dedicated guides:
@@ -128,6 +126,9 @@ All endpoints check Redis first, compute on miss, then cache results:
 | `/relative-strength` | `analytics:strength:{tf}:{limit}`   | 60s |
 | `/contrarian-radar`  | `analytics:contrarian:{tf}:{limit}` | 60s |
 | `/signal-summary`    | `analytics:signal-summary`          | 60s |
+| `/trend-radar`       | `analytics:trend-radar:{limit}`     | 60s |
+| `/structure`         | `analytics:structure:{limit}`       | 60s |
+| `/confluence`        | _(uses screener cache)_             | N/A |
 
 ### Worker Pre-warming
 

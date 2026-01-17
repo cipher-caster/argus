@@ -267,7 +267,7 @@ export async function fetchRelativeStrength(timeframe: string = "1h", limit: num
  */
 export async function fetchMeanReversion(timeframe: string = "1h", limit: number = 50): Promise<MeanReversionResponse> {
   const response = await fetch(`${API_URL}/api/analytics/contrarian-radar?timeframe=${timeframe}&limit=${limit}`);
-  if (!response.ok) throw new Error("Failed to fetch radar");
+  if (!response.ok) throw new Error("Failed to fetch contrarian radar");
   return response.json();
 }
 

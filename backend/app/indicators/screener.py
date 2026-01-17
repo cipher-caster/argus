@@ -57,7 +57,7 @@ def run_oracle_screener(df_data: Dict[str, pd.DataFrame], btc_df: pd.DataFrame) 
                     "price": float(last_row['close']),
                     "score": earnest['score'],
                     "confidence": f"{abs(earnest['score'])}/4",
-                    "bias": "BULLISH" if last_row['close'] > last_row['ema200'] else "BEARISH",
+                    "bias": "BULLISH" if pd.notna(last_row.get('ema200')) and last_row['close'] > last_row['ema200'] else "BEARISH",
                     "state": state['state'],
                     "liquidity": "ACTIVE" if state['volatility_tag'] != "DANGER" else "HIGH",
                     "strength_vs_btc": strength_tag,

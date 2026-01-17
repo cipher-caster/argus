@@ -11,6 +11,7 @@ from dotenv import load_dotenv
 
 from app.routes import market_router, indicators_router, strategy_router
 from app.routes.analytics import router as analytics_router
+
 from app.storage import Database
 
 load_dotenv()
@@ -61,7 +62,9 @@ app.add_middleware(
 app.include_router(market_router)
 app.include_router(indicators_router)
 app.include_router(strategy_router)
+app.include_router(strategy_router)
 app.include_router(analytics_router)
+
 
 
 @app.get("/health")

@@ -227,8 +227,10 @@ class OracleStrategy:
 
         # Voter 1: RSI
         # Pine: if rsi > 50 and rsi < 70 (+1) else if rsi < 50 and rsi > 30 (-1)
-        rsi = row['rsi']
-        if 50 < rsi < 70:
+        rsi = row.get('rsi')
+        if pd.isna(rsi):
+            details['rsi'] = 0
+        elif 50 < rsi < 70:
             score += 1
             details['rsi'] = 1
         elif 30 < rsi < 50:
@@ -256,8 +258,10 @@ class OracleStrategy:
 
         # Voter 3: ADX
         # Pine: if adx > limit: (close > ema ? +1 : -1)
-        if row['adx'] > self.adx_limit:
-            val = 1 if row['close'] > row['ema200'] else -1
+        adx = row.get('adx')
+        ema = row.get('ema200')
+        if not pd.isna(adx) and adx > self.adx_limit and not pd.isna(ema):
+            val = 1 if row['close'] > ema else -1
             score += val
             details['adx'] = val
         else:
@@ -265,9 +269,13 @@ class OracleStrategy:
 
         # Voter 4: EMA
         # Pine: close > ema ? +1 : -1
-        val = 1 if row['close'] > row['ema200'] else -1
-        score += val
-        details['ema'] = int(val)
+        ema = row.get('ema200')
+        if not pd.isna(ema):
+            val = 1 if row['close'] > ema else -1
+            score += val
+            details['ema'] = int(val)
+        else:
+            details['ema'] = 0
 
         return {"score": int(score), "voters": details}
 
@@ -276,17 +284,20 @@ class OracleStrategy:
         score = 0
         
         # 1. Trend (Price > EMA200)
-        trend_ok = bool(row['close'] > row['ema200'])
+        ema = row.get('ema200')
+        trend_ok = bool(row['close'] > ema) if not pd.isna(ema) else False
         if trend_ok: score += 1
         
         # 2. Cloud (Price > Cloud Top)
         # Note: In initial bars, cloud might be NaN due to shift
-        cloud_val = row['cloud_top'] if pd.notna(row['cloud_top']) else 0
-        cloud_ok = bool(row['close'] > cloud_val)
+        cloud_val = row.get('cloud_top')
+        cloud_ok = bool(row['close'] > cloud_val) if not pd.isna(cloud_val) else False
         if cloud_ok: score += 1
         
         # 3. OBV (OBV > OBV_MA)
-        obv_ok = bool(row['obv'] > row['obv_ma'])
+        obv = row.get('obv')
+        obv_ma = row.get('obv_ma')
+        obv_ok = bool(obv > obv_ma) if not pd.isna(obv) and not pd.isna(obv_ma) else False
         if obv_ok: score += 1
         
         bias = "NEUTRAL"
@@ -298,8 +309,9 @@ class OracleStrategy:
     def _detect_market_state(self, row: pd.Series) -> Dict[str, Any]:
         """Detects Volatility and Chop."""
         # Chop
-        is_chop = bool(row['adx'] < self.adx_limit)
-        state = "SLEEPING" if is_chop else ("SUPER TREND" if row['adx'] > 40 else "TRENDING")
+        adx = row.get('adx')
+        is_chop = bool(adx < self.adx_limit) if not pd.isna(adx) else True
+        state = "SLEEPING" if is_chop else ("SUPER TREND" if adx > 40 else "TRENDING")
         
         # Volatility
         # Pine: norm_atr = (atr / close) * 100
