@@ -50,32 +50,6 @@ Returns global account long/short ratio.
 
 ---
 
-## Liquidation Heatmap
-
-### Get Heatmap Buckets
-
-`GET /liquidation/heatmap`
-
-Returns aggregated liquidation volume buckets for visualization.
-
-- **Parameters**:
-  - `symbol`: e.g. `BTCUSDT`
-  - `timeframe`: `1h`, `4h`, `12h`, `24h`
-- **Response**:
-  ```json
-  [
-    {
-      "timestamp": 1704123456789,
-      "price_buckets": {
-        "42000": 150000.5,
-        "42050": 20000.0
-      }
-    }
-  ]
-  ```
-
----
-
 ## Tech Indicators
 
 ### Calculate Indicator

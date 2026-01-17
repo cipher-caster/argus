@@ -24,9 +24,7 @@ graph TD
     Worker -->|Write Hot Data| Redis
     Worker -->|Write Persistent Data| DB
 
-    WS_Service[Liquidations WS] -->|Ingest Stream| Binance
-    WS_Service -->|Broadcast Events| Frontend
-    WS_Service -->|Aggregate History| DB
+
 ```
 
 ## Tech Stack
@@ -47,14 +45,8 @@ graph TD
 - **Worker Service**: A dedicated background process using `arq` or `Celery`.
   - **Responsibilities**: Rate-limit handling, data normalization, database writes.
 - **Providers**:
-
   - `BinanceProvider`: For high-frequency trade data.
   - `CoinGeckoProvider`: For rich metadata and rankings.
-
-- **WebSocket Service**:
-  - **Purpose**: Real-time ingestion of liquidation events (`liquidation_ws.py`).
-  - **Function**: Connects to Binance Futures WS `!forceOrder@arr` stream.
-  - **Aggregation**: Buckets events by time (15s) and price (e.g. $50) into **Redis** for efficient heatmap rendering.
 
 ### Frontend
 

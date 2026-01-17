@@ -9,7 +9,7 @@ from pydantic import BaseModel
 from sqlmodel import select
 
 from app.providers import Candle as ProviderCandle, SymbolInfo
-from app.storage import RedisClient, Database, ArqClient
+from app.storage import RedisClient, Database
 from app.schemas.candle import Candle as DbCandle
 
 router = APIRouter(prefix="/api", tags=["market"])

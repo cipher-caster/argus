@@ -92,67 +92,6 @@ export async function fetchProviderInfo(): Promise<{ provider: string }> {
   return response.json();
 }
 
-// --- Liquidation Heatmap Types ---
-
-export interface TimeBucket {
-  timestamp: number;
-  price_buckets: Record<string, number>; // price_level -> volume
-}
-
-export interface OHLCVPoint {
-  timestamp: number;
-  open: number;
-  high: number;
-  low: number;
-  close: number;
-}
-
-export interface LiquidationHeatmapResponse {
-  symbol: string;
-  time_buckets: TimeBucket[];
-  price_min: number;
-  price_max: number;
-  max_intensity: number;
-  ohlcv: OHLCVPoint[];
-  bucket_size_seconds: number;
-}
-
-export interface LiquidationSymbolsResponse {
-  symbols: string[];
-  default: string;
-}
-
-/**
- * Fetch liquidation heatmap data
- */
-export async function fetchLiquidationHeatmap(symbol: string = "BTCUSDT", lookbackHours: number = 24): Promise<LiquidationHeatmapResponse> {
-  const params = new URLSearchParams({
-    symbol,
-    lookback_hours: lookbackHours.toString(),
-  });
-
-  const response = await fetch(`${API_URL}/api/liquidation/heatmap?${params}`);
-
-  if (!response.ok) {
-    throw new Error(`Failed to fetch liquidation heatmap: ${response.statusText}`);
-  }
-
-  return response.json();
-}
-
-/**
- * Fetch supported liquidation symbols
- */
-export async function fetchLiquidationSymbols(): Promise<LiquidationSymbolsResponse> {
-  const response = await fetch(`${API_URL}/api/liquidation/symbols`);
-
-  if (!response.ok) {
-    throw new Error(`Failed to fetch liquidation symbols: ${response.statusText}`);
-  }
-
-  return response.json();
-}
-
 // --- Analytics Types ---
 
 export interface FundingRatePoint {
@@ -307,12 +246,7 @@ export interface OracleStrategyResponse {
 /**
  * Fetch Oracle Strategy analysis
  */
-export async function fetchOracleStrategy(
-  symbol: string,
-  micro_tf: string = "1h",
-  macro_tf: string = "1d",
-  strategy_mode: string = "prophet"
-): Promise<OracleStrategyResponse> {
+export async function fetchOracleStrategy(symbol: string, micro_tf: string = "1h", macro_tf: string = "1d", strategy_mode: string = "prophet"): Promise<OracleStrategyResponse> {
   const params = new URLSearchParams({
     micro_tf,
     macro_tf,

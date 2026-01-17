@@ -11,10 +11,7 @@ All notable changes to this project will be documented in this file.
   - **Open Interest Chart**: Tracks total open interest over time.
   - **Long/Short Ratio**: Stacked bar chart showing the ratio of long vs short positions.
   - **Educational Insights**: Added "What is this?" and "Trading Tips" sections for each metric.
-- **Liquidation Heatmap**:
-  - Implemented backend WebSocket service (`liquidation_ws.py`) to ingest real-time liquidation events from Binance Futures.
-  - Created `/liquidation` page with a sophisticated heatmap visualization.
-  - Added backend aggregation logic to store and serve historical heatmap data.
+- ~~**Liquidation Heatmap**~~: (Removed - WebSocket service disabled without CoinGlass predictions)
 - **Chart Enhancements**:
   - **Refresh Button**: Added a dedicated button to the chart header to force-refresh OHLCV and Ticker data, complete with a spinner animation.
   - **Tooltips**: Added informative tooltips to all chart header icons (Indicators, Settings, Refresh, etc.).
@@ -111,7 +108,6 @@ All notable changes to this project will be documented in this file.
 - **Documentation**: Added comprehensive **Development Guidelines** to `CONTEXT.md` covering feature addition, debugging, testing, and **continuous documentation** protocols.
 
 - **Backend Data**:
-
   - Enhanced market data endpoints to provide 24h change, volume, high, and low stats.
 
 ### Fixed

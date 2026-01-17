@@ -6,7 +6,7 @@
 
 - [x] FastAPI backend with CCXT integration
 - [x] Next.js frontend with TypeScript
-- [x] Binance/OKX provider support
+- [x] Binance provider support
 
 ### Phase 2: Charting
 

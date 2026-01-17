@@ -6,7 +6,7 @@ This document outlines the testing strategy and execution steps for the Argus ap
 
 We use a layered testing approach:
 
-1. **Backend Unit Tests**: Verify business logic, data staleness checks, and mathematics (e.g. liquidation aggregation).
+1. **Backend Unit Tests**: Verify business logic and data staleness checks.
 2. **Frontend E2E Tests**: Verify user flows, page navigation, and critical UI elements using Playwright.
 
 ---
@@ -17,11 +17,10 @@ We use a layered testing approach:
 
 ### Key Test Files
 
-| File                        | Purpose                                                                                                        |
-| --------------------------- | -------------------------------------------------------------------------------------------------------------- |
-| `tests/conftest.py`         | Fixtures for AsyncClient and DB session mocking.                                                               |
-| `tests/test_market.py`      | Verifies `get_ohlcv` logic. Specifically ensures that finding stale DB data triggers a fresh Binance fetch.    |
-| `tests/test_liquidation.py` | Verifies `LiquidationAggregator`. Ensures raw WebSocket events are correctly bucketed by time (15s) and price. |
+| File                   | Purpose                                                                                                     |
+| ---------------------- | ----------------------------------------------------------------------------------------------------------- |
+| `tests/conftest.py`    | Fixtures for AsyncClient and DB session mocking.                                                            |
+| `tests/test_market.py` | Verifies `get_ohlcv` logic. Specifically ensures that finding stale DB data triggers a fresh Binance fetch. |
 
 ### Running Tests
 
@@ -48,9 +47,9 @@ pytest
 
 ### Key Test Files
 
-| File                | Purpose                                                                                                |
-| ------------------- | ------------------------------------------------------------------------------------------------------ |
-| `tests/e2e.spec.ts` | Complete regression suite. Covers Homepage, Chart/Analytics/Liquidation navigation, and feature flags. |
+| File                | Purpose                                                                      |
+| ------------------- | ---------------------------------------------------------------------------- |
+| `tests/e2e.spec.ts` | Complete regression suite. Covers Homepage, Chart, and Analytics navigation. |
 
 ### Running Tests
 

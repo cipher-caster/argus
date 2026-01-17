@@ -10,10 +10,8 @@ from fastapi.middleware.cors import CORSMiddleware
 from dotenv import load_dotenv
 
 from app.routes import market_router, indicators_router, strategy_router
-from app.routes.liquidation import router as liquidation_router
 from app.routes.analytics import router as analytics_router
 from app.storage import Database
-from app.services.liquidation_ws import start_liquidation_stream, stop_liquidation_stream
 
 load_dotenv()
 
@@ -32,14 +30,9 @@ async def lifespan(app: FastAPI):
     set_provider(provider)
     print("✓ Argus Backend: Provider initialized")
     
-    # Liquidation WebSocket disabled - data not useful without CoinGlass predictions
-    # await start_liquidation_stream("BTCUSDT")
-    # print("✓ Argus Backend: Liquidation stream started")
-    
     yield
     
     # Cleanup
-    # await stop_liquidation_stream()
     await provider.close()
     await Database.close()
     print("✓ Argus Backend: Storage closed")
@@ -68,7 +61,6 @@ app.add_middleware(
 app.include_router(market_router)
 app.include_router(indicators_router)
 app.include_router(strategy_router)
-app.include_router(liquidation_router)
 app.include_router(analytics_router)
 
 

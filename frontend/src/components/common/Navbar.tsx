@@ -63,7 +63,6 @@ export function Navbar() {
     window.location.href = `/chart/${cleanSymbol}-USDT`;
   };
 
-  const isLiquidationPage = pathname === "/liquidation";
   const isFullWidthPage = pathname?.startsWith("/chart") || pathname === "/analytics";
 
   return (
@@ -80,7 +79,7 @@ export function Navbar() {
               href="/chart/BTC-USDT"
               className={cn(
                 "flex items-center gap-1.5 px-3 h-9 text-sm font-semibold no-underline rounded-lg transition-all",
-                pathname?.startsWith("/chart") ? "text-primary bg-primary/10" : "text-muted-foreground hover:text-foreground hover:bg-muted"
+                pathname?.startsWith("/chart") ? "text-primary bg-primary/10" : "text-muted-foreground hover:text-foreground hover:bg-muted",
               )}
             >
               <LineChart size={16} />
@@ -93,15 +92,6 @@ export function Navbar() {
               <BarChart2 size={16} />
               <span>Analytics</span>
             </Link>
-            {/* Liquidations link hidden - keeping code for future use
-            <Link
-              href="/liquidation"
-              className={cn("flex items-center gap-1.5 px-3 h-9 text-sm font-semibold no-underline rounded-lg transition-all", isLiquidationPage ? "text-orange-500 bg-orange-500/10" : "text-muted-foreground hover:text-foreground hover:bg-muted")}
-            >
-              <Flame size={16} />
-              <span>Liquidations</span>
-            </Link>
-            */}
           </div>
         </div>
 

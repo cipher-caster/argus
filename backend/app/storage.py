@@ -36,33 +36,6 @@ class RedisClient:
         await r.setex(key, ttl, json.dumps(value))
 
 
-class ArqClient:
-    _pool: Optional[Any] = None
-    
-    @classmethod
-    async def get_redis(cls):
-        from arq import create_pool
-        from arq.connections import RedisSettings
-        from urllib.parse import urlparse
-        
-        if cls._pool is None:
-            # Parse URL manually for Arq Settings if not default
-            url = urlparse(REDIS_URL)
-            settings = RedisSettings(
-                host=url.hostname or 'localhost',
-                port=url.port or 6379,
-                password=url.password,
-                database=0
-            )
-            cls._pool = await create_pool(settings)
-        return cls._pool
-        
-    @classmethod
-    async def close(cls):
-        if cls._pool:
-            await cls._pool.close()
-            cls._pool = None
-
 class Database:
     _engine = None
     _sessionmaker = None
