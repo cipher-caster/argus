@@ -84,29 +84,39 @@ async def test_analytics_timeframe_parameters(async_client):
     ]
     
     with patch("app.routes.analytics.fetch_all_candles", new_callable=AsyncMock) as mock_fetch, \
-         patch("app.routes.analytics.MarketDataService.get_top_symbols", new_callable=AsyncMock) as mock_syms:
+         patch("app.routes.analytics.MarketDataService.get_top_symbols", new_callable=AsyncMock) as mock_syms, \
+         patch("app.routes.analytics.RedisClient.get_json", new_callable=AsyncMock) as mock_cache_get, \
+         patch("app.routes.analytics.RedisClient.set_json", new_callable=AsyncMock) as mock_cache_set:
         
         mock_fetch.return_value = {"BTC/USDT": pd.DataFrame()} # Dummy that bypasses empty checks
         mock_syms.return_value = ["BTC/USDT"]
+        mock_cache_get.return_value = None  # Always cache miss to trigger fetch
         
         for endpoint in endpoints:
             # Test 1h (default)
             await async_client.get(f"{endpoint}?timeframe=1h")
-            # Verify fetch_all_candles was called with 1h
-            assert mock_fetch.call_args.kwargs['timeframe'] == "1h"
+            # Verify fetch_all_candles was called with 1h (positional or kwarg)
+            call_args = mock_fetch.call_args
+            timeframe_arg = call_args.kwargs.get('timeframe') or (call_args.args[1] if len(call_args.args) > 1 else None)
+            assert timeframe_arg == "1h", f"Expected 1h, got {timeframe_arg}"
             
             # Test 4h
             await async_client.get(f"{endpoint}?timeframe=4h")
-            assert mock_fetch.call_args.kwargs['timeframe'] == "4h"
+            call_args = mock_fetch.call_args
+            timeframe_arg = call_args.kwargs.get('timeframe') or (call_args.args[1] if len(call_args.args) > 1 else None)
+            assert timeframe_arg == "4h", f"Expected 4h, got {timeframe_arg}"
 
 @pytest.mark.asyncio
 async def test_market_health_schema(async_client):
     """Verify Market Health returns the expected structure even with empty data."""
     with patch("app.routes.analytics.fetch_all_candles", new_callable=AsyncMock) as mock_fetch, \
-         patch("app.routes.analytics.MarketDataService.get_top_symbols", new_callable=AsyncMock) as mock_syms:
+         patch("app.routes.analytics.MarketDataService.get_top_symbols", new_callable=AsyncMock) as mock_syms, \
+         patch("app.routes.analytics.RedisClient.get_json", new_callable=AsyncMock) as mock_cache_get, \
+         patch("app.routes.analytics.RedisClient.set_json", new_callable=AsyncMock) as mock_cache_set:
         
         mock_fetch.return_value = {} # Empty
         mock_syms.return_value = ["BTC/USDT"]
+        mock_cache_get.return_value = None  # Cache miss
         
         response = await async_client.get("/api/analytics/market-health")
         assert response.status_code == 200
@@ -114,3 +124,20 @@ async def test_market_health_schema(async_client):
         assert "summary" in data
         assert "volatility" in data
         assert "bullish_pct" in data["summary"]
+
+
+@pytest.mark.asyncio
+async def test_analytics_cache_hit(async_client):
+    """Verify cached response is returned on cache hit."""
+    cached_data = [{"symbol": "CACHED/USDT", "price": 999.0, "score": 4, "confidence": "4/4", 
+                    "bias": "BULLISH", "state": "TRENDING", "liquidity": "ACTIVE", 
+                    "strength_vs_btc": "STRONG", "opportunity": "LONG", "advice": "Test"}]
+    
+    with patch("app.routes.analytics.RedisClient.get_json", new_callable=AsyncMock) as mock_cache_get:
+        mock_cache_get.return_value = cached_data
+        
+        response = await async_client.get("/api/analytics/screener?timeframe=1h")
+        assert response.status_code == 200
+        data = response.json()
+        assert data["data"][0]["symbol"] == "CACHED/USDT"
+        assert data["data"][0]["price"] == 999.0

@@ -8,7 +8,7 @@ def detect_mean_reversion(df: pd.DataFrame, atr_mult: float = 3.0) -> Dict[str, 
     Identifies 'Overextended' coins.
     """
     if df.empty or len(df) < 200:
-        return {"is_extended": False, "opportunity": "NONE"}
+        return {"is_extended": False, "opportunity": "NONE", "extension_atr": 0.0, "price": 0.0, "mean": 0.0, "target": 0.0}
 
     if 'ema200' not in df.columns:
         df['ema200'] = ta.ema(df['close'], length=200)
@@ -21,7 +21,7 @@ def detect_mean_reversion(df: pd.DataFrame, atr_mult: float = 3.0) -> Dict[str, 
     atr = last['atr']
     
     if pd.isna(ema) or pd.isna(atr):
-        return {"is_extended": False, "opportunity": "NONE"}
+        return {"is_extended": False, "opportunity": "NONE", "extension_atr": 0.0, "price": 0.0, "mean": 0.0, "target": 0.0}
 
     dist_from_mean = price - ema
     abs_dist = abs(dist_from_mean)

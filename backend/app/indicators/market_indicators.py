@@ -155,6 +155,7 @@ def calculate_market_cap_stats(coins: List[Dict[str, Any]]) -> Dict[str, Any]:
     """
     Calculate total market cap (or volume) and market regime.
     Prioritizes 'market_cap' if available, falls back to 'volume_24h'.
+    Uses sparkline_in_7d to generate history for the chart.
     
     Args:
         coins: List of coin dicts
@@ -197,15 +198,49 @@ def calculate_market_cap_stats(coins: List[Dict[str, Any]]) -> Dict[str, Any]:
     total_count = len(changes)
     green_pct = (green_count / total_count * 100) if total_count > 0 else 50
     
+    # Build history from sparklines (aggregate weighted by market cap)
+    history = []
+    # Get coins with sparkline data
+    coins_with_sparkline = [c for c in coins if c.get('sparkline_in_7d') and len(c.get('sparkline_in_7d', [])) > 0]
+    
+    if coins_with_sparkline and has_mcap:
+        # Use last 14 data points (roughly 2 days at 4h intervals from CoinGecko)
+        sample_size = min(14, min(len(c.get('sparkline_in_7d', [])) for c in coins_with_sparkline))
+        
+        for i in range(sample_size):
+            # For each time point, estimate total market cap
+            # by using the ratio of sparkline price to current price
+            point_total = 0
+            for coin in coins_with_sparkline:
+                sparkline = coin.get('sparkline_in_7d', [])
+                current_price = coin.get('price', 0) or 1
+                mcap = coin.get('market_cap', 0) or 0
+                
+                if sparkline and len(sparkline) > i:
+                    # Sample from end (most recent)
+                    idx = len(sparkline) - sample_size + i
+                    if idx >= 0:
+                        historical_price = sparkline[idx]
+                        # Estimate historical mcap from price ratio
+                        ratio = historical_price / current_price if current_price > 0 else 1
+                        point_total += mcap * ratio
+            
+            if point_total > 0:
+                history.append(point_total)
+    
+    # Calculate min/max from history for proper scaling
+    min_val = min(history) if history else total_value * 0.9
+    max_val = max(history) if history else total_value * 1.1
+    
     return {
         "value": total_value,
         "metric_type": value_key,
         "change_1d": round(avg_change, 2),
         "regime": regime,
         "regime_detail": f"{int(green_pct)}% up",
-        "min_value": total_value * 0.9, # Tighter bounds for MC
-        "max_value": total_value * 1.1,
-        "history": []
+        "min_value": min_val,
+        "max_value": max_val,
+        "history": history
     }
 
 
@@ -213,6 +248,7 @@ def calculate_btc_dominance(coins: List[Dict[str, Any]]) -> IndicatorValue:
     """
     Calculate BTC Dominance (BTC Value / Total Value).
     Prioritizes 'market_cap', falls back to 'volume_24h'.
+    Uses sparkline_in_7d to generate history for the chart.
     
     Args:
         coins: List of coin dicts
@@ -229,14 +265,16 @@ def calculate_btc_dominance(coins: List[Dict[str, Any]]) -> IndicatorValue:
     
     total_value = sum(c.get(value_key, 0) or 0 for c in coins)
     
-    # Find BTC value
-    btc_value = 0
+    # Find BTC coin
+    btc_coin = None
     for c in coins:
         symbol = c.get('symbol', '').upper()
         # Handle various BTC symbol formats
         if symbol in ('BTC/USDT', 'BTCUSDT', 'BTC', 'BITCOIN'):
-            btc_value = c.get(value_key, 0) or 0
+            btc_coin = c
             break
+    
+    btc_value = btc_coin.get(value_key, 0) or 0 if btc_coin else 0
     
     if total_value == 0:
         return IndicatorValue(value=0, label="N/A", history=[])
@@ -253,10 +291,49 @@ def calculate_btc_dominance(coins: List[Dict[str, Any]]) -> IndicatorValue:
     else:
         label = "Alt Season"
     
+    # Build history from sparklines
+    history = []
+    coins_with_sparkline = [c for c in coins if c.get('sparkline_in_7d') and len(c.get('sparkline_in_7d', [])) > 0]
+    btc_sparkline = btc_coin.get('sparkline_in_7d', []) if btc_coin else []
+    
+    if coins_with_sparkline and btc_sparkline and has_mcap:
+        sample_size = min(14, min(len(c.get('sparkline_in_7d', [])) for c in coins_with_sparkline))
+        
+        for i in range(sample_size):
+            # Calculate total market cap at this historical point
+            total_at_point = 0
+            btc_at_point = 0
+            
+            for coin in coins_with_sparkline:
+                sparkline = coin.get('sparkline_in_7d', [])
+                current_price = coin.get('price', 0) or 1
+                mcap = coin.get('market_cap', 0) or 0
+                
+                idx = len(sparkline) - sample_size + i
+                if idx >= 0 and sparkline:
+                    historical_price = sparkline[idx]
+                    ratio = historical_price / current_price if current_price > 0 else 1
+                    estimated_mcap = mcap * ratio
+                    total_at_point += estimated_mcap
+                    
+                    # Check if this is BTC
+                    symbol = coin.get('symbol', '').upper()
+                    if symbol in ('BTC/USDT', 'BTCUSDT', 'BTC', 'BITCOIN'):
+                        btc_at_point = estimated_mcap
+            
+            if total_at_point > 0:
+                dom_at_point = (btc_at_point / total_at_point) * 100
+                history.append(round(dom_at_point, 1))
+    
+    # Calculate min/max from history
+    min_val = min(history) if history else 30
+    max_val = max(history) if history else 70
+    
     return IndicatorValue(
         value=round(dominance, 1),
         label=label,
-        min_value=30, # Historical bounds ~35%
-        max_value=70, # Historical bounds ~70%
-        history=[]
+        min_value=min_val,
+        max_value=max_val,
+        history=history
     )
+

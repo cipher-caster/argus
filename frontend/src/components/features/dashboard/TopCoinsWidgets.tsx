@@ -62,9 +62,9 @@ function TopCoinsWidgetsComponent({ gainers, losers, volume, isLoading }: TopCoi
 
   return (
     <div className="flex flex-wrap gap-4 mb-8">
-      <CoinList title="Top Gainers" data={gainers.slice(0, 5)} type="gain" />
-      <CoinList title="Top Losers" data={losers.slice(0, 5)} type="loss" />
-      <CoinList title="Volume Leaders" data={volume.slice(0, 5)} type="vol" />
+      <CoinList title="Top Gainers" data={gainers.slice(0, 3)} type="gain" />
+      <CoinList title="Top Losers" data={losers.slice(0, 3)} type="loss" />
+      <CoinList title="Volume Leaders" data={volume.slice(0, 3)} type="vol" />
     </div>
   );
 }

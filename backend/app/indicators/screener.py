@@ -1,6 +1,9 @@
+import logging
 import pandas as pd
 from typing import List, Dict, Any
 from app.strategies.oracle import OracleStrategy
+
+logger = logging.getLogger(__name__)
 
 def run_oracle_screener(df_data: Dict[str, pd.DataFrame], btc_df: pd.DataFrame) -> List[Dict[str, Any]]:
     """
@@ -62,7 +65,7 @@ def run_oracle_screener(df_data: Dict[str, pd.DataFrame], btc_df: pd.DataFrame) 
                     "advice": oracle._generate_advice(earnest, {"score": 0, "bias": "NEUTRAL"}, state, {"tp1": 0, "tp2": 0, "sl": 0}, "earnest")
                 })
         except Exception as e:
-            print(f"E: Screener error for {symbol}: {e}")
+            logger.warning(f"Screener error for {symbol}: {e}")
             continue
 
     # Sort by score strength

@@ -4,7 +4,7 @@ import { useMemo } from "react";
 
 interface SparklineProps {
   data: number[];
-  width?: number;
+  width?: number | string;
   height?: number;
   color?: string;
 }
@@ -14,6 +14,9 @@ interface SparklineProps {
  * Renders a trend line based on an array of numbers
  */
 export function Sparkline({ data, width = 100, height = 30, color }: SparklineProps) {
+  // Use fixed coordinate system (0-100) for path calculation to allow SVG scaling
+  const internalWidth = 100;
+
   const points = useMemo(() => {
     if (!data || data.length < 2) return "";
 
@@ -23,12 +26,12 @@ export function Sparkline({ data, width = 100, height = 30, color }: SparklinePr
 
     return data
       .map((val, i) => {
-        const x = (i / (data.length - 1)) * width;
+        const x = (i / (data.length - 1)) * internalWidth;
         const y = height - ((val - min) / range) * height;
         return `${x},${y}`;
       })
       .join(" ");
-  }, [data, width, height]);
+  }, [data, height]);
 
   // Determine color based on trend if not provided
   const trendColor = useMemo(() => {
@@ -39,14 +42,14 @@ export function Sparkline({ data, width = 100, height = 30, color }: SparklinePr
 
   if (!data || data.length < 2) {
     return (
-      <div style={{ width, height, display: "flex", alignItems: "center", justifyContent: "center" }}>
+      <div style={{ width: width || "100%", height, display: "flex", alignItems: "center", justifyContent: "center" }}>
         <div style={{ width: "80%", height: 1, background: "var(--border-color)", opacity: 0.5 }} />
       </div>
     );
   }
 
   return (
-    <svg width={width} height={height} viewBox={`0 0 ${width} ${height}`} preserveAspectRatio="none">
+    <svg width={width || "100%"} height={height} viewBox={`0 0 ${internalWidth} ${height}`} preserveAspectRatio="none" className="block w-full">
       <path d={`M ${points}`} fill="none" stroke={trendColor} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
     </svg>
   );

@@ -59,9 +59,70 @@ All analytics modules support dynamic timeframe switching:
 - **Logic**: Measures performance vs. Bitcoin (BTCUSDT cluster).
 - **Alpha Hunting**: Find altcoins that are gaining value even when BTC is stagnant or dropping.
 
+## Frontend Components
+
+(Dashboard Architecture)
+
+The analytics data is visualized through a responsive dashboard system located in `frontend/src/components/features/dashboard`.
+
+### Indicator Cards
+
+Standardized widget system displaying key market metrics:
+
+- **Visuals**: Gauge bar for range visualization + SVG Sparkline for 7-day trend.
+- **Layout**: Unified "footer" design ensures alignment across all cards regardless of content variable height.
+- **Metrics**: MADX (Trend), Total Market Cap, and BTC Dominance.
+
+### Oracle Intelligence Card
+
+A special indicator card integrating the Oracle Signal Summary:
+
+- **Confidence**: AI-driven bullish/bearish confidence score.
+- **Alpha Signals**: Live list of the top 3 high-conviction signals.
+- **Design**: Matches the visual rhythm of standard indicator cards.
+
+### Responsive Grid
+
+The dashboard uses an adaptive grid layout:
+
+- **Desktop**: 4 columns (All cards in one row).
+- **Tablet**: 2 columns (Balanced 2x2 grid).
+- **Mobile**: 1 column (Vertical stack).
+
 ## API Usage
 
 Refer to [API.md](./API.md) for endpoint details. Most endpoints now accept:
 
 - `limit`: Number of coins to analyze (e.g. `?limit=50`).
 - `timeframe`: Horizon to analyze (e.g. `?timeframe=4h`).
+
+## Performance & Caching
+
+The analytics suite uses **Redis caching** for fast responses:
+
+### Cache-Aside Pattern
+
+All endpoints check Redis first, compute on miss, then cache results:
+
+| Endpoint             | Cache Key                           | TTL |
+| -------------------- | ----------------------------------- | --- |
+| `/screener`          | `analytics:screener:{tf}:{limit}`   | 60s |
+| `/market-health`     | `analytics:health:{tf}:{limit}`     | 60s |
+| `/liquidity-sweeps`  | `analytics:liquidity:{tf}:{limit}`  | 60s |
+| `/relative-strength` | `analytics:strength:{tf}:{limit}`   | 60s |
+| `/contrarian-radar`  | `analytics:contrarian:{tf}:{limit}` | 60s |
+| `/signal-summary`    | `analytics:signal-summary`          | 60s |
+
+### Worker Pre-warming
+
+The `sync_analytics_cache` job runs every 5 minutes to pre-compute analytics for 1h, 4h, and 1d timeframes. This ensures near-instant responses for common requests.
+
+### Monitoring
+
+```bash
+# Check cached keys
+docker compose exec redis redis-cli KEYS "analytics:*"
+
+# Check TTL of a key
+docker compose exec redis redis-cli TTL "analytics:screener:1h:50"
+```

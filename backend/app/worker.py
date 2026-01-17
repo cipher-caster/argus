@@ -154,6 +154,40 @@ async def sync_market_snapshot(ctx):
     except Exception as e:
         logger.error(f"Job Failed: sync_market_snapshot: {e}")
 
+async def sync_analytics_cache(ctx):
+    """
+    Pre-compute and cache analytics for common timeframes.
+    This makes initial page loads instant instead of waiting for live data.
+    Runs every 5 minutes, offset from snapshot job.
+    """
+    from app.routes.analytics import (
+        get_oracle_screener, get_market_health, 
+        get_liquidity_sweeps_analytics, get_relative_strength_analytics,
+        get_contrarian_radar, get_oracle_signal_summary
+    )
+    
+    logger.info("Job: Pre-warming Analytics Cache...")
+    
+    timeframes = ["1h", "4h", "1d"]
+    for tf in timeframes:
+        try:
+            await get_oracle_screener(limit=50, timeframe=tf)
+            await get_market_health(limit=100, timeframe=tf)
+            await get_liquidity_sweeps_analytics(limit=50, timeframe=tf)
+            await get_relative_strength_analytics(limit=50, timeframe=tf)
+            await get_contrarian_radar(limit=50, timeframe=tf)
+            logger.info(f"Job: Analytics cache warmed for {tf}")
+        except Exception as e:
+            logger.warning(f"Cache warm failed for {tf}: {e}")
+    
+    # Also warm the signal summary (no timeframe param)
+    try:
+        await get_oracle_signal_summary()
+    except Exception as e:
+        logger.warning(f"Cache warm failed for signal-summary: {e}")
+    
+    logger.info("Job: Analytics Cache Pre-warm Complete")
+
 # --- Worker Settings ---
 
 from arq.connections import RedisSettings
@@ -161,9 +195,8 @@ import os
 from urllib.parse import urlparse
 
 class WorkerSettings:
-    # Only the market summary job is needed now
-    # Historical candle data is fetched on-demand by the API
-    functions = [sync_market_summary, sync_market_snapshot]
+    # Market data and analytics cache jobs
+    functions = [sync_market_summary, sync_market_snapshot, sync_analytics_cache]
     on_startup = startup
     on_shutdown = shutdown
     
@@ -183,11 +216,13 @@ class WorkerSettings:
 
     # Jobs
     cron_jobs = [
-        cron(sync_market_summary, second={0, 30}), # Live data (Binance)
-        cron(sync_market_snapshot, minute={0, 5, 10, 15, 20, 25, 30, 35, 40, 45, 50, 55}), # Snapshot (CoinGecko) every 5m
+        cron(sync_market_summary, second={0, 30}),  # Live data (Binance) every 30s
+        cron(sync_market_snapshot, minute={0, 5, 10, 15, 20, 25, 30, 35, 40, 45, 50, 55}),  # Snapshot (CoinGecko) every 5m
+        cron(sync_analytics_cache, minute={2, 7, 12, 17, 22, 27, 32, 37, 42, 47, 52, 57}),  # Analytics every 5m (offset)
     ]
 
 if __name__ == "__main__":
     import asyncio
     from arq import run_worker
     asyncio.run(run_worker(WorkerSettings))
+

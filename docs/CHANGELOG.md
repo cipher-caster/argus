@@ -2,6 +2,41 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.5.2] - 2026-01-17
+
+### Added
+
+- **Responsive Dashboard**: Implemented an adaptive grid layout that scales from 1 column (Mobile) to 2 columns (Tablet) and 4 columns (Desktop).
+- **Oracle Intelligence Integration**: fully integrated the Oracle Intelligence card into the main dashboard grid with a standardized Skeleton loading state.
+- **Sparklines**: Added lightweight SVG sparklines to all indicator cards to visualize 7-day trends.
+
+### Improved
+
+- **Indicator Cards Redesign**: Removed TradingView charts to reduce clutter and implemented a unified footer layout for consistent gauge alignment across all cards.
+- **Data Analysis Widgets**: Limited "Top Gainers", "Top Losers", and "Volume Leaders" lists to the top 3 items (previously 5) for a cleaner, more compact UI.
+- **UI Consistency**: Standardized the "Oracle Signal Summary" card to match the visual rhythm and structure of other market indicator cards.
+
+## [0.5.1] - 2026-01-17
+
+### Added
+
+- **Redis Analytics Caching**: Implemented cache-aside pattern for all analytics endpoints with 60s TTL for instant responses.
+- **Worker Pre-warming**: New `sync_analytics_cache` job pre-computes analytics for 1h/4h/1d timeframes every 5 minutes.
+- **Cache Hit Test**: Added automated test verifying cached responses are returned correctly.
+
+### Improved
+
+- **Frontend UX**: Updated React Query hooks with `gcTime`, `keepPreviousData`, and disabled `refetchOnWindowFocus` for smoother stale-while-revalidate experience.
+- **Error Handling**: Analytics data fetching now uses `return_exceptions=True` to prevent single symbol failures from aborting all requests.
+- **Logging**: Replaced `print()` statements with proper `logging.warning()` in screener error handling.
+
+### Fixed
+
+- **Operator Precedence Bug**: Fixed incorrect `and/or` chain in market_state calculation that could misclassify market conditions.
+- **Hardcoded Rolling Window**: Liquidity sweep detection now calculates the correct bars-per-week based on timeframe (was hardcoded to 168 for hourly).
+- **Missing Schema Fields**: Added required fields (`extension_atr`, `price`, `mean`, `target`) to early returns in `mean_reversion.py` to prevent Pydantic validation errors.
+- **Test Assertions**: Fixed test checking positional args instead of kwargs for timeframe parameter.
+
 ## [0.5.0] - 2026-01-17
 
 ### Added

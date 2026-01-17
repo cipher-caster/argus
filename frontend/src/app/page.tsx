@@ -64,18 +64,13 @@ export default function MarketOverview() {
       {/* Main Content */}
       <main className="max-w-[1440px] mx-auto p-6 md:p-8 space-y-10">
         {/* Market Indicators */}
-        <section className="grid grid-cols-1 lg:grid-cols-3 gap-6 animate-in fade-in slide-in-from-bottom-2 duration-500">
-          <div className="lg:col-span-2 h-full">
-            <MarketIndicators />
-          </div>
-          <div className="lg:col-span-1 h-full">
-            <OracleSignalSummary />
-          </div>
+        <section className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 animate-in fade-in slide-in-from-bottom-2 duration-500">
+          <MarketIndicators />
+          <OracleSignalSummary />
         </section>
 
         {/* Widgets Section */}
         <section className="space-y-4 animate-in fade-in slide-in-from-bottom-4 duration-700 delay-100">
-          <h2 className="text-2xl font-extrabold tracking-tight">Data Analysis</h2>
           <TopCoinsWidgets gainers={summary?.top_gainers || []} losers={summary?.top_losers || []} volume={summary?.top_volume || []} isLoading={!summary} />
         </section>
 

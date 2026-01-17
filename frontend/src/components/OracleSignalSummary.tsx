@@ -1,102 +1,77 @@
 "use client";
 
+import { Skeleton } from "@/components/ui/skeleton";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { useOracleSignalSummary } from "@/hooks/useAnalyticsData";
-import { HelpCircle, Shield, TrendingUp, Zap } from "lucide-react";
+import { cn } from "@/lib/utils";
+import { HelpCircle, Zap } from "lucide-react";
 
 export function OracleSignalSummary() {
   const { data, isLoading, error } = useOracleSignalSummary();
 
-  if (isLoading) return <div className="h-[280px] flex items-center justify-center bg-secondary border border-border rounded-2xl animate-pulse text-muted-foreground font-bold uppercase tracking-widest text-xs">Scanning Market...</div>;
-  if (error) return <div className="h-[280px] flex items-center justify-center bg-secondary border border-red-500/20 text-red-500 rounded-2xl italic text-xs">Oracle Insight Unavailable</div>;
+  if (isLoading) return <Skeleton className="h-[180px] w-full rounded-xl" />;
+  if (error) return <div className="h-full min-h-[200px] flex items-center justify-center bg-secondary border border-red-500/20 text-red-500 rounded-xl italic text-xs">Oracle Unavailable</div>;
 
   const confidence = Math.max(data?.bullish_pct || 0, data?.bearish_pct || 0);
   const marketState = data?.market_state || "Analyzing";
 
+  // Label color based on market state
+  const labelColorClass = marketState === "STRONG BULL" ? "text-green-400" : marketState === "STRONG BEAR" ? "text-red-400" : "text-cyan-400";
+
   return (
-    <div className="bg-secondary border border-border rounded-2xl p-5 h-full relative overflow-hidden group hover:shadow-lg transition-all duration-300">
-      {/* Subtle Background Icon */}
-      <div className="absolute -top-6 -right-6 opacity-[0.03] group-hover:opacity-[0.07] transition-opacity duration-500 pointer-events-none">
-        <Shield size={180} />
+    <div className="bg-secondary border border-border rounded-xl p-4 h-full shadow-sm hover:shadow-lg transition-all duration-300 group min-h-[180px] flex flex-col">
+      {/* Header - Matches IndicatorCard */}
+      <div className="flex items-center justify-between mb-3">
+        <div className="flex items-center gap-2">
+          <span className="text-primary">
+            <Zap size={16} />
+          </span>
+          <span className="text-[13px] text-muted-foreground font-bold uppercase tracking-tight">Oracle Intelligence</span>
+        </div>
+        <TooltipProvider>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <button className="p-1 rounded-md text-muted-foreground hover:text-foreground transition-colors">
+                <HelpCircle size={14} />
+              </button>
+            </TooltipTrigger>
+            <TooltipContent side="bottom" className="max-w-[250px] text-center">
+              <p>AI confidence based on momentum scores across Top 50 Perpetual symbols.</p>
+            </TooltipContent>
+          </Tooltip>
+        </TooltipProvider>
       </div>
 
-      <div className="relative z-10 flex flex-col h-full">
-        {/* Header */}
-        <div className="flex items-center justify-between mb-6">
-          <div className="flex items-center gap-3">
-            <div className="w-9 h-9 rounded-xl bg-primary/10 flex items-center justify-center text-primary shadow-inner">
-              <Zap size={20} fill="currentColor" />
-            </div>
-            <div>
-              <h3 className="font-extrabold text-[15px] uppercase tracking-tight leading-none mb-1">Oracle Intelligence</h3>
-              <p className="text-[10px] text-muted-foreground font-black uppercase tracking-widest leading-none">{marketState}</p>
-            </div>
-          </div>
+      {/* Value Display - Matches IndicatorCard */}
+      <div className="flex items-baseline gap-2 mb-2">
+        <span className={cn("text-3xl font-extrabold tracking-tighter leading-none", labelColorClass)}>{confidence}%</span>
+        <span className={cn("text-sm font-semibold", labelColorClass)}>{marketState}</span>
+      </div>
+      <div className="text-xs text-muted-foreground">AI Confidence</div>
 
-          <TooltipProvider>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <button className="p-1 rounded-md text-muted-foreground hover:text-foreground transition-colors">
-                  <HelpCircle size={14} />
-                </button>
-              </TooltipTrigger>
-              <TooltipContent side="bottom" className="max-w-[300px] p-4">
-                <div className="space-y-3">
-                  <div className="space-y-1">
-                    <p className="text-[11px] font-black uppercase text-primary">AI Confidence</p>
-                    <p className="text-[10px] text leading-relaxed">The highest momentum score detected across the market. Represents the strength and conviction of the current primary signals.</p>
-                  </div>
-                  <div className="space-y-1">
-                    <p className="text-[11px] font-black uppercase text-foreground">Market Concentration</p>
-                    <p className="text-[10px] text leading-relaxed">The percentage of Top 50 Perpetual symbols aligned in a specific direction (Price {">"} EMA200 + Momentum Score).</p>
-                  </div>
-                </div>
-              </TooltipContent>
-            </Tooltip>
-          </TooltipProvider>
+      {/* Footer Section - Pinned to bottom */}
+      <div className="mt-auto flex flex-col gap-3">
+        {/* Sentiment Bar */}
+        <div className="space-y-1">
+          <div className="flex justify-between text-[10px] font-bold uppercase tracking-wide">
+            <span className="text-green-500">Bullish {data?.bullish_pct || 0}%</span>
+            <span className="text-red-500">Bearish {data?.bearish_pct || 0}%</span>
+          </div>
+          <div className="h-2 w-full bg-muted/50 rounded-full overflow-hidden flex">
+            <div className="h-full bg-green-500/80 transition-all duration-1000" style={{ width: `${data?.bullish_pct || 50}%` }} />
+            <div className="h-full bg-red-500/80 transition-all duration-1000" style={{ width: `${data?.bearish_pct || 50}%` }} />
+          </div>
         </div>
 
-        {/* Main Content Grid */}
-        <div className="flex-1 flex flex-col justify-between">
-          <div className="space-y-6">
-            {/* Confidence Metric */}
-            <div>
-              <div className="flex justify-between items-end mb-2">
-                <span className="text-[11px] font-black text-muted-foreground uppercase tracking-wider">AI Confidence</span>
-                <span className="text-2xl font-black text-foreground tracking-tighter leading-none">{confidence}%</span>
+        {/* Alpha Signals - Without border to match card flow */}
+        <div className="pt-0">
+          <div className="flex flex-wrap gap-1.5">
+            {data?.top_signals.slice(0, 4).map((sig: string) => (
+              <div key={sig} className="px-2 py-1 bg-background border border-border rounded-md text-[9px] font-bold tracking-tight hover:border-primary/40 transition-all">
+                {sig}
               </div>
-              <div className="h-2 w-full bg-muted/50 rounded-full overflow-hidden flex ring-1 ring-border/50">
-                <div className="h-full bg-primary transition-all duration-1000 ease-out shadow-[0_0_10px_rgba(var(--primary),0.5)]" style={{ width: `${confidence}%` }} />
-              </div>
-            </div>
-
-            {/* Sentiment Concentration */}
-            <div className="space-y-2">
-              <div className="flex justify-between text-[10px] font-black uppercase tracking-widest">
-                <span className="text-green-500">Bullish {data?.bullish_pct || 0}%</span>
-                <span className="text-red-500">Bearish {data?.bearish_pct || 0}%</span>
-              </div>
-              <div className="h-1.5 w-full bg-muted/50 rounded-full overflow-hidden flex">
-                <div className="h-full bg-green-500/80 transition-all duration-1000" style={{ width: `${data?.bullish_pct || 50}%` }} />
-                <div className="h-full bg-red-500/80 transition-all duration-1000" style={{ width: `${data?.bearish_pct || 50}%` }} />
-              </div>
-            </div>
-
-            {/* Alpha Signals Section */}
-            <div className="pt-4 border-t border-border/50">
-              <div className="flex items-center gap-2 mb-3 mt-1">
-                <TrendingUp size={14} className="text-primary" />
-                <span className="text-[11px] font-black uppercase tracking-widest text-foreground/80">Alpha Signals</span>
-              </div>
-              <div className="flex flex-wrap gap-2 min-h-[60px]">
-                {data?.top_signals.map((sig: string) => (
-                  <div key={sig} className="px-2.5 py-1.5 bg-background border border-border rounded-lg text-[10px] font-bold tracking-tight hover:border-primary/40 hover:bg-primary/5 transition-all cursor-default shadow-sm">
-                    {sig}
-                  </div>
-                ))}
-                {(!data?.top_signals || data.top_signals.length === 0) && <div className="text-[10px] text-muted-foreground italic font-medium py-1">No high-probability signals detected</div>}
-              </div>
-            </div>
+            ))}
+            {(!data?.top_signals || data.top_signals.length === 0) && <div className="text-[10px] text-muted-foreground italic">No signals</div>}
           </div>
         </div>
       </div>
