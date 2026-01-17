@@ -18,7 +18,11 @@ from app.schemas.analytics import (
     RelativeStrengthItem,
     MeanReversionResponse,
     MeanReversionItem,
-    OracleSignalSummaryResponse
+    OracleSignalSummaryResponse,
+    TrendRadarResponse,
+    StructureResponse,
+    StructureItem,
+    ConfluenceResponse
 )
 
 from app.routes.strategy import get_candles_df
@@ -27,6 +31,9 @@ from app.indicators.market_health import calculate_market_health
 from app.indicators.liquidity import detect_liquidity_sweeps
 from app.indicators.relative_strength import calculate_relative_strength
 from app.indicators.mean_reversion import detect_mean_reversion
+from app.indicators.trend_radar import TrendRadar
+from app.indicators.structure import StructureScanner
+from app.indicators.confluence import ConfluenceAggregator
 from app.providers.binance_provider import BinanceProvider
 from app.services.market_data import MarketDataService
 from app.storage import RedisClient
@@ -202,17 +209,88 @@ async def get_oracle_signal_summary():
     
     top_signals = [f"{s['symbol']} {s['score']}/4" for s in screener_data if abs(s['score']) >= 3][:5]
     
+    # Use Confluence Engine for consistent "Market State"
+    from app.indicators.confluence import ConfluenceAggregator
+    confluence = ConfluenceAggregator()
+    confluence_result = confluence.analyze(screener_data)
+    
+    # Map Confluence verdict to Summary state
+    # TSUNAMI_BULL -> STRONG BULL, etc.
+    c_verdict = confluence_result['verdict']
+    state_map = {
+        "TSUNAMI_BULL": "STRONG BULL",
+        "TSUNAMI_BEAR": "STRONG BEAR",
+        "SLEEPING": "SLEEPING",
+        "VOLATILE": "VOLATILE",
+        "CHOP": "NEUTRAL"
+    }
+    
+    market_state = state_map.get(c_verdict, "NEUTRAL")
+
+    # If Confluence is Neutral/Chop, we can check Health for a tie-breaker?
+    # Or just trust Confluence. Let's trust Confluence for consistency.
+    
     result = {
         "bullish_pct": round((bullish / len(screener_data)) * 100, 1) if screener_data else 0,
         "bearish_pct": round((bearish / len(screener_data)) * 100, 1) if screener_data else 0,
         "top_signals": top_signals,
-        "market_state": (
-            "STRONG BULL" if health['summary']['bullish_pct'] > 60 
-            else "STRONG BEAR" if health['summary']['bearish_pct'] > 60 
-            else "NEUTRAL"
-        )
+        "market_state": market_state
     }
     
     await RedisClient.set_json(cache_key, result, ttl=CACHE_TTL)
     return OracleSignalSummaryResponse(**result)
+
+
+@router.get("/trend-radar", response_model=TrendRadarResponse)
+async def get_trend_radar(limit: int = 50):
+    """The Trend God: Position relative to 200 EMA"""
+    cache_key = f"analytics:trend-radar:{limit}"
+    cached = await RedisClient.get_json(cache_key)
+    if cached: return TrendRadarResponse(**cached)
+    
+    symbols = await MarketDataService.get_top_symbols(limit=limit)
+    # Trend radar always needs Daily data for 200 EMA accuracy
+    df_data = await fetch_all_candles(symbols, timeframe="1d")
+    
+    radar = TrendRadar()
+    result = radar.analyze(df_data)
+    
+    await RedisClient.set_json(cache_key, result, ttl=CACHE_TTL)
+    return TrendRadarResponse(**result)
+
+@router.get("/structure", response_model=StructureResponse)
+async def get_market_structure(limit: int = 50):
+    """The Weekly Trap: Monday Range Analysis"""
+    cache_key = f"analytics:structure:{limit}"
+    cached = await RedisClient.get_json(cache_key)
+    if cached: return StructureResponse(data=[StructureItem(**i) for i in cached])
+    
+    symbols = await MarketDataService.get_top_symbols(limit=limit)
+    # Structure needs enough data to find Monday. 4H or 1H is good.
+    df_data = await fetch_all_candles(symbols, timeframe="1h", limit=168*2) # 2 weeks of 1h
+    
+    scanner = StructureScanner()
+    data = scanner.analyze(df_data)
+    
+    await RedisClient.set_json(cache_key, data, ttl=CACHE_TTL)
+    return StructureResponse(data=data)
+
+@router.get("/confluence", response_model=ConfluenceResponse)
+async def get_market_confluence(limit: int = 50):
+    """The Confluence Engine: Global Earnest Scores"""
+    # Reuse screener logic but aggregated
+    screener_key = f"analytics:screener:1h:{limit}"
+    screener_data = await RedisClient.get_json(screener_key)
+    
+    if not screener_data:
+        # If screener not cached, run it
+        symbols = await MarketDataService.get_top_symbols(limit=limit)
+        df_data = await fetch_all_candles(symbols, timeframe="1h")
+        btc_df = df_data.get("BTCUSDT", pd.DataFrame())
+        screener_data = run_oracle_screener(df_data, btc_df)
+    
+    aggregator = ConfluenceAggregator()
+    result = aggregator.analyze(screener_data)
+    
+    return ConfluenceResponse(**result)
 

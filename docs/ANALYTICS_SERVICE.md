@@ -12,6 +12,19 @@ The analytics engine focuses on five key dimensions of market data:
 4. **Volatility Exhaustion** (Contrarian Radar)
 5. **Relative Alpha** (Relative Strength)
 
+6. **Relative Alpha** (Relative Strength)
+
+## Detailed Documentation
+
+For a deep dive into the logic, thresholds, and trading actionable for each engine, read the dedicated guides:
+
+- **[The Trend God (Trend Radar)](./analytics/TREND_RADAR.md)**
+- **[The Weekly Trap (Structure)](./analytics/WEEKLY_TRAP.md)**
+- **[The Confluence Engine](./analytics/CONFLUENCE_ENGINE.md)**
+- **[Oracle Screener](./analytics/ORACLE_SCREENER.md)**
+- **[Market Health](./analytics/MARKET_HEALTH.md)**
+- **[Contrarian Radar](./analytics/CONTRARIAN_RADAR.md)**
+
 ## Core Components
 
 ### 1. Dynamic Market Data Service

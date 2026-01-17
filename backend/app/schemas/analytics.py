@@ -62,3 +62,39 @@ class OracleSignalSummaryResponse(BaseModel):
     bearish_pct: float
     top_signals: List[str] # e.g. ["SOL STRONG_BUY", "ETH BUY"]
     market_state: str
+
+# New Analytics Engines
+class TrendRadarItem(BaseModel):
+    symbol: str
+    price: float
+    ema200: float
+    distance_pct: float
+    status: str
+    volume: float
+
+class TrendRadarResponse(BaseModel):
+    map: List[TrendRadarItem]
+    buckets: Dict[str, List[str]]
+    summary: Dict[str, int]
+
+class StructureItem(BaseModel):
+    symbol: str
+    price: float
+    monday_high: float
+    monday_low: float
+    status: str
+    range_pct: float
+
+class StructureResponse(BaseModel):
+    data: List[StructureItem]
+
+class ConfluenceMetrics(BaseModel):
+    total_analyzed: int
+    sleeping_pct: float
+    bullish_pct: float
+    bearish_pct: float
+
+class ConfluenceResponse(BaseModel):
+    verdict: str
+    metrics: ConfluenceMetrics
+    score_distribution: Dict[int, int]

@@ -2,6 +2,24 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.5.3] - 2026-01-17
+
+### Added
+
+- **The Trend God (Trend Radar)**: New analytics engine and page (`/analytics`) visualizing the position of assets relative to their 200-Day EMA.
+  - **Netflix-Style UI**: Horizontal scrollable rows for each zone (Retesting, Trending, Overextended).
+  - **Live Metadata**: Integration with `useCoinMeta` for correct logo display.
+- **The Weekly Trap (Structure Scanner)**: New engine identifying Monday Range breakouts, breakdowns, and fakeouts.
+  - **Smart Money Detection**: specifically flags "Fakeout Lows" where price sweeps the Monday Low and reclaims it.
+- **The Confluence Engine**: Global Market State aggregator.
+  - **Sentiment Gauge**: Visualizes market-wide "Earnest Score" consensus (Sleeping vs Tsunami).
+- **Documentation**: Added comprehensive guides for all analytics engines in `docs/analytics/`.
+
+### Fixed
+
+- **Missing Icons**: Trend Radar and Structure Scanner now correctly load coin logos from the metadata cache.
+- **NameError Fix**: Resolved a crash in the Structure Scanner API endpoint due to a missing schema import.
+
 ## [0.5.2] - 2026-01-17
 
 ### Added

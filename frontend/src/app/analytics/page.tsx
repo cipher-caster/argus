@@ -1,14 +1,16 @@
 "use client";
 
-import { ContrarianRadar, MarketHealth, OracleScreener } from "@/components/analytics";
+import { ConfluenceGauge, ContrarianRadar, MarketHealth, OracleScreener, StructureScanner, TrendRadar } from "@/components/analytics";
 import { cn } from "@/lib/utils";
-import { Activity, Gauge, Info, LayoutGrid } from "lucide-react";
+import { Activity, BoxSelect, Gauge, Info, Layers, LayoutGrid } from "lucide-react";
 import { useState } from "react";
 
-type ChartType = "screener" | "market-health" | "contrarian-radar";
+type ChartType = "screener" | "market-health" | "contrarian-radar" | "trend-radar" | "structure";
 
 const MENU_ITEMS: { id: ChartType; label: string; icon: any }[] = [
   { id: "screener", label: "Oracle Screener", icon: LayoutGrid },
+  { id: "trend-radar", label: "Trend Radar (200D)", icon: Layers },
+  { id: "structure", label: "Weekly Structure", icon: BoxSelect },
   { id: "market-health", label: "Market Health", icon: Activity },
   { id: "contrarian-radar", label: "Contrarian Radar", icon: Gauge },
 ];
@@ -17,6 +19,14 @@ const CHART_INFO: Record<ChartType, { title: string; description: string }> = {
   screener: {
     title: "Oracle Screener",
     description: "Real-time AI analysis across the top 50 perpetual markets. Identifies trend alignment, momentum scores, and high-probability setups.",
+  },
+  "trend-radar": {
+    title: "The Trend God",
+    description: "Visualizes every coin's location relative to its 200-Day EMA. Identifies 'Retest' entries, 'Bullish' trends, and 'Overextended' risks.",
+  },
+  structure: {
+    title: "The Weekly Trap",
+    description: "Analyzes Monday's trading range to identify Breakouts (Trend Continuation) vs Traps (Chop). Filters out low-probability environments.",
   },
   "market-health": {
     title: "Market Health",
@@ -68,6 +78,9 @@ export default function AnalyticsPage() {
       <div className="grid grid-cols-1 lg:grid-cols-4 gap-6 items-start animate-in fade-in slide-in-from-bottom-4 duration-700">
         {/* Navigation Sidebar */}
         <aside className="lg:col-span-1 space-y-4 sticky top-8">
+          {/* Global Market State Widget */}
+          <ConfluenceGauge />
+
           <nav className="bg-secondary/30 rounded-2xl p-2 border border-border/50 backdrop-blur-sm">
             {MENU_ITEMS.map((item) => (
               <button
@@ -99,6 +112,8 @@ export default function AnalyticsPage() {
         <div className="lg:col-span-3 min-h-[500px] bg-secondary/10 rounded-3xl border border-border/30 overflow-hidden shadow-2xl shadow-black/20">
           <div className="p-6 md:p-8">
             {activeTab === "screener" && <OracleScreener timeframe={timeframe} />}
+            {activeTab === "trend-radar" && <TrendRadar />}
+            {activeTab === "structure" && <StructureScanner />}
             {activeTab === "market-health" && <MarketHealth timeframe={timeframe} />}
             {activeTab === "contrarian-radar" && <ContrarianRadar timeframe={timeframe} />}
           </div>

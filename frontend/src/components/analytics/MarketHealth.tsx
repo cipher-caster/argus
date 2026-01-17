@@ -41,8 +41,8 @@ export function MarketHealth({ timeframe = "1h", limit = 100 }: { timeframe?: st
                 <span className="text-xs font-bold text-green-500 uppercase tracking-wider">Bullish Regime</span>
                 <span className="text-sm font-black text-foreground">{summary.bullish_pct}%</span>
               </div>
-              <div className="h-3 w-full bg-secondary rounded-full overflow-hidden shadow-inner">
-                <div className="h-full bg-gradient-to-r from-green-500 to-emerald-300 shadow-[0_0_10px_rgba(34,197,94,0.4)] transition-all duration-1000 ease-out" style={{ width: `${summary.bullish_pct}%` }} />
+              <div className="h-2 w-full bg-secondary rounded-full overflow-hidden">
+                <div className="h-full bg-green-500 transition-all duration-1000 ease-out" style={{ width: `${summary.bullish_pct}%` }} />
               </div>
             </div>
 
@@ -51,8 +51,8 @@ export function MarketHealth({ timeframe = "1h", limit = 100 }: { timeframe?: st
                 <span className="text-xs font-bold text-red-500 uppercase tracking-wider">Bearish Regime</span>
                 <span className="text-sm font-black text-foreground">{summary.bearish_pct}%</span>
               </div>
-              <div className="h-3 w-full bg-secondary rounded-full overflow-hidden shadow-inner">
-                <div className="h-full bg-gradient-to-r from-red-600 to-rose-400 shadow-[0_0_10px_rgba(220,38,38,0.4)] transition-all duration-1000 ease-out" style={{ width: `${summary.bearish_pct}%` }} />
+              <div className="h-2 w-full bg-secondary rounded-full overflow-hidden">
+                <div className="h-full bg-red-500 transition-all duration-1000 ease-out" style={{ width: `${summary.bearish_pct}%` }} />
               </div>
             </div>
           </div>
@@ -85,9 +85,9 @@ export function MarketHealth({ timeframe = "1h", limit = 100 }: { timeframe?: st
           </div>
 
           <div className="grid grid-cols-3 gap-6 h-32 items-end px-2">
-            <VolBar label="STABLE" value={volatility.STABLE} color="bg-gradient-to-t from-blue-600 to-blue-400 group-hover:from-blue-500 group-hover:to-blue-300" shadow="shadow-blue-500/20" />
-            <VolBar label="ACTIVE" value={volatility.ACTIVE} color="bg-gradient-to-t from-green-600 to-green-400 group-hover:from-green-500 group-hover:to-green-300" shadow="shadow-green-500/20" />
-            <VolBar label="DANGER" value={volatility.DANGER} color="bg-gradient-to-t from-orange-600 to-orange-400 group-hover:from-orange-500 group-hover:to-orange-300" shadow="shadow-orange-500/20" />
+            <VolBar label="STABLE" value={volatility.STABLE} color="bg-blue-500" shadow="" />
+            <VolBar label="ACTIVE" value={volatility.ACTIVE} color="bg-green-500" shadow="" />
+            <VolBar label="DANGER" value={volatility.DANGER} color="bg-orange-500" shadow="" />
           </div>
         </div>
 

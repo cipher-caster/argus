@@ -174,6 +174,45 @@ export interface OracleSignalSummaryResponse {
   market_state: string;
 }
 
+export interface TrendRadarItem {
+  symbol: string;
+  price: number;
+  ema200: number;
+  distance_pct: number;
+  status: string;
+  volume: number;
+}
+
+export interface TrendRadarResponse {
+  map: TrendRadarItem[];
+  buckets: Record<string, string[]>;
+  summary: Record<string, number>;
+}
+
+export interface StructureItem {
+  symbol: string;
+  price: number;
+  monday_high: number;
+  monday_low: number;
+  status: string;
+  range_pct: number;
+}
+
+export interface StructureResponse {
+  data: StructureItem[];
+}
+
+export interface ConfluenceResponse {
+  verdict: string;
+  metrics: {
+    total_analyzed: number;
+    sleeping_pct: number;
+    bullish_pct: number;
+    bearish_pct: number;
+  };
+  score_distribution: Record<string, number>;
+}
+
 /**
  * Fetch supported analytics symbols
  */
@@ -238,6 +277,33 @@ export async function fetchMeanReversion(timeframe: string = "1h", limit: number
 export async function fetchOracleSignalSummary(): Promise<OracleSignalSummaryResponse> {
   const response = await fetch(`${API_URL}/api/analytics/signal-summary`);
   if (!response.ok) throw new Error("Failed to fetch signal summary");
+  return response.json();
+}
+
+/**
+ * Fetch Trend Radar
+ */
+export async function fetchTrendRadar(limit: number = 50): Promise<TrendRadarResponse> {
+  const response = await fetch(`${API_URL}/api/analytics/trend-radar?limit=${limit}`);
+  if (!response.ok) throw new Error("Failed to fetch trend radar");
+  return response.json();
+}
+
+/**
+ * Fetch Market Structure
+ */
+export async function fetchStructure(limit: number = 50): Promise<StructureResponse> {
+  const response = await fetch(`${API_URL}/api/analytics/structure?limit=${limit}`);
+  if (!response.ok) throw new Error("Failed to fetch structure");
+  return response.json();
+}
+
+/**
+ * Fetch Confluence State
+ */
+export async function fetchConfluence(limit: number = 50): Promise<ConfluenceResponse> {
+  const response = await fetch(`${API_URL}/api/analytics/confluence?limit=${limit}`);
+  if (!response.ok) throw new Error("Failed to fetch confluence");
   return response.json();
 }
 

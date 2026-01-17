@@ -74,4 +74,25 @@ class MarketDataService:
         else: # Default market_cap
             data.sort(key=lambda x: x.get('market_cap' or 0) or 0, reverse=True)
             
+        # Filter against active Binance symbols to ensure we only return tradeable assets
+        from app.providers.binance_provider import BinanceProvider
+        provider = BinanceProvider()
+        try:
+            active_symbols_info = await provider.get_symbols()
+            active_symbols = {s.symbol for s in active_symbols_info}
+            
+            # Filter data
+            filtered_data = [item for item in data if item['symbol'] in active_symbols]
+            
+            # If filtration emptied the list (e.g. provider error), fallback to raw data
+            # but ideally we want strict filtering.
+            if filtered_data:
+                data = filtered_data
+                
+        except Exception as e:
+            # excessive logging might be noisy, but good for debugging
+            pass
+        finally:
+            await provider.close()
+            
         return [item['symbol'] for item in data[:limit]]
