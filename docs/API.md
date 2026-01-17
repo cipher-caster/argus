@@ -20,21 +20,48 @@ Fetches historical candlestick data.
   - `limit` (query): Number of candles (max 1000)
   - `end_timestamp` (query, optional): Fetch candles before this timestamp (ms)
 
-### Get Market Coins / Tickers
+### Get Market Coins
 
-`GET /market/tickers`
+`GET /market/coins`
 
-Returns the merged market data list (Snapshot + Live Overlay).
+Returns the paginated and sorted merged market data list (Snapshot + Live Overlay).
 
-**Response Fields**:
+**Query Parameters:**
 
+- `page`: Page number (default 1)
+- `page_size`: Items per page (default 50)
+- `search`: Filter by symbol string
+- `sort_by`: `market_cap` (default), `price`, `volume_24h`, `change_1h`, `change_24h`, `change_7d`
+- `sort_order`: `desc` (default) or `asc`
+
+**Response Fields (CoinInfo):**
+
+- `rank`: Market cap rank
 - `symbol`: e.g. "BTC/USDT"
-- `price`: Current price (Live Binance or Snapshot)
+- `name`: Full name
+- `price`: Current price
+- `change_1h`: 1h % change
 - `change_24h`: 24h % change
+- `change_7d`: 7d % change
 - `market_cap`: Market capitalization
 - `volume_24h`: 24h Volume
-- `sparkline_in_7d`: [Array of 168 floats] (7-day history)
+- `sparkline_in_7d`: [Array of 168 floats]
 - `image`: URL to logo
+- `high_24h`: 24h high price
+- `low_24h`: 24h low price
+
+### Get Market Summary
+
+`GET /market/summary`
+
+Returns top performers and aggregate stats.
+
+**Response Fields:**
+
+- `total_coins`: Count of coins in registry
+- `top_gainers`: List of top 5 gainers (CoinInfo)
+- `top_losers`: List of top 5 losers (CoinInfo)
+- `top_volume`: List of top 5 volume leaders (CoinInfo)
 
 `GET /ticker/{symbol}`
 Returns the current price and metadata for a single symbol.

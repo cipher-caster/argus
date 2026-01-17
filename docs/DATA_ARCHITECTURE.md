@@ -30,10 +30,12 @@ graph TB
 
     subgraph "Background Jobs (Arq Worker)"
         Worker[sync_market_summary<br/>Every 30s]
+        CGWorker[sync_market_snapshot<br/>Every 5m]
     end
 
     subgraph "External APIs"
         Binance[Binance API]
+        CoinGecko[CoinGecko API]
     end
 
     UI --> RQ
@@ -60,7 +62,9 @@ graph TB
 **Pattern**: Periodic Snapshot (CoinGecko) + Real-Time Overlay (Binance)
 **Storage**: Redis
 
-This architecture solves the "Coverage vs Speed" dilemma. We use CoinGecko for broad coverage (1000+ coins, metadata) and Binance for real-time speed (top 300 coins).
+This architecture solves the "Coverage vs Speed" dilemma. We use CoinGecko for broad coverage (Top 250 coins, rich metadata, 1h/7d changes) and Binance for real-time speed (Top 250 symbols).
+
+**Optimization**: We limit fetching to the Top 250 coins (1 page of CoinGecko API) to significantly reduce resource usage and hit rate limits less frequently.
 
 ```mermaid
 graph LR
@@ -81,8 +85,8 @@ graph LR
     CG --"Every 5 mins (Base state)"--> Snapshot
     BN --"Every 30s (Live prices)"--> Live
 
-    API --"Reads & Merges"--> Snapshot
-    API --"Reads & Merges"--> Live
+    API --"Deduplicates & Merges"--> Snapshot
+    API --"Deduplicates & Merges"--> Live
 
     Snapshot --"Merged Response"--> API
     Live --"Merged Response"--> API
@@ -232,13 +236,13 @@ sequenceDiagram
 
 ### ✅ Patterns We Follow
 
-| Pattern                             | Implementation                               |
-| ----------------------------------- | -------------------------------------------- |
-| **CQRS** (Command Query Separation) | Worker writes, API reads                     |
-| **Event-Driven Architecture**       | Jobs triggered by scheduler/API              |
-| **Cache-Aside Pattern**             | API reads cache first, fetches on miss       |
-| **Lazy Loading**                    | Data fetched only when user scrolls          |
-| **Optimistic UI**                   | Chart preserves scroll position during loads |
+| Pattern                       | Implementation                               |
+| ----------------------------- | -------------------------------------------- |
+| **CQRS**                      | Worker writes, API reads                     |
+| **Event-Driven Architecture** | Jobs triggered by scheduler/API              |
+| **Cache-Aside Pattern**       | API reads cache first, fetches on miss       |
+| **Lazy Loading**              | Data fetched only when user scrolls          |
+| **Optimistic UI**             | Chart preserves scroll position during loads |
 
 ### ✅ Best Practices
 

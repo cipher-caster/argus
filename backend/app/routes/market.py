@@ -56,6 +56,9 @@ class MarketSummaryResponse(BaseModel):
     """Market summary statistics"""
     total_coins: int
     provider: str
+    top_gainers: List[CoinInfo] = []
+    top_losers: List[CoinInfo] = []
+    top_volume: List[CoinInfo] = []
 
 
 # Provider instance will be injected from main.py
@@ -255,13 +258,35 @@ async def get_provider_info():
 async def get_market_summary():
     """Get market summary statistics from Redis"""
     try:
-        data = await RedisClient.get_json("market:tickers")
+        data = await RedisClient.get_json("market:summary")
+        # data is dict with keys: total_coins, updated_at, top_gainers (list dict), top_losers, top_volume
+        
         if not data:
              return MarketSummaryResponse(total_coins=0, provider="cache-empty")
-             
+
+        def map_tickers(tickers):
+            if not tickers: return []
+            return [
+                CoinInfo(
+                    rank=0,
+                    symbol=t['symbol'],
+                    name=t['symbol'].split('/')[0],
+                    price=t['price'],
+                    change_24h=t.get('change_24h'),
+                    volume_24h=t.get('volume_24h'),
+                    high_24h=t.get('high_24h'),
+                    low_24h=t.get('low_24h'),
+                    market_cap=0, 
+                    image=None
+                ) for t in tickers
+            ]
+
         return MarketSummaryResponse(
-            total_coins=len(data),
-            provider="redis-cache"
+            total_coins=data.get('total_coins', 0),
+            provider="redis-cache",
+            top_gainers=map_tickers(data.get('gainers', [])),
+            top_losers=map_tickers(data.get('losers', [])),
+            top_volume=map_tickers(data.get('top_volume', []))
         )
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to fetch summary: {str(e)}")
@@ -286,6 +311,11 @@ async def _get_merged_market_data():
     for coin in snapshot:
         symbol = coin.get('symbol')
         if not symbol: continue
+        
+        # Prevent duplicates from CoinGecko (e.g. multiple coins resolving to same symbol)
+        if symbol in processed_symbols:
+            continue
+        
         processed_symbols.add(symbol)
         
         # Overlay live data if available
@@ -338,7 +368,7 @@ async def get_coins(
     page: int = Query(default=1, ge=1),
     page_size: int = Query(default=50, ge=10, le=100),
     search: Optional[str] = Query(default=None),
-    sort_by: str = Query(default="market_cap", pattern="^(symbol|price|volume_24h|change_24h|market_cap)$"),
+    sort_by: str = Query(default="market_cap", pattern="^(symbol|price|volume_24h|change_1h|change_24h|change_7d|market_cap)$"),
     sort_order: str = Query(default="desc", pattern="^(asc|desc)$")
 ):
     """
@@ -379,8 +409,12 @@ async def get_coins(
         reverse = sort_order == "desc"
         if sort_by == 'price':
             coins.sort(key=lambda x: x.price or 0, reverse=reverse)
+        elif sort_by == 'change_1h':
+            coins.sort(key=lambda x: x.change_1h or 0, reverse=reverse)
         elif sort_by == 'change_24h':
             coins.sort(key=lambda x: x.change_24h or 0, reverse=reverse)
+        elif sort_by == 'change_7d':
+            coins.sort(key=lambda x: x.change_7d or 0, reverse=reverse)
         elif sort_by == 'volume_24h':
             coins.sort(key=lambda x: x.volume_24h or 0, reverse=reverse)
         elif sort_by == 'market_cap':

@@ -74,7 +74,11 @@ function CoinTableComponent({ coins, isLoading, sortBy, sortOrder, onSort }: Coi
               </div>
             </th>
             <th className="px-4 py-3 text-[11px] font-bold text-muted-foreground uppercase tracking-wider text-right">1h</th>
-            <th className="px-4 py-3 text-[11px] font-bold text-muted-foreground uppercase tracking-wider text-right">24h</th>
+            <th className="px-4 py-3 text-[11px] font-bold text-muted-foreground uppercase tracking-wider text-right cursor-pointer select-none hover:text-foreground transition-colors" onClick={() => onSort("change_24h")}>
+              <div className="flex items-center justify-end">
+                24h <SortIcon field="change_24h" />
+              </div>
+            </th>
             <th className="px-4 py-3 text-[11px] font-bold text-muted-foreground uppercase tracking-wider text-right">7d</th>
             <th className="px-4 py-3 text-[11px] font-bold text-muted-foreground uppercase tracking-wider text-right cursor-pointer select-none hover:text-foreground transition-colors" onClick={() => onSort("volume_24h")}>
               <div className="flex items-center justify-end">

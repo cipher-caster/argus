@@ -10,15 +10,28 @@ import { MarketIndicators } from "@/components/features/dashboard/MarketIndicato
 import { TopCoinsWidgets } from "@/components/features/dashboard/TopCoinsWidgets";
 import { useProvider } from "@/hooks/useMarketData";
 import { useCoins, useMarketSummary } from "@/hooks/useMarketOverview";
-import { useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
+import { useEffect, useState } from "react";
 
 import { ChevronLeft, ChevronRight } from "lucide-react";
 
 export default function MarketOverview() {
+  const router = useRouter();
+  const searchParams = useSearchParams();
+
+  // State: Initialize from URL on creation
   const [page, setPage] = useState(1);
-  const [sortBy, setSortBy] = useState("market_cap");
-  const [sortOrder, setSortOrder] = useState<"asc" | "desc">("desc");
+  const [sortBy, setSortBy] = useState(() => searchParams.get("sort_by") || "market_cap");
+  const [sortOrder, setSortOrder] = useState<"asc" | "desc">(() => (searchParams.get("sort_order") as "asc" | "desc") || "desc");
   const pageSize = 50;
+
+  // Cleanup URL on mount if it contains sort params (as requested)
+  useEffect(() => {
+    if (searchParams.has("sort_by") || searchParams.has("sort_order")) {
+      // Clean URL without triggering a re-render/refetch via Next.js router
+      window.history.replaceState({}, "", window.location.pathname);
+    }
+  }, []);
 
   const { data: providerData } = useProvider();
   const { data: summary } = useMarketSummary();
@@ -30,12 +43,16 @@ export default function MarketOverview() {
   });
 
   const handleSort = (field: string) => {
+    let newOrder: "asc" | "desc" = "desc";
     if (sortBy === field) {
-      setSortOrder(sortOrder === "asc" ? "desc" : "asc");
+      newOrder = sortOrder === "asc" ? "desc" : "asc";
     } else {
-      setSortBy(field);
-      setSortOrder("desc");
+      newOrder = "desc"; // Default to desc for new field
     }
+
+    // Update Local State ONLY (Instant Feedback, Clean URL)
+    setSortBy(field);
+    setSortOrder(newOrder);
     setPage(1);
   };
 
@@ -53,7 +70,7 @@ export default function MarketOverview() {
         {/* Widgets Section */}
         <section className="space-y-4 animate-in fade-in slide-in-from-bottom-4 duration-700 delay-100">
           <h2 className="text-2xl font-extrabold tracking-tight">Data Analysis</h2>
-          <TopCoinsWidgets coins={coinsData?.coins || []} isLoading={isLoading} />
+          <TopCoinsWidgets gainers={summary?.top_gainers || []} losers={summary?.top_losers || []} volume={summary?.top_volume || []} isLoading={!summary} />
         </section>
 
         {/* Main Table */}

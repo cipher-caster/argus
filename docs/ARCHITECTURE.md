@@ -62,7 +62,7 @@ graph TD
 ## Data Flow
 
 1.  **Ingestion**:
-    - **Scheduled**: "Top 100 Coins" metadata fetched every 60s. Live prices cached every 5s.
+    - **Scheduled**: "Top 250 Coins" metadata fetched every 5m. Live prices and market summary calculated/cached every 30s.
     - **On-Demand**: When a user views a chart, the API triggers a "Backfill" job if data is missing.
 2.  **Storage**:
     - Hot data (Price, % Change) lives in **Redis** for <5ms access.

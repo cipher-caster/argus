@@ -2,7 +2,21 @@
 
 All notable changes to this project will be documented in this file.
 
-## [0.4.0] - Unreleased
+## [0.4.5] - 2026-01-17
+
+### Added
+
+- **24h Change Sorting**: Enabled sorting on the "24h" column in the main coin table.
+- **Support for Multi-Timeframe Change**: Backend `/api/market/coins` now supports sorting by `change_1h` and `change_7d`.
+
+### Fixed
+
+- **Dashboard Sorting State Bug**: Resolved a critical issue where table sorting would incorrectly affect "Top Gainers/Losers" widgets. Widgets are now fully decoupled and pull from a dedicated `/api/market/summary` endpoint.
+- **Duplicate React Keys**: Fixed "Duplicate Children with Key" console warnings by implementing symbol deduplication in the backend's data-merging logic (handling multiple blockchain versions of coins like DAI/WETH).
+- **URL Parameter Cleanup**: Implemented a "Clean URL" strategy. Sorting states are initialized from URL parameters (allowing widget-to-table links) but are immediately cleaned from the address bar to prevent clutter and ensure manual refreshes reset to the default view.
+- **Widget Navigation**: Fixed "View More" links in Top Gainers/Losers/Volume widgets to correctly deep-link into the main table with corresponding sort parameters.
+
+## [0.4.0] - 2026-01-15
 
 ### Added
 

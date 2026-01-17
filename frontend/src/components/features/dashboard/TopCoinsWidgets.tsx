@@ -6,25 +6,26 @@ import Link from "next/link";
 import { memo } from "react";
 
 interface TopCoinsWidgetsProps {
-  coins: CoinInfo[];
+  gainers: CoinInfo[];
+  losers: CoinInfo[];
+  volume: CoinInfo[];
   isLoading: boolean;
 }
 
 import { formatChange, formatPrice, formatVolume } from "@/lib/formatters";
 import { cn } from "@/lib/utils";
 
-function TopCoinsWidgetsComponent({ coins, isLoading }: TopCoinsWidgetsProps) {
+function TopCoinsWidgetsComponent({ gainers, losers, volume, isLoading }: TopCoinsWidgetsProps) {
   const { coinMeta } = useCoinMeta();
-
-  const getTopGainers = () => [...coins].sort((a, b) => (b.change_24h || 0) - (a.change_24h || 0)).slice(0, 5);
-  const getTopLosers = () => [...coins].sort((a, b) => (a.change_24h || 0) - (b.change_24h || 0)).slice(0, 5);
-  const getTopVolume = () => [...coins].sort((a, b) => (b.volume_24h || 0) - (a.volume_24h || 0)).slice(0, 5);
 
   const CoinList = ({ title, data, type }: { title: string; data: CoinInfo[]; type: "gain" | "loss" | "vol" }) => (
     <div className="bg-secondary border border-border rounded-2xl p-5 flex-1 min-w-[320px] shadow-sm">
       <div className="flex justify-between items-center mb-6">
         <span className="text-[15px] font-extrabold text-foreground tracking-tight">{title}</span>
-        <Link href={`/markets/${type === "gain" ? "gainers" : type === "loss" ? "losers" : "volume"}`} className="text-[12px] font-bold text-muted-foreground hover:text-primary transition-colors no-underline">
+        <Link
+          href={type === "gain" ? "/?sort_by=change_24h&sort_order=desc" : type === "loss" ? "/?sort_by=change_24h&sort_order=asc" : "/?sort_by=volume_24h&sort_order=desc"}
+          className="text-[12px] font-bold text-muted-foreground hover:text-primary transition-colors no-underline"
+        >
           View More &gt;
         </Link>
       </div>
@@ -50,7 +51,7 @@ function TopCoinsWidgetsComponent({ coins, isLoading }: TopCoinsWidgetsProps) {
     </div>
   );
 
-  if (isLoading || coins.length === 0)
+  if (isLoading)
     return (
       <div className="flex flex-wrap gap-4 mb-8">
         {[1, 2, 3].map((i) => (
@@ -61,9 +62,9 @@ function TopCoinsWidgetsComponent({ coins, isLoading }: TopCoinsWidgetsProps) {
 
   return (
     <div className="flex flex-wrap gap-4 mb-8">
-      <CoinList title="Top Gainers" data={getTopGainers()} type="gain" />
-      <CoinList title="Top Losers" data={getTopLosers()} type="loss" />
-      <CoinList title="Volume Leaders" data={getTopVolume()} type="vol" />
+      <CoinList title="Top Gainers" data={gainers.slice(0, 5)} type="gain" />
+      <CoinList title="Top Losers" data={losers.slice(0, 5)} type="loss" />
+      <CoinList title="Volume Leaders" data={volume.slice(0, 5)} type="vol" />
     </div>
   );
 }

@@ -30,6 +30,9 @@ export interface CoinsResponse {
 export interface MarketSummary {
   total_coins: number;
   provider: string;
+  top_gainers: CoinInfo[];
+  top_losers: CoinInfo[];
+  top_volume: CoinInfo[];
 }
 
 /**
