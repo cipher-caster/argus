@@ -32,7 +32,7 @@ function MarketIndicatorsComponent() {
   const domTitle = isMarketCap ? "Market Cap Share" : "Volume Share";
 
   return (
-    <div className="flex flex-wrap gap-4 mb-6">
+    <div className="flex flex-wrap gap-4">
       {/* BTC Volatility Card */}
       <IndicatorCard
         title="BTC Volatility"

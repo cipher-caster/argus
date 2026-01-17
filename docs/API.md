@@ -84,10 +84,63 @@ Returns open interest history.
 
 - **Period**: `5m`, `15m`, `1h`, `4h`, `1d`
 
-### Long/Short Ratio
+### Oracle Screener
 
-`GET /analytics/long-short-ratio/{symbol}`
-Returns global account long/short ratio.
+`GET /analytics/screener`
+Returns AI/Quant analysis for the top coins.
+
+**Query Parameters:**
+
+- `limit`: Number of coins (default 50)
+- `timeframe`: `1h`, `4h`, `1d` (default `1h`)
+
+### Market Health
+
+`GET /analytics/market-health`
+Aggregate market sentiment and volatility stats.
+
+**Query Parameters:**
+
+- `limit`: Number of coins (default 100)
+- `timeframe`: `1h`, `4h`, `1d` (default `1h`)
+
+### Liquidity Sweeps
+
+`GET /analytics/liquidity-sweeps`
+Identifies active SFP (Swing Failure Pattern) setups.
+
+**Query Parameters:**
+
+- `limit`: Number of coins (default 50)
+- `timeframe`: `1h`, `4h`, `1d` (default `1h`)
+
+### Relative Strength
+
+`GET /analytics/relative-strength`
+Compares altcoin performance vs BTC benchmark.
+
+**Query Parameters:**
+
+- `limit`: Number of coins (default 50)
+- `timeframe`: `1h`, `4h`, `1d` (default `1h`)
+
+### Contrarian Radar
+
+`GET /analytics/contrarian-radar`
+Identifies coins overextended from their mean (EMA).
+
+**Query Parameters:**
+
+- `limit`: Number of coins (default 50)
+- `timeframe`: `1h`, `4h`, `1d` (default `1h`)
+
+### Signal Summary
+
+`GET /analytics/signal-summary`
+High-level market overview for the dashboard.
+
+- Analyzes Top 20 symbols.
+- Returns bullish/bearish percentages and top signals strings.
 
 ---
 

@@ -94,113 +94,150 @@ export async function fetchProviderInfo(): Promise<{ provider: string }> {
 
 // --- Analytics Types ---
 
-export interface FundingRatePoint {
-  symbol: string;
-  timestamp: number;
-  funding_rate: number;
-}
-
-export interface FundingRateResponse {
-  symbol: string;
-  data: FundingRatePoint[];
-}
-
-export interface OpenInterestPoint {
-  symbol: string;
-  timestamp: number;
-  open_interest: number;
-  open_interest_value: number;
-}
-
-export interface OpenInterestResponse {
-  symbol: string;
-  data: OpenInterestPoint[];
-}
-
-export interface LongShortRatioPoint {
-  symbol: string;
-  timestamp: number;
-  long_account: number;
-  short_account: number;
-  long_short_ratio: number;
-}
-
-export interface LongShortRatioResponse {
-  symbol: string;
-  data: LongShortRatioPoint[];
-}
-
 export interface AnalyticsSymbolsResponse {
   symbols: string[];
   default: string;
 }
 
-/**
- * Fetch funding rate history
- */
-export async function fetchFundingRate(symbol: string = "BTCUSDT", limit: number = 100): Promise<FundingRateResponse> {
-  const params = new URLSearchParams({
-    symbol,
-    limit: limit.toString(),
-  });
-
-  const response = await fetch(`${API_URL}/api/analytics/funding-rate?${params}`);
-
-  if (!response.ok) {
-    throw new Error(`Failed to fetch funding rate: ${response.statusText}`);
-  }
-
-  return response.json();
+export interface ScreenerItem {
+  symbol: string;
+  price: number;
+  score: number;
+  confidence: string;
+  bias: string;
+  state: string;
+  liquidity: string;
+  strength_vs_btc: string;
+  opportunity: string;
+  advice: string;
 }
 
-/**
- * Fetch open interest history
- */
-export async function fetchOpenInterest(symbol: string = "BTCUSDT", period: string = "1h", limit: number = 100): Promise<OpenInterestResponse> {
-  const params = new URLSearchParams({
-    symbol,
-    period,
-    limit: limit.toString(),
-  });
-
-  const response = await fetch(`${API_URL}/api/analytics/open-interest?${params}`);
-
-  if (!response.ok) {
-    throw new Error(`Failed to fetch open interest: ${response.statusText}`);
-  }
-
-  return response.json();
+export interface ScreenerResponse {
+  data: ScreenerItem[];
 }
 
-/**
- * Fetch long/short ratio history
- */
-export async function fetchLongShortRatio(symbol: string = "BTCUSDT", period: string = "1h", limit: number = 100): Promise<LongShortRatioResponse> {
-  const params = new URLSearchParams({
-    symbol,
-    period,
-    limit: limit.toString(),
-  });
+export interface MarketHealthResponse {
+  summary: {
+    total_coins: number;
+    bullish_pct: number;
+    bearish_pct: number;
+    squeezing_pct: number;
+  };
+  volatility: {
+    DANGER: number;
+    ACTIVE: number;
+    STABLE: number;
+  };
+}
 
-  const response = await fetch(`${API_URL}/api/analytics/long-short-ratio?${params}`);
+export interface LiquiditySweepItem {
+  symbol: string;
+  bull_sweep: boolean;
+  bear_sweep: boolean;
+  swept_level: number;
+  type: string;
+}
 
-  if (!response.ok) {
-    throw new Error(`Failed to fetch long/short ratio: ${response.statusText}`);
-  }
+export interface LiquiditySweepResponse {
+  data: LiquiditySweepItem[];
+}
 
-  return response.json();
+export interface RelativeStrengthItem {
+  symbol: string;
+  performance_relative_pct: number;
+  strength: string;
+  current_ratio: number;
+}
+
+export interface RelativeStrengthResponse {
+  data: RelativeStrengthItem[];
+}
+
+export interface MeanReversionItem {
+  symbol: string;
+  is_extended: boolean;
+  extension_atr: number;
+  opportunity: string;
+  price: number;
+  mean: number;
+  target: number;
+}
+
+export interface MeanReversionResponse {
+  data: MeanReversionItem[];
+}
+
+export interface OracleSignalSummaryResponse {
+  bullish_pct: number;
+  bearish_pct: number;
+  top_signals: string[];
+  market_state: string;
 }
 
 /**
  * Fetch supported analytics symbols
  */
-export async function fetchAnalyticsSymbols(): Promise<AnalyticsSymbolsResponse> {
-  const response = await fetch(`${API_URL}/api/analytics/symbols`);
+export async function fetchAnalyticsSymbols(limit: number = 20): Promise<AnalyticsSymbolsResponse> {
+  const response = await fetch(`${API_URL}/api/analytics/symbols?limit=${limit}`);
 
   if (!response.ok) {
     throw new Error(`Failed to fetch analytics symbols: ${response.statusText}`);
   }
 
+  return response.json();
+}
+
+/**
+ * Fetch Oracle Screener results
+ */
+export async function fetchOracleScreener(timeframe: string = "1h", limit: number = 50): Promise<ScreenerResponse> {
+  const response = await fetch(`${API_URL}/api/analytics/screener?timeframe=${timeframe}&limit=${limit}`);
+  if (!response.ok) throw new Error("Failed to fetch screener");
+  return response.json();
+}
+
+/**
+ * Fetch Market Health metrics
+ */
+export async function fetchMarketHealth(timeframe: string = "1h", limit: number = 100): Promise<MarketHealthResponse> {
+  const response = await fetch(`${API_URL}/api/analytics/market-health?timeframe=${timeframe}&limit=${limit}`);
+  if (!response.ok) throw new Error("Failed to fetch market health");
+  return response.json();
+}
+
+/**
+ * Fetch Liquidity Sweeps
+ */
+export async function fetchLiquiditySweeps(timeframe: string = "1h", limit: number = 50): Promise<LiquiditySweepResponse> {
+  const response = await fetch(`${API_URL}/api/analytics/liquidity-sweeps?timeframe=${timeframe}&limit=${limit}`);
+  if (!response.ok) throw new Error("Failed to fetch sweeps");
+  return response.json();
+}
+
+/**
+ * Fetch Relative Strength data
+ */
+export async function fetchRelativeStrength(timeframe: string = "1h", limit: number = 50): Promise<RelativeStrengthResponse> {
+  const response = await fetch(`${API_URL}/api/analytics/relative-strength?timeframe=${timeframe}&limit=${limit}`);
+  if (!response.ok) throw new Error("Failed to fetch relative strength");
+  return response.json();
+}
+
+/**
+ * Fetch Mean Reversion (Contrarian Radar) data
+ */
+export async function fetchMeanReversion(timeframe: string = "1h", limit: number = 50): Promise<MeanReversionResponse> {
+  const response = await fetch(`${API_URL}/api/analytics/contrarian-radar?timeframe=${timeframe}&limit=${limit}`);
+  if (!response.ok) throw new Error("Failed to fetch radar");
+  return response.json();
+}
+
+/**
+ * Fetch Oracle Signal Summary for Dashboard
+ */
+export async function fetchOracleSignalSummary(): Promise<OracleSignalSummaryResponse> {
+  const response = await fetch(`${API_URL}/api/analytics/signal-summary`);
+  if (!response.ok) throw new Error("Failed to fetch signal summary");
   return response.json();
 }
 

@@ -2,46 +2,63 @@
 Futures analytics data schemas
 """
 from pydantic import BaseModel
-from typing import List
+from typing import List, Optional, Dict, Any
 
 
-class FundingRatePoint(BaseModel):
-    """Single funding rate data point"""
+# New Analytics Schemas
+
+class ScreenerItem(BaseModel):
     symbol: str
-    timestamp: int  # milliseconds
-    funding_rate: float
+    price: float
+    score: int
+    confidence: str
+    bias: str
+    state: str
+    liquidity: str
+    strength_vs_btc: str
+    opportunity: str
+    advice: str
 
+class ScreenerResponse(BaseModel):
+    data: List[ScreenerItem]
 
-class OpenInterestPoint(BaseModel):
-    """Open interest at a point in time"""
+class MarketHealthResponse(BaseModel):
+    summary: Dict[str, Any]
+    volatility: Dict[str, Any]
+
+class LiquiditySweepItem(BaseModel):
     symbol: str
-    timestamp: int  # milliseconds
-    open_interest: float  # in contracts
-    open_interest_value: float  # in USD
+    bull_sweep: bool
+    bear_sweep: bool
+    swept_level: Optional[float]
+    type: Optional[str]
 
+class LiquiditySweepResponse(BaseModel):
+    data: List[LiquiditySweepItem]
 
-class LongShortRatioPoint(BaseModel):
-    """Long/Short ratio at a point in time"""
+class RelativeStrengthItem(BaseModel):
     symbol: str
-    timestamp: int  # milliseconds
-    long_account: float
-    short_account: float
-    long_short_ratio: float
+    performance_relative_pct: float
+    strength: str
+    current_ratio: float
 
+class RelativeStrengthResponse(BaseModel):
+    data: List[RelativeStrengthItem]
 
-class FundingRateResponse(BaseModel):
-    """Funding rate history response"""
+class MeanReversionItem(BaseModel):
     symbol: str
-    data: List[FundingRatePoint]
+    is_extended: bool
+    extension_atr: float
+    opportunity: str
+    price: float
+    mean: float
+    target: float
 
+class MeanReversionResponse(BaseModel):
+    data: List[MeanReversionItem]
 
-class OpenInterestResponse(BaseModel):
-    """Open interest history response"""
-    symbol: str
-    data: List[OpenInterestPoint]
-
-
-class LongShortRatioResponse(BaseModel):
-    """Long/Short ratio history response"""
-    symbol: str
-    data: List[LongShortRatioPoint]
+class OracleSignalSummaryResponse(BaseModel):
+    bullish_pct: float
+    bearish_pct: float
+    top_signals: List[str] # e.g. ["SOL STRONG_BUY", "ETH BUY"]
+    market_state: str

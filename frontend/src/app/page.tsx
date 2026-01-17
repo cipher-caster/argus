@@ -8,6 +8,7 @@
 import { CoinTable } from "@/components/features/dashboard/CoinTable";
 import { MarketIndicators } from "@/components/features/dashboard/MarketIndicators";
 import { TopCoinsWidgets } from "@/components/features/dashboard/TopCoinsWidgets";
+import { OracleSignalSummary } from "@/components/OracleSignalSummary";
 import { useProvider } from "@/hooks/useMarketData";
 import { useCoins, useMarketSummary } from "@/hooks/useMarketOverview";
 import { useRouter, useSearchParams } from "next/navigation";
@@ -63,8 +64,13 @@ export default function MarketOverview() {
       {/* Main Content */}
       <main className="max-w-[1440px] mx-auto p-6 md:p-8 space-y-10">
         {/* Market Indicators */}
-        <section className="animate-in fade-in slide-in-from-bottom-2 duration-500">
-          <MarketIndicators />
+        <section className="grid grid-cols-1 lg:grid-cols-3 gap-6 animate-in fade-in slide-in-from-bottom-2 duration-500">
+          <div className="lg:col-span-2 h-full">
+            <MarketIndicators />
+          </div>
+          <div className="lg:col-span-1 h-full">
+            <OracleSignalSummary />
+          </div>
         </section>
 
         {/* Widgets Section */}

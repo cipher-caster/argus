@@ -11,6 +11,7 @@ from sqlmodel import select
 from app.providers import Candle as ProviderCandle, SymbolInfo
 from app.storage import RedisClient, Database
 from app.schemas.candle import Candle as DbCandle
+from app.services.market_data import MarketDataService
 
 router = APIRouter(prefix="/api", tags=["market"])
 
@@ -292,69 +293,11 @@ async def get_market_summary():
         raise HTTPException(status_code=500, detail=f"Failed to fetch summary: {str(e)}")
 
 
-async def _get_merged_market_data():
-    """
-    Merge base market state (CoinGecko Snapshot) with live prices (Binance).
-    Returns list of rich ticker dicts.
-    """
-    # 1. Fetch Snapshot (Base: Rich metadata, 5m old)
-    snapshot = await RedisClient.get_json("market:snapshot") or []
-    
-    # 2. Fetch Live (Overlay: Fast prices, 30s old)
-    live_tickers = await RedisClient.get_json("market:tickers") or []
-    live_map = {t['symbol']: t for t in live_tickers}
-    
-    merged = []
-    processed_symbols = set()
-    
-    # 3. Process Snapshot (Base)
-    for coin in snapshot:
-        symbol = coin.get('symbol')
-        if not symbol: continue
-        
-        # Prevent duplicates from CoinGecko (e.g. multiple coins resolving to same symbol)
-        if symbol in processed_symbols:
-            continue
-        
-        processed_symbols.add(symbol)
-        
-        # Overlay live data if available
-        if symbol in live_map:
-            live = live_map[symbol]
-            coin['price'] = live.get('price', coin['price'])
-            # Only override if live has values
-            coin['change_24h'] = live.get('change_24h', coin.get('change_24h'))
-            coin['volume_24h'] = live.get('volume_24h', coin.get('volume_24h'))
-            coin['high_24h'] = live.get('high_24h')
-            coin['low_24h'] = live.get('low_24h')
-            # Sparkline comes from snapshot (Base), so it stays
-            
-        merged.append(coin)
-        
-    # 4. Add Live Orphans (Tickers in Binance not in CoinGecko snapshot)
-    for symbol, live in live_map.items():
-        if symbol not in processed_symbols:
-            merged.append({
-                "symbol": symbol,
-                "name": symbol.split('/')[0],
-                "price": live.get('price', 0),
-                "change_24h": live.get('change_24h', 0),
-                "volume_24h": live.get('volume_24h', 0),
-                "high_24h": live.get('high_24h', 0),
-                "low_24h": live.get('low_24h', 0),
-                "market_cap": 0,
-                "rank": 9999, # Rank bottom
-                "image": None
-            })
-            
-    return merged
-
-
 @router.get("/market/tickers")
 async def get_market_tickers():
     """Get all tickers from merged cache (Base + Live)"""
     try:
-        data = await _get_merged_market_data()
+        data = await MarketDataService.get_merged_market_data()
         if not data:
              return {"tickers": [], "provider": "cache-empty"}
              
@@ -376,7 +319,7 @@ async def get_coins(
     """
     try:
         # Fetch fulll merged list
-        raw_data = await _get_merged_market_data()
+        raw_data = await MarketDataService.get_merged_market_data()
         if not raw_data:
             return CoinsResponse(coins=[], total=0, page=page, page_size=page_size)
             

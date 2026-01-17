@@ -18,7 +18,7 @@ router = APIRouter(prefix="/api/strategy", tags=["strategy"])
 # Singleton strategy instance
 oracle = OracleStrategy()
 
-async def get_candles_df(symbol: str, timeframe: str, limit: int = 500) -> pd.DataFrame:
+async def get_candles_df(symbol: str, timeframe: str, limit: int = 500, provider: Optional[BinanceProvider] = None) -> pd.DataFrame:
     """
     Helper to get candles as DataFrame.
     Fetches from DB first, then falls back to Binance if insufficient.
@@ -32,14 +32,14 @@ async def get_candles_df(symbol: str, timeframe: str, limit: int = 500) -> pd.Da
         
         results = await session.execute(statement)
         db_candles = results.scalars().all()
-        
+    
     # 2. Check sufficiency
     is_sufficient = len(db_candles) >= (limit * 0.8) # Allow some tolerance
     
     # 3. Fetch from Binance if missing/stale
     if not is_sufficient:
         try:
-            provider = BinanceProvider()
+            local_provider = provider or BinanceProvider()
             try:
                 # Calculate since timestamp
                 timeframe_ms = {
@@ -51,7 +51,7 @@ async def get_candles_df(symbol: str, timeframe: str, limit: int = 500) -> pd.Da
                 fetch_limit = limit if limit <= 1000 else 1000
                 
                 print(f"I: Fetching {timeframe} for {symbol} strategy...")
-                fresh = await provider.get_ohlcv(symbol, timeframe=timeframe, limit=fetch_limit)
+                fresh = await local_provider.get_ohlcv(symbol, timeframe=timeframe, limit=fetch_limit)
                 
                 # Save to DB (Async)
                 async with Database.get_session() as session:
@@ -81,7 +81,8 @@ async def get_candles_df(symbol: str, timeframe: str, limit: int = 500) -> pd.Da
                 } for c in fresh]
                 
             finally:
-                await provider.close()
+                if not provider:  # Only close if we created it locally
+                    await local_provider.close()
         except Exception as e:
              print(f"E: Failed to fetch strategy data: {e}")
              return pd.DataFrame()

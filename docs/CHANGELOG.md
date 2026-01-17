@@ -2,6 +2,25 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.5.0] - 2026-01-17
+
+### Added
+
+- **Oracle Intelligence Expansion**: Transformed the analytics suite from a hardcoded list to a dynamic screening engine targeting the **Top 100-250 market leaders**.
+- **Multi-Timeframe Support**: All analytics views (Screener, Health, etc.) now support **1h, 4h, and 1d** analysis horizons via a global timeframe selector.
+- **Oracle Screener**: AI/Quant scoring for the Top 50 high-volume assets.
+- **Market Health Dashboard**: Aggregate sentiment and volatility squeeze detection across the Top 100 coins.
+- **Liquidity Map**: Detects Swing Failure Patterns (SFP) and Previous Weekly High/Low reclaims.
+- **Contrarian Radar**: ATR-based mean-reversion scanner identifying overextended pairs.
+- **Relative Strength**: Alpha leader detection comparing Altcoin performance vs BTC.
+- **Dashboard Signal Overview**: New "Oracle Signal Summary" widget on the main dashboard providing instant market pulse and top 5 high-conviction signals.
+- **MarketDataService**: Centralized backend engine for merging real-time Binance data with CoinGecko metadata.
+
+### Improved
+
+- **Analytics Performance**: Refactored data fetching to support concurrent 50+ coin analysis with <4s response times.
+- **API Scalability**: Added `limit` and `timeframe` parameters to all analytics endpoints for dynamic depth control.
+
 ## [0.4.5] - 2026-01-17
 
 ### Added
