@@ -110,6 +110,7 @@ export interface DashboardIndicators {
   market_adx: IndicatorValue | null;
   total_market_cap: MarketCapStats | null;
   btc_dominance: IndicatorValue | null;
+  average_rsi: IndicatorValue | null;
   updated_at: string;
 }
 

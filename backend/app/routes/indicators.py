@@ -18,7 +18,8 @@ from app.indicators.market_indicators import (
     calculate_volatility,
     calculate_adx,
     calculate_market_cap_stats,
-    calculate_btc_dominance
+    calculate_btc_dominance,
+    calculate_average_rsi
 )
 from app.routes.market import get_provider
 from app.storage import RedisClient
@@ -200,6 +201,10 @@ async def get_market_dashboard_indicators():
             # Calculate BTC Dominance
             dominance = calculate_btc_dominance(top_100)
             result["btc_dominance"] = dominance.model_dump()
+
+            # Calculate Average Crypto RSI
+            avg_rsi = calculate_average_rsi(top_100)
+            result["average_rsi"] = avg_rsi.model_dump()
         
         return result
         

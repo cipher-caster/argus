@@ -22,10 +22,7 @@ function TopCoinsWidgetsComponent({ gainers, losers, volume, isLoading }: TopCoi
     <div className="bg-secondary border border-border rounded-2xl p-5 flex-1 min-w-[320px] shadow-sm">
       <div className="flex justify-between items-center mb-6">
         <span className="text-[15px] font-extrabold text-foreground tracking-tight">{title}</span>
-        <Link
-          href={type === "gain" ? "/?sort_by=change_24h&sort_order=desc" : type === "loss" ? "/?sort_by=change_24h&sort_order=asc" : "/?sort_by=volume_24h&sort_order=desc"}
-          className="text-[12px] font-bold text-muted-foreground hover:text-primary transition-colors no-underline"
-        >
+        <Link href={type === "gain" ? "/markets/gainers" : type === "loss" ? "/markets/losers" : "/markets/volume"} className="text-[12px] font-bold text-muted-foreground hover:text-primary transition-colors no-underline">
           View More &gt;
         </Link>
       </div>

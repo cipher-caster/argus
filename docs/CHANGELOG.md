@@ -6,13 +6,18 @@ All notable changes to this project will be documented in this file.
 
 ### Added
 
-- **Responsive Dashboard**: Implemented an adaptive grid layout that scales from 1 column (Mobile) to 2 columns (Tablet) and 4 columns (Desktop).
+- **Responsive Dashboard**: Implemented an adaptive grid layout that scales from 1 column (Mobile) to 2 columns (Tablet) and **5 columns (Desktop)**.
 - **Oracle Intelligence Integration**: fully integrated the Oracle Intelligence card into the main dashboard grid with a standardized Skeleton loading state.
+- **Average Crypto RSI**: Added new indicator card tracking the 14-period RSI average of top 100 coins (Momentum vs Trend).
 - **Sparklines**: Added lightweight SVG sparklines to all indicator cards to visualize 7-day trends.
 
 ### Improved
 
-- **Indicator Cards Redesign**: Removed TradingView charts to reduce clutter and implemented a unified footer layout for consistent gauge alignment across all cards.
+- **Indicator Cards Redesign**:
+  - **MADX**: Gauge only (Clean trend view)
+  - **Average RSI**: Sparkline + Value (Momentum focus)
+  - **Market Cap**: Sparkline only (Trend focus)
+  - **BTC Dominance**: Gauge only (Clean share view)
 - **Data Analysis Widgets**: Limited "Top Gainers", "Top Losers", and "Volume Leaders" lists to the top 3 items (previously 5) for a cleaner, more compact UI.
 - **UI Consistency**: Standardized the "Oracle Signal Summary" card to match the visual rhythm and structure of other market indicator cards.
 

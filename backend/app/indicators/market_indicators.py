@@ -26,6 +26,7 @@ class MarketIndicators(BaseModel):
     market_adx: Optional[IndicatorValue] = None
     total_market_cap: Optional[Dict[str, Any]] = None
     btc_dominance: Optional[IndicatorValue] = None
+    average_rsi: Optional[IndicatorValue] = None
 
 
 def calculate_volatility(closes: List[float], period: int = 14) -> IndicatorValue:
@@ -336,4 +337,84 @@ def calculate_btc_dominance(coins: List[Dict[str, Any]]) -> IndicatorValue:
         max_value=max_val,
         history=history
     )
+
+
+def calculate_average_rsi(coins: List[Dict[str, Any]], period: int = 14) -> IndicatorValue:
+    """
+    Calculate Average RSI across all provided coins.
+    Uses 'sparkline_in_7d' (hourly max 168 points) resampled to 4h to get 
+    sufficient history for RSI(14).
+    
+    Args:
+        coins: List of coin dicts with 'sparkline_in_7d'
+        period: RSI lookback period
+        
+    Returns:
+        IndicatorValue with average RSI
+    """
+    # Filter coins with sufficient sparkline data
+    valid_coins = [
+        c for c in coins 
+        if c.get('sparkline_in_7d') and len(c.get('sparkline_in_7d', [])) >= period * 4
+    ]
+    
+    if not valid_coins:
+        return IndicatorValue(value=50, label="Neutral", history=[])
+
+    try:
+        # Build DataFrame of prices: columns=symbol, index=time_step
+        # sparkline_in_7d is typically 168 points (7 days * 24h)
+        # We'll take the minimum length to ensure alignment
+        min_len = min(len(c['sparkline_in_7d']) for c in valid_coins)
+        
+        data = {
+            c['symbol']: c['sparkline_in_7d'][-min_len:] 
+            for c in valid_coins[:100]  # Limit to top 100 to save compute
+        }
+        df = pd.DataFrame(data)
+        
+        # Resample to ~4h intervals (take every 4th row) to capture meaningful RSI trends
+        # RSI on 1h candles is too noisy and short-term
+        df_resampled = df.iloc[::4, :] 
+        
+        if len(df_resampled) < period + 1:
+             # Fallback if resampling reduces data too much
+             df_resampled = df.iloc[::2, :] # try 2h
+        
+        # Calculate RSI for each column
+        rsi_df = df_resampled.apply(lambda x: ta.rsi(x, length=period))
+        
+        # Average RSI across all coins at each timestep
+        avg_rsi_series = rsi_df.mean(axis=1).dropna()
+        
+        if avg_rsi_series.empty:
+            return IndicatorValue(value=50, label="Neutral", history=[])
+            
+        latest_rsi = avg_rsi_series.iloc[-1]
+        
+        # Interpret RSI
+        if latest_rsi >= 70:
+            label = "Overbought"
+        elif latest_rsi <= 30:
+            label = "Oversold"
+        elif latest_rsi > 60:
+            label = "High"
+        elif latest_rsi < 40:
+            label = "Low"
+        else:
+            label = "Neutral"
+            
+        history = avg_rsi_series.tolist()
+        
+        return IndicatorValue(
+            value=round(latest_rsi, 1),
+            label=label,
+            min_value=0,
+            max_value=100,
+            history=history
+        )
+        
+    except Exception as e:
+        print(f"Error calculating Average RSI: {e}")
+        return IndicatorValue(value=50, label="Error", history=[])
 

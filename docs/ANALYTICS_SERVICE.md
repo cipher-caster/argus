@@ -69,9 +69,12 @@ The analytics data is visualized through a responsive dashboard system located i
 
 Standardized widget system displaying key market metrics:
 
-- **Visuals**: Gauge bar for range visualization + SVG Sparkline for 7-day trend.
-- **Layout**: Unified "footer" design ensures alignment across all cards regardless of content variable height.
-- **Metrics**: MADX (Trend), Total Market Cap, and BTC Dominance.
+- **Visuals**: Configurable Gauge bar and/or SVG Sparkline for 7-day trend.
+- **Metrics**:
+  - **MADX**: Trend Strength (0-100)
+  - **Avg Crypto RSI**: Momentum (0-100)
+  - **Total Market Cap**: Aggregate Value
+  - **BTC Dominance**: Market Share %
 
 ### Oracle Intelligence Card
 
@@ -85,8 +88,8 @@ A special indicator card integrating the Oracle Signal Summary:
 
 The dashboard uses an adaptive grid layout:
 
-- **Desktop**: 4 columns (All cards in one row).
-- **Tablet**: 2 columns (Balanced 2x2 grid).
+- **Desktop**: 5 columns (All cards in one row).
+- **Tablet**: 2 columns (Balanced 2x3 grid).
 - **Mobile**: 1 column (Vertical stack).
 
 ## API Usage

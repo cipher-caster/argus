@@ -36,7 +36,7 @@ export function OracleSignalSummary() {
               </button>
             </TooltipTrigger>
             <TooltipContent side="bottom" className="max-w-[250px] text-center">
-              <p>AI confidence based on momentum scores across Top 50 Perpetual symbols.</p>
+              <p>Confidence based on momentum scores across Top 50 Perpetual symbols.</p>
             </TooltipContent>
           </Tooltip>
         </TooltipProvider>
@@ -47,7 +47,7 @@ export function OracleSignalSummary() {
         <span className={cn("text-3xl font-extrabold tracking-tighter leading-none", labelColorClass)}>{confidence}%</span>
         <span className={cn("text-sm font-semibold", labelColorClass)}>{marketState}</span>
       </div>
-      <div className="text-xs text-muted-foreground">AI Confidence</div>
+      <div className="text-xs text-muted-foreground">Confidence</div>
 
       {/* Footer Section - Pinned to bottom */}
       <div className="mt-auto flex flex-col gap-3">
@@ -64,15 +64,43 @@ export function OracleSignalSummary() {
         </div>
 
         {/* Alpha Signals - Without border to match card flow */}
-        <div className="pt-0">
-          <div className="flex flex-wrap gap-1.5">
-            {data?.top_signals.slice(0, 4).map((sig: string) => (
-              <div key={sig} className="px-2 py-1 bg-background border border-border rounded-md text-[9px] font-bold tracking-tight hover:border-primary/40 transition-all">
-                {sig}
-              </div>
-            ))}
-            {(!data?.top_signals || data.top_signals.length === 0) && <div className="text-[10px] text-muted-foreground italic">No signals</div>}
-          </div>
+        {/* Alpha Signals - Sorted by Long/Short */}
+        <div className="pt-0 text-[11px] font-medium space-y-1.5">
+          {(() => {
+            const longs: string[] = [];
+            const shorts: string[] = [];
+
+            data?.top_signals?.forEach((sig: string) => {
+              // Parse signal string (e.g., "BNB/USDT 4/4" or "ETH/USDT -3/4")
+              const parts = sig.split(" ");
+              const ticker = parts[0].replace("/USDT", "");
+              const scorePart = parts[1] || "";
+
+              if (scorePart.startsWith("-")) {
+                shorts.push(ticker);
+              } else {
+                longs.push(ticker);
+              }
+            });
+
+            return (
+              <>
+                {longs.length > 0 && (
+                  <div className="flex items-start gap-1">
+                    <span className="text-green-500 font-bold uppercase w-9 shrink-0">Long:</span>
+                    <span className="text-muted-foreground leading-tight">{longs.join(", ")}</span>
+                  </div>
+                )}
+                {shorts.length > 0 && (
+                  <div className="flex items-start gap-1">
+                    <span className="text-red-500 font-bold uppercase w-9 shrink-0">Short:</span>
+                    <span className="text-muted-foreground leading-tight">{shorts.join(", ")}</span>
+                  </div>
+                )}
+                {longs.length === 0 && shorts.length === 0 && <div className="text-[10px] text-muted-foreground italic">No active signals</div>}
+              </>
+            );
+          })()}
         </div>
       </div>
     </div>

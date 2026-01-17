@@ -2,8 +2,8 @@
 
 import { Skeleton } from "@/components/ui/skeleton";
 import { useMarketIndicators } from "@/hooks/useMarketIndicators";
-import { formatChange, formatVolume } from "@/lib/formatters";
-import { Bitcoin, Globe, TrendingUp } from "lucide-react";
+import { formatVolume } from "@/lib/formatters";
+import { Activity, Bitcoin, Globe, TrendingUp } from "lucide-react";
 import { memo } from "react";
 import { IndicatorCard } from "./IndicatorCard";
 
@@ -11,6 +11,7 @@ import { IndicatorCard } from "./IndicatorCard";
 const TOOLTIPS = {
   volatility: "Measures BTC price volatility over 14 days. Low Vol (<25) = stable market, good for range trading. High Vol (>50) = large price swings, higher risk/reward.",
   adx: "Average Directional Index measures trend strength. Ranging (<20) = no clear trend, wait for breakout. Trending (20-40) = moderate trend. Strong (>40) = powerful trend, trade with direction.",
+  rsi: "Average Relative Strength Index (RSI) across top 100 coins. <30 (Oversold) indicates potential bounce. >70 (Overbought) suggests potential pullback.",
   volume: "Total 24h trading volume of top 100 coins. Shows overall market activity. Regime is based on average price change: BULLISH (>2%), NEUTRAL, BEARISH (<-2%).",
   dominance: "BTC's share of total trading volume among top 100 coins. High (>30%) = BTC leading. Normal (15-30%) = balanced. Alt Season (<15%) = altcoins outperforming.",
 };
@@ -21,7 +22,7 @@ function MarketIndicatorsComponent() {
   if (isLoading) {
     return (
       <>
-        {[1, 2, 3].map((i) => (
+        {[1, 2, 3, 4].map((i) => (
           <Skeleton key={i} className="h-[180px] rounded-xl" />
         ))}
       </>
@@ -33,7 +34,7 @@ function MarketIndicatorsComponent() {
 
   return (
     <>
-      {/* Market ADX Card */}
+      {/* Market ADX Card - Gauge Only */}
       <IndicatorCard
         title="MADX"
         subtitle="Market ADX"
@@ -43,12 +44,26 @@ function MarketIndicatorsComponent() {
         tooltip={TOOLTIPS.adx}
         showGauge={true}
         chartColor="#22c55e"
-        history={data?.market_adx?.history ?? []}
         min={data?.market_adx?.min_value ?? 0}
         max={data?.market_adx?.max_value ?? 100}
       />
 
-      {/* Total Volume / Market Cap Card */}
+      {/* Avg Crypto RSI Card - Gauge + Value + Sparkline */}
+      <IndicatorCard
+        title="Avg Crypto RSI"
+        subtitle="Momentum (14)"
+        icon={<Activity size={16} />}
+        value={data?.average_rsi?.value ?? 0}
+        label={data?.average_rsi?.label ?? "N/A"}
+        tooltip={TOOLTIPS.rsi}
+        showGauge={true}
+        gaugeColors={{ low: "#22c55e", high: "#ef4444" }}
+        chartColor="#3b82f6"
+        min={0}
+        max={100}
+      />
+
+      {/* Total Volume / Market Cap Card - Sparkline Only */}
       <IndicatorCard
         title={isMarketCap ? "Total Market Cap" : "24h Volume"}
         subtitle="Top 100 Coins"
@@ -56,20 +71,12 @@ function MarketIndicatorsComponent() {
         value={formatVolume(data?.total_market_cap?.value ?? 0)}
         label={data?.total_market_cap?.regime ?? "NEUTRAL"}
         tooltip={isMarketCap ? "Total market capitalization of top 100 coins." : TOOLTIPS.volume}
-        showGauge={true}
+        showGauge={false}
         chartColor="#a855f7"
         history={data?.total_market_cap?.history ?? []}
-        min={data?.total_market_cap?.min_value ?? 0}
-        max={data?.total_market_cap?.max_value ?? 0}
-        extraContent={
-          <div className="flex gap-4 text-xs mb-2">
-            <span className={data?.total_market_cap?.change_1d && data.total_market_cap.change_1d >= 0 ? "text-green-400" : "text-red-400"}>Avg {formatChange(data?.total_market_cap?.change_1d ?? 0)}</span>
-            <span className="text-muted-foreground">{data?.total_market_cap?.regime_detail}</span>
-          </div>
-        }
       />
 
-      {/* BTC Dominance Card */}
+      {/* BTC Dominance Card - Gauge Only */}
       <IndicatorCard
         title="BTC Dominance"
         subtitle={domTitle}
@@ -80,7 +87,6 @@ function MarketIndicatorsComponent() {
         showGauge={true}
         gaugeColors={{ low: "#22c55e", high: "#f59e0b" }}
         chartColor="#f59e0b"
-        history={data?.btc_dominance?.history ?? []}
         min={data?.btc_dominance?.min_value ?? 10}
         max={data?.btc_dominance?.max_value ?? (isMarketCap ? 70 : 50)}
       />
