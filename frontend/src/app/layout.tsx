@@ -6,6 +6,9 @@ import "./globals.css";
 export const metadata: Metadata = {
   title: "Argus",
   description: "AI-Enhanced Crypto Trading Dashboard",
+  icons: {
+    icon: "/data/coins/images/argus_logo.png",
+  },
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {

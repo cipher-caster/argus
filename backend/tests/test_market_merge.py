@@ -79,3 +79,39 @@ async def test_market_merge_logic():
         assert sol["name"] == "SOL", "Should derive name from symbol"
         assert sol["image"] is None, "Live-only coins lack images"
 
+        assert sol["image"] is None, "Live-only coins lack images"
+
+
+@pytest.mark.asyncio
+async def test_market_sorting():
+    """Test API sorting logic"""
+    from app.routes.market import get_coins
+    
+    # Mock Merged Data
+    mock_data = [
+        {"symbol": "A", "name": "A", "price": 10.0, "volume_24h": 100.0, "market_cap": 1000.0, "change_24h": 0},
+        {"symbol": "B", "name": "B", "price": 5.0, "volume_24h": 500.0, "market_cap": 500.0, "change_24h": 0},
+        {"symbol": "C", "name": "C", "price": 20.0, "volume_24h": 50.0, "market_cap": 2000.0, "change_24h": 0},
+    ]
+    
+    with patch("app.routes.market._get_merged_market_data", new_callable=MagicMock) as mock_get:
+        # Since _get_merged_market_data is awaited, the mock return value needs to be awaitable or the function mocked properly
+        # Simpler: mock the return value as a future
+        f = asyncio.Future()
+        f.set_result(mock_data)
+        mock_get.return_value = f
+        
+        # 1. Price Sort (Desc) -> C (20), A (10), B (5)
+        resp = await get_coins(page=1, page_size=50, search=None, sort_by="price", sort_order="desc")
+        assert resp.coins[0].symbol == "C"
+        assert resp.coins[1].symbol == "A"
+        assert resp.coins[2].symbol == "B"
+        
+        # 2. Volume Sort (Desc) -> B (500), A (100), C (50)
+        # We need to recreate the mock return or just call again (return_value is static mock)
+        resp = await get_coins(page=1, page_size=50, search=None, sort_by="volume_24h", sort_order="desc")
+        assert resp.coins[0].symbol == "B"
+        
+         # 3. Market Cap Sort (Desc) -> C (2000), A (1000), B (500)
+        resp = await get_coins(page=1, page_size=50, search=None, sort_by="market_cap", sort_order="desc")
+        assert resp.coins[0].symbol == "C"

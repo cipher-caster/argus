@@ -1,6 +1,7 @@
 "use client";
 
-import { BarChart2, ChevronDown, LayoutDashboard, LineChart, Search } from "lucide-react";
+import { BarChart2, ChevronDown, LineChart, Search } from "lucide-react";
+import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
@@ -70,7 +71,7 @@ export function Navbar() {
       <div className={cn("h-full flex items-center justify-between px-5", !isFullWidthPage && "max-w-[1440px] mx-auto")}>
         <div className="flex items-center gap-8">
           <Link href="/" className="flex items-center gap-2.5 no-underline">
-            <LayoutDashboard size={24} className="text-primary" />
+            <Image src="/data/coins/images/argus_logo.png" alt="Argus" width={32} height={32} className="object-contain" />
             <span className="text-xl font-extrabold text-foreground tracking-tighter">Argus</span>
           </Link>
 

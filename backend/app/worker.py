@@ -66,6 +66,11 @@ async def sync_market_summary(ctx):
                 low_24h=data.get('low') or 0.0,
             ))
             
+        # Optimization: Keep only Top 250 by Volume
+        # This prevents storing thousands of low-liquidity pairs
+        ticker_list.sort(key=lambda x: x.volume_24h or 0, reverse=True)
+        ticker_list = ticker_list[:250]
+            
         # Sort for summary views
         gainers = sorted(ticker_list, key=lambda x: x.change_24h or -999, reverse=True)[:50]
         losers = sorted(ticker_list, key=lambda x: x.change_24h or 999, reverse=False)[:50]
@@ -102,8 +107,8 @@ async def sync_market_snapshot(ctx):
     
     try:
         async with httpx.AsyncClient() as client:
-            # Fetch 2 pages (500 coins)
-            for page in range(1, 3):
+            # Fetch 1 page (250 coins) - Optimized to save API calls
+            for page in range(1, 2):
                 params = {
                     "vs_currency": "usd",
                     "order": "market_cap_desc",
