@@ -1,11 +1,16 @@
 "use client";
 
+import { CoinIcon } from "@/components/features/dashboard/CoinIcon";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { useRelativeStrength } from "@/hooks/useAnalyticsData";
+import { useCoinMeta } from "@/hooks/useCoinMeta";
 import { RelativeStrengthItem } from "@/lib/api";
 import { cn } from "@/lib/utils";
-import { BarChart3, TrendingUp } from "lucide-react";
+import { BarChart3, HelpCircle, TrendingUp } from "lucide-react";
+import Link from "next/link";
 
 export function RelativeStrength({ timeframe = "1h", limit = 50 }: { timeframe?: string; limit?: number }) {
+  const { coinMeta } = useCoinMeta();
   const { data, isLoading, error } = useRelativeStrength(timeframe, limit);
 
   if (isLoading) return <div className="h-[400px] flex items-center justify-center">Loading Relative Strength...</div>;
@@ -17,10 +22,20 @@ export function RelativeStrength({ timeframe = "1h", limit = 50 }: { timeframe?:
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
-        <h3 className="text-sm font-semibold flex items-center gap-2">
-          <TrendingUp size={16} className="text-green-500" />
-          Alpha Leaders (Altcoins vs BTC Cluster)
-        </h3>
+        <div className="flex items-center gap-2">
+          <h3 className="text-sm font-semibold flex items-center gap-2">
+            <TrendingUp size={16} className="text-green-500" />
+            Alpha Leaders (Altcoins vs BTC Cluster)
+          </h3>
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger>
+                <HelpCircle size={14} className="text-muted-foreground hover:text-foreground transition-colors" />
+              </TooltipTrigger>
+              <TooltipContent className="max-w-[300px]">Coins outperforming Bitcoin (BTC) in the last 24h. {"'Strength'"} indicates momentum relative to the cluster.</TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
+        </div>
         <span className="text-xs text-muted-foreground font-mono">Benchmark: BTCUSDT 1.00x</span>
       </div>
 
@@ -39,10 +54,10 @@ export function RelativeStrength({ timeframe = "1h", limit = 50 }: { timeframe?:
               {sortedItems.map((item: any) => (
                 <tr key={item.symbol} className="border-b border-border/30 hover:bg-muted/20 transition-colors">
                   <td className="px-6 py-4">
-                    <div className="flex items-center gap-3">
-                      <div className="w-8 h-8 rounded-lg bg-background border border-border flex items-center justify-center font-bold text-[10px]">{item.symbol.replace("USDT", "")}</div>
-                      <span className="font-black text-xs">{item.symbol}</span>
-                    </div>
+                    <Link href={`/chart/${item.symbol.replace("/", "-")}`} className="flex items-center gap-3 group">
+                      <CoinIcon symbol={item.symbol} coinMeta={coinMeta} size={32} className="rounded-lg" />
+                      <span className="font-black text-xs group-hover:text-primary transition-colors">{item.symbol}</span>
+                    </Link>
                   </td>
                   <td className="px-6 py-4">
                     <div

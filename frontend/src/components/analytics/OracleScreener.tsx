@@ -1,14 +1,18 @@
 "use client";
 
+import { CoinIcon } from "@/components/features/dashboard/CoinIcon";
 import { useOracleScreener } from "@/hooks/useAnalyticsData";
+import { useCoinMeta } from "@/hooks/useCoinMeta";
 import { ScreenerItem } from "@/lib/api";
 import { formatPrice } from "@/lib/formatters";
 import { cn } from "@/lib/utils";
 import { Minus, Search, TrendingDown, TrendingUp } from "lucide-react";
+import Link from "next/link";
 import { useState } from "react";
 
 export function OracleScreener({ timeframe = "1h", limit = 50 }: { timeframe?: string; limit?: number }) {
   const [search, setSearch] = useState("");
+  const { coinMeta } = useCoinMeta();
   const { data, isLoading, error } = useOracleScreener(timeframe, limit);
 
   const filteredData = data?.data.filter((item: ScreenerItem) => item.symbol.toLowerCase().includes(search.toLowerCase())) || [];
@@ -49,7 +53,12 @@ export function OracleScreener({ timeframe = "1h", limit = 50 }: { timeframe?: s
           <tbody>
             {filteredData.map((item: any) => (
               <tr key={item.symbol} className="border-b border-border/30 hover:bg-muted/20 transition-colors">
-                <td className="px-4 py-3 font-bold">{item.symbol.replace("USDT", "")}</td>
+                <td className="px-4 py-3 font-bold">
+                  <Link href={`/chart/${item.symbol.replace("/", "-")}`} className="flex items-center gap-2 hover:opacity-80 transition-opacity">
+                    <CoinIcon symbol={item.symbol} coinMeta={coinMeta} size={24} />
+                    <span>{item.symbol.split("/")[0]}</span>
+                  </Link>
+                </td>
                 <td className="px-4 py-3 text-right font-mono">{formatPrice(item.price)}</td>
                 <td className="px-4 py-3 text-center">
                   <div

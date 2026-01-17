@@ -1,11 +1,15 @@
 "use client";
 
+import { CoinIcon } from "@/components/features/dashboard/CoinIcon";
 import { useLiquiditySweeps } from "@/hooks/useAnalyticsData";
+import { useCoinMeta } from "@/hooks/useCoinMeta";
 import { formatPrice } from "@/lib/formatters";
 import { cn } from "@/lib/utils";
 import { ChevronRight, Droplets, Target } from "lucide-react";
+import Link from "next/link";
 
 export function LiquidityMap({ timeframe = "1h", limit = 50 }: { timeframe?: string; limit?: number }) {
+  const { coinMeta } = useCoinMeta();
   const { data, isLoading, error } = useLiquiditySweeps(timeframe, limit);
 
   if (isLoading) return <div className="h-[400px] flex items-center justify-center">Loading Liquidity Map...</div>;
@@ -27,10 +31,13 @@ export function LiquidityMap({ timeframe = "1h", limit = 50 }: { timeframe?: str
         {sweeps.map((item: any) => (
           <div key={item.symbol} className="bg-secondary/20 rounded-2xl p-4 border border-border/50 hover:border-primary/30 transition-all group">
             <div className="flex justify-between items-start mb-4">
-              <div>
-                <div className="text-lg font-black">{item.symbol.replace("USDT", "")}</div>
-                <div className="text-[10px] text-muted-foreground uppercase font-bold tracking-wider">{item.type}</div>
-              </div>
+              <Link href={`/chart/${item.symbol.replace("/", "-")}`} className="flex items-center gap-2 group-hover:opacity-80 transition-opacity">
+                <CoinIcon symbol={item.symbol} coinMeta={coinMeta} size={32} />
+                <div>
+                  <div className="text-lg font-black">{item.symbol.replace("USDT", "")}</div>
+                  <div className="text-[10px] text-muted-foreground uppercase font-bold tracking-wider">{item.type}</div>
+                </div>
+              </Link>
               <div className={cn("px-2 py-1 rounded text-[10px] font-black", item.bull_sweep ? "bg-green-500/10 text-green-500" : "bg-red-500/10 text-red-500")}>{item.bull_sweep ? "BULL SWEEP" : "BEAR SWEEP"}</div>
             </div>
 
@@ -43,10 +50,10 @@ export function LiquidityMap({ timeframe = "1h", limit = 50 }: { timeframe?: str
                 <div className="text-xs font-mono font-bold">{formatPrice(item.swept_level)}</div>
               </div>
 
-              <button className="w-full flex items-center justify-center gap-2 py-2 bg-primary/10 hover:bg-primary/20 text-primary rounded-xl text-xs font-bold transition-colors">
+              <Link href={`/chart/${item.symbol.replace("/", "-")}`} className="w-full flex items-center justify-center gap-2 py-2 bg-primary/10 hover:bg-primary/20 text-primary rounded-xl text-xs font-bold transition-colors">
                 View Setup
                 <ChevronRight size={14} />
-              </button>
+              </Link>
             </div>
           </div>
         ))}

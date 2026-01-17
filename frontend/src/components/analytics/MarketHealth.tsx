@@ -1,9 +1,10 @@
 "use client";
 
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { useMarketHealth } from "@/hooks/useAnalyticsData";
 import { MarketHealthResponse } from "@/lib/api";
 import { cn } from "@/lib/utils";
-import { Activity, ShieldAlert, Zap } from "lucide-react";
+import { Activity, HelpCircle, ShieldAlert, Zap } from "lucide-react";
 
 export function MarketHealth({ timeframe = "1h", limit = 100 }: { timeframe?: string; limit?: number }) {
   const { data, isLoading, error } = useMarketHealth(timeframe, limit);
@@ -17,73 +18,101 @@ export function MarketHealth({ timeframe = "1h", limit = 100 }: { timeframe?: st
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
       {/* Trend Health */}
-      <div className="bg-secondary/20 rounded-2xl p-6 border border-border/50">
-        <h3 className="text-sm font-semibold mb-4 flex items-center gap-2">
-          <Activity size={16} className="text-primary" />
-          Trend Health (Total: {summary.total_coins} Coins)
-        </h3>
-
-        <div className="space-y-6">
-          <div>
-            <div className="flex justify-between text-xs mb-2">
-              <span className="text-green-500 font-bold">Bullish (Above 200D EMA)</span>
-              <span>{summary.bullish_pct}%</span>
-            </div>
-            <div className="h-2 w-full bg-muted rounded-full overflow-hidden">
-              <div className="h-full bg-green-500 transition-all duration-1000" style={{ width: `${summary.bullish_pct}%` }} />
-            </div>
+      <div className="bg-secondary/20 rounded-2xl p-6 border border-border/50 flex flex-col justify-between">
+        <div>
+          <div className="flex items-center justify-between mb-6">
+            <h3 className="text-sm font-semibold flex items-center gap-2">
+              <Activity size={16} className="text-primary" />
+              Trend Health <span className="text-muted-foreground font-normal">({summary.total_coins} Coins)</span>
+            </h3>
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger>
+                  <HelpCircle size={14} className="text-muted-foreground hover:text-foreground transition-colors" />
+                </TooltipTrigger>
+                <TooltipContent className="max-w-[250px]">Percentage of coins trading above their 200-Day Exponential Moving Average (EMA). &gt;50% indicates a broad bull market.</TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
           </div>
 
-          <div>
-            <div className="flex justify-between text-xs mb-2">
-              <span className="text-red-500 font-bold">Bearish (Below 200D EMA)</span>
-              <span>{summary.bearish_pct}%</span>
+          <div className="space-y-8">
+            <div className="space-y-2">
+              <div className="flex justify-between items-end">
+                <span className="text-xs font-bold text-green-500 uppercase tracking-wider">Bullish Regime</span>
+                <span className="text-sm font-black text-foreground">{summary.bullish_pct}%</span>
+              </div>
+              <div className="h-3 w-full bg-secondary rounded-full overflow-hidden shadow-inner">
+                <div className="h-full bg-gradient-to-r from-green-500 to-emerald-300 shadow-[0_0_10px_rgba(34,197,94,0.4)] transition-all duration-1000 ease-out" style={{ width: `${summary.bullish_pct}%` }} />
+              </div>
             </div>
-            <div className="h-2 w-full bg-muted rounded-full overflow-hidden">
-              <div className="h-full bg-red-500 transition-all duration-1000" style={{ width: `${summary.bearish_pct}%` }} />
+
+            <div className="space-y-2">
+              <div className="flex justify-between items-end">
+                <span className="text-xs font-bold text-red-500 uppercase tracking-wider">Bearish Regime</span>
+                <span className="text-sm font-black text-foreground">{summary.bearish_pct}%</span>
+              </div>
+              <div className="h-3 w-full bg-secondary rounded-full overflow-hidden shadow-inner">
+                <div className="h-full bg-gradient-to-r from-red-600 to-rose-400 shadow-[0_0_10px_rgba(220,38,38,0.4)] transition-all duration-1000 ease-out" style={{ width: `${summary.bearish_pct}%` }} />
+              </div>
             </div>
           </div>
+        </div>
 
-          <div className="pt-4 border-t border-border/30">
-            <div className="flex justify-between items-center">
-              <div className="text-xs text-muted-foreground">Coins in Volatility Squeeze</div>
-              <div className="px-2 py-1 bg-purple-500/10 text-purple-500 text-xs font-bold rounded border border-purple-500/20">{summary.squeezing_pct}% SQUEEZING</div>
-            </div>
+        <div className="mt-8 pt-4 border-t border-border/30 flex justify-between items-center">
+          <div className="text-xs font-medium text-muted-foreground">Volatility Squeeze</div>
+          <div className={cn("px-3 py-1 rounded-lg text-xs font-bold border transition-colors", summary.squeezing_pct > 0 ? "bg-purple-500/10 text-purple-500 border-purple-500/20" : "bg-muted text-muted-foreground border-transparent")}>
+            {summary.squeezing_pct}% Squeezing
           </div>
         </div>
       </div>
 
       {/* Volatility Regimes */}
-      <div className="bg-secondary/20 rounded-2xl p-6 border border-border/50">
-        <h3 className="text-sm font-semibold mb-6 flex items-center gap-2">
-          <ShieldAlert size={16} className="text-orange-500" />
-          Volatility Distribution
-        </h3>
+      <div className="bg-secondary/20 rounded-2xl p-6 border border-border/50 flex flex-col justify-between">
+        <div>
+          <div className="flex items-center justify-between mb-6">
+            <h3 className="text-sm font-semibold flex items-center gap-2">
+              <ShieldAlert size={16} className="text-orange-500" />
+              Volatility Distribution
+            </h3>
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger>
+                  <HelpCircle size={14} className="text-muted-foreground hover:text-foreground transition-colors" />
+                </TooltipTrigger>
+                <TooltipContent className="max-w-[250px]">Categorizes market volatility based on daily price ranges. {"'Danger'"} implies high risk of liquidation.</TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+          </div>
 
-        <div className="grid grid-cols-3 gap-4 h-32 items-end">
-          <VolBar label="STABLE" value={volatility.STABLE} color="bg-blue-500" />
-          <VolBar label="ACTIVE" value={volatility.ACTIVE} color="bg-green-500" />
-          <VolBar label="DANGER" value={volatility.DANGER} color="bg-red-500" />
+          <div className="grid grid-cols-3 gap-6 h-32 items-end px-2">
+            <VolBar label="STABLE" value={volatility.STABLE} color="bg-gradient-to-t from-blue-600 to-blue-400 group-hover:from-blue-500 group-hover:to-blue-300" shadow="shadow-blue-500/20" />
+            <VolBar label="ACTIVE" value={volatility.ACTIVE} color="bg-gradient-to-t from-green-600 to-green-400 group-hover:from-green-500 group-hover:to-green-300" shadow="shadow-green-500/20" />
+            <VolBar label="DANGER" value={volatility.DANGER} color="bg-gradient-to-t from-orange-600 to-orange-400 group-hover:from-orange-500 group-hover:to-orange-300" shadow="shadow-orange-500/20" />
+          </div>
         </div>
 
-        <div className="mt-8 p-3 bg-orange-500/10 rounded-xl border border-orange-500/20 flex gap-3">
-          <Zap size={18} className="text-orange-500 shrink-0" />
-          <p className="text-[10px] text-muted-foreground leading-relaxed">
-            <span className="font-bold text-orange-500 block mb-1">REGIME ADVICE</span>
-            {volatility.DANGER > 30 ? "High market volatility detected. Reduce leverage and tighten stop losses across all positions." : "Stable market conditions. Trend following strategies have higher probability of success."}
-          </p>
+        <div className="mt-6 p-4 bg-orange-500/5 rounded-xl border border-orange-500/10 flex gap-3 backdrop-blur-sm">
+          <Zap size={18} className="text-orange-500 shrink-0 mt-0.5" />
+          <div>
+            <div className="text-[10px] font-black text-orange-500 uppercase tracking-widest mb-1">Regime Advice</div>
+            <p className="text-[11px] text-muted-foreground font-medium leading-relaxed">
+              {volatility.DANGER > 30
+                ? "High volatility environment. Risk of liquidation is elevated. Reduce position sizing and widen stop-losses."
+                : "Market conditions are stable. favorable for trend following strategies and standard risk management."}
+            </p>
+          </div>
         </div>
       </div>
     </div>
   );
 }
 
-function VolBar({ label, value, color }: { label: string; value: number; color: string }) {
+function VolBar({ label, value, color, shadow }: { label: string; value: number; color: string; shadow: string }) {
   return (
-    <div className="flex flex-col items-center gap-2 h-full justify-end">
-      <div className="text-[10px] font-bold text-muted-foreground">{value}%</div>
-      <div className={cn("w-full rounded-t-lg transition-all duration-1000 min-h-[4px]", color)} style={{ height: `${Math.max(value, 5)}%` }} />
-      <div className="text-[10px] font-extrabold mt-1">{label}</div>
+    <div className="flex flex-col items-center gap-2 h-full justify-end group">
+      <div className="text-[10px] font-bold text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity -mb-1">{value}%</div>
+      <div className={cn("w-full rounded-t-lg transition-all duration-1000 min-h-[4px] relative", color, shadow)} style={{ height: `${Math.max(value, 5)}%` }} />
+      <div className="text-[10px] font-extrabold text-muted-foreground group-hover:text-foreground transition-colors mt-1">{label}</div>
     </div>
   );
 }

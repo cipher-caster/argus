@@ -1,10 +1,16 @@
 "use client";
 
+import { CoinIcon } from "@/components/features/dashboard/CoinIcon";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { useContrarianRadar } from "@/hooks/useAnalyticsData";
+import { useCoinMeta } from "@/hooks/useCoinMeta";
 import { formatPrice } from "@/lib/formatters";
-import { Gauge, MoveHorizontal } from "lucide-react";
+import { cn } from "@/lib/utils";
+import { Gauge, HelpCircle, MoveHorizontal } from "lucide-react";
+import Link from "next/link";
 
 export function ContrarianRadar({ timeframe = "1h", limit = 50 }: { timeframe?: string; limit?: number }) {
+  const { coinMeta } = useCoinMeta();
   const { data, isLoading, error } = useContrarianRadar(timeframe, limit);
 
   if (isLoading) return <div className="h-[400px] flex items-center justify-center">Loading Contrarian Radar...</div>;
@@ -15,23 +21,44 @@ export function ContrarianRadar({ timeframe = "1h", limit = 50 }: { timeframe?: 
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
-        <h3 className="text-sm font-semibold flex items-center gap-2">
-          <Gauge size={16} className="text-purple-500" />
-          ATR Extension Radar (Overstretched Pairs)
-        </h3>
+        <div className="flex items-center gap-2">
+          <h3 className="text-sm font-semibold flex items-center gap-2">
+            <Gauge size={16} className="text-purple-500" />
+            ATR Extension Radar (Overstretched Pairs)
+          </h3>
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger>
+                <HelpCircle size={14} className="text-muted-foreground hover:text-foreground transition-colors" />
+              </TooltipTrigger>
+              <TooltipContent className="max-w-[300px]">Identifies pairs trading {">"} 3x ATR away from their 200-Day EMA. These statistically overextended deviations often precede a mean-reversion snapback.</TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
+        </div>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
         {opportunities.map((item: any) => (
           <div key={item.symbol} className="bg-secondary/20 rounded-2xl p-5 border border-border/50">
             <div className="flex justify-between items-center mb-6">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-xl bg-purple-500/10 flex items-center justify-center text-purple-500 font-black">{item.symbol[0]}</div>
+              <Link href={`/chart/${item.symbol.replace("/", "-")}`} className="flex items-center gap-3 group">
+                <CoinIcon symbol={item.symbol} coinMeta={coinMeta} size={40} className="rounded-xl" />
                 <div>
-                  <div className="text-lg font-black">{item.symbol.replace("USDT", "")}</div>
-                  <div className="text-[10px] text-muted-foreground font-bold">{item.opportunity} Extension</div>
+                  <div className="text-lg font-black group-hover:text-primary transition-colors">{item.symbol.replace("USDT", "")}</div>
+                  <TooltipProvider>
+                    <Tooltip>
+                      <TooltipTrigger>
+                        <div className={cn("text-[10px] font-bold px-1.5 py-0.5 rounded w-fit", item.opportunity === "SPOT_BUY" ? "bg-green-500/10 text-green-500" : "bg-red-500/10 text-red-500")}>
+                          {item.opportunity === "SPOT_BUY" ? "OVERSOLD (BUY)" : "OVERBOUGHT (SELL)"}
+                        </div>
+                      </TooltipTrigger>
+                      <TooltipContent>
+                        {item.opportunity === "SPOT_BUY" ? "Price is excessively BELOW the mean. High probability of a bounce upwards." : "Price is excessively ABOVE the mean (Parabolic). Consider taking profits or de-risking longs."}
+                      </TooltipContent>
+                    </Tooltip>
+                  </TooltipProvider>
                 </div>
-              </div>
+              </Link>
               <div className="text-right">
                 <div className="text-sm font-mono font-bold text-purple-500">{item.extension_atr.toFixed(1)}x ATR</div>
                 <div className="text-[10px] text-muted-foreground uppercase font-extrabold">Deviation</div>

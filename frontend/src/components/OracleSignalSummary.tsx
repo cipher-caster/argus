@@ -1,10 +1,13 @@
 "use client";
 
+import { CoinIcon } from "@/components/features/dashboard/CoinIcon";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { useOracleSignalSummary } from "@/hooks/useAnalyticsData";
+import { useCoinMeta } from "@/hooks/useCoinMeta";
 import { cn } from "@/lib/utils";
 import { HelpCircle, Zap } from "lucide-react";
+import Link from "next/link";
 
 export function OracleSignalSummary() {
   const { data, isLoading, error } = useOracleSignalSummary();
@@ -87,14 +90,22 @@ export function OracleSignalSummary() {
               <>
                 {longs.length > 0 && (
                   <div className="flex items-start gap-1">
-                    <span className="text-green-500 font-bold uppercase w-9 shrink-0">Long:</span>
-                    <span className="text-muted-foreground leading-tight">{longs.join(", ")}</span>
+                    <span className="text-green-500 font-bold uppercase w-9 shrink-0 mt-1">Long:</span>
+                    <div className="flex flex-wrap gap-1">
+                      {longs.map((ticker) => (
+                        <CoinBadge key={ticker} ticker={ticker} />
+                      ))}
+                    </div>
                   </div>
                 )}
                 {shorts.length > 0 && (
                   <div className="flex items-start gap-1">
-                    <span className="text-red-500 font-bold uppercase w-9 shrink-0">Short:</span>
-                    <span className="text-muted-foreground leading-tight">{shorts.join(", ")}</span>
+                    <span className="text-red-500 font-bold uppercase w-9 shrink-0 mt-1">Short:</span>
+                    <div className="flex flex-wrap gap-1">
+                      {shorts.map((ticker) => (
+                        <CoinBadge key={ticker} ticker={ticker} />
+                      ))}
+                    </div>
                   </div>
                 )}
                 {longs.length === 0 && shorts.length === 0 && <div className="text-[10px] text-muted-foreground italic">No active signals</div>}
@@ -104,5 +115,15 @@ export function OracleSignalSummary() {
         </div>
       </div>
     </div>
+  );
+}
+
+function CoinBadge({ ticker }: { ticker: string }) {
+  const { coinMeta } = useCoinMeta();
+  return (
+    <Link href={`/chart/${ticker}-USDT`} className="flex items-center gap-1 bg-background border border-border px-1.5 py-0.5 rounded-md hover:border-primary/50 hover:bg-muted transition-all group">
+      <CoinIcon symbol={`${ticker}/USDT`} coinMeta={coinMeta} size={14} />
+      <span className="text-[10px] font-bold group-hover:text-primary transition-colors">{ticker}</span>
+    </Link>
   );
 }

@@ -1,18 +1,16 @@
 "use client";
 
-import { ContrarianRadar, LiquidityMap, MarketHealth, OracleScreener, RelativeStrength } from "@/components/analytics";
+import { ContrarianRadar, MarketHealth, OracleScreener } from "@/components/analytics";
 import { cn } from "@/lib/utils";
-import { Activity, Droplets, Gauge, Info, LayoutGrid, TrendingUp } from "lucide-react";
+import { Activity, Gauge, Info, LayoutGrid } from "lucide-react";
 import { useState } from "react";
 
-type ChartType = "screener" | "market-health" | "liquidity-sweeps" | "contrarian-radar" | "relative-strength";
+type ChartType = "screener" | "market-health" | "contrarian-radar";
 
 const MENU_ITEMS: { id: ChartType; label: string; icon: any }[] = [
   { id: "screener", label: "Oracle Screener", icon: LayoutGrid },
   { id: "market-health", label: "Market Health", icon: Activity },
-  { id: "liquidity-sweeps", label: "Liquidity Map", icon: Droplets },
   { id: "contrarian-radar", label: "Contrarian Radar", icon: Gauge },
-  { id: "relative-strength", label: "Relative Strength", icon: TrendingUp },
 ];
 
 const CHART_INFO: Record<ChartType, { title: string; description: string }> = {
@@ -24,23 +22,15 @@ const CHART_INFO: Record<ChartType, { title: string; description: string }> = {
     title: "Market Health",
     description: "Aggregate sentiment metrics. Monitors what percentage of the market is trending bullish (above 200D EMA) and detects institutional volatility squeezes.",
   },
-  "liquidity-sweeps": {
-    title: "Liquidity Map",
-    description: "Detects stop-run and reclaim patterns (SFP). Identifies levels where smart money has engineered liquidity before a reversal.",
-  },
   "contrarian-radar": {
     title: "Contrarian Radar",
     description: "Monitors extreme ATR extensions. Identifies pairs that are overstretched from their mean (EMA) and due for a mean-reversion move.",
-  },
-  "relative-strength": {
-    title: "Relative Strength",
-    description: "Compares altcoin performance directly against Bitcoin. Identifies true 'Alpha' leaders that are outperforming the market benchmark.",
   },
 };
 
 export default function AnalyticsPage() {
   const [activeTab, setActiveTab] = useState<ChartType>("screener");
-  const [timeframe, setTimeframe] = useState<string>("1h");
+  const [timeframe, setTimeframe] = useState<string>("4h");
 
   const TIMEFRAMES = [
     { id: "1h", label: "1H", description: "Intraday Momentum" },
@@ -106,13 +96,11 @@ export default function AnalyticsPage() {
         </aside>
 
         {/* Content Area */}
-        <div className="lg:col-span-3 min-h-[700px] bg-secondary/10 rounded-3xl border border-border/30 overflow-hidden shadow-2xl shadow-black/20">
+        <div className="lg:col-span-3 min-h-[500px] bg-secondary/10 rounded-3xl border border-border/30 overflow-hidden shadow-2xl shadow-black/20">
           <div className="p-6 md:p-8">
             {activeTab === "screener" && <OracleScreener timeframe={timeframe} />}
             {activeTab === "market-health" && <MarketHealth timeframe={timeframe} />}
-            {activeTab === "liquidity-sweeps" && <LiquidityMap timeframe={timeframe} />}
             {activeTab === "contrarian-radar" && <ContrarianRadar timeframe={timeframe} />}
-            {activeTab === "relative-strength" && <RelativeStrength timeframe={timeframe} />}
           </div>
         </div>
       </div>
