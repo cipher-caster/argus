@@ -151,32 +151,37 @@ def calculate_adx(highs: List[float], lows: List[float], closes: List[float], pe
     )
 
 
-def calculate_market_cap_stats(tickers: List[Dict[str, Any]]) -> Dict[str, Any]:
+def calculate_market_cap_stats(coins: List[Dict[str, Any]]) -> Dict[str, Any]:
     """
-    Calculate total 24h volume and market regime from ticker data.
-    Note: Binance doesn't provide market_cap, so we use volume as a proxy.
+    Calculate total market cap (or volume) and market regime.
+    Prioritizes 'market_cap' if available, falls back to 'volume_24h'.
     
     Args:
-        tickers: List of ticker dicts with 'volume_24h', 'change_24h' fields
+        coins: List of coin dicts
     
     Returns:
-        Dict with total volume, regime, and changes
+        Dict with total value, regime, and changes
     """
-    if not tickers:
+    if not coins:
         return {
             "value": 0,
             "change_1d": 0,
             "regime": "NEUTRAL",
+            "regime_detail": "No Data",
             "min_value": 0,
             "max_value": 0,
             "history": []
         }
     
-    # Sum 24h volumes (as proxy for market activity)
-    total_volume = sum(t.get('volume_24h', 0) or 0 for t in tickers)
+    # Check if we have valid market cap data (heuristic: check first few)
+    has_mcap = any(c.get('market_cap', 0) and c.get('market_cap', 0) > 0 for c in coins[:5])
+    value_key = 'market_cap' if has_mcap else 'volume_24h'
     
-    # Simple average 24h change (volume-weighted would need market cap)
-    changes = [t.get('change_24h', 0) or 0 for t in tickers if t.get('change_24h') is not None]
+    # Sum values
+    total_value = sum(c.get(value_key, 0) or 0 for c in coins)
+    
+    # Calculate average change (market sentiment)
+    changes = [c.get('change_24h', 0) or 0 for c in coins if c.get('change_24h') is not None]
     avg_change = sum(changes) / len(changes) if changes else 0
     
     # Determine regime based on average change
@@ -193,49 +198,57 @@ def calculate_market_cap_stats(tickers: List[Dict[str, Any]]) -> Dict[str, Any]:
     green_pct = (green_count / total_count * 100) if total_count > 0 else 50
     
     return {
-        "value": total_volume,
+        "value": total_value,
+        "metric_type": value_key,
         "change_1d": round(avg_change, 2),
         "regime": regime,
         "regime_detail": f"{int(green_pct)}% up",
-        "min_value": total_volume * 0.8,
-        "max_value": total_volume * 1.2,
+        "min_value": total_value * 0.9, # Tighter bounds for MC
+        "max_value": total_value * 1.1,
         "history": []
     }
 
 
-def calculate_btc_dominance(tickers: List[Dict[str, Any]]) -> IndicatorValue:
+def calculate_btc_dominance(coins: List[Dict[str, Any]]) -> IndicatorValue:
     """
-    Calculate BTC volume dominance (BTC volume / total volume).
-    Note: Binance doesn't provide market_cap, so we use volume as a proxy.
+    Calculate BTC Dominance (BTC Value / Total Value).
+    Prioritizes 'market_cap', falls back to 'volume_24h'.
     
     Args:
-        tickers: List of ticker dicts with 'symbol' and 'volume_24h' fields
+        coins: List of coin dicts
     
     Returns:
         IndicatorValue with dominance percentage
     """
-    if not tickers:
+    if not coins:
         return IndicatorValue(value=0, label="N/A", history=[])
     
-    total_volume = sum(t.get('volume_24h', 0) or 0 for t in tickers)
+    # Check if we have valid market cap data
+    has_mcap = any(c.get('market_cap', 0) and c.get('market_cap', 0) > 0 for c in coins[:5])
+    value_key = 'market_cap' if has_mcap else 'volume_24h'
     
-    # Find BTC volume
-    btc_volume = 0
-    for t in tickers:
-        symbol = t.get('symbol', '')
-        if symbol in ('BTC/USDT', 'BTCUSDT', 'BTC'):
-            btc_volume = t.get('volume_24h', 0) or 0
+    total_value = sum(c.get(value_key, 0) or 0 for c in coins)
+    
+    # Find BTC value
+    btc_value = 0
+    for c in coins:
+        symbol = c.get('symbol', '').upper()
+        # Handle various BTC symbol formats
+        if symbol in ('BTC/USDT', 'BTCUSDT', 'BTC', 'BITCOIN'):
+            btc_value = c.get(value_key, 0) or 0
             break
     
-    if total_volume == 0:
+    if total_value == 0:
         return IndicatorValue(value=0, label="N/A", history=[])
     
-    dominance = (btc_volume / total_volume) * 100
+    dominance = (btc_value / total_value) * 100
     
-    # Label based on dominance level
-    if dominance > 30:
+    # Label based on dominance level (Standard MC Dom levels)
+    if dominance > 60:
+        label = "Maximalist"
+    elif dominance > 50:
         label = "High"
-    elif dominance > 15:
+    elif dominance > 40:
         label = "Normal"
     else:
         label = "Alt Season"
@@ -243,7 +256,7 @@ def calculate_btc_dominance(tickers: List[Dict[str, Any]]) -> IndicatorValue:
     return IndicatorValue(
         value=round(dominance, 1),
         label=label,
-        min_value=10,
-        max_value=50,
+        min_value=30, # Historical bounds ~35%
+        max_value=70, # Historical bounds ~70%
         history=[]
     )

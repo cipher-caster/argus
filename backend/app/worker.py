@@ -109,7 +109,8 @@ async def sync_market_snapshot(ctx):
                     "order": "market_cap_desc",
                     "per_page": 250,
                     "page": page,
-                    "sparkline": "true"
+                    "sparkline": "true",
+                    "price_change_percentage": "1h,7d"
                 }
                 
                 resp = await client.get(base_url, params=params, timeout=30.0)
@@ -131,7 +132,9 @@ async def sync_market_snapshot(ctx):
                 snapshot.append({
                     "symbol": coin["symbol"].upper() + "/USDT",
                     "price": coin["current_price"],
+                    "change_1h": coin.get("price_change_percentage_1h_in_currency"),
                     "change_24h": coin["price_change_percentage_24h"],
+                    "change_7d": coin.get("price_change_percentage_7d_in_currency"),
                     "volume_24h": coin["total_volume"],
                     "market_cap": coin["market_cap"],
                     "rank": coin["market_cap_rank"],

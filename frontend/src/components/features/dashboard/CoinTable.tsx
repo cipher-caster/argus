@@ -10,7 +10,7 @@ import { CoinIcon } from "@/components/features/dashboard/CoinIcon";
 import { Skeleton } from "@/components/ui/skeleton";
 import { getCoinName, useCoinMeta } from "@/hooks/useCoinMeta";
 import { generateDeterministicSparkline } from "@/lib/chartUtils";
-import { formatChange, formatPrice, formatVolume } from "@/lib/formatters";
+import { formatChange, formatPrice } from "@/lib/formatters";
 import { CoinInfo } from "@/lib/marketApi";
 import { cn } from "@/lib/utils";
 import { ArrowDown, ArrowUp, ArrowUpDown, Search, Star } from "lucide-react";
@@ -56,8 +56,8 @@ function CoinTableComponent({ coins, isLoading, sortBy, sortOrder, onSort }: Coi
   if (!mounted) return <div className="bg-secondary border border-border rounded-xl h-[400px]"></div>;
 
   return (
-    <div className="bg-secondary border border-border rounded-xl overflow-hidden shadow-sm">
-      <table className="w-full border-collapse">
+    <div className="bg-secondary border border-border rounded-xl overflow-x-auto shadow-sm">
+      <table className="w-full border-collapse min-w-[1000px]">
         <thead className="bg-muted/50">
           <tr>
             <th className="w-8 pl-4 pr-0 py-3"></th>
@@ -73,7 +73,9 @@ function CoinTableComponent({ coins, isLoading, sortBy, sortOrder, onSort }: Coi
                 Price <SortIcon field="price" />
               </div>
             </th>
-            <th className="px-4 py-3 text-[11px] font-bold text-muted-foreground uppercase tracking-wider text-right">24h Change</th>
+            <th className="px-4 py-3 text-[11px] font-bold text-muted-foreground uppercase tracking-wider text-right">1h</th>
+            <th className="px-4 py-3 text-[11px] font-bold text-muted-foreground uppercase tracking-wider text-right">24h</th>
+            <th className="px-4 py-3 text-[11px] font-bold text-muted-foreground uppercase tracking-wider text-right">7d</th>
             <th className="px-4 py-3 text-[11px] font-bold text-muted-foreground uppercase tracking-wider text-right cursor-pointer select-none hover:text-foreground transition-colors" onClick={() => onSort("volume_24h")}>
               <div className="flex items-center justify-end">
                 Volume (24h) <SortIcon field="volume_24h" />
@@ -167,12 +169,16 @@ function CoinTableComponent({ coins, isLoading, sortBy, sortOrder, onSort }: Coi
                     <span className="font-mono font-semibold text-[13px] text-foreground tracking-tight">${formatPrice(coin.price)}</span>
                   </td>
                   <td className="px-4 py-4 text-right">
-                    <div className={cn("inline-flex items-center justify-center px-2 py-1 rounded-md text-[12px] font-bold min-w-[70px] font-mono", (coin.change_24h ?? 0) >= 0 ? "bg-success/15 text-success" : "bg-danger/15 text-danger")}>
-                      {formatChange(coin.change_24h)}
-                    </div>
+                    <span className={cn("text-[13px] font-mono", (coin.change_1h ?? 0) >= 0 ? "text-success" : "text-danger")}>{formatChange(coin.change_1h)}</span>
                   </td>
-                  <td className="px-4 py-4 text-right font-mono text-[13px] text-foreground tracking-tight">{formatVolume(coin.volume_24h)}</td>
-                  <td className="px-4 py-4 text-right font-mono font-bold text-[13px] text-foreground tracking-tight">{formatVolume(coin.market_cap)}</td>
+                  <td className="px-4 py-4 text-right">
+                    <span className={cn("text-[13px] font-mono", (coin.change_24h ?? 0) >= 0 ? "text-success" : "text-danger")}>{formatChange(coin.change_24h)}</span>
+                  </td>
+                  <td className="px-4 py-4 text-right">
+                    <span className={cn("text-[13px] font-mono", (coin.change_7d ?? 0) >= 0 ? "text-success" : "text-danger")}>{formatChange(coin.change_7d)}</span>
+                  </td>
+                  <td className="px-4 py-4 text-right font-mono text-[13px] text-foreground tracking-tight">{coin.volume_24h ? "$" + Math.round(coin.volume_24h).toLocaleString() : "—"}</td>
+                  <td className="px-4 py-4 text-right font-mono font-bold text-[13px] text-foreground tracking-tight">{coin.market_cap ? "$" + Math.round(coin.market_cap).toLocaleString() : "—"}</td>
                   <td className="px-4 py-4 text-center">
                     <div className="inline-block">
                       <Sparkline data={coin.sparkline_in_7d && coin.sparkline_in_7d.length > 0 ? coin.sparkline_in_7d : generateDeterministicSparkline(coin.symbol, coin.price, coin.change_24h || 0)} width={80} height={24} />

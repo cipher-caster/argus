@@ -184,18 +184,20 @@ async def get_market_dashboard_indicators():
             result["market_adx"] = adx_indicator.model_dump()
         
         # Fetch ticker data from Redis for market cap calculations
-        tickers = await RedisClient.get_json("market:tickers")
+        # Try snapshot first (rich data with market caps), then tickers (live volume only)
+        snapshot = await RedisClient.get_json("market:snapshot")
+        tickers = snapshot if snapshot else await RedisClient.get_json("market:tickers")
         
         if tickers:
-            # Filter to top 100 by volume for market summary
-            sorted_tickers = sorted(tickers, key=lambda x: x.get('volume_24h') or 0, reverse=True)
+            # Sort by MC (if available) or Volume
+            sorted_tickers = sorted(tickers, key=lambda x: x.get('market_cap') or x.get('volume_24h') or 0, reverse=True)
             top_100 = sorted_tickers[:100]
             
-            # Calculate Total Volume (top 100)
+            # Calculate Total Market Cap (or Volume if fallback)
             market_cap_stats = calculate_market_cap_stats(top_100)
             result["total_market_cap"] = market_cap_stats
             
-            # Calculate BTC Dominance (top 100)
+            # Calculate BTC Dominance
             dominance = calculate_btc_dominance(top_100)
             result["btc_dominance"] = dominance.model_dump()
         

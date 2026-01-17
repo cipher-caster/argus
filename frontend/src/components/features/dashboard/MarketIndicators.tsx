@@ -28,6 +28,9 @@ function MarketIndicatorsComponent() {
     );
   }
 
+  const isMarketCap = data?.total_market_cap?.metric_type === "market_cap";
+  const domTitle = isMarketCap ? "Market Cap Share" : "Volume Share";
+
   return (
     <div className="flex flex-wrap gap-4 mb-6">
       {/* BTC Volatility Card */}
@@ -60,14 +63,14 @@ function MarketIndicatorsComponent() {
         history={data?.market_adx?.history ?? []}
       />
 
-      {/* Total Volume Card */}
+      {/* Total Volume / Market Cap Card */}
       <IndicatorCard
-        title="24h Volume"
+        title={isMarketCap ? "Total Market Cap" : "24h Volume"}
         subtitle="Top 100 Coins"
         icon={<Globe size={16} />}
         value={formatVolume(data?.total_market_cap?.value ?? 0)}
         label={data?.total_market_cap?.regime ?? "NEUTRAL"}
-        tooltip={TOOLTIPS.volume}
+        tooltip={isMarketCap ? "Total market capitalization of top 100 coins." : TOOLTIPS.volume}
         showGauge={false}
         chartColor="#a855f7"
         min={data?.total_market_cap?.min_value ?? 0}
@@ -84,16 +87,16 @@ function MarketIndicatorsComponent() {
       {/* BTC Dominance Card */}
       <IndicatorCard
         title="BTC Dominance"
-        subtitle="Volume Share"
+        subtitle={domTitle}
         icon={<Bitcoin size={16} />}
         value={`${(data?.btc_dominance?.value ?? 0).toFixed(1)}%`}
         label={data?.btc_dominance?.label ?? "N/A"}
-        tooltip={TOOLTIPS.dominance}
+        tooltip={isMarketCap ? "BTC's share of Total Market Cap (~50-60% typically)." : TOOLTIPS.dominance}
         showGauge={true}
         gaugeColors={{ low: "#22c55e", high: "#f59e0b" }}
         chartColor="#f59e0b"
         min={data?.btc_dominance?.min_value ?? 10}
-        max={data?.btc_dominance?.max_value ?? 50}
+        max={data?.btc_dominance?.max_value ?? (isMarketCap ? 70 : 50)}
         history={data?.btc_dominance?.history ?? []}
       />
     </div>

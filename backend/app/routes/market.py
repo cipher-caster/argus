@@ -35,7 +35,9 @@ class CoinInfo(BaseModel):
     symbol: str
     name: str
     price: float
+    change_1h: Optional[float] = None
     change_24h: Optional[float] = None
+    change_7d: Optional[float] = None
     volume_24h: Optional[float] = None
     high_24h: Optional[float] = None
     low_24h: Optional[float] = None
@@ -357,7 +359,9 @@ async def get_coins(
                 symbol=t['symbol'],
                 name=t['name'] or t['symbol'].split('/')[0],
                 price=t['price'],
+                change_1h=t.get('change_1h'),
                 change_24h=t.get('change_24h'),
+                change_7d=t.get('change_7d'),
                 volume_24h=t.get('volume_24h'),
                 high_24h=t.get('high_24h'),
                 low_24h=t.get('low_24h'),

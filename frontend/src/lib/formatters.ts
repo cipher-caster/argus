@@ -33,6 +33,7 @@ export function formatVolume(val: number | null | undefined, currencyPrefix: boo
 
   const prefix = currencyPrefix ? "$" : "";
 
+  if (val >= 1e12) return `${prefix}${(val / 1e12).toFixed(2)}T`;
   if (val >= 1e9) return `${prefix}${(val / 1e9).toFixed(2)}B`;
   if (val >= 1e6) return `${prefix}${(val / 1e6).toFixed(2)}M`;
   if (val >= 1e3) return `${prefix}${(val / 1e3).toFixed(0)}K`; // Changed to match CoinTable logic (no decimals for K usually)

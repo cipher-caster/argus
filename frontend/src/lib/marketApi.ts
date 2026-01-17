@@ -9,8 +9,10 @@ export interface CoinInfo {
   symbol: string;
   name: string;
   price: number;
-  change_24h: number | null;
-  volume_24h: number | null;
+  change_1h?: number;
+  change_24h?: number;
+  change_7d?: number;
+  volume_24h?: number;
   high_24h: number | null;
   low_24h: number | null;
   market_cap: number | null;

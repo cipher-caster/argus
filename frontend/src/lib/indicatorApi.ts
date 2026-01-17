@@ -96,6 +96,7 @@ export interface IndicatorValue {
 
 export interface MarketCapStats {
   value: number;
+  metric_type?: string;
   change_1d: number;
   regime: "BULLISH" | "NEUTRAL" | "BEARISH";
   regime_detail?: string;
