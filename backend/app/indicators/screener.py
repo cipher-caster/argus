@@ -52,17 +52,28 @@ def run_oracle_screener(df_data: Dict[str, pd.DataFrame], btc_df: pd.DataFrame) 
 
             # 7. Filter for meaningful setups (abs(score) >= 2)
             if abs(earnest['score']) >= 2:
+                # Calculate simple Trend Bias
+                is_uptrend = pd.notna(last_row.get('ema200')) and last_row['close'] > last_row['ema200']
+                bias_str = "BULLISH" if is_uptrend else "BEARISH"
+                
+                # Approximate macro score based on trend (since we lack full macro data here)
+                # 2 = Bullish Trend, 0 = Bearish Trend
+                macro_score = 2 if is_uptrend else 0
+                
+                # Calculate Targets
+                targets = oracle._calculate_targets(last_row, last_row, bias_str)
+
                 results.append({
                     "symbol": symbol,
                     "price": float(last_row['close']),
                     "score": earnest['score'],
                     "confidence": f"{abs(earnest['score'])}/4",
-                    "bias": "BULLISH" if pd.notna(last_row.get('ema200')) and last_row['close'] > last_row['ema200'] else "BEARISH",
+                    "bias": bias_str,
                     "state": state['state'],
                     "liquidity": "ACTIVE" if state['volatility_tag'] != "DANGER" else "HIGH",
                     "strength_vs_btc": strength_tag,
                     "opportunity": opp,
-                    "advice": oracle._generate_advice(earnest, {"score": 0, "bias": "NEUTRAL"}, state, {"tp1": 0, "tp2": 0, "sl": 0})
+                    "advice": oracle._generate_advice(earnest, {"score": macro_score, "bias": bias_str}, state, targets)
                 })
         except Exception as e:
             logger.warning(f"Screener error for {symbol}: {e}")

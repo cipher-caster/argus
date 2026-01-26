@@ -34,7 +34,7 @@ export function LiquidityMap({ timeframe = "1h", limit = 50 }: { timeframe?: str
           Active Sweep & Reclaims (Smart Money Entries)
         </h3>
         <div className="flex items-center gap-3">
-          {data?.last_updated && <span className="text-xs text-muted-foreground hidden sm:inline">Updated: {new Date(data.last_updated).toLocaleTimeString()}</span>}
+          {data?.last_updated && <span className="text-xs text-muted-foreground hidden sm:inline">Updated: {new Date(data.last_updated).toLocaleString()}</span>}
           <button onClick={handleRefresh} disabled={isRefetching} className="text-muted-foreground hover:text-primary transition-colors disabled:opacity-50" title="Refresh">
             <RefreshCcw size={14} className={cn(isRefetching && "animate-spin")} />
           </button>

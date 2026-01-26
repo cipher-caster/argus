@@ -44,7 +44,7 @@ export function TrendRadar() {
           The Trend God (200 EMA Radar)
         </h2>
         <div className="flex items-center gap-4 text-xs font-medium text-muted-foreground">
-          {data.last_updated && <span className="hidden sm:inline">Updated: {new Date(data.last_updated).toLocaleTimeString()}</span>}
+          {data.last_updated && <span className="hidden sm:inline">Updated: {new Date(data.last_updated).toLocaleString()}</span>}
           <button onClick={handleRefresh} disabled={isRefetching} className="hover:text-primary transition-colors disabled:opacity-50" title="Refresh">
             <RefreshCcw size={14} className={cn(isRefetching && "animate-spin")} />
           </button>

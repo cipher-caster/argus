@@ -43,11 +43,11 @@ export function TitanRadar({ timeframe = "4h" }: { timeframe?: string }) {
           </h2>
           <div className="flex items-center gap-2">
             <p className="text-xs text-muted-foreground">Unified Trend + Momentum Strategy ({timeframe.toUpperCase()})</p>
-            {data?.last_updated && <span className="text-[10px] text-muted-foreground border-l border-border pl-2">Updated: {new Date(data.last_updated).toLocaleTimeString()}</span>}
+            {data?.last_updated && <span className="text-xs text-muted-foreground border-l border-border pl-2 ml-1">Updated: {new Date(data.last_updated).toLocaleString()}</span>}
           </div>
         </div>
 
-        <div className="relative w-64">
+        <div className="relative w-72">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" size={14} />
           <input
             type="text"

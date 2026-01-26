@@ -2,15 +2,24 @@
 
 import { CoinIcon } from "@/components/features/dashboard/CoinIcon";
 import { Skeleton } from "@/components/ui/skeleton";
+import { useToast } from "@/components/ui/toaster";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { useOracleSignalSummary } from "@/hooks/useAnalyticsData";
 import { useCoinMeta } from "@/hooks/useCoinMeta";
 import { cn } from "@/lib/utils";
-import { HelpCircle, Zap } from "lucide-react";
+import { HelpCircle, RefreshCcw, Zap } from "lucide-react";
 import Link from "next/link";
 
 export function OracleSignalSummary() {
-  const { data, isLoading, error } = useOracleSignalSummary();
+  const { data, isLoading, error, refetch, isRefetching } = useOracleSignalSummary();
+  const { toast, dismiss } = useToast();
+
+  const handleRefresh = async () => {
+    const id = toast("Refreshing Oracle signals...", "info");
+    await refetch();
+    dismiss(id);
+    toast("Oracle signals refreshed", "success");
+  };
 
   if (isLoading) return <Skeleton className="h-[180px] w-full rounded-xl" />;
   if (error) return <div className="h-full min-h-[200px] flex items-center justify-center bg-secondary border border-red-500/20 text-red-500 rounded-xl italic text-xs">Oracle Unavailable</div>;
@@ -31,18 +40,23 @@ export function OracleSignalSummary() {
           </span>
           <span className="text-[13px] text-muted-foreground font-bold uppercase tracking-tight">Oracle Intelligence</span>
         </div>
-        <TooltipProvider>
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <button className="p-1 rounded-md text-muted-foreground hover:text-foreground transition-colors">
-                <HelpCircle size={14} />
-              </button>
-            </TooltipTrigger>
-            <TooltipContent side="bottom" className="max-w-[250px] text-center">
-              <p>Confidence based on momentum scores across Top 50 Perpetual symbols.</p>
-            </TooltipContent>
-          </Tooltip>
-        </TooltipProvider>
+        <div className="flex items-center gap-1">
+          <button onClick={handleRefresh} disabled={isRefetching} className="p-1 rounded-md text-muted-foreground hover:text-foreground transition-colors disabled:opacity-50" title="Refresh Data">
+            <RefreshCcw size={14} className={cn(isRefetching && "animate-spin")} />
+          </button>
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <button className="p-1 rounded-md text-muted-foreground hover:text-foreground transition-colors">
+                  <HelpCircle size={14} />
+                </button>
+              </TooltipTrigger>
+              <TooltipContent side="bottom" className="max-w-[250px] text-center">
+                <p>Confidence based on momentum scores across Top 50 Perpetual symbols.</p>
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
+        </div>
       </div>
 
       {/* Value Display - Matches IndicatorCard */}
@@ -114,6 +128,13 @@ export function OracleSignalSummary() {
           })()}
         </div>
       </div>
+
+      {/* Footer */}
+      {data?.last_updated && (
+        <div className="mt-2 pt-2 border-t border-border/50 flex justify-end">
+          <span className="text-[9px] text-muted-foreground font-medium">Updated: {new Date(data!.last_updated).toLocaleString()}</span>
+        </div>
+      )}
     </div>
   );
 }

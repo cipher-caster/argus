@@ -46,7 +46,7 @@ export function ContrarianRadar({ timeframe = "1h", limit = 50 }: { timeframe?: 
           <button onClick={handleRefresh} disabled={isRefetching} className="text-muted-foreground hover:text-primary transition-colors p-1 disabled:opacity-50" title="Refresh">
             <RefreshCcw size={14} className={cn(isRefetching && "animate-spin")} />
           </button>
-          {data?.last_updated && <span className="text-[10px] text-muted-foreground">Updated: {new Date(data.last_updated).toLocaleTimeString()}</span>}
+          {data?.last_updated && <span className="text-[10px] text-muted-foreground">Updated: {new Date(data.last_updated).toLocaleString()}</span>}
         </div>
       </div>
 

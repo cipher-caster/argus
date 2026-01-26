@@ -36,9 +36,9 @@ export function MarketHealth({ timeframe = "1h", limit = 100 }: { timeframe?: st
               <button onClick={handleRefresh} disabled={isRefetching} className="ml-2 text-muted-foreground hover:text-primary transition-colors disabled:opacity-50" title="Refresh Data">
                 <RefreshCcw size={14} className={cn(isRefetching && "animate-spin")} />
               </button>
+              {data?.last_updated && <span className="ml-2 text-xs text-muted-foreground font-normal">Updated: {new Date(data.last_updated).toLocaleString()}</span>}
             </h3>
             <div className="flex items-center gap-2">
-              {data?.last_updated && <span className="text-[10px] text-muted-foreground hidden sm:block">Updated: {new Date(data.last_updated).toLocaleTimeString()}</span>}
               <TooltipProvider>
                 <Tooltip>
                   <TooltipTrigger>

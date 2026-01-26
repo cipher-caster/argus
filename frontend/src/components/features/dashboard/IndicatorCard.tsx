@@ -3,7 +3,7 @@
 import { Sparkline } from "@/components/features/chart/Sparkline";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
-import { HelpCircle } from "lucide-react";
+import { HelpCircle, RefreshCcw } from "lucide-react";
 import { memo, useMemo } from "react";
 
 interface GaugeBarProps {
@@ -47,9 +47,29 @@ export interface IndicatorCardProps {
   gaugeColors?: { low: string; high: string };
   chartColor?: string;
   extraContent?: React.ReactNode;
+  lastUpdated?: string;
+  onRefresh?: () => void;
+  isRefetching?: boolean;
 }
 
-function IndicatorCardComponent({ title, icon, value, label, subtitle, tooltip, min, max, history = [], showGauge = false, gaugeColors = { low: "#ef4444", high: "#22c55e" }, chartColor = "#22c55e", extraContent }: IndicatorCardProps) {
+function IndicatorCardComponent({
+  title,
+  icon,
+  value,
+  label,
+  subtitle,
+  tooltip,
+  min,
+  max,
+  history = [],
+  showGauge = false,
+  gaugeColors = { low: "#ef4444", high: "#22c55e" },
+  chartColor = "#22c55e",
+  extraContent,
+  lastUpdated,
+  onRefresh,
+  isRefetching,
+}: IndicatorCardProps) {
   const displayValue = typeof value === "number" ? value.toFixed(1) : value;
 
   const labelColorClass = useMemo(() => {
@@ -70,20 +90,27 @@ function IndicatorCardComponent({ title, icon, value, label, subtitle, tooltip, 
           {icon && <span className="text-muted-foreground">{icon}</span>}
           <span className="text-[13px] text-muted-foreground font-bold uppercase tracking-tight">{title}</span>
         </div>
-        {tooltip && (
-          <TooltipProvider>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <button className="p-1 rounded-md text-muted-foreground hover:text-foreground transition-colors">
-                  <HelpCircle size={14} />
-                </button>
-              </TooltipTrigger>
-              <TooltipContent side="bottom" className="max-w-[250px] text-center">
-                <p>{tooltip}</p>
-              </TooltipContent>
-            </Tooltip>
-          </TooltipProvider>
-        )}
+        <div className="flex items-center gap-1">
+          {onRefresh && (
+            <button onClick={onRefresh} disabled={isRefetching} className="p-1 rounded-md text-muted-foreground hover:text-foreground transition-colors disabled:opacity-50" title="Refresh Data">
+              <RefreshCcw size={14} className={cn(isRefetching && "animate-spin")} />
+            </button>
+          )}
+          {tooltip && (
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <button className="p-1 rounded-md text-muted-foreground hover:text-foreground transition-colors">
+                    <HelpCircle size={14} />
+                  </button>
+                </TooltipTrigger>
+                <TooltipContent side="bottom" className="max-w-[250px] text-center">
+                  <p>{tooltip}</p>
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+          )}
+        </div>
       </div>
 
       {/* Value Display */}
@@ -121,6 +148,13 @@ function IndicatorCardComponent({ title, icon, value, label, subtitle, tooltip, 
           </div>
         )}
       </div>
+
+      {/* Last Updated Footer */}
+      {lastUpdated && (
+        <div className="mt-3 pt-2 px-1 border-t border-border/50 flex justify-end">
+          <span className="text-[9px] text-muted-foreground font-medium">Updated: {new Date(lastUpdated).toLocaleString()}</span>
+        </div>
+      )}
     </div>
   );
 }

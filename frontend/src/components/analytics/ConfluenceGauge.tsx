@@ -91,7 +91,13 @@ export function ConfluenceGauge() {
         </div>
 
         {/* Footer */}
-        {data.last_updated && <div className="text-[9px] text-muted-foreground text-right border-t border-white/5 pt-2 mt-2">Last Updated: {new Date(data.last_updated).toLocaleTimeString()}</div>}
+        <div className="flex items-center justify-between mb-4">
+          <h3 className="text-sm font-semibold flex items-center gap-2">
+            <Zap size={16} className="text-yellow-500" />
+            Market Consensus
+          </h3>
+          {data?.last_updated && <span className="text-[10px] text-muted-foreground">Updated: {new Date(data.last_updated).toLocaleString()}</span>}
+        </div>
       </div>
     </div>
   );

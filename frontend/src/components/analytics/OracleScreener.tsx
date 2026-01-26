@@ -44,7 +44,7 @@ export function OracleScreener({ timeframe = "1h", limit = 50 }: { timeframe?: s
           />
         </div>
         <div className="flex items-center gap-3">
-          {data?.last_updated && <div className="text-xs text-muted-foreground">Updated: {new Date(data.last_updated).toLocaleTimeString()}</div>}
+          {data?.last_updated && <div className="text-xs text-muted-foreground">Updated: {new Date(data.last_updated).toLocaleString()}</div>}
           <button onClick={handleRefresh} disabled={isRefetching} className="p-1.5 hover:bg-muted rounded-lg transition-colors text-muted-foreground hover:text-foreground disabled:opacity-50" title="Refresh Data">
             <RefreshCcw size={14} className={cn(isRefetching && "animate-spin")} />
           </button>

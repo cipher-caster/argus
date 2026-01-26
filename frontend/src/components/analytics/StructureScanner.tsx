@@ -59,7 +59,7 @@ export function StructureScanner() {
           </button>
         </h2>
         <div className="flex items-center gap-2 text-xs text-muted-foreground">
-          {data.last_updated && <span>Updated: {new Date(data.last_updated).toLocaleTimeString()}</span>}
+          {data?.last_updated && <span className="text-[10px] text-muted-foreground">Updated: {new Date(data.last_updated).toLocaleString()}</span>}
           <span className="border-l border-border pl-2">Scanned {data.data.length} assets</span>
         </div>
       </div>

@@ -1,6 +1,7 @@
 "use client";
 
 import { Skeleton } from "@/components/ui/skeleton";
+import { useToast } from "@/components/ui/toaster";
 import { useMarketIndicators } from "@/hooks/useMarketIndicators";
 import { formatVolume } from "@/lib/formatters";
 import { Activity, Bitcoin, Globe, TrendingUp } from "lucide-react";
@@ -17,7 +18,15 @@ const TOOLTIPS = {
 };
 
 function MarketIndicatorsComponent() {
-  const { data, isLoading } = useMarketIndicators();
+  const { data, isLoading, refetch, isRefetching } = useMarketIndicators();
+  const { toast, dismiss } = useToast();
+
+  const handleRefresh = async () => {
+    const id = toast("Refreshing market indicators...", "info");
+    await refetch();
+    dismiss(id);
+    toast("Market indicators refreshed", "success");
+  };
 
   if (isLoading) {
     return (
@@ -46,6 +55,9 @@ function MarketIndicatorsComponent() {
         chartColor="#22c55e"
         min={data?.market_adx?.min_value ?? 0}
         max={data?.market_adx?.max_value ?? 100}
+        lastUpdated={data?.updated_at}
+        onRefresh={handleRefresh}
+        isRefetching={isRefetching}
       />
 
       {/* Avg Crypto RSI Card - Gauge + Value + Sparkline */}
@@ -59,8 +71,10 @@ function MarketIndicatorsComponent() {
         showGauge={true}
         gaugeColors={{ low: "#22c55e", high: "#ef4444" }}
         chartColor="#3b82f6"
-        min={0}
         max={100}
+        lastUpdated={data?.updated_at}
+        onRefresh={handleRefresh}
+        isRefetching={isRefetching}
       />
 
       {/* Total Volume / Market Cap Card - Sparkline Only */}
@@ -74,6 +88,9 @@ function MarketIndicatorsComponent() {
         showGauge={false}
         chartColor="#a855f7"
         history={data?.total_market_cap?.history ?? []}
+        lastUpdated={data?.updated_at}
+        onRefresh={handleRefresh}
+        isRefetching={isRefetching}
       />
 
       {/* BTC Dominance Card - Gauge Only */}
@@ -89,6 +106,9 @@ function MarketIndicatorsComponent() {
         chartColor="#f59e0b"
         min={data?.btc_dominance?.min_value ?? 10}
         max={data?.btc_dominance?.max_value ?? (isMarketCap ? 70 : 50)}
+        lastUpdated={data?.updated_at}
+        onRefresh={handleRefresh}
+        isRefetching={isRefetching}
       />
     </>
   );
