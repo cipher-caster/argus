@@ -1,19 +1,18 @@
 "use client";
 
 import { useStrategyOracle } from "@/hooks/useStrategyOracle";
+import { SeriesMarker, Time } from "lightweight-charts";
 import { useEffect } from "react";
 import { useChart } from "../context/ChartContext";
-import { Time, SeriesMarker } from "lightweight-charts";
 
 interface OracleMarkersProps {
   symbol: string;
   timeframe: string;
-  mode: string;
 }
 
-export function OracleMarkers({ symbol, timeframe, mode }: OracleMarkersProps) {
+export function OracleMarkers({ symbol, timeframe }: OracleMarkersProps) {
   const { chart, mainSeries } = useChart();
-  const { data } = useStrategyOracle(symbol, timeframe, "1d", mode);
+  const { data } = useStrategyOracle(symbol, timeframe, "1d");
 
   useEffect(() => {
     if (!mainSeries || !data?.historical_signals) return;

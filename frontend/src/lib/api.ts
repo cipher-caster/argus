@@ -213,6 +213,24 @@ export interface ConfluenceResponse {
   score_distribution: Record<string, number>;
 }
 
+export interface TitanRadarItem {
+  symbol: string;
+  price: number;
+  signal: string;
+  confidence: number;
+  trend: string;
+  momentum: string;
+  volatility: string;
+  entry: number;
+  tp: number;
+  sl: number;
+  advice: string;
+}
+
+export interface TitanRadarResponse {
+  data: TitanRadarItem[];
+}
+
 /**
  * Fetch supported analytics symbols
  */
@@ -307,6 +325,15 @@ export async function fetchConfluence(limit: number = 50): Promise<ConfluenceRes
   return response.json();
 }
 
+/**
+ * Fetch Titan Radar
+ */
+export async function fetchTitanRadar(limit: number = 50, timeframe: string = "4h"): Promise<TitanRadarResponse> {
+  const response = await fetch(`${API_URL}/api/analytics/titan-radar?limit=${limit}&timeframe=${timeframe}`);
+  if (!response.ok) throw new Error("Failed to fetch titan radar");
+  return response.json();
+}
+
 // --- Strategy Types ---
 
 export interface OracleStrategyResponse {
@@ -349,11 +376,10 @@ export interface OracleStrategyResponse {
 /**
  * Fetch Oracle Strategy analysis
  */
-export async function fetchOracleStrategy(symbol: string, micro_tf: string = "1h", macro_tf: string = "1d", strategy_mode: string = "prophet"): Promise<OracleStrategyResponse> {
+export async function fetchOracleStrategy(symbol: string, micro_tf: string = "1h", macro_tf: string = "1d"): Promise<OracleStrategyResponse> {
   const params = new URLSearchParams({
     micro_tf,
     macro_tf,
-    strategy_mode,
   });
 
   const response = await fetch(`${API_URL}/api/strategy/oracle/${encodeURIComponent(symbol)}?${params}`);

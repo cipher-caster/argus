@@ -10,7 +10,20 @@ The analytics engine focuses on five key dimensions of market data:
 2. **Aggregate Sentiment** (Market Health)
 3. **Institutional Liquidity** (Liquidity Map)
 4. **Volatility Exhaustion** (Contrarian Radar)
-5. **Relative Alpha** (Relative Strength)
+5. **Volatility Exhaustion** (Contrarian Radar)
+6. **Relative Alpha** (Relative Strength)
+7. **Actionable Setups** (Titan Unified Strategy)
+
+## ⚖️ Engine Comparison
+
+While all engines analyze similar data, they serve distinct tactical purposes:
+
+| Engine | Primary Indicators | Output Type | Best Use Case |
+|/|/|/|/|
+| **Trend Radar** | Price vs 200 EMA | Macro Map (Zones) | **Selection**: Finding _which_ coins are in a confirmed Bull Trend. |
+| **Weekly Structure** | Price vs Monday Range | Structural Status | **Timing**: Avoiding traps and validating breakouts before entering. |
+| **Oracle Screener** | RSI, ADX, BB, EMA | Momentum Score (-4 to +4) | **Ranking**: Finding _what_ is moving the fastest right now. |
+| **Titan Strategy** | Trend, Momentum, Volatility | Trade Setup (Entry/TP/SL) | **Execution**: Getting concrete Risk/Reward levels for a trade. |
 
 ## Detailed Documentation
 
@@ -22,6 +35,7 @@ For a deep dive into the logic, thresholds, and trading actionable for each engi
 - **[Oracle Screener](./analytics/ORACLE_SCREENER.md)**
 - **[Market Health](./analytics/MARKET_HEALTH.md)**
 - **[Contrarian Radar](./analytics/CONTRARIAN_RADAR.md)**
+- **[Titan Unified Strategy](./analytics/TITAN_STRATEGY.md)**
 
 ## Core Components
 
@@ -69,6 +83,18 @@ All analytics modules support dynamic timeframe switching:
 
 - **Logic**: Measures performance vs. Bitcoin (BTCUSDT cluster).
 - **Alpha Hunting**: Find altcoins that are gaining value even when BTC is stagnant or dropping.
+
+### Titan Unified Strategy
+
+- **Logic**: Hybrid Trend + Momentum engine.
+- **Components**: EMA 200 (Trend), RSI/MACD (Momentum), Bollinger Squeeze (Volatility).
+- **Output**: Actionable BUY/SELL signals with ATR-based Risk/Reward targets.
+
+### Titan Unified Strategy
+
+- **Logic**: Hybrid Trend + Momentum engine.
+- **Components**: EMA 200 (Trend), RSI/MACD (Momentum), Bollinger Squeeze (Volatility).
+- **Output**: Actionable BUY/SELL signals with ATR-based Risk/Reward targets.
 
 ## Frontend Components
 
@@ -128,6 +154,7 @@ All endpoints check Redis first, compute on miss, then cache results:
 | `/signal-summary`    | `analytics:signal-summary`          | 60s |
 | `/trend-radar`       | `analytics:trend-radar:{limit}`     | 60s |
 | `/structure`         | `analytics:structure:{limit}`       | 60s |
+| `/titan-radar`       | `analytics:titan:{tf}:{limit}`      | 60s |
 | `/confluence`        | _(uses screener cache)_             | N/A |
 
 ### Worker Pre-warming

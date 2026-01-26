@@ -22,10 +22,13 @@ from app.schemas.analytics import (
     TrendRadarResponse,
     StructureResponse,
     StructureItem,
-    ConfluenceResponse
+    StructureItem,
+    ConfluenceResponse,
+    TitanRadarResponse,
+    TitanRadarItem
 )
 
-from app.routes.strategy import get_candles_df
+from app.routes.strategy import get_candles_df, titan
 from app.indicators.screener import run_oracle_screener
 from app.indicators.market_health import calculate_market_health
 from app.indicators.liquidity import detect_liquidity_sweeps
@@ -294,3 +297,53 @@ async def get_market_confluence(limit: int = 50):
     
     return ConfluenceResponse(**result)
 
+
+@router.get("/titan-radar", response_model=TitanRadarResponse)
+async def get_titan_radar(limit: int = 50, timeframe: str = "4h"):
+    """Titan Unified System Scanner"""
+    cache_key = f"analytics:titan:{timeframe}:{limit}"
+    cached = await RedisClient.get_json(cache_key)
+    if cached: return TitanRadarResponse(data=[TitanRadarItem(**i) for i in cached])
+    
+    symbols = await MarketDataService.get_top_symbols(limit=limit)
+    # Titan needs 200 candles. 4h is good default.
+    df_data = await fetch_all_candles(symbols, timeframe=timeframe, limit=300)
+    
+    results = []
+    for sym, df in df_data.items():
+        try:
+            analysis = titan.analyze(df)
+            if "error" in analysis: continue
+            
+            # Convert analysis dict to Item
+            # analysis has signal, confidence, trend, momentum(dict), vol(dict), targets(dict), sizing
+            
+            # Simplify momentum/vol description
+            mom_str = analysis['momentum']['status']
+            if analysis['momentum']['is_overbought']: mom_str += " (OB)"
+            elif analysis['momentum']['is_oversold']: mom_str += " (OS)"
+            
+            vol_str = "SQUEEZE" if analysis['volatility']['squeeze'] else "NORMAL"
+            
+            item = TitanRadarItem(
+                symbol=sym,
+                price=df.iloc[-1]['close'],
+                signal=analysis['signal'],
+                confidence=analysis['confidence'],
+                trend=analysis['trend'],
+                momentum=mom_str,
+                volatility=vol_str,
+                entry=analysis['targets'].get('entry', 0),
+                tp=analysis['targets'].get('tp', 0),
+                sl=analysis['targets'].get('sl', 0),
+                advice=analysis['sizing']
+            )
+            results.append(item)
+        except Exception:
+            continue
+            
+    # Sort by confidence desc
+    results.sort(key=lambda x: x.confidence, reverse=True)
+    
+    await RedisClient.set_json(cache_key, [r.model_dump() for r in results], ttl=CACHE_TTL)
+    return TitanRadarResponse(data=results)

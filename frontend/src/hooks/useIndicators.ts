@@ -33,13 +33,6 @@ export function useAvailableIndicators() {
           params: [],
           description: "Trend-following strategy. Requires Daily Trend alignment. Best for swing trading.",
         },
-        {
-          name: "earnest_strategy",
-          display_name: "Earnest Strategy (Momentum)",
-          type: "overlay" as const,
-          params: [],
-          description: "Pure momentum strategy. Ignores Daily Trend. Aggressive scalping logic.",
-        },
       ];
       setAvailableIndicators(enhancedData);
     }
@@ -54,7 +47,7 @@ export function useAvailableIndicators() {
 export function useCalculatedIndicators(symbol: string, timeframe: string, limit: number = 300, endTimestamp?: number) {
   const indicators = useIndicatorStore((s) => s.indicators);
   // Filter out client-side strategies (like Oracle) that don't use the standard indicator API
-  const visibleIndicators = indicators.filter((i) => i.visible && i.type !== "prophet_strategy" && i.type !== "earnest_strategy");
+  const visibleIndicators = indicators.filter((i) => i.visible && i.type !== "prophet_strategy");
 
   return useQuery({
     queryKey: ["calculated-indicators", symbol, timeframe, endTimestamp, limit, visibleIndicators.map((i) => `${i.type}-${JSON.stringify(i.params)}`)],

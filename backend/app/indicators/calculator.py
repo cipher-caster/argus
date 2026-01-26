@@ -85,6 +85,31 @@ INDICATOR_REGISTRY: Dict[str, Dict[str, Any]] = {
         ],
         "description": "Linear Regression Curve (Moneyline)",
     },
+    "atr": {
+        "display_name": "ATR",
+        "type": "pane",
+        "params": [
+            {"name": "length", "type": "int", "default": 14, "min": 1, "max": 100}
+        ],
+        "description": "Average True Range (Volatility)",
+    },
+    "supertrend": {
+        "display_name": "SuperTrend",
+        "type": "overlay",
+        "params": [
+            {"name": "length", "type": "int", "default": 10, "min": 1, "max": 100},
+            {"name": "multiplier", "type": "float", "default": 3.0, "min": 1.0, "max": 10.0}
+        ],
+        "description": "SuperTrend Indicator",
+    },
+    "auto_fib": {
+        "display_name": "Auto Fib",
+        "type": "overlay",
+        "params": [
+            {"name": "lookback", "type": "int", "default": 200, "min": 50, "max": 500}
+        ],
+        "description": "Auto Fibonacci Retracement Levels",
+    },
 }
 
 
@@ -162,6 +187,21 @@ def calculate_indicator(
             length = params.get("length", 50)
             values = ta.linreg(df["close"], length=length)
             result_data = _series_to_list(df["timestamp"], values)
+
+        elif indicator_name == "atr":
+            length = params.get("length", 14)
+            values = ta.atr(df["high"], df["low"], df["close"], length=length)
+            result_data = _series_to_list(df["timestamp"], values)
+
+        elif indicator_name == "supertrend":
+            length = params.get("length", 10)
+            multiplier = params.get("multiplier", 3.0)
+            st = ta.supertrend(df["high"], df["low"], df["close"], length=length, multiplier=multiplier)
+            result_data = _supertrend_to_list(df["timestamp"], st)
+
+        elif indicator_name == "auto_fib":
+            lookback = params.get("lookback", 200)
+            result_data = _fib_to_list(df["timestamp"], df["high"], df["low"], lookback)
             
     except Exception as e:
         print(f"Error calculating {indicator_name}: {e}")
@@ -212,4 +252,64 @@ def _macd_to_list(timestamps: pd.Series, macd: pd.DataFrame) -> List[Dict[str, A
                 "signal": float(row.iloc[1]),
                 "histogram": float(row.iloc[2]),
             })
+    return result
+
+
+def _supertrend_to_list(timestamps: pd.Series, supertrend: pd.DataFrame) -> List[Dict[str, Any]]:
+    """Convert SuperTrend DataFrame to list"""
+    result = []
+    # SuperTrend returns usually 2 columns: SUPERT_length_mult (trend line), SUPERTd_length_mult (direction 1/-1)
+    # We need to identify them dynamically or assume position
+    if supertrend.empty:
+        return []
+        
+    cols = supertrend.columns.tolist()
+    # Usually first col is value, second is direction (or vice versa? pandas_ta varies)
+    # pandas_ta: SUPERT_7_3.0, SUPERTd_7_3.0, SUPERTl_7_3.0, SUPERTs_7_3.0
+    
+    val_col = [c for c in cols if c.startswith("SUPERT_")][0]
+    dir_col = [c for c in cols if c.startswith("SUPERTd_")][0]
+    
+    for i, ts in enumerate(timestamps):
+        val = supertrend[val_col].iloc[i]
+        direction = supertrend[dir_col].iloc[i]
+        
+        if pd.notna(val):
+            result.append({
+                "timestamp": int(ts),
+                "value": float(val),
+                "trend": "bullish" if direction > 0 else "bearish"
+            })
+    return result
+
+def _fib_to_list(timestamps: pd.Series, high: pd.Series, low: pd.Series, lookback: int) -> List[Dict[str, Any]]:
+    """Calculate Auto Fib levels based on recent high/low"""
+    # This is a simplification. Real Auto Fib might need pivot detection.
+    # We'll stick to a simple lookback high/low for now.
+    
+    # We only return the levels for the *last* candle to draw lines, 
+    # or we can return a series. For "Overlay", we usually want a series.
+    result = []
+    
+    # Rolling max/min
+    roll_high = high.rolling(lookback).max()
+    roll_low = low.rolling(lookback).min()
+    
+    for i, ts in enumerate(timestamps):
+        h = roll_high.iloc[i]
+        l = roll_low.iloc[i]
+        
+        if pd.notna(h) and pd.notna(l) and h != l:
+            diff = h - l
+            result.append({
+                "timestamp": int(ts),
+                "top": float(h),
+                "fib_0_236": float(h - (diff * 0.236)),
+                "fib_0_382": float(h - (diff * 0.382)),
+                "fib_0_5": float(h - (diff * 0.5)),
+                "fib_0_618": float(h - (diff * 0.618)),
+                "fib_0_786": float(h - (diff * 0.786)),
+                "bottom": float(l)
+            })
+            
     return result

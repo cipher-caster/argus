@@ -20,12 +20,13 @@ class OracleStrategy:
         self.vol_threshold = 1.3
         self.atr_gap_mult = 3.0
 
-    def analyze(self, df_micro: pd.DataFrame, df_macro: pd.DataFrame, mode: str = "prophet") -> Dict[str, Any]:
+    def analyze(self, df_micro: pd.DataFrame, df_macro: pd.DataFrame) -> Dict[str, Any]:
         """
         Main analysis entry point.
         :param df_micro: DataFrame for the trading timeframe (e.g., 1H)
         :param df_macro: DataFrame for the trend timeframe (e.g., 1D)
-        :param mode: 'prophet' (Trend Following) or 'earnest' (Pure Momentum)
+        :param df_micro: DataFrame for the trading timeframe (e.g., 1H)
+        :param df_macro: DataFrame for the trend timeframe (e.g., 1D)
         """
         if df_micro.empty or df_macro.empty:
             return {"error": "Insufficient data"}
@@ -51,11 +52,11 @@ class OracleStrategy:
         targets = self._calculate_targets(micro, macro, macro_result['bias'])
 
         # 7. Historical Signals & Backtest Simulation
-        backtest = self._run_backtest(df_micro, df_macro, mode)
+        backtest = self._run_backtest(df_micro, df_macro)
         
         return {
-            "mode": mode,
-            "signal": self._synthesize_signal(earnest_result['score'], macro_result['score'], mode),
+            "mode": "prophet",
+            "signal": self._synthesize_signal(earnest_result['score'], macro_result['score']),
             "confidence": f"{abs(earnest_result['score'])}/4",
             "bias": macro_result['bias'],
             "state": state_result['state'],
@@ -63,12 +64,12 @@ class OracleStrategy:
             "earnest": earnest_result,
             "macro": macro_result,
             "targets": targets,
-            "advice": self._generate_advice(earnest_result, macro_result, state_result, targets, mode),
+            "advice": self._generate_advice(earnest_result, macro_result, state_result, targets),
             "historical_signals": backtest['signals'],
             "performance": backtest['stats']
         }
 
-    def _run_backtest(self, df_micro: pd.DataFrame, df_macro: pd.DataFrame, mode: str) -> Dict[str, Any]:
+    def _run_backtest(self, df_micro: pd.DataFrame, df_macro: pd.DataFrame) -> Dict[str, Any]:
         """
         Simulates trades based on signals and calculates performance.
         Returns signals list and performance stats.
@@ -128,7 +129,7 @@ class OracleStrategy:
             m_bias = macro_biases[max(macro_ts)]
             
             e_score = self._calculate_earnest_score(row)['score']
-            sig = self._synthesize_signal(e_score, m_bias['score'], mode)
+            sig = self._synthesize_signal(e_score, m_bias['score'])
             
             if sig in ["STRONG_BUY", "BUY", "STRONG_SELL", "SELL"]:
                 # Record Signal
@@ -350,18 +351,9 @@ class OracleStrategy:
         else:
             return {"tp1": 0.0, "tp2": 0.0, "sl": 0.0}
 
-    def _synthesize_signal(self, earnest_score: int, macro_score: int, mode: str) -> str:
-        """Combines Micro and Macro for a final verdict."""
+    def _synthesize_signal(self, earnest_score: int, macro_score: int) -> str:
+        """Combines Micro and Macro for a final verdict (Prophet Logic)."""
         
-        # --- EARNEST MODE (Pure Momentum) ---
-        if mode == "earnest":
-            if earnest_score >= 3:
-                return "STRONG_BUY" if earnest_score == 4 else "BUY"
-            elif earnest_score <= -3:
-                return "STRONG_SELL" if earnest_score == -4 else "SELL"
-            return "NEUTRAL"
-
-        # --- PROPHET MODE (Trend Following) ---
         # Strong Buy: Macro Bullish + Earnest > 2
         if macro_score >= 2 and earnest_score >= 3:
             return "STRONG_BUY"
@@ -377,20 +369,13 @@ class OracleStrategy:
         
         return "NEUTRAL"
 
-    def _generate_advice(self, earnest, macro, state, targets, mode) -> str:
+    def _generate_advice(self, earnest, macro, state, targets) -> str:
         """Generates human-readable advice string."""
-        signal = self._synthesize_signal(earnest['score'], macro['score'], mode)
+        signal = self._synthesize_signal(earnest['score'], macro['score'])
         
         if state['volatility_tag'] == "DANGER":
             return "High Volatility. Reduce leverage."
             
-        if mode == "earnest":
-            if "BUY" in signal:
-                return f"Momentum Long. Score {earnest['score']}/4."
-            elif "SELL" in signal:
-                return f"Momentum Short. Score {abs(earnest['score'])}/4."
-            return "No momentum setup."
-        
         if signal == "STRONG_BUY":
             return f"TITAN BULL. Full alignment. TP: {targets['tp1']:.2f}"
         elif signal == "STRONG_SELL":

@@ -5,7 +5,7 @@
  * Optimized with stale-while-revalidate for better UX
  */
 
-import { fetchAnalyticsSymbols, fetchLiquiditySweeps, fetchMarketHealth, fetchMeanReversion, fetchOracleScreener, fetchOracleSignalSummary, fetchRelativeStrength } from "@/lib/api";
+import { fetchAnalyticsSymbols, fetchLiquiditySweeps, fetchMarketHealth, fetchMeanReversion, fetchOracleScreener, fetchOracleSignalSummary, fetchRelativeStrength, fetchTitanRadar } from "@/lib/api";
 import { keepPreviousData, useQuery } from "@tanstack/react-query";
 
 /**
@@ -79,6 +79,17 @@ export function useOracleSignalSummary() {
     queryKey: ["analytics", "signal-summary"],
     queryFn: fetchOracleSignalSummary,
     staleTime: 30_000,
+    gcTime: 5 * 60_000,
+    refetchOnWindowFocus: false,
+    placeholderData: keepPreviousData,
+  });
+}
+
+export function useTitanRadar(limit: number = 50, timeframe: string = "4h") {
+  return useQuery({
+    queryKey: ["analytics", "titan-radar", limit, timeframe],
+    queryFn: () => fetchTitanRadar(limit, timeframe),
+    staleTime: 60_000,
     gcTime: 5 * 60_000,
     refetchOnWindowFocus: false,
     placeholderData: keepPreviousData,

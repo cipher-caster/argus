@@ -58,6 +58,7 @@ This document provides context for continuing development on Argus.
   - **Live Backtesting**: Real-time simulation of strategies on chart history.
   - **Signal Markers**: Buy/Sell arrows on candles.
 - ✅ **Analytics Dashboard**:
+  - **Titan Strategy**: Unified Trend + Momentum scanner with risk targets.
   - Funding Rates, Open Interest, and Long/Short Ratios.
   - Professional charts for market sentiment.
 

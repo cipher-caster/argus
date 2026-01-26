@@ -1,16 +1,17 @@
 "use client";
 
-import { ConfluenceGauge, ContrarianRadar, MarketHealth, OracleScreener, StructureScanner, TrendRadar } from "@/components/analytics";
+import { ConfluenceGauge, ContrarianRadar, MarketHealth, OracleScreener, StructureScanner, TitanRadar, TrendRadar } from "@/components/analytics";
 import { cn } from "@/lib/utils";
-import { Activity, BoxSelect, Gauge, Info, Layers, LayoutGrid } from "lucide-react";
+import { Activity, BoxSelect, Gauge, Info, Layers, LayoutGrid, ShieldCheck } from "lucide-react";
 import { useState } from "react";
 
-type ChartType = "screener" | "market-health" | "contrarian-radar" | "trend-radar" | "structure";
+type ChartType = "screener" | "market-health" | "contrarian-radar" | "trend-radar" | "structure" | "titan-radar";
 
 const MENU_ITEMS: { id: ChartType; label: string; icon: any }[] = [
   { id: "screener", label: "Oracle Screener", icon: LayoutGrid },
   { id: "trend-radar", label: "Trend Radar (200D)", icon: Layers },
   { id: "structure", label: "Weekly Structure", icon: BoxSelect },
+  { id: "titan-radar", label: "Titan Strategy", icon: ShieldCheck },
   { id: "market-health", label: "Market Health", icon: Activity },
   { id: "contrarian-radar", label: "Contrarian Radar", icon: Gauge },
 ];
@@ -36,6 +37,10 @@ const CHART_INFO: Record<ChartType, { title: string; description: string }> = {
     title: "Contrarian Radar",
     description: "Monitors extreme ATR extensions. Identifies pairs that are overstretched from their mean (EMA) and due for a mean-reversion move.",
   },
+  "titan-radar": {
+    title: "Titan Unified System",
+    description: "Hybrid Trend + Momentum strategy. Uses EMA 200, RSI, MACD, and Bollinger Bands to identify high-probability setups with defined Risk/Reward.",
+  },
 };
 
 export default function AnalyticsPage() {
@@ -59,7 +64,7 @@ export default function AnalyticsPage() {
         </div>
 
         {/* Global Timeframe Selector */}
-        {["screener", "market-health", "contrarian-radar"].includes(activeTab) && (
+        {["screener", "market-health", "contrarian-radar", "titan-radar"].includes(activeTab) && (
           <div className="flex bg-secondary/30 p-1 rounded-xl border border-border/50 backdrop-blur-sm self-start md:self-auto">
             {TIMEFRAMES.map((tf) => (
               <button
@@ -117,6 +122,7 @@ export default function AnalyticsPage() {
             {activeTab === "trend-radar" && <TrendRadar />}
             {activeTab === "structure" && <StructureScanner />}
             {activeTab === "market-health" && <MarketHealth timeframe={timeframe} />}
+            {activeTab === "titan-radar" && <TitanRadar timeframe={timeframe} />}
             {activeTab === "contrarian-radar" && <ContrarianRadar timeframe={timeframe} />}
           </div>
         </div>

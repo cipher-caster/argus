@@ -98,3 +98,19 @@ class ConfluenceResponse(BaseModel):
     verdict: str
     metrics: ConfluenceMetrics
     score_distribution: Dict[int, int]
+
+class TitanRadarItem(BaseModel):
+    symbol: str
+    price: float
+    signal: str
+    confidence: int
+    trend: str
+    momentum: str
+    volatility: str
+    entry: float
+    tp: float
+    sl: float
+    advice: str
+
+class TitanRadarResponse(BaseModel):
+    data: List[TitanRadarItem]

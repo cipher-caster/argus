@@ -9,6 +9,7 @@ import pandas as pd
 from sqlmodel import select
 
 from app.strategies.oracle import OracleStrategy
+from app.strategies.titan import TitanStrategy
 from app.storage import Database
 from app.schemas.candle import Candle as DbCandle
 from app.providers.binance_provider import BinanceProvider
@@ -17,6 +18,7 @@ router = APIRouter(prefix="/api/strategy", tags=["strategy"])
 
 # Singleton strategy instance
 oracle = OracleStrategy()
+titan = TitanStrategy()
 
 async def get_candles_df(symbol: str, timeframe: str, limit: int = 500, provider: Optional[BinanceProvider] = None) -> pd.DataFrame:
     """
@@ -112,14 +114,11 @@ async def get_candles_df(symbol: str, timeframe: str, limit: int = 500, provider
 async def get_oracle_strategy(
     symbol: str,
     micro_tf: str = Query(default="1h", description="Timeframe for voters"),
-    macro_tf: str = Query(default="1d", description="Timeframe for trend"),
-    strategy_mode: str = Query(default="prophet", pattern="^(prophet|earnest)$")
+    macro_tf: str = Query(default="1d", description="Timeframe for trend")
 ):
     """
     Runs the Oracle Strategy on a symbol.
-    Modes:
-    - prophet: Trend Following (Requires Daily Alignment)
-    - earnest: Pure Momentum (Scalping/Counter-trend)
+    Uses Prophet logic (Trend Following with Macro Context).
     """
     try:
         # Fetch Data concurrently could be better, but sequential is safer for now
@@ -130,13 +129,46 @@ async def get_oracle_strategy(
              raise HTTPException(status_code=404, detail=f"Insufficient data for {symbol}")
              
         # Run Strategy
-        result = oracle.analyze(df_micro, df_macro, mode=strategy_mode)
+        result = oracle.analyze(df_micro, df_macro)
         
         # Add metadata
         result['symbol'] = symbol
         result['micro_tf'] = micro_tf
         result['macro_tf'] = macro_tf
         result['price'] = df_micro.iloc[-1]['close']
+        
+        return result
+        
+    except HTTPException as he:
+        raise he
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get("/titan/{symbol:path}")
+async def get_titan_strategy(
+    symbol: str, 
+    timeframe: str = Query(default="4h", description="Timeframe for analysis")
+):
+    """
+    Runs the Titan Unified Trading System on a symbol.
+    """
+    try:
+        # Fetch sufficient data for 200 EMA + lookback
+        df = await get_candles_df(symbol, timeframe, limit=300)
+        
+        if df.empty:
+             raise HTTPException(status_code=404, detail=f"Insufficient data for {symbol}")
+             
+        # Run Strategy
+        result = titan.analyze(df)
+        
+        # Add metadata
+        result['symbol'] = symbol
+        result['timeframe'] = timeframe
+        result['price'] = df.iloc[-1]['close']
         
         return result
         
