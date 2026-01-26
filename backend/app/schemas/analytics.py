@@ -21,10 +21,12 @@ class ScreenerItem(BaseModel):
 
 class ScreenerResponse(BaseModel):
     data: List[ScreenerItem]
+    last_updated: int = 0
 
 class MarketHealthResponse(BaseModel):
     summary: Dict[str, Any]
     volatility: Dict[str, Any]
+    last_updated: int = 0
 
 class LiquiditySweepItem(BaseModel):
     symbol: str
@@ -35,6 +37,7 @@ class LiquiditySweepItem(BaseModel):
 
 class LiquiditySweepResponse(BaseModel):
     data: List[LiquiditySweepItem]
+    last_updated: int = 0
 
 class RelativeStrengthItem(BaseModel):
     symbol: str
@@ -44,6 +47,7 @@ class RelativeStrengthItem(BaseModel):
 
 class RelativeStrengthResponse(BaseModel):
     data: List[RelativeStrengthItem]
+    last_updated: int = 0
 
 class MeanReversionItem(BaseModel):
     symbol: str
@@ -56,12 +60,14 @@ class MeanReversionItem(BaseModel):
 
 class MeanReversionResponse(BaseModel):
     data: List[MeanReversionItem]
+    last_updated: int = 0
 
 class OracleSignalSummaryResponse(BaseModel):
     bullish_pct: float
     bearish_pct: float
     top_signals: List[str] # e.g. ["SOL STRONG_BUY", "ETH BUY"]
     market_state: str
+    last_updated: int = 0
 
 # New Analytics Engines
 class TrendRadarItem(BaseModel):
@@ -76,6 +82,7 @@ class TrendRadarResponse(BaseModel):
     map: List[TrendRadarItem]
     buckets: Dict[str, List[str]]
     summary: Dict[str, int]
+    last_updated: int = 0
 
 class StructureItem(BaseModel):
     symbol: str
@@ -87,6 +94,7 @@ class StructureItem(BaseModel):
 
 class StructureResponse(BaseModel):
     data: List[StructureItem]
+    last_updated: int = 0
 
 class ConfluenceMetrics(BaseModel):
     total_analyzed: int
@@ -98,6 +106,7 @@ class ConfluenceResponse(BaseModel):
     verdict: str
     metrics: ConfluenceMetrics
     score_distribution: Dict[int, int]
+    last_updated: int = 0
 
 class TitanRadarItem(BaseModel):
     symbol: str
@@ -114,3 +123,4 @@ class TitanRadarItem(BaseModel):
 
 class TitanRadarResponse(BaseModel):
     data: List[TitanRadarItem]
+    last_updated: int = 0

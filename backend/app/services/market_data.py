@@ -62,7 +62,15 @@ class MarketDataService:
     async def get_top_symbols(limit: int = 100, sort_by: str = "market_cap") -> List[str]:
         """
         Get list of top symbols based on market cap or volume.
+        Auto-filters stablecoins and other non-speculative assets.
         """
+        # Blacklist of stablecoins and non-tradeable assets
+        BLACKLIST = {
+            "USDT/USDT", "USDC/USDT", "DAI/USDT", "FDUSD/USDT", "TUSD/USDT",
+            "USDP/USDT", "EUR/USDT", "BUSD/USDT", "USDD/USDT", "PYUSD/USDT",
+            "WBTC/USDT", "USDE/USDT", "USD1/USDT", "BFUSD/USDT",
+            "LUSD/USDT", "FRAX/USDT", "USTC/USDT"
+        }
         data = await MarketDataService.get_merged_market_data()
         
         # Filter symbols that are active on Binance Futures might be useful here, 
@@ -82,7 +90,13 @@ class MarketDataService:
             active_symbols = {s.symbol for s in active_symbols_info}
             
             # Filter data
-            filtered_data = [item for item in data if item['symbol'] in active_symbols]
+            filtered_data = [
+                item for item in data 
+                if item['symbol'] in active_symbols 
+                and item['symbol'] not in BLACKLIST
+                and not item['symbol'].endswith("DOWN/USDT") # Filter leveraged tokens
+                and not item['symbol'].endswith("UP/USDT")
+            ]
             
             # If filtration emptied the list (e.g. provider error), fallback to raw data
             # but ideally we want strict filtering.

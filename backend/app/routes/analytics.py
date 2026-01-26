@@ -4,6 +4,7 @@ Uses CCXT-based BinanceProvider for data fetching
 Redis caching for performance optimization
 """
 import logging
+import time
 import pandas as pd
 import asyncio
 from fastapi import APIRouter, HTTPException
@@ -81,7 +82,8 @@ async def get_oracle_screener(limit: int = 50, timeframe: str = "1h"):
     cached = await RedisClient.get_json(cache_key)
     if cached:
         logger.debug(f"Cache HIT: {cache_key}")
-        return ScreenerResponse(data=cached)
+        if isinstance(cached, list): return ScreenerResponse(data=cached, last_updated=0)
+        return ScreenerResponse(**cached)
     
     # Cache miss - compute fresh data
     logger.debug(f"Cache MISS: {cache_key}")
@@ -92,8 +94,9 @@ async def get_oracle_screener(limit: int = 50, timeframe: str = "1h"):
     data = run_oracle_screener(df_data, btc_df)
     
     # Cache the result
-    await RedisClient.set_json(cache_key, data, ttl=CACHE_TTL)
-    return ScreenerResponse(data=data)
+    response = {"data": data, "last_updated": int(time.time() * 1000)}
+    await RedisClient.set_json(cache_key, response, ttl=CACHE_TTL)
+    return ScreenerResponse(**response)
 
 
 @router.get("/market-health", response_model=MarketHealthResponse)
@@ -109,6 +112,7 @@ async def get_market_health(limit: int = 100, timeframe: str = "1h"):
     df_data = await fetch_all_candles(symbols, timeframe=timeframe)
     health = calculate_market_health(df_data)
     
+    health['last_updated'] = int(time.time() * 1000)
     await RedisClient.set_json(cache_key, health, ttl=CACHE_TTL)
     return MarketHealthResponse(**health)
 
@@ -120,7 +124,8 @@ async def get_liquidity_sweeps_analytics(limit: int = 50, timeframe: str = "1h")
     
     cached = await RedisClient.get_json(cache_key)
     if cached:
-        return LiquiditySweepResponse(data=[LiquiditySweepItem(**item) for item in cached])
+        if isinstance(cached, list): return LiquiditySweepResponse(data=[LiquiditySweepItem(**item) for item in cached], last_updated=0)
+        return LiquiditySweepResponse(**cached)
     
     symbols = await MarketDataService.get_top_symbols(limit=limit)
     df_data = await fetch_all_candles(symbols, timeframe=timeframe)
@@ -142,8 +147,9 @@ async def get_liquidity_sweeps_analytics(limit: int = 50, timeframe: str = "1h")
             results.append(LiquiditySweepItem(symbol=sym, **sweep))
     
     # Cache as dicts for JSON serialization
-    await RedisClient.set_json(cache_key, [r.model_dump() for r in results], ttl=CACHE_TTL)
-    return LiquiditySweepResponse(data=results)
+    response = {"data": [r.model_dump() for r in results], "last_updated": int(time.time() * 1000)}
+    await RedisClient.set_json(cache_key, response, ttl=CACHE_TTL)
+    return LiquiditySweepResponse(**response)
 
 
 @router.get("/relative-strength", response_model=RelativeStrengthResponse)
@@ -153,7 +159,8 @@ async def get_relative_strength_analytics(limit: int = 50, timeframe: str = "1h"
     
     cached = await RedisClient.get_json(cache_key)
     if cached:
-        return RelativeStrengthResponse(data=[RelativeStrengthItem(**item) for item in cached])
+        if isinstance(cached, list): return RelativeStrengthResponse(data=[RelativeStrengthItem(**item) for item in cached], last_updated=0)
+        return RelativeStrengthResponse(**cached)
     
     symbols = await MarketDataService.get_top_symbols(limit=limit)
     df_data = await fetch_all_candles(symbols, timeframe=timeframe)
@@ -165,8 +172,9 @@ async def get_relative_strength_analytics(limit: int = 50, timeframe: str = "1h"
         rs = calculate_relative_strength(df, btc_df)
         results.append(RelativeStrengthItem(symbol=sym, **rs))
     
-    await RedisClient.set_json(cache_key, [r.model_dump() for r in results], ttl=CACHE_TTL)
-    return RelativeStrengthResponse(data=results)
+    response = {"data": [r.model_dump() for r in results], "last_updated": int(time.time() * 1000)}
+    await RedisClient.set_json(cache_key, response, ttl=CACHE_TTL)
+    return RelativeStrengthResponse(**response)
 
 
 @router.get("/contrarian-radar", response_model=MeanReversionResponse)
@@ -176,7 +184,8 @@ async def get_contrarian_radar(limit: int = 50, timeframe: str = "1h"):
     
     cached = await RedisClient.get_json(cache_key)
     if cached:
-        return MeanReversionResponse(data=[MeanReversionItem(**item) for item in cached])
+        if isinstance(cached, list): return MeanReversionResponse(data=[MeanReversionItem(**item) for item in cached], last_updated=0)
+        return MeanReversionResponse(**cached)
     
     symbols = await MarketDataService.get_top_symbols(limit=limit)
     df_data = await fetch_all_candles(symbols, timeframe=timeframe)
@@ -187,8 +196,9 @@ async def get_contrarian_radar(limit: int = 50, timeframe: str = "1h"):
         if rev['is_extended']:
             results.append(MeanReversionItem(symbol=sym, **rev))
     
-    await RedisClient.set_json(cache_key, [r.model_dump() for r in results], ttl=CACHE_TTL)
-    return MeanReversionResponse(data=results)
+    response = {"data": [r.model_dump() for r in results], "last_updated": int(time.time() * 1000)}
+    await RedisClient.set_json(cache_key, response, ttl=CACHE_TTL)
+    return MeanReversionResponse(**response)
 
 
 @router.get("/signal-summary", response_model=OracleSignalSummaryResponse)
@@ -237,7 +247,8 @@ async def get_oracle_signal_summary():
         "bullish_pct": round((bullish / len(screener_data)) * 100, 1) if screener_data else 0,
         "bearish_pct": round((bearish / len(screener_data)) * 100, 1) if screener_data else 0,
         "top_signals": top_signals,
-        "market_state": market_state
+        "market_state": market_state,
+        "last_updated": int(time.time() * 1000)
     }
     
     await RedisClient.set_json(cache_key, result, ttl=CACHE_TTL)
@@ -258,6 +269,7 @@ async def get_trend_radar(limit: int = 50):
     radar = TrendRadar()
     result = radar.analyze(df_data)
     
+    result['last_updated'] = int(time.time() * 1000)
     await RedisClient.set_json(cache_key, result, ttl=CACHE_TTL)
     return TrendRadarResponse(**result)
 
@@ -266,7 +278,9 @@ async def get_market_structure(limit: int = 50):
     """The Weekly Trap: Monday Range Analysis"""
     cache_key = f"analytics:structure:{limit}"
     cached = await RedisClient.get_json(cache_key)
-    if cached: return StructureResponse(data=[StructureItem(**i) for i in cached])
+    if cached: 
+        if isinstance(cached, list): return StructureResponse(data=[StructureItem(**i) for i in cached], last_updated=0)
+        return StructureResponse(**cached)
     
     symbols = await MarketDataService.get_top_symbols(limit=limit)
     # Structure needs enough data to find Monday. 4H or 1H is good.
@@ -275,8 +289,9 @@ async def get_market_structure(limit: int = 50):
     scanner = StructureScanner()
     data = scanner.analyze(df_data)
     
-    await RedisClient.set_json(cache_key, data, ttl=CACHE_TTL)
-    return StructureResponse(data=data)
+    response = {"data": data, "last_updated": int(time.time() * 1000)}
+    await RedisClient.set_json(cache_key, response, ttl=CACHE_TTL)
+    return StructureResponse(**response)
 
 @router.get("/confluence", response_model=ConfluenceResponse)
 async def get_market_confluence(limit: int = 50):
@@ -294,6 +309,7 @@ async def get_market_confluence(limit: int = 50):
     
     aggregator = ConfluenceAggregator()
     result = aggregator.analyze(screener_data)
+    result['last_updated'] = int(time.time() * 1000)
     
     return ConfluenceResponse(**result)
 
@@ -303,7 +319,9 @@ async def get_titan_radar(limit: int = 50, timeframe: str = "4h"):
     """Titan Unified System Scanner"""
     cache_key = f"analytics:titan:{timeframe}:{limit}"
     cached = await RedisClient.get_json(cache_key)
-    if cached: return TitanRadarResponse(data=[TitanRadarItem(**i) for i in cached])
+    if cached:
+        if isinstance(cached, list): return TitanRadarResponse(data=[TitanRadarItem(**i) for i in cached], last_updated=0)
+        return TitanRadarResponse(**cached)
     
     symbols = await MarketDataService.get_top_symbols(limit=limit)
     # Titan needs 200 candles. 4h is good default.
@@ -345,5 +363,6 @@ async def get_titan_radar(limit: int = 50, timeframe: str = "4h"):
     # Sort by confidence desc
     results.sort(key=lambda x: x.confidence, reverse=True)
     
-    await RedisClient.set_json(cache_key, [r.model_dump() for r in results], ttl=CACHE_TTL)
-    return TitanRadarResponse(data=results)
+    response = {"data": [r.model_dump() for r in results], "last_updated": int(time.time() * 1000)} 
+    await RedisClient.set_json(cache_key, response, ttl=CACHE_TTL)
+    return TitanRadarResponse(**response)

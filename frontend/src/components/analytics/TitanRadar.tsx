@@ -1,19 +1,28 @@
 "use client";
 
 import { CoinIcon } from "@/components/features/dashboard/CoinIcon";
+import { useToast } from "@/components/ui/toaster";
 import { useTitanRadar } from "@/hooks/useAnalyticsData";
 import { useCoinMeta } from "@/hooks/useCoinMeta";
 import { formatPrice } from "@/lib/formatters";
 import { cn } from "@/lib/utils";
-import { ArrowDown, ArrowUp, Minus, Search, ShieldCheck, Zap } from "lucide-react";
+import { ArrowDown, ArrowUp, Minus, RefreshCcw, Search, ShieldCheck, Zap } from "lucide-react";
 import Link from "next/link";
 import { useState } from "react";
 
 export function TitanRadar({ timeframe = "4h" }: { timeframe?: string }) {
   const [search, setSearch] = useState("");
   const { coinMeta } = useCoinMeta();
+  const { toast, dismiss } = useToast();
   // Titan Radar defaults to 4h for best results (as per PDF "Titan Trend")
-  const { data, isLoading, error } = useTitanRadar(50, timeframe);
+  const { data, isLoading, error, refetch, isRefetching } = useTitanRadar(50, timeframe);
+
+  const handleRefresh = async () => {
+    const id = toast("Refreshing Titan system...", "info");
+    await refetch();
+    dismiss(id);
+    toast("Titan system updated", "success");
+  };
 
   const filteredData = data?.data.filter((item) => item.symbol.toLowerCase().includes(search.toLowerCase())) || [];
 
@@ -28,8 +37,14 @@ export function TitanRadar({ timeframe = "4h" }: { timeframe?: string }) {
           <h2 className="text-lg font-bold flex items-center gap-2">
             <ShieldCheck className="text-primary" size={20} />
             Titan System Scanner
+            <button onClick={handleRefresh} disabled={isRefetching} className="ml-1 p-1 hover:bg-muted rounded-full transition-colors text-muted-foreground/50 hover:text-primary disabled:opacity-50" title="Refresh">
+              <RefreshCcw size={14} className={cn(isRefetching && "animate-spin")} />
+            </button>
           </h2>
-          <p className="text-xs text-muted-foreground">Unified Trend + Momentum Strategy ({timeframe.toUpperCase()})</p>
+          <div className="flex items-center gap-2">
+            <p className="text-xs text-muted-foreground">Unified Trend + Momentum Strategy ({timeframe.toUpperCase()})</p>
+            {data?.last_updated && <span className="text-[10px] text-muted-foreground border-l border-border pl-2">Updated: {new Date(data.last_updated).toLocaleTimeString()}</span>}
+          </div>
         </div>
 
         <div className="relative w-64">

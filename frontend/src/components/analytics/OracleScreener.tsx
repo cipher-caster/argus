@@ -1,19 +1,28 @@
 "use client";
 
 import { CoinIcon } from "@/components/features/dashboard/CoinIcon";
+import { useToast } from "@/components/ui/toaster";
 import { useOracleScreener } from "@/hooks/useAnalyticsData";
 import { useCoinMeta } from "@/hooks/useCoinMeta";
 import { ScreenerItem } from "@/lib/api";
 import { formatPrice } from "@/lib/formatters";
 import { cn } from "@/lib/utils";
-import { Minus, Search, TrendingDown, TrendingUp } from "lucide-react";
+import { Minus, RefreshCcw, Search, TrendingDown, TrendingUp } from "lucide-react";
 import Link from "next/link";
 import { useState } from "react";
 
 export function OracleScreener({ timeframe = "1h", limit = 50 }: { timeframe?: string; limit?: number }) {
   const [search, setSearch] = useState("");
   const { coinMeta } = useCoinMeta();
-  const { data, isLoading, error } = useOracleScreener(timeframe, limit);
+  const { data, isLoading, error, refetch, isRefetching } = useOracleScreener(timeframe, limit);
+  const { toast, dismiss } = useToast();
+
+  const handleRefresh = async () => {
+    const id = toast("Refreshing screener data...", "info");
+    await refetch();
+    dismiss(id);
+    toast("Screener data refreshed", "success");
+  };
 
   const filteredData = data?.data.filter((item: ScreenerItem) => item.symbol.toLowerCase().includes(search.toLowerCase())) || [];
 
@@ -34,7 +43,13 @@ export function OracleScreener({ timeframe = "1h", limit = 50 }: { timeframe?: s
             className="w-full pl-10 pr-4 py-2 bg-background border border-border rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-primary/50"
           />
         </div>
-        <div className="text-xs text-muted-foreground">Showing {filteredData.length} symbols</div>
+        <div className="flex items-center gap-3">
+          {data?.last_updated && <div className="text-xs text-muted-foreground">Updated: {new Date(data.last_updated).toLocaleTimeString()}</div>}
+          <button onClick={handleRefresh} disabled={isRefetching} className="p-1.5 hover:bg-muted rounded-lg transition-colors text-muted-foreground hover:text-foreground disabled:opacity-50" title="Refresh Data">
+            <RefreshCcw size={14} className={cn(isRefetching && "animate-spin")} />
+          </button>
+          <div className="text-xs text-muted-foreground border-l border-border pl-3">{filteredData.length} symbols</div>
+        </div>
       </div>
 
       {/* Table */}

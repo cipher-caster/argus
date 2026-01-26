@@ -1,5 +1,6 @@
 import { Navbar } from "@/components/common/Navbar";
 import { Providers } from "@/components/common/Providers";
+import { ToastProvider } from "@/components/ui/toaster"; // Added import for ToastProvider
 import type { Metadata } from "next";
 import "./globals.css";
 
@@ -21,7 +22,13 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <Providers>
           <div className="layout-main h-full flex flex-col">
             <Navbar />
-            <div className="content-scrollable flex-1 min-h-0 relative overflow-y-auto">{children}</div>
+            <div className="content-scrollable flex-1 min-h-0 relative overflow-y-auto">
+              <ToastProvider>
+                {" "}
+                {/* Wrapped children with ToastProvider */}
+                {children}
+              </ToastProvider>
+            </div>
           </div>
         </Providers>
       </body>

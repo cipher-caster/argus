@@ -1,13 +1,22 @@
 "use client";
 
+import { useToast } from "@/components/ui/toaster";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { useMarketHealth } from "@/hooks/useAnalyticsData";
 import { MarketHealthResponse } from "@/lib/api";
 import { cn } from "@/lib/utils";
-import { Activity, HelpCircle, ShieldAlert, Zap } from "lucide-react";
+import { Activity, HelpCircle, RefreshCcw, ShieldAlert, Zap } from "lucide-react";
 
 export function MarketHealth({ timeframe = "1h", limit = 100 }: { timeframe?: string; limit?: number }) {
-  const { data, isLoading, error } = useMarketHealth(timeframe, limit);
+  const { toast, dismiss } = useToast();
+  const { data, isLoading, error, refetch, isRefetching } = useMarketHealth(timeframe, limit);
+
+  const handleRefresh = async () => {
+    const id = toast("Refreshing market health...", "info");
+    await refetch();
+    dismiss(id);
+    toast("Market health updated", "success");
+  };
 
   if (isLoading) return <div className="h-[400px] flex items-center justify-center">Loading Market Health...</div>;
   if (error) return <div className="h-[400px] flex items-center justify-center text-red-500">Error loading health data</div>;
@@ -24,15 +33,21 @@ export function MarketHealth({ timeframe = "1h", limit = 100 }: { timeframe?: st
             <h3 className="text-sm font-semibold flex items-center gap-2">
               <Activity size={16} className="text-primary" />
               Trend Health <span className="text-muted-foreground font-normal">({summary.total_coins} Coins)</span>
+              <button onClick={handleRefresh} disabled={isRefetching} className="ml-2 text-muted-foreground hover:text-primary transition-colors disabled:opacity-50" title="Refresh Data">
+                <RefreshCcw size={14} className={cn(isRefetching && "animate-spin")} />
+              </button>
             </h3>
-            <TooltipProvider>
-              <Tooltip>
-                <TooltipTrigger>
-                  <HelpCircle size={14} className="text-muted-foreground hover:text-foreground transition-colors" />
-                </TooltipTrigger>
-                <TooltipContent className="max-w-[250px]">Percentage of coins trading above their 200-Day Exponential Moving Average (EMA). &gt;50% indicates a broad bull market.</TooltipContent>
-              </Tooltip>
-            </TooltipProvider>
+            <div className="flex items-center gap-2">
+              {data?.last_updated && <span className="text-[10px] text-muted-foreground hidden sm:block">Updated: {new Date(data.last_updated).toLocaleTimeString()}</span>}
+              <TooltipProvider>
+                <Tooltip>
+                  <TooltipTrigger>
+                    <HelpCircle size={14} className="text-muted-foreground hover:text-foreground transition-colors" />
+                  </TooltipTrigger>
+                  <TooltipContent className="max-w-[250px]">Percentage of coins trading above their 200-Day Exponential Moving Average (EMA). &gt;50% indicates a broad bull market.</TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
+            </div>
           </div>
 
           <div className="space-y-8">

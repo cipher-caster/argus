@@ -36,7 +36,31 @@ async def get_candles_df(symbol: str, timeframe: str, limit: int = 500, provider
         db_candles = results.scalars().all()
     
     # 2. Check sufficiency
-    is_sufficient = len(db_candles) >= (limit * 0.8) # Allow some tolerance
+    # We need enough candles AND they must be fresh
+    now_ms = pd.Timestamp.now().timestamp() * 1000
+    
+    # Calculate timeframe in ms
+    tf_ms = {
+        '1m': 60 * 1000,
+        '5m': 5 * 60 * 1000,
+        '15m': 15 * 60 * 1000,
+        '30m': 30 * 60 * 1000,
+        '1h': 60 * 60 * 1000,
+        '4h': 4 * 60 * 60 * 1000,
+        '1d': 24 * 60 * 60 * 1000,
+        '1w': 7 * 24 * 60 * 60 * 1000,
+    }.get(timeframe, 60 * 60 * 1000)
+    
+    is_count_sufficient = len(db_candles) >= (limit * 0.8)
+    
+    is_fresh = False
+    if db_candles:
+        last_candle_ts = db_candles[0].timestamp # Sorted desc, so 0 is latest
+        # Allow 2x timeframe lag before considering stale (e.g. 2 hours for 1h candles)
+        # For 1d candles, this might be too loose (48h), but reasonable for now.
+        is_fresh = (now_ms - last_candle_ts) < (tf_ms * 2.5)
+        
+    is_sufficient = is_count_sufficient and is_fresh
     
     # 3. Fetch from Binance if missing/stale
     if not is_sufficient:

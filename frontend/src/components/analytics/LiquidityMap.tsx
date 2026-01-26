@@ -1,16 +1,25 @@
 "use client";
 
 import { CoinIcon } from "@/components/features/dashboard/CoinIcon";
+import { useToast } from "@/components/ui/toaster";
 import { useLiquiditySweeps } from "@/hooks/useAnalyticsData";
 import { useCoinMeta } from "@/hooks/useCoinMeta";
 import { formatPrice } from "@/lib/formatters";
 import { cn } from "@/lib/utils";
-import { ChevronRight, Droplets, Target } from "lucide-react";
+import { ChevronRight, Droplets, RefreshCcw, Target } from "lucide-react";
 import Link from "next/link";
 
 export function LiquidityMap({ timeframe = "1h", limit = 50 }: { timeframe?: string; limit?: number }) {
   const { coinMeta } = useCoinMeta();
-  const { data, isLoading, error } = useLiquiditySweeps(timeframe, limit);
+  const { toast, dismiss } = useToast();
+  const { data, isLoading, error, refetch, isRefetching } = useLiquiditySweeps(timeframe, limit);
+
+  const handleRefresh = async () => {
+    const id = toast("Refreshing liquidity map...", "info");
+    await refetch();
+    dismiss(id);
+    toast("Liquidity sweeps updated", "success");
+  };
 
   if (isLoading) return <div className="h-[400px] flex items-center justify-center">Loading Liquidity Map...</div>;
   if (error) return <div className="h-[400px] flex items-center justify-center text-red-500">Error loading sweeps</div>;
@@ -24,7 +33,13 @@ export function LiquidityMap({ timeframe = "1h", limit = 50 }: { timeframe?: str
           <Droplets size={16} className="text-blue-500" />
           Active Sweep & Reclaims (Smart Money Entries)
         </h3>
-        <span className="text-xs text-muted-foreground">{sweeps.length} Opportunities detected</span>
+        <div className="flex items-center gap-3">
+          {data?.last_updated && <span className="text-xs text-muted-foreground hidden sm:inline">Updated: {new Date(data.last_updated).toLocaleTimeString()}</span>}
+          <button onClick={handleRefresh} disabled={isRefetching} className="text-muted-foreground hover:text-primary transition-colors disabled:opacity-50" title="Refresh">
+            <RefreshCcw size={14} className={cn(isRefetching && "animate-spin")} />
+          </button>
+          <span className="text-xs text-muted-foreground">{sweeps.length} Opportunities detected</span>
+        </div>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">

@@ -114,6 +114,7 @@ export interface ScreenerItem {
 
 export interface ScreenerResponse {
   data: ScreenerItem[];
+  last_updated: number;
 }
 
 export interface MarketHealthResponse {
@@ -128,6 +129,7 @@ export interface MarketHealthResponse {
     ACTIVE: number;
     STABLE: number;
   };
+  last_updated: number;
 }
 
 export interface LiquiditySweepItem {
@@ -140,6 +142,7 @@ export interface LiquiditySweepItem {
 
 export interface LiquiditySweepResponse {
   data: LiquiditySweepItem[];
+  last_updated: number;
 }
 
 export interface RelativeStrengthItem {
@@ -151,6 +154,7 @@ export interface RelativeStrengthItem {
 
 export interface RelativeStrengthResponse {
   data: RelativeStrengthItem[];
+  last_updated: number;
 }
 
 export interface MeanReversionItem {
@@ -165,6 +169,7 @@ export interface MeanReversionItem {
 
 export interface MeanReversionResponse {
   data: MeanReversionItem[];
+  last_updated: number;
 }
 
 export interface OracleSignalSummaryResponse {
@@ -172,6 +177,7 @@ export interface OracleSignalSummaryResponse {
   bearish_pct: number;
   top_signals: string[];
   market_state: string;
+  last_updated: number;
 }
 
 export interface TrendRadarItem {
@@ -187,6 +193,7 @@ export interface TrendRadarResponse {
   map: TrendRadarItem[];
   buckets: Record<string, string[]>;
   summary: Record<string, number>;
+  last_updated: number;
 }
 
 export interface StructureItem {
@@ -200,6 +207,7 @@ export interface StructureItem {
 
 export interface StructureResponse {
   data: StructureItem[];
+  last_updated: number;
 }
 
 export interface ConfluenceResponse {
@@ -211,6 +219,7 @@ export interface ConfluenceResponse {
     bearish_pct: number;
   };
   score_distribution: Record<string, number>;
+  last_updated: number;
 }
 
 export interface TitanRadarItem {
@@ -229,6 +238,7 @@ export interface TitanRadarItem {
 
 export interface TitanRadarResponse {
   data: TitanRadarItem[];
+  last_updated: number;
 }
 
 /**

@@ -62,7 +62,7 @@ def run_oracle_screener(df_data: Dict[str, pd.DataFrame], btc_df: pd.DataFrame) 
                     "liquidity": "ACTIVE" if state['volatility_tag'] != "DANGER" else "HIGH",
                     "strength_vs_btc": strength_tag,
                     "opportunity": opp,
-                    "advice": oracle._generate_advice(earnest, {"score": 0, "bias": "NEUTRAL"}, state, {"tp1": 0, "tp2": 0, "sl": 0}, "earnest")
+                    "advice": oracle._generate_advice(earnest, {"score": 0, "bias": "NEUTRAL"}, state, {"tp1": 0, "tp2": 0, "sl": 0})
                 })
         except Exception as e:
             logger.warning(f"Screener error for {symbol}: {e}")

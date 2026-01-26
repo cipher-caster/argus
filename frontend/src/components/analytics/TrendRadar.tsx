@@ -1,19 +1,29 @@
 "use client";
 
+import { useToast } from "@/components/ui/toaster";
 import { useCoinMeta } from "@/hooks/useCoinMeta";
 import { fetchTrendRadar, TrendRadarResponse } from "@/lib/api";
+import { cn } from "@/lib/utils";
 import { useQuery } from "@tanstack/react-query";
-import { Activity, Layers } from "lucide-react";
+import { Activity, Layers, RefreshCcw } from "lucide-react";
 import Link from "next/link";
 import { CoinIcon } from "../features/dashboard/CoinIcon";
 
 export function TrendRadar() {
   const { coinMeta } = useCoinMeta();
-  const { data, isLoading, error } = useQuery<TrendRadarResponse>({
+  const { toast, dismiss } = useToast();
+  const { data, isLoading, error, refetch, isRefetching } = useQuery<TrendRadarResponse>({
     queryKey: ["trend-radar"],
     queryFn: () => fetchTrendRadar(50),
     refetchInterval: 60000,
   });
+
+  const handleRefresh = async () => {
+    const id = toast("Refreshing trend radar...", "info");
+    await refetch();
+    dismiss(id);
+    toast("Trend radar updated", "success");
+  };
 
   if (isLoading) return <div className="p-10 text-center animate-pulse">Scanning the Trend...</div>;
   if (error) return <div className="p-10 text-center text-red-500">Failed to load Trend Radar</div>;
@@ -33,7 +43,11 @@ export function TrendRadar() {
           <Layers className="text-primary" />
           The Trend God (200 EMA Radar)
         </h2>
-        <div className="flex gap-4 text-xs font-medium text-muted-foreground">
+        <div className="flex items-center gap-4 text-xs font-medium text-muted-foreground">
+          {data.last_updated && <span className="hidden sm:inline">Updated: {new Date(data.last_updated).toLocaleTimeString()}</span>}
+          <button onClick={handleRefresh} disabled={isRefetching} className="hover:text-primary transition-colors disabled:opacity-50" title="Refresh">
+            <RefreshCcw size={14} className={cn(isRefetching && "animate-spin")} />
+          </button>
           <div className="flex items-center gap-1">
             <div className="w-2 h-2 rounded-full bg-green-500" /> {data.summary.total_bullish || 0} Bullish
           </div>

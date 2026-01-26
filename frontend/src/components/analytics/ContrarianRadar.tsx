@@ -1,17 +1,26 @@
 "use client";
 
 import { CoinIcon } from "@/components/features/dashboard/CoinIcon";
+import { useToast } from "@/components/ui/toaster";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { useContrarianRadar } from "@/hooks/useAnalyticsData";
 import { useCoinMeta } from "@/hooks/useCoinMeta";
 import { formatPrice } from "@/lib/formatters";
 import { cn } from "@/lib/utils";
-import { Gauge, HelpCircle, MoveHorizontal } from "lucide-react";
+import { Gauge, HelpCircle, MoveHorizontal, RefreshCcw } from "lucide-react";
 import Link from "next/link";
 
 export function ContrarianRadar({ timeframe = "1h", limit = 50 }: { timeframe?: string; limit?: number }) {
   const { coinMeta } = useCoinMeta();
-  const { data, isLoading, error } = useContrarianRadar(timeframe, limit);
+  const { toast, dismiss } = useToast();
+  const { data, isLoading, error, refetch, isRefetching } = useContrarianRadar(timeframe, limit);
+
+  const handleRefresh = async () => {
+    const id = toast("Refreshing Contrarian radar...", "info");
+    await refetch();
+    dismiss(id);
+    toast("Contrarian radar updated", "success");
+  };
 
   if (isLoading) return <div className="h-[400px] flex items-center justify-center">Loading Contrarian Radar...</div>;
   if (error) return <div className="h-[400px] flex items-center justify-center text-red-500">Error loading radar</div>;
@@ -34,6 +43,10 @@ export function ContrarianRadar({ timeframe = "1h", limit = 50 }: { timeframe?: 
               <TooltipContent className="max-w-[300px]">Identifies pairs trading {">"} 3x ATR away from their 200-Day EMA. These statistically overextended deviations often precede a mean-reversion snapback.</TooltipContent>
             </Tooltip>
           </TooltipProvider>
+          <button onClick={handleRefresh} disabled={isRefetching} className="text-muted-foreground hover:text-primary transition-colors p-1 disabled:opacity-50" title="Refresh">
+            <RefreshCcw size={14} className={cn(isRefetching && "animate-spin")} />
+          </button>
+          {data?.last_updated && <span className="text-[10px] text-muted-foreground">Updated: {new Date(data.last_updated).toLocaleTimeString()}</span>}
         </div>
       </div>
 

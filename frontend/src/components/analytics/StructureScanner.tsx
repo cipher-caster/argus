@@ -1,19 +1,28 @@
 "use client";
 
+import { useToast } from "@/components/ui/toaster";
 import { useCoinMeta } from "@/hooks/useCoinMeta";
 import { fetchStructure, StructureResponse } from "@/lib/api";
 import { useQuery } from "@tanstack/react-query";
-import { ArrowDown, ArrowUp, Ban, BoxSelect, Wallet } from "lucide-react";
+import { ArrowDown, ArrowUp, Ban, BoxSelect, RefreshCcw, Wallet } from "lucide-react";
 import Link from "next/link";
 import { CoinIcon } from "../features/dashboard/CoinIcon";
 
 export function StructureScanner() {
   const { coinMeta } = useCoinMeta();
-  const { data, isLoading, error } = useQuery<StructureResponse>({
+  const { toast, dismiss } = useToast();
+  const { data, isLoading, error, refetch, isRefetching } = useQuery<StructureResponse>({
     queryKey: ["structure"],
     queryFn: () => fetchStructure(50),
     refetchInterval: 60000,
   });
+
+  const handleRefresh = async () => {
+    const id = toast("Refreshing weekly structure...", "info");
+    await refetch();
+    dismiss(id);
+    toast("Weekly structure updated", "success");
+  };
 
   if (isLoading) return <div className="p-10 text-center animate-pulse">Scanning Weekly Structure...</div>;
   if (error) return <div className="p-10 text-center text-red-500">Failed to load Structure</div>;
@@ -45,8 +54,14 @@ export function StructureScanner() {
         <h2 className="text-xl font-bold flex items-center gap-2">
           <BoxSelect className="text-primary" />
           The Weekly Trap (Monday Range)
+          <button onClick={handleRefresh} disabled={isRefetching} className="hover:text-primary transition-colors ml-2 disabled:opacity-50" title="Refresh">
+            <RefreshCcw size={16} className={isRefetching ? "animate-spin" : ""} />
+          </button>
         </h2>
-        <div className="text-xs text-muted-foreground">Scanned {data.data.length} assets</div>
+        <div className="flex items-center gap-2 text-xs text-muted-foreground">
+          {data.last_updated && <span>Updated: {new Date(data.last_updated).toLocaleTimeString()}</span>}
+          <span className="border-l border-border pl-2">Scanned {data.data.length} assets</span>
+        </div>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
