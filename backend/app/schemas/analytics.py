@@ -120,6 +120,7 @@ class TitanRadarItem(BaseModel):
     tp: float
     sl: float
     advice: str
+    reasons: List[str] = []
 
 class TitanRadarResponse(BaseModel):
     data: List[TitanRadarItem]

@@ -234,6 +234,7 @@ export interface TitanRadarItem {
   tp: number;
   sl: number;
   advice: string;
+  reasons: string[];
 }
 
 export interface TitanRadarResponse {

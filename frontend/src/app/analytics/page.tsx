@@ -1,18 +1,20 @@
 "use client";
 
 import { ConfluenceGauge, ContrarianRadar, MarketHealth, OracleScreener, StructureScanner, TitanRadar, TrendRadar } from "@/components/analytics";
+import { TitanSignalsPanel } from "@/components/analytics/TitanSignalsPanel";
 import { cn } from "@/lib/utils";
-import { Activity, BoxSelect, Gauge, Info, Layers, LayoutGrid, ShieldCheck } from "lucide-react";
+import { BoxSelect, Gauge, HeartPulse, Info, Layers, LayoutGrid, Scan, ShieldCheck } from "lucide-react";
 import { useState } from "react";
 
-type ChartType = "screener" | "market-health" | "contrarian-radar" | "trend-radar" | "structure" | "titan-radar";
+type ChartType = "screener" | "market-health" | "contrarian-radar" | "trend-radar" | "structure" | "titan-radar" | "titan-signals";
 
 const MENU_ITEMS: { id: ChartType; label: string; icon: any }[] = [
   { id: "screener", label: "Oracle Screener", icon: LayoutGrid },
+  { id: "titan-signals", label: "Titan Signals (Live)", icon: ShieldCheck }, // Priority
   { id: "trend-radar", label: "Trend Radar (200D)", icon: Layers },
   { id: "structure", label: "Weekly Structure", icon: BoxSelect },
-  { id: "titan-radar", label: "Titan Strategy", icon: ShieldCheck },
-  { id: "market-health", label: "Market Health", icon: Activity },
+  { id: "titan-radar", label: "Titan Scanner (Discovery)", icon: Scan },
+  { id: "market-health", label: "Market Health", icon: HeartPulse },
   { id: "contrarian-radar", label: "Contrarian Radar", icon: Gauge },
 ];
 
@@ -20,6 +22,10 @@ const CHART_INFO: Record<ChartType, { title: string; description: string }> = {
   screener: {
     title: "Oracle Screener",
     description: "Real-time AI analysis across the top 50 perpetual markets. Identifies trend alignment, momentum scores, and high-probability setups.",
+  },
+  "titan-signals": {
+    title: "Titan Signals (Predictive)",
+    description: "Your execution dashboard. Uses 'Wait Logic' to prevent chasing pumps and provides specific Limit Entry prices at mathematical supports. Best for setting actual trade orders.",
   },
   "trend-radar": {
     title: "The Trend God",
@@ -31,15 +37,15 @@ const CHART_INFO: Record<ChartType, { title: string; description: string }> = {
   },
   "market-health": {
     title: "Market Health",
-    description: "Aggregate sentiment metrics. Monitors what percentage of the market is trending bullish (above 200D EMA) and detects institutional volatility squeezes.",
+    description: "The heartbeat of the market. Monitors aggregate sentiment metrics, institutional volatility balances, and the percentage of the market trending bullish.",
   },
   "contrarian-radar": {
     title: "Contrarian Radar",
     description: "Monitors extreme ATR extensions. Identifies pairs that are overstretched from their mean (EMA) and due for a mean-reversion move.",
   },
   "titan-radar": {
-    title: "Titan Unified System",
-    description: "Hybrid Trend + Momentum strategy. Uses EMA 200, RSI, MACD, and Bollinger Bands to identify high-probability setups with defined Risk/Reward.",
+    title: "Titan Scanner (Discovery)",
+    description: "A bird's-eye view of 50+ assets. Automatically detects trend alignment and momentum breakouts using the Titan hybrid system. Best for finding what to watch.",
   },
 };
 
@@ -64,7 +70,7 @@ export default function AnalyticsPage() {
         </div>
 
         {/* Global Timeframe Selector */}
-        {["screener", "market-health", "contrarian-radar", "titan-radar"].includes(activeTab) && (
+        {["screener", "market-health", "contrarian-radar", "titan-radar", "titan-signals"].includes(activeTab) && (
           <div className="flex bg-secondary/30 p-1 rounded-xl border border-border/50 backdrop-blur-sm self-start md:self-auto">
             {TIMEFRAMES.map((tf) => (
               <button
@@ -123,6 +129,7 @@ export default function AnalyticsPage() {
             {activeTab === "structure" && <StructureScanner />}
             {activeTab === "market-health" && <MarketHealth timeframe={timeframe} />}
             {activeTab === "titan-radar" && <TitanRadar timeframe={timeframe} />}
+            {activeTab === "titan-signals" && <TitanSignalsPanel timeframe={timeframe} />}
             {activeTab === "contrarian-radar" && <ContrarianRadar timeframe={timeframe} />}
           </div>
         </div>

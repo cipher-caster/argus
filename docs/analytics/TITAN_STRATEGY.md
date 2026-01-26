@@ -16,6 +16,9 @@ The strategy operates on a simple principle: **Trend is King**, but **Momentum i
 
 The **Titan Radar** scans the top 50 perpetual markets in real-time to find assets that meet the strict criteria of the Titan System.
 
+> [!NOTE]  
+> For the live operational dashboard and predictive entry logic, see the [Titan Signals Documentation](file:///home/mjm/Documents/projects/argus/docs/analytics/TITAN_SIGNALS.md).
+
 ### 1. Trend Filter (The "Titan Trend")
 
 Every asset is first filtered by its relationship to the **200-period Exponential Moving Average (EMA)**.

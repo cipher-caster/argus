@@ -351,10 +351,11 @@ async def get_titan_radar(limit: int = 50, timeframe: str = "4h"):
                 trend=analysis['trend'],
                 momentum=mom_str,
                 volatility=vol_str,
-                entry=analysis['targets'].get('entry', 0),
+                entry=analysis.get('targets', {}).get('entry', 0), # This will now be ideal_entry from targets
                 tp=analysis['targets'].get('tp', 0),
                 sl=analysis['targets'].get('sl', 0),
-                advice=analysis['sizing']
+                advice=analysis['sizing'],
+                reasons=analysis.get('reasons', [])
             )
             results.append(item)
         except Exception:

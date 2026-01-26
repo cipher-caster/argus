@@ -48,17 +48,24 @@ class TitanStrategy:
         # 5. Volatility (Bollinger Squeeze + ATR)
         volatility = self._analyze_volatility(row)
         
-        # 6. Signal Generation
+        # 6. Signal Generation (Enhanced with Predictive Logic)
         signal = self._generate_signal(trend, momentum, volatility, row)
         
         # 7. Targets & Risk Management
-        targets = self._calculate_risk_levels(row, signal['type'])
+        # Pass signal type to calculate directional targets (TP/SL)
+        # If signal is WAIT, we still calculate hypothetical targets based on Ideal Entry
+        target_signal = signal['type']
+        if "WAIT" in target_signal:
+             # Infer direction from trend
+             target_signal = "BUY" if trend == "BULLISH" else "SELL"
+             
+        targets = self._calculate_risk_levels(row, target_signal, signal.get('ideal_entry', row['close']))
         
         # 8. Sizing Advice (Kelly)
         sizing = self._calculate_sizing(signal['confidence'])
 
         return {
-            "signal": signal['type'], # BUY, SELL, NEUTRAL, STRONG_BUY...
+            "signal": signal['type'], # BUY, SELL, NEUTRAL, WAIT_OB, WAIT_VOL, STRONG_BUY...
             "confidence": signal['confidence'], # 0-100%
             "trend": trend,
             "momentum": momentum,
@@ -68,16 +75,22 @@ class TitanStrategy:
             "indicators": {
                 "rsi": row.get('rsi'),
                 "macd": row.get('macd'),
-                "adx": row.get('adx'), # If added
-                "supertrend": row.get('supertrend')
+                "adx": row.get('adx'),
+                "supertrend": row.get('supertrend'),
+                "ema20": row.get('ema20'),  # We need to add this to _add_indicators
+                "ema50": row.get('ema50')   # And this
             }
         }
 
     def _add_indicators(self, df: pd.DataFrame):
         """Adds technical indicators to the DataFrame in-place."""
         
-        # EMA 200
+        # EMA 200 (Macro)
         df['ema200'] = ta.ema(df['close'], length=self.ema_len)
+        # EMA 20 (Fast Pullback Support)
+        df['ema20'] = ta.ema(df['close'], length=20)
+        # EMA 50 (Medium Pullback Support)
+        df['ema50'] = ta.ema(df['close'], length=50)
         
         # RSI 14
         df['rsi'] = ta.rsi(df['close'], length=self.rsi_len)
@@ -155,74 +168,107 @@ class TitanStrategy:
     def _generate_signal(self, trend: str, momentum: Dict[str, Any], volatility: Dict[str, Any], row: pd.Series) -> Dict[str, Any]:
         """
         Synthesizes indicators into a Signal.
-        
-        Rules:
-        1. Trend Filter: Trade in direction of EMA 200.
-        2. Pullback Entry:
-           - Bullish: Trend BULLISH + RSI Oversold (<40/30) OR SuperTrend Flip Bullish.
-           - Bearish: Trend BEARISH + RSI Overbought (>60/70) OR SuperTrend Flip Bearish.
+        Now includes PREDICTIVE Logic (Wait for pullback).
         """
         
         signal_type = "NEUTRAL"
         confidence = 0
         reasons = []
+        ideal_entry = row['close']
         
         # SuperTrend confirmation
         st_bullish = row.get('supertrend_dir', 0) > 0
+        st_val = row.get('supertrend', 0)
+        ema20 = row.get('ema20', row['close'])
         
         # BULLISH SETUP
         if trend == "BULLISH":
-            # 1. Trend Following: SuperTrend just flipped green? (Hard to know single row, assume green is good)
-            # 2. Pullback: RSI < 45 in Uptrend is a "Dip Buy" opportunity
-            if st_bullish:
+            # Overbought Check
+            if momentum['rsi_val'] > 70:
+                signal_type = "WAIT_OB" # Overbought
+                confidence = 0
+                reasons.append("Status: Overbought (RSI > 70)")
+                reasons.append(f"Action: Wait for pullback to EMA20 (${ema20:.2f})")
+                ideal_entry = ema20
+            
+            elif st_bullish:
+                # Active Bull Trend
                 if momentum['rsi_val'] < 45:
-                    signal_type = "BUY" # Dip Buy
+                    signal_type = "BUY" # Dip Buy (Market Entry ok)
                     confidence = 80
-                    reasons.append("Trend: Uptrend (Price > EMA200)")
-                    reasons.append("Setup: RSI Pullback (< 45)")
-                elif momentum['macd_crossed'] == "UP":
-                     signal_type = "BUY" # Momentum breakout
-                     confidence = 60
-                     reasons.append("Momentum: MACD Crossover")
+                    reasons.append("Trend: Uptrend")
+                    reasons.append("Setup: Perfect Dip (RSI < 45)")
+                    ideal_entry = row['close'] # Market buy
+                else:
+                    # Standard Trend - Recommend Limit Entry at Support
+                    signal_type = "BUY_LIMIT"
+                    confidence = 60
+                    # Ideal entry is between current price and SuperTrend
+                    ideal_entry = max(ema20, st_val)
+                    reasons.append("Trend: Strong Bullish")
+                    reasons.append(f"Setup: Place Limit at Support (${ideal_entry:.2f})")
+
+            else:
+                 signal_type = "NEUTRAL"
+                 reasons.append("Trend: Bullish but SuperTrend Bearish (Correction)")
             
         # BEARISH SETUP
         elif trend == "BEARISH":
-            if not st_bullish:
+            # Oversold Check
+            if momentum['rsi_val'] < 30:
+                signal_type = "WAIT_OS" # Oversold
+                confidence = 0
+                reasons.append("Status: Oversold (RSI < 30)")
+                reasons.append(f"Action: Wait for bounce to EMA20 (${ema20:.2f})")
+                ideal_entry = ema20
+                
+            elif not st_bullish:
+                 # Active Bear Trend
                  if momentum['rsi_val'] > 55:
                      signal_type = "SELL" # Rally Sell
                      confidence = 80
-                     reasons.append("Trend: Downtrend (Price < EMA200)")
-                     reasons.append("Setup: RSI Rally (> 55)")
-                 elif momentum['macd_crossed'] == "DOWN":
-                     signal_type = "SELL"
+                     reasons.append("Trend: Downtrend")
+                     reasons.append("Setup: Perfect Rally (RSI > 55)")
+                     ideal_entry = row['close']
+                 else:
+                     signal_type = "SELL_LIMIT"
                      confidence = 60
-                     reasons.append("Momentum: MACD Crossdown")
+                     ideal_entry = min(ema20, st_val)
+                     reasons.append("Trend: Strong Bearish")
+                     reasons.append(f"Setup: Limit Sell at Resistance (${ideal_entry:.2f})")
+            else:
+                 signal_type = "NEUTRAL"
+                 reasons.append("Trend: Bearish but SuperTrend Bullish (Relief Rally)")
 
         return {
             "type": signal_type,
             "confidence": confidence,
-            "reasons": reasons
+            "reasons": reasons,
+            "ideal_entry": ideal_entry
         }
 
-    def _calculate_risk_levels(self, row: pd.Series, signal_type: str) -> Dict[str, float]:
-        """Calculates TP/SL based on ATR (1.5x SL, 3x TP -> 2 R:R roughly)."""
+    def _calculate_risk_levels(self, row: pd.Series, signal_type: str, entry_price: float = None) -> Dict[str, float]:
+        """Calculates TP/SL based on ATR."""
         atr = row.get('atr', 0)
-        price = row['close']
+        price = entry_price if entry_price else row['close']
         
         if atr == 0:
-            return {"tp": 0, "sl": 0}
+            return {"entry": price, "tp": 0, "sl": 0}
             
-        if signal_type == "BUY" or signal_type == "STRONG_BUY":
+        # Long Logic
+        if "BUY" in signal_type or signal_type == "STRONG_BUY":
             sl = price - (atr * 1.5)
-            tp = price + (atr * 3.0) # 2:1 ratio
+            # Uncapped for Trailing, but provide a "Target 1" for reference
+            tp = price + (atr * 3.0) 
             return {"entry": price, "sl": sl, "tp": tp, "r_r": 2.0}
             
-        elif signal_type == "SELL" or signal_type == "STRONG_SELL":
+        # Short Logic
+        elif "SELL" in signal_type or signal_type == "STRONG_SELL":
             sl = price + (atr * 1.5)
             tp = price - (atr * 3.0)
             return {"entry": price, "sl": sl, "tp": tp, "r_r": 2.0}
             
-        return {"entry": 0, "sl": 0, "tp": 0}
+        return {"entry": price, "sl": 0, "tp": 0}
 
     def _calculate_sizing(self, confidence: int) -> str:
         """Returns Kelly Criterion based sizing advice."""
