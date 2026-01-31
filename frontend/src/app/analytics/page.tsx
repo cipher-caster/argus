@@ -1,10 +1,39 @@
 "use client";
 
-import { ConfluenceGauge, ContrarianRadar, MarketHealth, OracleScreener, StructureScanner, TitanRadar, TrendRadar } from "@/components/analytics";
-import { TitanSignalsPanel } from "@/components/analytics/TitanSignalsPanel";
+import { ConfluenceGauge } from "@/components/analytics";
 import { cn } from "@/lib/utils";
 import { BoxSelect, Gauge, HeartPulse, Info, Layers, LayoutGrid, Scan, ShieldCheck } from "lucide-react";
+import dynamic from "next/dynamic";
 import { useState } from "react";
+
+// Lazy load heavy analytics components
+const OracleScreener = dynamic(() => import("@/components/analytics").then((mod) => ({ default: mod.OracleScreener })), {
+  loading: () => <div className="h-[500px] flex items-center justify-center text-muted-foreground">Loading Oracle Screener...</div>,
+});
+
+const MarketHealth = dynamic(() => import("@/components/analytics").then((mod) => ({ default: mod.MarketHealth })), {
+  loading: () => <div className="h-[400px] flex items-center justify-center text-muted-foreground">Loading Market Health...</div>,
+});
+
+const ContrarianRadar = dynamic(() => import("@/components/analytics").then((mod) => ({ default: mod.ContrarianRadar })), {
+  loading: () => <div className="h-[400px] flex items-center justify-center text-muted-foreground">Loading Contrarian Radar...</div>,
+});
+
+const TrendRadar = dynamic(() => import("@/components/analytics").then((mod) => ({ default: mod.TrendRadar })), {
+  loading: () => <div className="h-[400px] flex items-center justify-center text-muted-foreground">Loading Trend Radar...</div>,
+});
+
+const StructureScanner = dynamic(() => import("@/components/analytics").then((mod) => ({ default: mod.StructureScanner })), {
+  loading: () => <div className="h-[400px] flex items-center justify-center text-muted-foreground">Loading Structure Scanner...</div>,
+});
+
+const TitanRadar = dynamic(() => import("@/components/analytics").then((mod) => ({ default: mod.TitanRadar })), {
+  loading: () => <div className="h-[400px] flex items-center justify-center text-muted-foreground">Loading Titan Radar...</div>,
+});
+
+const TitanSignalsPanel = dynamic(() => import("@/components/analytics/TitanSignalsPanel").then((mod) => ({ default: mod.TitanSignalsPanel })), {
+  loading: () => <div className="h-[400px] flex items-center justify-center text-muted-foreground">Loading Titan Signals...</div>,
+});
 
 type ChartType = "screener" | "market-health" | "contrarian-radar" | "trend-radar" | "structure" | "titan-radar" | "titan-signals";
 
