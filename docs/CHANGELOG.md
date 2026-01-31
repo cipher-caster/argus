@@ -2,6 +2,28 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.5.4] - 2026-01-31
+
+### Added
+
+- **Unified Market Sentiment Component**: Created reusable `MarketSentimentBar` component for both dashboard and analytics pages.
+  - **Component Consolidation**: Merged `OracleSignalSummary` and `ConfluenceGauge` into single 167-line component, eliminating 90+ lines of duplicate code.
+  - **Variant Support**: Intelligent switching between Oracle and Confluence data presentation styles.
+  - **Consistent Loading States**: Proper `Skeleton` component integration for synchronized loading experience.
+- **RSI Range Display**: Added "7d Range: 0 — 100" label below AVG CRYPTO RSI gauge, matching MADX visual style.
+- **Timestamp Restoration**: Re-added "Updated" timestamps to all 4 dashboard market indicator cards (MADX, AVG CRYPTO RSI, TOTAL MARKET CAP, BTC DOMINANCE).
+
+### Improved
+
+- **Code Organization**: Dashboard now uses dedicated full-width row for Oracle Intelligence status bar above 4-column grid.
+- **Component Reusability**: Both `OracleSignalSummary.tsx` (24 lines) and `ConfluenceGauge.tsx` (27 lines) are now thin wrappers around shared `MarketSentimentBar`.
+- **Type Safety**: Fixed TypeScript errors by wrapping React Query `refetch` calls to return `Promise<void>`.
+
+### Changed
+
+- **Layout Adjustment**: Moved Oracle Intelligence from 5-column grid to separate full-width section above 4-card grid for better visual hierarchy.
+- **Loading Skeletons**: Updated all market sentiment bars to use consistent h-12 skeleton height (48px).
+
 ## [0.5.3] - 2026-01-17
 
 ### Added
