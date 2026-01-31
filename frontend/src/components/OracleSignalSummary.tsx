@@ -19,7 +19,7 @@ export function OracleSignalSummary() {
     toast("Oracle signals refreshed", "success");
   };
 
-  if (isLoading) return null; // Parent grid shows skeleton
+  if (isLoading) return <div className="h-12 bg-secondary/20 animate-pulse rounded-lg" />;
   if (error) return <div className="h-12 flex items-center justify-center bg-secondary/30 border border-red-500/20 text-red-500 rounded-lg italic text-xs px-4">Oracle Unavailable</div>;
 
   const confidence = Math.max(data?.bullish_pct || 0, data?.bearish_pct || 0);

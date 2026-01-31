@@ -63,10 +63,14 @@ export default function MarketOverview() {
     <div className="min-h-screen bg-background text-foreground">
       {/* Main Content */}
       <main className="max-w-[1440px] mx-auto p-6 md:p-8 space-y-10">
-        {/* Market Indicators */}
-        <section className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6 animate-in fade-in slide-in-from-bottom-2 duration-500">
-          <MarketIndicators />
+        {/* Oracle Intelligence - Full Width Status Bar */}
+        <section className="animate-in fade-in slide-in-from-bottom-2 duration-500">
           <OracleSignalSummary />
+        </section>
+
+        {/* Market Indicators - 4 Cards */}
+        <section className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 animate-in fade-in slide-in-from-bottom-2 duration-500 delay-75">
+          <MarketIndicators />
         </section>
 
         {/* Widgets Section */}
