@@ -21,7 +21,7 @@ export function ConfluenceGauge() {
     toast("Confluence data updated", "success");
   };
 
-  if (isLoading || !data) return <div className="h-24 bg-secondary/20 animate-pulse rounded-xl" />;
+  if (isLoading || !data) return <div className="h-[240px] bg-secondary/20 animate-pulse rounded-xl mb-6" />;
 
   const getVidudals = (verdict: string) => {
     switch (verdict) {
