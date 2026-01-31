@@ -14,15 +14,11 @@ export function useOHLCV(symbol: string, timeframe: string = "1h", limit: number
   return useInfiniteQuery({
     queryKey: ["ohlcv", symbol, timeframe, limit] as const,
     queryFn: async ({ pageParam }) => {
-      console.log(`[useOHLCV] Fetching page, pageParam=${pageParam}`);
       const result = await fetchOHLCV(symbol, timeframe, limit, pageParam);
-      console.log(`[useOHLCV] Got ${result.candles?.length || 0} candles`);
       return result;
     },
     getNextPageParam: (lastPage) => {
-      console.log(`[useOHLCV] getNextPageParam: candles=${lastPage.candles?.length}, limit=${limit}`);
       if (!lastPage.candles || lastPage.candles.length === 0) {
-        console.log("[useOHLCV] No candles returned, no more pages");
         return undefined;
       }
       const oldestTimestamp = lastPage.candles[0].timestamp;
@@ -32,7 +28,6 @@ export function useOHLCV(symbol: string, timeframe: string = "1h", limit: number
         return undefined;
       }
 
-      console.log(`[useOHLCV] Next page param: ${oldestTimestamp}`);
       return oldestTimestamp;
     },
     initialPageParam: undefined as number | undefined,

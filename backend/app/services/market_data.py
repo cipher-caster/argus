@@ -1,9 +1,20 @@
+"""
+Market Data Service
+
+Provides business logic for fetching, syncing, filtering, and merging market data
+from multiple sources (Database, Redis cache, external providers like Binance).
+"""
+
+import logging
 from typing import List, Dict, Any, Optional, Tuple
 from sqlmodel import select
+
 from app.storage import RedisClient, Database
 from app.schemas.candle import Candle as DbCandle
 from app.schemas.market_data import CoinInfo
 from app.providers import Candle as ProviderCandle
+
+logger = logging.getLogger(__name__)
 
 class MarketDataService:
     @staticmethod
@@ -14,8 +25,29 @@ class MarketDataService:
         end_timestamp: Optional[int] = None
     ) -> Tuple[List[ProviderCandle], str]:
         """
-        Fetch OHLCV data from DB, fallback to Binance/Provider if stale or missing.
-        Returns (candles, provider_name).
+        Fetch OHLCV candlestick data with intelligent DB caching and provider fallback.
+        
+        First attempts to retrieve data from the database. If data is missing, sparse,
+        or stale (older than one timeframe period), fetches fresh data from Binance
+        and syncs it to the database for future requests.
+        
+        Args:
+            symbol: Trading pair symbol (e.g., "BTC/USDT")
+            timeframe: Candle timeframe (e.g., "1h", "4h", "1d")
+            limit: Maximum number of candles to return (default: 100)
+            end_timestamp: Optional timestamp in ms to fetch candles before this point
+            
+        Returns:
+            Tuple of (candles_list, provider_name) where:
+            - candles_list: List of ProviderCandle objects sorted by timestamp
+            - provider_name: Data source ("postgres-db", "binance", or "empty")
+            
+        Example:
+            candles, source = await MarketDataService.fetch_and_sync_ohlcv(
+                symbol="BTC/USDT",
+                timeframe="1h",
+                limit=100
+            )
         """
         from app.providers.binance_provider import BinanceProvider
         
@@ -58,11 +90,11 @@ class MarketDataService:
                 latest_ts = db_candles[0].timestamp
                 if (now_ms - latest_ts) > timeframe_ms:
                     is_stale = True
-                    print(f"I: Data stale for {symbol} {timeframe}. Latest: {latest_ts}, Now: {now_ms}")
+                    logger.info(f"Data stale for {symbol} {timeframe}. Latest: {latest_ts}, Now: {now_ms}")
 
             # --- Direct Fetch if Missing or Stale ---
             if not db_candles or len(db_candles) < limit // 2 or is_stale:
-                print(f"I: Fetching from Binance... (Reason: Missing={not db_candles}, Sparse={len(db_candles) < limit//2 if db_candles else False}, Stale={is_stale})")
+                logger.info(f"Fetching from Binance for {symbol} {timeframe}. Reason: Missing={not db_candles}, Sparse={len(db_candles) < limit//2 if db_candles else False}, Stale={is_stale}")
                 try:
                     provider = BinanceProvider()
                     try:
@@ -72,7 +104,7 @@ class MarketDataService:
                         else:
                             since_ts = None  # Fetch latest
                         
-                        print(f"I: Fetching from Binance with since={since_ts}")
+                        logger.debug(f"Fetching from Binance with since={since_ts}")
                         fresh_candles = await provider.get_ohlcv(symbol, timeframe=timeframe, limit=1000, since=since_ts)
                         
                         # Save to DB
@@ -90,7 +122,7 @@ class MarketDataService:
                             )
                             await session.merge(candle_db)
                         await session.commit()
-                        print(f"I: Saved {len(fresh_candles)} candles to DB")
+                        logger.info(f"Saved {len(fresh_candles)} candles to DB for {symbol} {timeframe}")
                         
                         # Re-query
                         results = await session.execute(statement)
@@ -100,7 +132,7 @@ class MarketDataService:
                         await provider.close()
                         
                 except Exception as e:
-                    print(f"E: Failed to fetch from Binance: {e}")
+                    logger.error(f"Failed to fetch from Binance for {symbol} {timeframe}: {e}", exc_info=True)
             
             # Sort ascending for frontend
             db_candles = sorted(db_candles, key=lambda x: x.timestamp)
@@ -129,8 +161,23 @@ class MarketDataService:
         sort_order: str = "desc"
     ) -> Tuple[List[CoinInfo], int]:
         """
-        Process raw market data: Convert to CoinInfo, Filter, Sort, Paginate.
-        Returns (page_coins, total_count).
+        Process raw market data with filtering, sorting, and pagination.
+        
+        Converts raw ticker dictionaries to CoinInfo objects, applies search filter,
+        sorts by specified field, assigns ranking, and returns requested page.
+        
+        Args:
+            raw_data: List of raw ticker/coin dictionaries
+            page: Page number, 1-indexed (default: 1)
+            page_size: Number of items per page (default: 50)
+            search: Optional search term to filter symbols (case-insensitive)
+            sort_by: Field to sort by (default: "market_cap")
+            sort_order: "asc" or "desc" (default: "desc")
+            
+        Returns:
+            Tuple of (page_coins, total_count) where:
+            - page_coins: List of CoinInfo objects for the requested page
+            - total_count: Total number of coins after filtering
         """
         # Convert to CoinInfo objects
         coins = []
@@ -180,8 +227,23 @@ class MarketDataService:
     @staticmethod
     async def get_merged_market_data() -> List[Dict[str, Any]]:
         """
-        Merge base market state (CoinGecko Snapshot) with live prices (Binance).
-        Returns list of rich ticker dicts.
+        Merge base market snapshot with live price data for comprehensive market view.
+        
+        Combines slower but richer CoinGecko snapshot data (market cap, rankings, metadata)
+        with faster Binance live ticker data (current prices, 24h stats). This provides
+        both depth and freshness in a single dataset.
+        
+        Data Flow:
+        1. Fetch CoinGecko snapshot from Redis cache (~5min old, rich metadata)
+        2. Fetch Binance live tickers from Redis cache (~30sec old, fresh prices)
+        3. Overlay live prices onto snapshot for matched symbols
+        4. Add Binance-only symbols as orphans (no market cap data)
+        
+        Returns:
+            List of merged ticker dictionaries with fields:
+            - symbol, name, price, change_24h, volume_24h
+            - market_cap, rank, image (from CoinGecko)
+            - high_24h, low_24h (from Binance)
         """
         # 1. Fetch Snapshot (Base: Rich metadata, 5m old)
         snapshot = await RedisClient.get_json("market:snapshot") or []
@@ -236,8 +298,24 @@ class MarketDataService:
     @staticmethod
     async def get_top_symbols(limit: int = 100, sort_by: str = "market_cap") -> List[str]:
         """
-        Get list of top symbols based on market cap or volume.
-        Auto-filters stablecoins and other non-speculative assets.
+        Get list of top cryptocurrency symbols with automatic filtering.
+        
+        Returns top symbols sorted by market cap or volume, with intelligent filtering
+        to exclude stablecoins, leveraged tokens, and non-tradeable assets. Only returns
+        symbols actively tradeable on Binance Futures.
+        
+        Args:
+            limit: Maximum number of symbols to return (default: 100)
+            sort_by: Sort field - "market_cap" or "volume" (default: "market_cap")
+            
+        Returns:
+            List of symbol strings (e.g., ["BTC/USDT", "ETH/USDT", ...])
+            
+        Note:
+            Automatically filters out:
+            - Stablecoins (USDT, USDC, DAI, etc.)
+            - Leveraged tokens (UP/DOWN tokens)
+            - Non-active Binance symbols
         """
         # Blacklist of stablecoins and non-tradeable assets
         BLACKLIST = {
