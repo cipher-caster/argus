@@ -71,6 +71,7 @@ function MarketIndicatorsComponent() {
         showGauge={true}
         gaugeColors={{ low: "#22c55e", high: "#ef4444" }}
         chartColor="#3b82f6"
+        min={0}
         max={100}
         lastUpdated={data?.updated_at}
         onRefresh={handleRefresh}
