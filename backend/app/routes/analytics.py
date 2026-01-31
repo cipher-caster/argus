@@ -46,8 +46,9 @@ from app.exceptions import DataProviderError, CacheError, CalculationError
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/analytics", tags=["Analytics"])
 
-# Cache TTL in seconds
-CACHE_TTL = 60
+# Cache TTL in seconds - increased for better performance
+# Analytics data doesn't change drastically in 3 minutes
+CACHE_TTL = 180  # 3 minutes (was 60s)
 
 
 @router.get("/symbols")

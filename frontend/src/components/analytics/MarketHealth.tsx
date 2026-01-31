@@ -18,7 +18,63 @@ export function MarketHealth({ timeframe = "1h", limit = 100 }: { timeframe?: st
     toast("Market health updated", "success");
   };
 
-  if (isLoading) return <div className="h-[400px] flex items-center justify-center">Loading Market Health...</div>;
+  if (isLoading) {
+    return (
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        {/* Trend Health Skeleton */}
+        <div className="bg-secondary/20 rounded-2xl p-6 border border-border/50 animate-pulse">
+          <div className="flex items-center justify-between mb-6">
+            <div className="w-48 h-5 bg-muted rounded" />
+            <div className="w-4 h-4 bg-muted rounded-full" />
+          </div>
+          <div className="space-y-8">
+            <div className="space-y-2">
+              <div className="flex justify-between items-end mb-2">
+                <div className="w-24 h-3 bg-muted rounded" />
+                <div className="w-12 h-4 bg-muted rounded" />
+              </div>
+              <div className="h-2 w-full bg-muted rounded-full" />
+            </div>
+            <div className="space-y-2">
+              <div className="flex justify-between items-end mb-2">
+                <div className="w-24 h-3 bg-muted rounded" />
+                <div className="w-12 h-4 bg-muted rounded" />
+              </div>
+              <div className="h-2 w-full bg-muted rounded-full" />
+            </div>
+          </div>
+          <div className="mt-8 pt-4 border-t border-border/30 flex justify-between items-center">
+            <div className="w-32 h-3 bg-muted rounded" />
+            <div className="w-24 h-6 bg-muted rounded-lg" />
+          </div>
+        </div>
+
+        {/* Volatility Distribution Skeleton */}
+        <div className="bg-secondary/20 rounded-2xl p-6 border border-border/50 animate-pulse">
+          <div className="flex items-center justify-between mb-6">
+            <div className="w-48 h-5 bg-muted rounded" />
+            <div className="w-4 h-4 bg-muted rounded-full" />
+          </div>
+          <div className="grid grid-cols-3 gap-6 h-32 items-end px-2">
+            {[60, 80, 40].map((height, i) => (
+              <div key={i} className="flex flex-col items-center gap-2 h-full justify-end">
+                <div className={`w-full bg-muted rounded-t-lg`} style={{ height: `${height}%` }} />
+                <div className="w-12 h-3 bg-muted rounded" />
+              </div>
+            ))}
+          </div>
+          <div className="mt-6 p-4 bg-secondary rounded-xl border border-border/30">
+            <div className="w-24 h-3 bg-muted rounded mb-2" />
+            <div className="space-y-1">
+              <div className="w-full h-2 bg-muted rounded" />
+              <div className="w-3/4 h-2 bg-muted rounded" />
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   if (error) return <div className="h-[400px] flex items-center justify-center text-red-500">Error loading health data</div>;
 
   const summary = (data as MarketHealthResponse)?.summary || { total_coins: 0, bullish_pct: 0, bearish_pct: 0, squeezing_pct: 0 };

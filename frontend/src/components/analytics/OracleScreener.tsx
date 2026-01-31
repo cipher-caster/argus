@@ -26,7 +26,64 @@ export function OracleScreener({ timeframe = "1h", limit = 50 }: { timeframe?: s
 
   const filteredData = data?.data.filter((item: ScreenerItem) => item.symbol.toLowerCase().includes(search.toLowerCase())) || [];
 
-  if (isLoading) return <div className="h-[500px] flex items-center justify-center">Loading Screener...</div>;
+  if (isLoading) {
+    return (
+      <div className="space-y-4">
+        {/* Search Header Skeleton */}
+        <div className="flex items-center justify-between">
+          <div className="w-72 h-10 bg-muted animate-pulse rounded-xl" />
+          <div className="flex items-center gap-3">
+            <div className="w-32 h-4 bg-muted animate-pulse rounded" />
+            <div className="w-20 h-4 bg-muted animate-pulse rounded" />
+          </div>
+        </div>
+
+        {/* Table Skeleton */}
+        <div className="overflow-x-auto rounded-xl border border-border/50">
+          <table className="w-full text-sm text-left border-collapse">
+            <thead>
+              <tr className="bg-muted/30 border-b border-border">
+                <th className="px-4 py-3 font-semibold">Symbol</th>
+                <th className="px-4 py-3 font-semibold text-right">Price</th>
+                <th className="px-4 py-3 font-semibold text-center">Score</th>
+                <th className="px-4 py-3 font-semibold text-center">Bias</th>
+                <th className="px-4 py-3 font-semibold text-center">State</th>
+                <th className="px-4 py-3 font-semibold">Advice</th>
+              </tr>
+            </thead>
+            <tbody>
+              {Array.from({ length: 10 }).map((_, i) => (
+                <tr key={i} className="border-b border-border/30 animate-pulse">
+                  <td className="px-4 py-3">
+                    <div className="flex items-center gap-2">
+                      <div className="w-6 h-6 bg-muted rounded-full" />
+                      <div className="w-16 h-4 bg-muted rounded" />
+                    </div>
+                  </td>
+                  <td className="px-4 py-3">
+                    <div className="w-20 h-4 bg-muted rounded ml-auto" />
+                  </td>
+                  <td className="px-4 py-3">
+                    <div className="w-16 h-6 bg-muted rounded mx-auto" />
+                  </td>
+                  <td className="px-4 py-3">
+                    <div className="w-14 h-4 bg-muted rounded mx-auto" />
+                  </td>
+                  <td className="px-4 py-3">
+                    <div className="w-16 h-5 bg-muted rounded mx-auto" />
+                  </td>
+                  <td className="px-4 py-3">
+                    <div className="w-32 h-4 bg-muted rounded" />
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    );
+  }
+
   if (error) return <div className="h-[500px] flex items-center justify-center text-red-500">Error loading screener</div>;
 
   return (
