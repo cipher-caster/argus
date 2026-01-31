@@ -21,7 +21,7 @@ export function ConfluenceGauge() {
     toast("Confluence data updated", "success");
   };
 
-  if (isLoading || !data) return <div className="h-32 bg-secondary/20 animate-pulse rounded-xl" />;
+  if (isLoading || !data) return <div className="h-12 bg-secondary/20 animate-pulse rounded-lg" />;
 
   const getVidudals = (verdict: string) => {
     switch (verdict) {
@@ -40,7 +40,7 @@ export function ConfluenceGauge() {
   const Icon = visuals.icon;
 
   return (
-    <div className={cn("bg-secondary/30 rounded-2xl p-6 border border-border/50 backdrop-blur-sm flex items-center justify-between gap-8", visuals.bg)}>
+    <div className={cn("bg-secondary/30 rounded-lg px-4 py-3 border border-border/50 backdrop-blur-sm flex items-center justify-between gap-8", visuals.bg)}>
       {/* Left: Market State */}
       <div className="flex items-center gap-4">
         <div className={cn("p-3 rounded-xl bg-background/50 border border-border/50", visuals.color)}>
