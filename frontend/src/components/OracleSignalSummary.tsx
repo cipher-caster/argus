@@ -127,13 +127,6 @@ export function OracleSignalSummary() {
           })()}
         </div>
       </div>
-
-      {/* Footer */}
-      {data?.last_updated && (
-        <div className="mt-2 pt-2 border-t border-border/50 flex justify-end">
-          <span className="text-[9px] text-muted-foreground font-medium">Updated: {new Date(data!.last_updated).toLocaleString()}</span>
-        </div>
-      )}
     </div>
   );
 }

@@ -55,7 +55,6 @@ function MarketIndicatorsComponent() {
         chartColor="#22c55e"
         min={data?.market_adx?.min_value ?? 0}
         max={data?.market_adx?.max_value ?? 100}
-        lastUpdated={data?.updated_at}
         onRefresh={handleRefresh}
         isRefetching={isRefetching}
       />
@@ -72,7 +71,6 @@ function MarketIndicatorsComponent() {
         gaugeColors={{ low: "#22c55e", high: "#ef4444" }}
         chartColor="#3b82f6"
         max={100}
-        lastUpdated={data?.updated_at}
         onRefresh={handleRefresh}
         isRefetching={isRefetching}
       />
@@ -88,7 +86,6 @@ function MarketIndicatorsComponent() {
         showGauge={false}
         chartColor="#a855f7"
         history={data?.total_market_cap?.history ?? []}
-        lastUpdated={data?.updated_at}
         onRefresh={handleRefresh}
         isRefetching={isRefetching}
       />
@@ -106,7 +103,6 @@ function MarketIndicatorsComponent() {
         chartColor="#f59e0b"
         min={data?.btc_dominance?.min_value ?? 10}
         max={data?.btc_dominance?.max_value ?? (isMarketCap ? 70 : 50)}
-        lastUpdated={data?.updated_at}
         onRefresh={handleRefresh}
         isRefetching={isRefetching}
       />
