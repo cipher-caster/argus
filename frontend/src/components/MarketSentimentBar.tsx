@@ -1,5 +1,6 @@
 "use client";
 
+import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/components/ui/toaster";
 import { cn } from "@/lib/utils";
 import { Moon, RefreshCcw, Waves, Zap } from "lucide-react";
@@ -27,14 +28,18 @@ export function MarketSentimentBar({ data, isLoading, isRefetching, onRefresh, e
 
   const handleRefresh = async () => {
     const id = toast("Refreshing market sentiment...", "info");
-    await onRefresh();
+    try {
+      await onRefresh();
+    } catch (e) {
+      // Ignore refetch errors, they're handled by error boundary
+    }
     dismiss(id);
     toast("Market sentiment updated", "success");
   };
 
-  if (isLoading) return <div className="h-12 bg-secondary/20 animate-pulse rounded-lg" />;
+  if (isLoading) return <Skeleton className="h-12 rounded-lg" />;
   if (error) return <div className="h-12 flex items-center justify-center bg-secondary/30 border border-red-500/20 text-red-500 rounded-lg italic text-xs px-4">Market Sentiment Unavailable</div>;
-  if (!data) return <div className="h-12 bg-secondary/20 animate-pulse rounded-lg" />;
+  if (!data) return <Skeleton className="h-12 rounded-lg" />;
 
   // Determine market state and visuals
   const getMarketVisuals = () => {

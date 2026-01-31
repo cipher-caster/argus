@@ -1,7 +1,7 @@
 "use client";
 
 import { MarketSentimentBar } from "@/components/MarketSentimentBar";
-import { useOracleSignalSummary } from "@/hooks/useAnalytics";
+import { useOracleSignalSummary } from "@/hooks/useAnalyticsData";
 
 export function OracleSignalSummary() {
   const { data, isLoading, error, refetch, isRefetching } = useOracleSignalSummary();
@@ -20,7 +20,9 @@ export function OracleSignalSummary() {
       }
       isLoading={isLoading}
       isRefetching={isRefetching}
-      onRefresh={refetch}
+      onRefresh={async () => {
+        await refetch();
+      }}
       error={error}
       variant="oracle"
     />

@@ -25,7 +25,9 @@ export function ConfluenceGauge() {
       }
       isLoading={isLoading}
       isRefetching={isRefetching}
-      onRefresh={refetch}
+      onRefresh={async () => {
+        await refetch();
+      }}
       variant="confluence"
     />
   );
