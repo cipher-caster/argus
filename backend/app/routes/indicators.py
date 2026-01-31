@@ -2,7 +2,7 @@
 Indicator API Routes
 Endpoints for listing and calculating technical indicators
 """
-
+import logging
 from fastapi import APIRouter, HTTPException
 from typing import List, Dict, Any
 from pydantic import BaseModel
@@ -23,8 +23,9 @@ from app.indicators.market_indicators import (
 )
 from app.routes.market import get_provider
 from app.storage import RedisClient
+from app.exceptions import DataProviderError, CacheError, CalculationError, ValidationError
 
-
+logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/indicators", tags=["indicators"])
 
 
@@ -92,9 +93,12 @@ async def calculate_indicators(request: CalculateRequest):
             
         if not db_candles:
             # Fallback for empty DB (e.g. fresh install) - try provider once
-            print(f"W: No data in DB for {request.symbol} {request.timeframe}. Fetching from provider...")
+            logger.warning(f"No data in DB for {request.symbol} {request.timeframe}. Fetching from provider...")
             provider = get_provider()
-            candles = await provider.get_ohlcv(request.symbol, request.timeframe, request.limit)
+            try:
+                candles = await provider.get_ohlcv(request.symbol, request.timeframe, request.limit)
+            except Exception as e:
+                raise DataProviderError(f"Failed to fetch from provider: {e}")
         else:
             # Sort ascending for calculation (oldest to newest)
             db_candles = sorted(db_candles, key=lambda x: x.timestamp)
@@ -113,22 +117,36 @@ async def calculate_indicators(request: CalculateRequest):
             for c in candles
         ])
         
+        if df.empty:
+            raise ValidationError(f"No candle data available for {request.symbol} {request.timeframe}")
+        
         # Calculate each indicator
         results = []
         for ind_request in request.indicators:
-            result = calculate_indicator(df, ind_request.type, ind_request.params)
-            if result:
-                results.append(result)
+            try:
+                result = calculate_indicator(df, ind_request.type, ind_request.params)
+                if result:
+                    results.append(result)
+            except Exception as e:
+                logger.warning(f"Failed to calculate {ind_request.type}: {e}")
+                continue
+        
+        logger.info(f"Calculated {len(results)}/{len(request.indicators)} indicators for {request.symbol}")
         
         return CalculateResponse(
             symbol=request.symbol,
             timeframe=request.timeframe,
             results=results
         )
-        
+    
+    except DataProviderError as e:
+        logger.error(f"Provider error calculating indicators: {e}")
+        raise HTTPException(status_code=503, detail=str(e))
+    except ValidationError as e:
+        logger.warning(f"Validation error: {e}")
+        raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
-        import traceback
-        traceback.print_exc()
+        logger.error(f"Failed to calculate indicators: {e}", exc_info=True)
         raise HTTPException(status_code=400, detail=f"Failed to calculate: {str(e)}")
 
 
@@ -183,6 +201,8 @@ async def get_market_dashboard_indicators():
             # Calculate Market ADX
             adx_indicator = calculate_adx(highs, lows, closes, period=14)
             result["market_adx"] = adx_indicator.model_dump()
+        else:
+            logger.warning("No BTC/USDT daily data available for volatility/ADX calculation")
         
         # Fetch ticker data from Redis for market cap calculations
         # Try snapshot first (rich data with market caps), then tickers (live volume only)
@@ -205,11 +225,19 @@ async def get_market_dashboard_indicators():
             # Calculate Average Crypto RSI
             avg_rsi = calculate_average_rsi(top_100)
             result["average_rsi"] = avg_rsi.model_dump()
+        else:
+            logger.warning("No ticker data available for market cap calculations")
         
+        logger.info("Dashboard indicators calculated successfully")
         return result
-        
+    
+    except CacheError as e:
+        logger.error(f"Cache error fetching dashboard indicators: {e}")
+        raise HTTPException(status_code=503, detail=f"Cache unavailable: {e}")
+    except CalculationError as e:
+        logger.error(f"Calculation error in dashboard indicators: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
     except Exception as e:
-        import traceback
-        traceback.print_exc()
+        logger.error(f"Failed to calculate dashboard indicators: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail=f"Failed to calculate dashboard indicators: {str(e)}")
 

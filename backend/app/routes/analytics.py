@@ -41,6 +41,7 @@ from app.indicators.confluence import ConfluenceAggregator
 from app.providers.binance_provider import BinanceProvider
 from app.services.market_data import MarketDataService
 from app.storage import RedisClient
+from app.exceptions import DataProviderError, CacheError, CalculationError
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/analytics", tags=["Analytics"])
@@ -65,10 +66,17 @@ async def fetch_all_candles(symbols: List[str], timeframe: str = "1h", limit: in
     try:
         tasks = [get_candles_df(sym, timeframe, limit, provider=provider) for sym in symbols]
         dataframes = await asyncio.gather(*tasks, return_exceptions=True)
-        return {
+        
+        result = {
             sym: df for sym, df in zip(symbols, dataframes) 
             if not isinstance(df, Exception) and df is not None and not df.empty
         }
+        
+        logger.info(f"Fetched candles for {len(result)}/{len(symbols)} symbols ({timeframe}, limit={limit})")
+        return result
+    except Exception as e:
+        logger.error(f"Failed to fetch candles: {e}", exc_info=True)
+        raise DataProviderError(f"Failed to fetch candle data: {e}")
     finally:
         await provider.close()
 
@@ -331,7 +339,9 @@ async def get_titan_radar(limit: int = 50, timeframe: str = "4h"):
     for sym, df in df_data.items():
         try:
             analysis = titan.analyze(df)
-            if "error" in analysis: continue
+            if "error" in analysis:
+                logger.debug(f"Titan analysis error for {sym}: {analysis.get('error')}")
+                continue
             
             # Convert analysis dict to Item
             # analysis has signal, confidence, trend, momentum(dict), vol(dict), targets(dict), sizing
@@ -358,7 +368,11 @@ async def get_titan_radar(limit: int = 50, timeframe: str = "4h"):
                 reasons=analysis.get('reasons', [])
             )
             results.append(item)
-        except Exception:
+        except CalculationError as e:
+            logger.warning(f"Calculation error for {sym} in Titan radar: {e}")
+            continue
+        except Exception as e:
+            logger.error(f"Unexpected error analyzing {sym}: {e}", exc_info=True)
             continue
             
     # Sort by confidence desc
