@@ -1,7 +1,6 @@
 "use client";
 
 import { CoinIcon } from "@/components/features/dashboard/CoinIcon";
-import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/components/ui/toaster";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { useOracleSignalSummary } from "@/hooks/useAnalyticsData";
@@ -21,8 +20,8 @@ export function OracleSignalSummary() {
     toast("Oracle signals refreshed", "success");
   };
 
-  if (isLoading) return <Skeleton className="h-[180px] w-full rounded-xl" />;
-  if (error) return <div className="h-full min-h-[200px] flex items-center justify-center bg-secondary border border-red-500/20 text-red-500 rounded-xl italic text-xs">Oracle Unavailable</div>;
+  if (isLoading) return null; // Parent grid shows skeleton
+  if (error) return <div className="h-full min-h-[180px] flex items-center justify-center bg-secondary border border-red-500/20 text-red-500 rounded-xl italic text-xs">Oracle Unavailable</div>;
 
   const confidence = Math.max(data?.bullish_pct || 0, data?.bearish_pct || 0);
   const marketState = data?.market_state || "Analyzing";
