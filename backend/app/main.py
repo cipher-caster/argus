@@ -40,7 +40,7 @@ async def lifespan(app: FastAPI):
 
 
 app = FastAPI(
-    title="Magus Crypto Dashboard API",
+    title="Argus Crypto Dashboard API",
     description="High-performance trading interface backend",
     version="0.1.0",
     lifespan=lifespan
@@ -61,7 +61,6 @@ app.add_middleware(
 # Include routers
 app.include_router(market_router)
 app.include_router(indicators_router)
-app.include_router(strategy_router)
 app.include_router(strategy_router)
 app.include_router(analytics_router)
 

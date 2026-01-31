@@ -1,12 +1,12 @@
 import pytest
 import asyncio
 from unittest.mock import MagicMock, patch
-from app.routes.market import _get_merged_market_data
+from app.services.market_data import MarketDataService
 
 @pytest.mark.asyncio
 async def test_market_merge_logic():
     """
-    Test that _get_merged_market_data correctly merges:
+    Test that MarketDataService.get_merged_market_data correctly merges:
     1. CoinGecko Snapshot (Base)
     2. Binance Live Tickers (Overlay)
     """
@@ -55,7 +55,7 @@ async def test_market_merge_logic():
     with patch("app.storage.RedisClient.get_json", side_effect=[mock_snapshot, mock_live]):
         
         # Execute
-        merged = await _get_merged_market_data()
+        merged = await MarketDataService.get_merged_market_data()
         
         # --- VERIFICATION ---
         
@@ -94,9 +94,8 @@ async def test_market_sorting():
         {"symbol": "C", "name": "C", "price": 20.0, "volume_24h": 50.0, "market_cap": 2000.0, "change_24h": 0},
     ]
     
-    with patch("app.routes.market._get_merged_market_data", new_callable=MagicMock) as mock_get:
-        # Since _get_merged_market_data is awaited, the mock return value needs to be awaitable or the function mocked properly
-        # Simpler: mock the return value as a future
+    with patch("app.services.market_data.MarketDataService.get_merged_market_data", new_callable=MagicMock) as mock_get:
+        # Since get_merged_market_data is awaited, the mock return value needs to be awaitable
         f = asyncio.Future()
         f.set_result(mock_data)
         mock_get.return_value = f
