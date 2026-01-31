@@ -31,9 +31,10 @@ function MarketIndicatorsComponent() {
   if (isLoading) {
     return (
       <>
-        {[1, 2, 3, 4, 5].map((i) => (
+        {[1, 2, 3, 4].map((i) => (
           <Skeleton key={i} className="h-[180px] rounded-xl" />
         ))}
+        <Skeleton className="h-12 rounded-lg" /> {/* Oracle Intelligence compact bar */}
       </>
     );
   }
