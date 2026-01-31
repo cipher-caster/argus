@@ -117,12 +117,14 @@ export default function AnalyticsPage() {
         )}
       </div>
 
+      {/* Market Confluence Status - Prominent Banner */}
+      <section className="animate-in fade-in slide-in-from-top-2 duration-500">
+        <ConfluenceGauge />
+      </section>
+
       <div className="grid grid-cols-1 lg:grid-cols-4 gap-6 items-start animate-in fade-in slide-in-from-bottom-4 duration-700">
         {/* Navigation Sidebar */}
         <aside className="lg:col-span-1 space-y-4 sticky top-8">
-          {/* Global Market State Widget */}
-          <ConfluenceGauge />
-
           <nav className="bg-secondary/30 rounded-2xl p-2 border border-border/50 backdrop-blur-sm">
             {MENU_ITEMS.map((item) => (
               <button

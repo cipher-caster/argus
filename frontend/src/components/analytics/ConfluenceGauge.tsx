@@ -21,18 +21,18 @@ export function ConfluenceGauge() {
     toast("Confluence data updated", "success");
   };
 
-  if (isLoading || !data) return <div className="h-[240px] bg-secondary/20 animate-pulse rounded-xl mb-6" />;
+  if (isLoading || !data) return <div className="h-32 bg-secondary/20 animate-pulse rounded-xl" />;
 
   const getVidudals = (verdict: string) => {
     switch (verdict) {
       case "SLEEPING":
-        return { icon: Moon, color: "text-blue-400", bg: "bg-secondary/20", label: "MARKET SLEEPING", desc: "Low Volatility. Stay Cash." };
+        return { icon: Moon, color: "text-blue-400", bg: "bg-blue-500/10", label: "MARKET SLEEPING", desc: "Low Volatility. Stay Cash." };
       case "TSUNAMI_BULL":
-        return { icon: Waves, color: "text-green-500", bg: "bg-secondary/20", label: "BULL TSUNAMI", desc: "Aggressive Longs Allowed." };
+        return { icon: Waves, color: "text-green-500", bg: "bg-green-500/10", label: "BULL TSUNAMI", desc: "Aggressive Longs Allowed." };
       case "TSUNAMI_BEAR":
-        return { icon: Waves, color: "text-red-500", bg: "bg-secondary/20", label: "BEAR TSUNAMI", desc: "Aggressive Shorts Allowed." };
+        return { icon: Waves, color: "text-red-500", bg: "bg-red-500/10", label: "BEAR TSUNAMI", desc: "Aggressive Shorts Allowed." };
       default:
-        return { icon: Zap, color: "text-yellow-500", bg: "bg-secondary/20", label: "CHOPPY / VOLATILE", desc: "Reduce Position Size." };
+        return { icon: Zap, color: "text-yellow-500", bg: "bg-yellow-500/10", label: "CHOPPY / VOLATILE", desc: "Reduce Position Size." };
     }
   };
 
@@ -40,64 +40,53 @@ export function ConfluenceGauge() {
   const Icon = visuals.icon;
 
   return (
-    <div className="bg-secondary/30 rounded-2xl p-5 border border-border/50 backdrop-blur-sm flex flex-col justify-between mb-6">
-      <div className="flex items-center justify-between mb-4">
-        <div className="flex items-center gap-3">
-          <div className={cn("p-2 rounded-xl bg-background/50 border border-border/50", visuals.color)}>
-            <Icon size={24} />
-          </div>
-          <div>
-            <div className={cn("text-xs font-black tracking-widest uppercase", visuals.color)}>{visuals.label}</div>
-            <div className="text-[11px] text-muted-foreground font-medium">{visuals.desc}</div>
-          </div>
+    <div className={cn("bg-secondary/30 rounded-2xl p-6 border border-border/50 backdrop-blur-sm flex items-center justify-between gap-8", visuals.bg)}>
+      {/* Left: Market State */}
+      <div className="flex items-center gap-4">
+        <div className={cn("p-3 rounded-xl bg-background/50 border border-border/50", visuals.color)}>
+          <Icon size={32} />
         </div>
-
-        {/* Refresh & Consensus */}
-        <div className="text-right">
-          <div className="flex items-center justify-end gap-2 mb-1">
-            <button onClick={handleRefresh} disabled={isRefetching} className="text-muted-foreground hover:text-primary transition-colors p-1 disabled:opacity-50" title="Refresh">
-              <RefreshCcw size={14} className={cn(isRefetching && "animate-spin")} />
-            </button>
-          </div>
-          <div className="text-2xl font-black">{data.metrics.bullish_pct}%</div>
-          <div className="text-[10px] text-muted-foreground uppercase tracking-wider font-bold">Bullish Consensus</div>
+        <div>
+          <div className={cn("text-lg font-black tracking-widest uppercase", visuals.color)}>{visuals.label}</div>
+          <div className="text-sm text-muted-foreground font-medium">{visuals.desc}</div>
         </div>
       </div>
 
-      {/* Bars */}
-      <div className="space-y-3">
-        {/* Progress Bar */}
-        <div className="h-4 w-full bg-background/50 rounded-full overflow-hidden flex border border-white/5 relative">
-          {/* Tooltips or inline percentages could go here, but simple colors work best with a legend */}
-          <div style={{ width: `${data.metrics.sleeping_pct}%` }} className="bg-blue-500/30 h-full border-r border-background/10" title={`Sleeping: ${data.metrics.sleeping_pct}%`} />
-          <div style={{ width: `${data.metrics.bullish_pct}%` }} className="bg-green-500 h-full border-r border-background/10" title={`Bullish: ${data.metrics.bullish_pct}%`} />
-          <div style={{ width: `${data.metrics.bearish_pct}%` }} className="bg-red-500 h-full" title={`Bearish: ${data.metrics.bearish_pct}%`} />
+      {/* Center: Metrics */}
+      <div className="flex items-center gap-8">
+        {/* Bullish % */}
+        <div className="text-center">
+          <div className="text-3xl font-black text-green-500">{data.metrics.bullish_pct}%</div>
+          <div className="text-[10px] text-muted-foreground uppercase tracking-wider font-bold">Bullish</div>
         </div>
 
-        {/* Legend */}
-        <div className="flex justify-between items-center text-[10px] font-bold uppercase tracking-wider">
-          <div className="flex items-center gap-1.5 text-blue-400">
-            <div className="w-2 h-2 rounded-full bg-blue-500/50" />
-            <span>Sleep: {data.metrics.sleeping_pct}%</span>
-          </div>
-          <div className="flex items-center gap-1.5 text-green-500">
-            <div className="w-2 h-2 rounded-full bg-green-500" />
-            <span>Bull: {data.metrics.bullish_pct}%</span>
-          </div>
-          <div className="flex items-center gap-1.5 text-red-500">
-            <div className="w-2 h-2 rounded-full bg-red-500" />
-            <span>Bear: {data.metrics.bearish_pct}%</span>
-          </div>
+        {/* Bearish % */}
+        <div className="text-center">
+          <div className="text-3xl font-black text-red-500">{data.metrics.bearish_pct}%</div>
+          <div className="text-[10px] text-muted-foreground uppercase tracking-wider font-bold">Bearish</div>
         </div>
 
-        {/* Footer */}
-        <div className="flex items-center justify-between mb-4">
-          <h3 className="text-sm font-semibold flex items-center gap-2">
-            <Zap size={16} className="text-yellow-500" />
-            Market Consensus
-          </h3>
-          {data?.last_updated && <span className="text-[10px] text-muted-foreground">Updated: {new Date(data.last_updated).toLocaleString()}</span>}
+        {/* Sleeping % */}
+        <div className="text-center">
+          <div className="text-3xl font-black text-blue-400">{data.metrics.sleeping_pct}%</div>
+          <div className="text-[10px] text-muted-foreground uppercase tracking-wider font-bold">Sleeping</div>
         </div>
+      </div>
+
+      {/* Right: Progress Bar + Refresh */}
+      <div className="flex items-center gap-4">
+        <div className="w-64 space-y-2">
+          <div className="h-3 w-full bg-background/50 rounded-full overflow-hidden flex border border-white/5">
+            <div style={{ width: `${data.metrics.sleeping_pct}%` }} className="bg-blue-500/50 h-full" title={`Sleeping: ${data.metrics.sleeping_pct}%`} />
+            <div style={{ width: `${data.metrics.bullish_pct}%` }} className="bg-green-500 h-full" title={`Bullish: ${data.metrics.bullish_pct}%`} />
+            <div style={{ width: `${data.metrics.bearish_pct}%` }} className="bg-red-500 h-full" title={`Bearish: ${data.metrics.bearish_pct}%`} />
+          </div>
+          {data?.last_updated && <div className="text-[9px] text-muted-foreground font-medium text-center">Updated: {new Date(data.last_updated).toLocaleString()}</div>}
+        </div>
+
+        <button onClick={handleRefresh} disabled={isRefetching} className="p-2 rounded-md text-muted-foreground hover:text-foreground transition-colors disabled:opacity-50" title="Refresh Data">
+          <RefreshCcw size={18} className={cn(isRefetching && "animate-spin")} />
+        </button>
       </div>
     </div>
   );
