@@ -34,7 +34,7 @@ def detect_mean_reversion(df: pd.DataFrame, atr_mult: float = 3.0) -> Dict[str, 
         opportunity = "SPOT_BUY" if dist_from_mean < 0 else "DE-RISK_LONG"
         
     return {
-        "is_extended": is_extended,
+        "is_extended": bool(is_extended),
         "extension_atr": round(extension_atr, 2),
         "opportunity": opportunity,
         "price": float(price),
