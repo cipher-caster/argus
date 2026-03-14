@@ -2,6 +2,37 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.6.0] - 2026-03-14
+
+### Added
+
+- **Dashboard redesign**: Replaced the 50-coin table with a focused trading layout:
+  - `DashboardStatusBar` — single compact row combining Oracle market state, bull/bear %, top long/short signals, Avg RSI, Market Cap, and BTC Dominance. Replaces the old full-width `OracleSignalSummary` bar and separate `MarketPulseStrip`.
+  - `ActiveSetups` — shows top 5 `best-setups` results (Oracle + Titan aligned, 4H default). Loads independently with `keepPreviousData`.
+  - `BTCCard` — BTC price, 24h change, 7d sparkline, high/low. Shares cache with `DashboardWatchlist` (same `market-tickers` query key — one network request).
+  - `DashboardWatchlist` — starred coins with live prices and Oracle score badge. Uses React Query instead of raw `setInterval`.
+  - `TopMovers` — gainers and losers on separate rows (5 each), compact chip style.
+- **`/markets` page**: Full 50-coin `CoinTable` with sort and pagination, accessible from navbar and dashboard footer link. Frees the dashboard from data overload.
+- **`ArgusLogo` component**: Inline SVG React component — geometric eye on indigo rounded square (Argus Panoptes motif). Replaces external PNG. Also set as browser tab favicon via SVG data URI.
+- **Chart page — Oracle + Titan signal panel**: `CoinDetailsPanel` now shows Oracle Earnest Score, macro Bias, Titan signal, confidence, and advice text for the current chart symbol. Replaces the redundant "Performance" duplicate card.
+
+### Changed
+
+- **Fonts**: Switched from Inter (`<link>` tag) to **Space Grotesk + DM Mono** via `next/font/google`. Self-hosted, zero layout shift, no external request at runtime.
+- **Chart page layout**: Removed the `DrawingToolbar` 48px column — chart is now wider. Layout changed from `grid-cols-[48px_1fr_280px]` to `grid-cols-[1fr_280px]`.
+- **ChartHeader cleanup**: Removed dead "Compare symbol" button, dead "Chart Style" button, duplicate Argus brand link, Search icon decoration, and provider badge. Kept: back arrow, symbol+price, timeframe selector, indicators dropdown, refresh, settings.
+- **`CoinDetailsPanel`**: Removed redundant "Range" stat (derivable from high/low) and "Performance" card (24h change shown a third time). Replaced with Oracle Score + Titan Signal + Advice section using `useStrategyOracle`.
+- **Navbar**: Added "Markets" link. Replaced `<Image>` logo with inline `ArgusLogo` SVG component.
+- **MADX removed from dashboard**: Dropped from `MarketPulseStrip` (now `DashboardStatusBar`). Oracle regime bar already communicates trend strength; MADX added no additional decision-making value.
+
+### Fixed
+
+- **Light mode**: All `-400` color variants across dashboard components were invisible in light mode. Fixed with `text-{color}-600 dark:text-{color}-400` pattern across `ActiveSetups`, `DashboardWatchlist`, `DashboardStatusBar`, `CoinTable`, `CoinDetailsPanel`.
+- **BTCCard disappearing**: Switched from `useCoins` (separate paginated fetch, returned `null` silently) to `market-tickers` query (shared cache with `DashboardWatchlist`, `keepPreviousData` prevents card vanishing between refreshes).
+- **Oracle advice text unreadable in light mode**: `text-amber-200/80` → `text-amber-900 dark:text-amber-200/80`.
+
+---
+
 ## [0.5.5] - 2026-03-14
 
 ### Removed

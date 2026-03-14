@@ -1,7 +1,7 @@
 "use client";
 
-import { BarChart2, ChevronDown, LineChart, Search } from "lucide-react";
-import Image from "next/image";
+import { ArgusLogo } from "@/components/common/ArgusLogo";
+import { BarChart2, ChevronDown, Globe, LineChart, Search } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
@@ -64,14 +64,14 @@ export function Navbar() {
     window.location.href = `/chart/${cleanSymbol}-USDT`;
   };
 
-  const isFullWidthPage = pathname?.startsWith("/chart") || pathname === "/analytics";
+  const isFullWidthPage = pathname?.startsWith("/chart") || pathname === "/analytics" || pathname?.startsWith("/markets");
 
   return (
     <nav className="h-14 bg-background border-b border-border sticky top-0 z-[1000]">
       <div className={cn("h-full flex items-center justify-between px-5", !isFullWidthPage && "max-w-[1440px] mx-auto")}>
         <div className="flex items-center gap-8">
           <Link href="/" className="flex items-center gap-2.5 no-underline">
-            <Image src="/data/coins/images/argus_logo.png" alt="Argus" width={32} height={32} className="object-contain" />
+            <ArgusLogo size={30} />
             <span className="text-xl font-extrabold text-foreground tracking-tighter">Argus</span>
           </Link>
 
@@ -85,6 +85,13 @@ export function Navbar() {
             >
               <LineChart size={16} />
               <span>Charts</span>
+            </Link>
+            <Link
+              href="/markets"
+              className={cn("flex items-center gap-1.5 px-3 h-9 text-sm font-semibold no-underline rounded-lg transition-all", pathname === "/markets" ? "text-primary bg-primary/10" : "text-muted-foreground hover:text-foreground hover:bg-muted")}
+            >
+              <Globe size={16} />
+              <span>Markets</span>
             </Link>
             <Link
               href="/analytics"

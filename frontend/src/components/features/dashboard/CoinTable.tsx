@@ -41,10 +41,10 @@ function ScoreBadge({ symbol }: { symbol: string }) {
   const score = item.score;
 
   const colorClass =
-    score >= 3 ? "bg-green-500/20 text-green-400 border-green-500/30" :
-    score >= 1 ? "bg-green-500/10 text-green-500/70 border-green-500/20" :
-    score <= -3 ? "bg-red-500/20 text-red-400 border-red-500/30" :
-    score <= -1 ? "bg-red-500/10 text-red-500/70 border-red-500/20" :
+    score >= 3 ? "bg-green-500/20 text-green-700 dark:text-green-400 border-green-500/30" :
+    score >= 1 ? "bg-green-500/10 text-green-600/70 dark:text-green-500/70 border-green-500/20" :
+    score <= -3 ? "bg-red-500/20 text-red-700 dark:text-red-400 border-red-500/30" :
+    score <= -1 ? "bg-red-500/10 text-red-600/70 dark:text-red-500/70 border-red-500/20" :
     "bg-muted/40 text-muted-foreground border-border/30";
 
   const label = score > 0 ? `+${score}` : `${score}`;
@@ -59,7 +59,7 @@ function ScoreBadge({ symbol }: { symbol: string }) {
         </TooltipTrigger>
         <TooltipContent className="text-xs space-y-1 max-w-[200px]">
           <p className="font-bold">{item.symbol} — Oracle {label}/4</p>
-          <p>Bias: <span className={item.bias === "BULLISH" ? "text-green-400" : "text-red-400"}>{item.bias}</span></p>
+          <p>Bias: <span className={item.bias === "BULLISH" ? "text-green-600 dark:text-green-400" : "text-red-600 dark:text-red-400"}>{item.bias}</span></p>
           <p>State: {item.state}</p>
           <p className="text-muted-foreground">{item.advice}</p>
         </TooltipContent>

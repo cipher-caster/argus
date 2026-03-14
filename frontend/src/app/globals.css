@@ -105,8 +105,12 @@
   html,
   body {
     @apply h-full m-0 p-0 overflow-hidden;
+    font-family: var(--font-sans), system-ui, sans-serif;
   }
   body {
     @apply bg-background text-foreground;
+  }
+  .font-mono, code, kbd, samp, pre {
+    font-family: var(--font-mono), ui-monospace, monospace;
   }
 }

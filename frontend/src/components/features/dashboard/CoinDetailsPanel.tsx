@@ -2,14 +2,16 @@
 
 import { CoinIcon } from "@/components/features/dashboard/CoinIcon";
 import { Skeleton } from "@/components/ui/skeleton";
+import { useStrategyOracle } from "@/hooks/useStrategyOracle";
 import { getCoinName, useCoinMeta } from "@/hooks/useCoinMeta";
 import { formatChange, formatVolume } from "@/lib/formatters";
 import { cn } from "@/lib/utils";
-import { TrendingDown, TrendingUp } from "lucide-react";
-import { useEffect, useState } from "react";
+import { keepPreviousData, useQuery } from "@tanstack/react-query";
+import { ShieldAlert, TrendingDown, TrendingUp, Zap } from "lucide-react";
 
 interface CoinDetailsPanelProps {
   symbol: string;
+  timeframe?: string;
 }
 
 interface TickerDetails {
@@ -21,139 +23,178 @@ interface TickerDetails {
   low_24h: number;
 }
 
-export function CoinDetailsPanel({ symbol }: CoinDetailsPanelProps) {
-  const [details, setDetails] = useState<TickerDetails | null>(null);
-  const [loading, setLoading] = useState(true);
+const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+
+function useCoinTicker(symbol: string) {
+  return useQuery({
+    queryKey: ["coin-ticker", symbol],
+    queryFn: async () => {
+      const res = await fetch(`${API_URL}/api/market/tickers`);
+      if (!res.ok) throw new Error("Failed to fetch tickers");
+      const data = await res.json();
+      return (data.tickers?.find((t: TickerDetails) => t.symbol === symbol) ?? null) as TickerDetails | null;
+    },
+    staleTime: 15_000,
+    refetchInterval: 15_000,
+    gcTime: 5 * 60_000,
+    placeholderData: keepPreviousData,
+    enabled: !!symbol,
+  });
+}
+
+export function CoinDetailsPanel({ symbol, timeframe = "4h" }: CoinDetailsPanelProps) {
+  const { data: details, isLoading } = useCoinTicker(symbol);
   const { coinMeta } = useCoinMeta();
+  const { data: oracle, isLoading: oracleLoading } = useStrategyOracle(symbol, timeframe, "1d");
 
-  useEffect(() => {
-    // ... (keep existing fetch logic)
-    const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+  const coinName = getCoinName(symbol, coinMeta);
+  const displayName = coinName !== symbol ? coinName : symbol.replace("/USDT", "");
 
-    async function fetchDetails() {
-      try {
-        setLoading(true);
-        const res = await fetch(`${apiUrl}/api/market/tickers`);
-        if (!res.ok) return;
-        const data = await res.json();
-        const ticker = data.tickers?.find((t: TickerDetails) => t.symbol === symbol);
-        if (ticker) {
-          setDetails(ticker);
-        }
-      } catch (e) {
-        console.error("Failed to fetch coin details", e);
-      } finally {
-        setLoading(false);
-      }
-    }
-
-    fetchDetails();
-    const interval = setInterval(fetchDetails, 10000);
-    return () => clearInterval(interval);
-  }, [symbol]);
-
-  // ... (keep loading and null checks)
-  if (loading && !details) {
-    // ... (keep skeleton)
+  if (isLoading && !details) {
     return (
-      <div className="p-4 flex flex-col gap-4 border-t border-border bg-secondary shrink-0 overflow-y-auto">
-        {/* Header Skeleton */}
-        <div className="flex gap-2">
-          <Skeleton className="h-6 w-20" />
-          <Skeleton className="h-4 w-12" />
+      <div className="p-4 flex flex-col gap-4 border-t border-border bg-secondary shrink-0">
+        <div className="flex gap-3 items-center">
+          <Skeleton className="w-8 h-8 rounded-full" />
+          <div className="space-y-1.5">
+            <Skeleton className="w-20 h-4" />
+            <Skeleton className="w-14 h-3" />
+          </div>
         </div>
-
-        {/* Price Skeleton */}
-        <div className="flex gap-3">
-          <Skeleton className="h-8 w-32" />
-          <Skeleton className="h-6 w-16" />
-        </div>
-
-        {/* Stats Skeleton */}
-        <div className="flex flex-col gap-2 mt-2">
-          <Skeleton className="h-3 w-24 mb-1" />
-          <Skeleton className="h-4 w-full" />
-          <Skeleton className="h-4 w-full" />
-          <Skeleton className="h-4 w-full" />
+        <Skeleton className="w-32 h-7" />
+        <div className="space-y-2">
+          {[1, 2, 3].map((i) => <Skeleton key={i} className="w-full h-4" />)}
         </div>
       </div>
     );
   }
 
-  if (!details) {
-    // ...
-    return (
-      <div className="p-4 flex flex-col gap-4 border-t border-border bg-secondary shrink-0 overflow-y-auto">
-        <div className="p-6 text-center text-muted-foreground text-[12px]">No data available</div>
-      </div>
-    );
-  }
+  if (!details) return null;
 
   const isPositive = (details.change_24h || 0) >= 0;
   const priceRange = details.high_24h - details.low_24h;
   const currentPosition = priceRange > 0 ? ((details.price - details.low_24h) / priceRange) * 100 : 50;
 
-  const coinName = getCoinName(symbol, coinMeta);
+  const oracleScore = oracle?.earnest?.score ?? null;
+  const scoreColor =
+    oracleScore !== null && oracleScore >= 3 ? "text-green-600 dark:text-green-400" :
+    oracleScore !== null && oracleScore >= 1 ? "text-green-600/70 dark:text-green-500/70" :
+    oracleScore !== null && oracleScore <= -3 ? "text-red-600 dark:text-red-400" :
+    oracleScore !== null && oracleScore <= -1 ? "text-red-600/70 dark:text-red-500/70" :
+    "text-muted-foreground";
+
+  const titanSignal = oracle?.signal ?? null;
+  const titanColor =
+    titanSignal?.includes("BUY") ? "text-green-700 dark:text-green-400 bg-green-500/10 border-green-500/20" :
+    titanSignal?.includes("SELL") ? "text-red-700 dark:text-red-400 bg-red-500/10 border-red-500/20" :
+    "text-muted-foreground bg-muted/40 border-border/30";
 
   return (
     <div className="p-4 flex flex-col gap-4 border-t border-border bg-secondary shrink-0 overflow-y-auto scrollbar-thin scrollbar-thumb-muted">
       {/* Header */}
       <div className="flex items-center gap-3">
-        <CoinIcon symbol={symbol} coinMeta={coinMeta} size={32} />
+        <CoinIcon symbol={symbol} coinMeta={coinMeta} size={30} />
         <div>
-          <div className="text-[18px] font-bold text-foreground leading-tight">{coinName !== symbol ? coinName : symbol.replace("/USDT", "")}</div>
-          <div className="text-[12px] text-muted-foreground font-medium">{symbol}</div>
+          <div className="text-[16px] font-bold text-foreground leading-tight">{displayName}</div>
+          <div className="text-[11px] text-muted-foreground">{symbol}</div>
         </div>
       </div>
 
       {/* Price */}
       <div className="flex items-baseline gap-3">
-        <div className="text-[24px] font-extrabold text-foreground tracking-tighter">${details.price?.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 6 })}</div>
-        <div className={cn("flex items-center gap-1 text-[14px] font-bold px-2 py-1 rounded-md", isPositive ? "text-success bg-success/15" : "text-danger bg-danger/15")}>
-          {isPositive ? <TrendingUp size={14} /> : <TrendingDown size={14} />}
-          <span>{formatChange(details.change_24h)}</span>
+        <div className="text-[22px] font-extrabold text-foreground tracking-tight font-mono">
+          ${details.price?.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 6 })}
+        </div>
+        <div className={cn("flex items-center gap-1 text-[13px] font-bold px-2 py-0.5 rounded-md", isPositive ? "text-success bg-success/15" : "text-danger bg-danger/15")}>
+          {isPositive ? <TrendingUp size={12} /> : <TrendingDown size={12} />}
+          {formatChange(details.change_24h)}
         </div>
       </div>
 
-      {/* Key Stats */}
-      <div className="flex flex-col gap-2">
-        <div className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider mb-1">Key Stats (24H)</div>
-
+      {/* Stats */}
+      <div className="flex flex-col gap-1.5">
+        <div className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider mb-1">24H Stats</div>
         {[
           { label: "Volume", value: formatVolume(details.volume_24h) },
           { label: "High", value: `$${details.high_24h?.toLocaleString(undefined, { maximumFractionDigits: 6 })}` },
           { label: "Low", value: `$${details.low_24h?.toLocaleString(undefined, { maximumFractionDigits: 6 })}` },
-          { label: "Range", value: `$${priceRange.toLocaleString(undefined, { maximumFractionDigits: 6 })}` },
         ].map((stat) => (
           <div key={stat.label} className="flex justify-between items-center py-0.5">
-            <span className="text-[13px] text-muted-foreground font-medium">{stat.label}</span>
-            <span className="text-[13px] font-bold text-foreground font-mono">{stat.value}</span>
+            <span className="text-[12px] text-muted-foreground">{stat.label}</span>
+            <span className="text-[12px] font-bold text-foreground font-mono">{stat.value}</span>
           </div>
         ))}
       </div>
 
       {/* Price Position Bar */}
-      <div className="flex flex-col gap-2 mt-1">
-        <div className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider mb-1">24H Price Position</div>
+      <div className="space-y-1.5">
         <div className="h-1.5 w-full bg-muted rounded-full relative overflow-visible">
           <div className="h-full bg-gradient-to-r from-danger to-success rounded-full" />
-          <div className="absolute top-1/2 w-3 h-3 bg-foreground border-2 border-secondary rounded-full -translate-y-1/2 -translate-x-1/2 transition-all duration-500 shadow-sm" style={{ left: `${currentPosition}%` }} />
+          <div
+            className="absolute top-1/2 w-3 h-3 bg-foreground border-2 border-secondary rounded-full -translate-y-1/2 -translate-x-1/2 transition-all duration-500 shadow-sm"
+            style={{ left: `${Math.min(100, Math.max(0, currentPosition))}%` }}
+          />
         </div>
-        <div className="flex justify-between text-[11px] font-bold text-muted-foreground font-mono">
+        <div className="flex justify-between text-[10px] font-bold text-muted-foreground font-mono">
           <span>${details.low_24h?.toLocaleString(undefined, { maximumFractionDigits: 2 })}</span>
           <span>${details.high_24h?.toLocaleString(undefined, { maximumFractionDigits: 2 })}</span>
         </div>
       </div>
 
-      {/* Performance */}
-      <div className="flex flex-col gap-2 mt-1">
-        <div className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider mb-1">Performance</div>
-        <div className="grid grid-cols-1 gap-2">
-          <div className={cn("p-3 rounded-xl text-center border transition-all", isPositive ? "bg-success/5 border-success/20" : "bg-danger/5 border-danger/20")}>
-            <div className={cn("text-[16px] font-extrabold font-mono", isPositive ? "text-success" : "text-danger")}>{formatChange(details.change_24h)}</div>
-            <div className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest mt-0.5">24 Hour Change</div>
-          </div>
+      {/* Oracle + Titan Signal */}
+      <div className="border-t border-border/50 pt-4 space-y-3">
+        <div className="flex items-center gap-1.5 text-[10px] font-bold text-muted-foreground uppercase tracking-wider">
+          <Zap size={10} className="text-primary" />
+          Oracle Signal
         </div>
+
+        {oracleLoading && !oracle ? (
+          <div className="space-y-2">
+            <Skeleton className="w-full h-8 rounded-lg" />
+            <Skeleton className="w-full h-8 rounded-lg" />
+          </div>
+        ) : oracle ? (
+          <div className="space-y-2">
+            {/* Score + Bias */}
+            <div className="flex items-center justify-between p-2.5 rounded-lg bg-muted/30 border border-border/50">
+              <div>
+                <div className="text-[9px] font-bold text-muted-foreground uppercase tracking-widest mb-0.5">Earnest Score</div>
+                <span className={cn("text-lg font-black font-mono", scoreColor)}>
+                  {oracleScore !== null ? (oracleScore > 0 ? `+${oracleScore}` : oracleScore) : "—"}<span className="text-xs text-muted-foreground">/4</span>
+                </span>
+              </div>
+              <div className="text-right">
+                <div className="text-[9px] font-bold text-muted-foreground uppercase tracking-widest mb-0.5">Bias</div>
+                <span className={cn("text-sm font-black", oracle.bias === "BULLISH" ? "text-green-600 dark:text-green-400" : oracle.bias === "BEARISH" ? "text-red-600 dark:text-red-400" : "text-muted-foreground")}>
+                  {oracle.bias}
+                </span>
+              </div>
+            </div>
+
+            {/* Titan Signal */}
+            {titanSignal && (
+              <div className={cn("flex items-center justify-between p-2.5 rounded-lg border", titanColor)}>
+                <div>
+                  <div className="text-[9px] font-bold opacity-70 uppercase tracking-widest mb-0.5">Titan Signal</div>
+                  <span className="text-sm font-black">{titanSignal.replace(/_/g, " ")}</span>
+                </div>
+                <div className="text-right">
+                  <div className="text-[9px] font-bold opacity-70 uppercase tracking-widest mb-0.5">Confidence</div>
+                  <span className="text-sm font-black font-mono">{oracle.confidence}</span>
+                </div>
+              </div>
+            )}
+
+            {/* Advice */}
+            {oracle.advice && (
+              <div className="flex gap-2 p-2.5 rounded-lg bg-amber-500/5 border border-amber-500/20">
+                <ShieldAlert size={13} className="text-amber-500 shrink-0 mt-0.5" />
+                <p className="text-[10px] leading-relaxed text-amber-900 dark:text-amber-200/80 italic">{oracle.advice}</p>
+              </div>
+            )}
+          </div>
+        ) : (
+          <p className="text-[11px] text-muted-foreground/50 text-center py-2">Signal data unavailable</p>
+        )}
       </div>
     </div>
   );

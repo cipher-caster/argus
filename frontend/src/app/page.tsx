@@ -1,120 +1,51 @@
 "use client";
 
-/**
- * Argus Dashboard
- * Professional CoinGlass-style layout
- */
+import { ActiveSetups } from "@/components/features/dashboard/ActiveSetups";
+import { BTCCard } from "@/components/features/dashboard/BTCCard";
+import { DashboardStatusBar } from "@/components/features/dashboard/DashboardStatusBar";
+import { DashboardWatchlist } from "@/components/features/dashboard/DashboardWatchlist";
+import { TopMovers } from "@/components/features/dashboard/TopMovers";
+import { BarChart2, ChevronRight } from "lucide-react";
+import Link from "next/link";
 
-import { CoinTable } from "@/components/features/dashboard/CoinTable";
-import { MarketIndicators } from "@/components/features/dashboard/MarketIndicators";
-import { TopCoinsWidgets } from "@/components/features/dashboard/TopCoinsWidgets";
-import { OracleSignalSummary } from "@/components/OracleSignalSummary";
-import { useProvider } from "@/hooks/useMarketData";
-import { useCoins, useMarketSummary } from "@/hooks/useMarketOverview";
-import { useRouter, useSearchParams } from "next/navigation";
-import { useEffect, useState } from "react";
-
-import { ChevronLeft, ChevronRight } from "lucide-react";
-
-export default function MarketOverview() {
-  const router = useRouter();
-  const searchParams = useSearchParams();
-
-  // State: Initialize from URL on creation
-  const [page, setPage] = useState(1);
-  const [sortBy, setSortBy] = useState(() => searchParams.get("sort_by") || "market_cap");
-  const [sortOrder, setSortOrder] = useState<"asc" | "desc">(() => (searchParams.get("sort_order") as "asc" | "desc") || "desc");
-  const pageSize = 50;
-
-  // Cleanup URL on mount if it contains sort params (as requested)
-  useEffect(() => {
-    if (searchParams.has("sort_by") || searchParams.has("sort_order")) {
-      // Clean URL without triggering a re-render/refetch via Next.js router
-      window.history.replaceState({}, "", window.location.pathname);
-    }
-  }, []);
-
-  const { data: providerData } = useProvider();
-  const { data: summary } = useMarketSummary();
-  const { data: coinsData, isLoading } = useCoins({
-    page,
-    pageSize,
-    sortBy,
-    sortOrder,
-  });
-
-  const handleSort = (field: string) => {
-    let newOrder: "asc" | "desc" = "desc";
-    if (sortBy === field) {
-      newOrder = sortOrder === "asc" ? "desc" : "asc";
-    } else {
-      newOrder = "desc"; // Default to desc for new field
-    }
-
-    // Update Local State ONLY (Instant Feedback, Clean URL)
-    setSortBy(field);
-    setSortOrder(newOrder);
-    setPage(1);
-  };
-
-  const totalPages = coinsData ? Math.ceil(coinsData.total / pageSize) : 1;
-
+export default function Dashboard() {
   return (
     <div className="min-h-screen bg-background text-foreground">
-      {/* Main Content */}
-      <main className="max-w-[1440px] mx-auto p-6 md:p-8 space-y-10">
-        {/* Oracle Intelligence - Full Width Status Bar */}
-        <section className="animate-in fade-in slide-in-from-bottom-2 duration-500">
-          <OracleSignalSummary />
+      <main className="max-w-[1440px] mx-auto p-6 md:p-8 space-y-5">
+
+        {/* Single status bar — Oracle state + RSI + Market Cap + BTC Dom */}
+        <section className="animate-in fade-in slide-in-from-top-2 duration-500">
+          <DashboardStatusBar />
         </section>
 
-        {/* Market Indicators - 4 Cards */}
-        <section className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 animate-in fade-in slide-in-from-bottom-2 duration-500 delay-75">
-          <MarketIndicators />
-        </section>
-
-        {/* Widgets Section */}
-        <section className="space-y-4 animate-in fade-in slide-in-from-bottom-4 duration-700 delay-100">
-          <TopCoinsWidgets gainers={summary?.top_gainers || []} losers={summary?.top_losers || []} volume={summary?.top_volume || []} isLoading={!summary} />
-        </section>
-
-        {/* Main Table */}
-        <section className="space-y-6 animate-in fade-in slide-in-from-bottom-6 duration-1000 delay-200">
-          <div className="bg-secondary/30 rounded-2xl p-1 overflow-hidden">
-            <CoinTable coins={coinsData?.coins || []} isLoading={isLoading} sortBy={sortBy} sortOrder={sortOrder} onSort={handleSort} />
+        {/* Main Grid: Active Setups + BTC Card + Watchlist */}
+        <section className="grid grid-cols-1 lg:grid-cols-5 gap-5 animate-in fade-in slide-in-from-bottom-4 duration-700">
+          <div className="lg:col-span-3">
+            <ActiveSetups />
           </div>
-
-          {/* Pagination */}
-          {totalPages > 1 && (
-            <div className="flex items-center justify-center gap-4 py-8">
-              <div className="flex items-center gap-1 bg-muted/30 p-1.5 rounded-xl border border-border/50">
-                <button className="px-4 py-2 text-xs font-bold rounded-lg transition-all hover:bg-muted disabled:opacity-30 disabled:pointer-events-none" onClick={() => setPage(1)} disabled={page === 1}>
-                  First
-                </button>
-                <button
-                  className="px-4 py-2 text-xs font-bold rounded-lg transition-all hover:bg-muted disabled:opacity-30 disabled:pointer-events-none flex items-center gap-1"
-                  onClick={() => setPage((p) => Math.max(1, p - 1))}
-                  disabled={page === 1}
-                >
-                  <ChevronLeft size={14} /> Prev
-                </button>
-                <div className="px-6 text-xs font-bold border-x border-border/50">
-                  <span className="text-muted-foreground mr-1">Page</span>
-                  <span className="text-foreground">{page}</span>
-                  <span className="text-muted-foreground mx-1">/</span>
-                  <span className="text-muted-foreground">{totalPages}</span>
-                </div>
-                <button
-                  className="px-4 py-2 text-xs font-bold rounded-lg transition-all hover:bg-muted disabled:opacity-30 disabled:pointer-events-none flex items-center gap-1"
-                  onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
-                  disabled={page >= totalPages}
-                >
-                  Next <ChevronRight size={14} />
-                </button>
-              </div>
-            </div>
-          )}
+          <div className="lg:col-span-2 flex flex-col gap-5">
+            <BTCCard />
+            <DashboardWatchlist />
+          </div>
         </section>
+
+        {/* Top Movers */}
+        <section className="animate-in fade-in slide-in-from-bottom-5 duration-700 delay-75">
+          <TopMovers />
+        </section>
+
+        {/* Footer link */}
+        <section className="flex justify-center pb-4 animate-in fade-in duration-700 delay-100">
+          <Link
+            href="/markets"
+            className="flex items-center gap-2 text-xs font-bold text-muted-foreground hover:text-foreground transition-colors group"
+          >
+            <BarChart2 size={13} />
+            View full market table
+            <ChevronRight size={11} className="group-hover:translate-x-0.5 transition-transform" />
+          </Link>
+        </section>
+
       </main>
     </div>
   );
