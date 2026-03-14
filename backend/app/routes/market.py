@@ -124,8 +124,8 @@ async def get_ticker(symbol: str):
 @router.get("/provider")
 async def get_provider_info():
     """Get current data provider information"""
-    # Simply return generic
-    return {"provider": "redis-worker"}
+    import os
+    return {"provider": os.getenv("DATA_PROVIDER", "binance").lower()}
 
 
 @router.get("/market/summary", response_model=MarketSummaryResponse)

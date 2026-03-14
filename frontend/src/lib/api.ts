@@ -215,9 +215,9 @@ export interface BestSetupItem {
   /** Number of simulated trades. null when < 10. */
   total_trades: number | null;
   /**
-   * Eliz+Mayne MTF confluence. Titan signal confirmed on each timeframe.
-   * Eliz lane: 4h (entry trigger) + 1d (swing structure)
-   * Mayne lane: 12h (higher-TF bias) + 1w (macro/weekly direction)
+   * Swing+Macro MTF confluence. Titan signal confirmed on each timeframe.
+   * Swing lane: 4h (entry trigger) + 1d (swing structure)
+   * Macro lane: 12h (higher-TF bias) + 1w (macro/weekly direction)
    * null when data unavailable.
    */
   timeframe_confirmation: { "4h": boolean; "1d": boolean; "12h": boolean; "1w": boolean } | null;
@@ -283,6 +283,50 @@ export interface OracleStrategyResponse {
     win_rate: number;
     net_profit: number;
   };
+}
+
+export interface TitanStrategyResponse {
+  symbol: string;
+  timeframe: string;
+  price: number;
+  signal: "BUY" | "BUY_LIMIT" | "SELL" | "SELL_LIMIT" | "WAIT_OB" | "WAIT_OS" | "NEUTRAL";
+  confidence: number;
+  trend: "BULLISH" | "BEARISH" | "NEUTRAL";
+  momentum: {
+    status: string;
+    rsi_val: number;
+    is_overbought: boolean;
+    is_oversold: boolean;
+    macd_crossed: string;
+  };
+  volatility: {
+    atr: number;
+    squeeze: boolean;
+  };
+  targets: {
+    entry: number;
+    sl: number;
+    tp: number;
+    r_r: number;
+  };
+  sizing: string;
+  indicators: {
+    rsi: number;
+    macd: number;
+    adx: number | null;
+    supertrend: number;
+    ema20: number;
+    ema50: number;
+  };
+}
+
+/**
+ * Fetch Titan Strategy analysis for a single symbol
+ */
+export async function fetchTitanStrategy(symbol: string, timeframe: string = "4h"): Promise<TitanStrategyResponse> {
+  const response = await fetch(`${API_URL}/api/strategy/titan/${encodeURIComponent(symbol)}?timeframe=${timeframe}`);
+  if (!response.ok) throw new Error(`Failed to fetch titan strategy: ${response.statusText}`);
+  return response.json();
 }
 
 /**

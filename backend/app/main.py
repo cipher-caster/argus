@@ -25,9 +25,9 @@ async def lifespan(app: FastAPI):
     print("✓ Argus Backend: Database initialized")
 
     # Initialize Data Provider
-    from app.providers.binance_provider import BinanceProvider
+    from app.providers import get_provider
     from app.routes.market import set_provider
-    provider = BinanceProvider()
+    provider = get_provider()
     set_provider(provider)
     print("✓ Argus Backend: Provider initialized")
     

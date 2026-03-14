@@ -11,7 +11,7 @@ import sys
 import os
 sys.path.append(os.getcwd())
 
-from app.providers.binance_provider import BinanceProvider
+from app.providers import get_provider
 from app.strategies.titan import TitanStrategy
 from app.strategies.oracle import OracleStrategy
 
@@ -20,8 +20,8 @@ logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(message)s')
 logger = logging.getLogger(__name__)
 
 async def fetch_data(symbol: str, timeframe: str, limit: int = 1000) -> pd.DataFrame:
-    """Fetch historical data using BinanceProvider with Pagination"""
-    provider = BinanceProvider()
+    """Fetch historical data using the configured provider with Pagination"""
+    provider = get_provider()
     try:
         all_candles = []
         BATCH_SIZE = 1000

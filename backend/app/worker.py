@@ -2,7 +2,7 @@ import asyncio
 import logging
 from arq import cron
 from app.storage import RedisClient, Database
-from app.providers.binance_provider import BinanceProvider
+from app.providers import get_provider
 from app.schemas.market_data import MarketSummary, MarketTicker
 
 # Configure Logging
@@ -18,7 +18,7 @@ async def startup(ctx):
     logger.info("Worker starting up...")
     Database.init()
     await Database.create_tables()
-    provider = BinanceProvider() 
+    provider = get_provider()
     ctx['provider'] = provider
     logger.info("Worker initialized and ready.")
     # Note: Historical candle data is now fetched on-demand by the API

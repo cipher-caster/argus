@@ -4,7 +4,7 @@ services:
     ports:
       - "8000:8000"
     environment:
-      - DATA_PROVIDER=binance
+      - DATA_PROVIDER=okx
       - REDIS_URL=redis://redis:6379/0
       - DATABASE_URL=postgresql+asyncpg://argus:argus_password@db:5432/argus_db
     volumes:
@@ -18,7 +18,7 @@ services:
     build: ./backend
     command: python -m app.worker
     environment:
-      - DATA_PROVIDER=binance
+      - DATA_PROVIDER=okx
       - REDIS_URL=redis://redis:6379/0
       - DATABASE_URL=postgresql+asyncpg://argus:argus_password@db:5432/argus_db
     volumes:

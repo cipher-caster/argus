@@ -15,7 +15,7 @@ from app.strategies.oracle import OracleStrategy
 from app.strategies.titan import TitanStrategy
 from app.storage import Database
 from app.schemas.candle import Candle as DbCandle
-from app.providers.binance_provider import BinanceProvider
+from app.providers import get_provider, DataProvider
 
 router = APIRouter(prefix="/api/strategy", tags=["strategy"])
 
@@ -23,7 +23,7 @@ router = APIRouter(prefix="/api/strategy", tags=["strategy"])
 oracle = OracleStrategy()
 titan = TitanStrategy()
 
-async def get_candles_df(symbol: str, timeframe: str, limit: int = 500, provider: Optional[BinanceProvider] = None) -> pd.DataFrame:
+async def get_candles_df(symbol: str, timeframe: str, limit: int = 500, provider: Optional[DataProvider] = None) -> pd.DataFrame:
     """
     Helper to get candles as DataFrame.
     Fetches from DB first, then falls back to Binance if insufficient.
@@ -66,10 +66,10 @@ async def get_candles_df(symbol: str, timeframe: str, limit: int = 500, provider
         
     is_sufficient = is_count_sufficient and is_fresh
     
-    # 3. Fetch from Binance if missing/stale
+    # 3. Fetch from exchange if missing/stale
     if not is_sufficient:
         try:
-            local_provider = provider or BinanceProvider()
+            local_provider = provider or get_provider()
             try:
                 fetch_limit = min(limit, 1000)
                 
@@ -134,7 +134,7 @@ async def get_candles_df(symbol: str, timeframe: str, limit: int = 500, provider
 @router.get("/oracle/{symbol:path}")
 async def get_oracle_strategy(
     symbol: str,
-    micro_tf: str = Query(default="1h", description="Timeframe for voters"),
+    micro_tf: str = Query(default="4h", description="Timeframe for voters"),
     macro_tf: str = Query(default="1d", description="Timeframe for trend")
 ):
     """

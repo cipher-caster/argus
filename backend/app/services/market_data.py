@@ -49,8 +49,8 @@ class MarketDataService:
                 limit=100
             )
         """
-        from app.providers.binance_provider import BinanceProvider
-        
+        from app.providers import get_provider
+
         async with Database.get_session() as session:
             # Base query
             query = select(DbCandle).where(
@@ -94,9 +94,9 @@ class MarketDataService:
 
             # --- Direct Fetch if Missing or Stale ---
             if not db_candles or len(db_candles) < limit // 2 or is_stale:
-                logger.info(f"Fetching from Binance for {symbol} {timeframe}. Reason: Missing={not db_candles}, Sparse={len(db_candles) < limit//2 if db_candles else False}, Stale={is_stale}")
+                logger.info(f"Fetching from exchange for {symbol} {timeframe}. Reason: Missing={not db_candles}, Sparse={len(db_candles) < limit//2 if db_candles else False}, Stale={is_stale}")
                 try:
-                    provider = BinanceProvider()
+                    provider = get_provider()
                     try:
                         # Calculate 'since' timestamp
                         if end_timestamp:
@@ -104,7 +104,7 @@ class MarketDataService:
                         else:
                             since_ts = None  # Fetch latest
                         
-                        logger.debug(f"Fetching from Binance with since={since_ts}")
+                        logger.debug(f"Fetching from exchange with since={since_ts}")
                         fresh_candles = await provider.get_ohlcv(symbol, timeframe=timeframe, limit=1000, since=since_ts)
                         
                         # Save to DB
@@ -335,9 +335,9 @@ class MarketDataService:
         else: # Default market_cap
             data.sort(key=lambda x: x.get('market_cap' or 0) or 0, reverse=True)
             
-        # Filter against active Binance symbols to ensure we only return tradeable assets
-        from app.providers.binance_provider import BinanceProvider
-        provider = BinanceProvider()
+        # Filter against active exchange symbols to ensure we only return tradeable assets
+        from app.providers import get_provider
+        provider = get_provider()
         try:
             active_symbols_info = await provider.get_symbols()
             active_symbols = {s.symbol for s in active_symbols_info}

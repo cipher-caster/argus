@@ -1,6 +1,7 @@
 "use client";
 
 import { ArgusLogo } from "@/components/common/ArgusLogo";
+import { fetchProviderInfo } from "@/lib/api";
 import { BarChart2, ChevronDown, Globe, LineChart, Search } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
@@ -56,6 +57,13 @@ function NavDropdown({ label, items, active }: NavDropdownProps) {
 export function Navbar() {
   const pathname = usePathname();
   const [search, setSearch] = useState("");
+  const [provider, setProvider] = useState<string | null>(null);
+
+  useEffect(() => {
+    fetchProviderInfo()
+      .then((info) => setProvider(info.provider))
+      .catch(() => {});
+  }, []);
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
@@ -108,6 +116,11 @@ export function Navbar() {
             <Search size={14} className="text-muted-foreground" />
             <input type="text" placeholder="Search coin..." className="bg-transparent border-none outline-none text-foreground text-[13px] w-full placeholder:text-muted-foreground/50" value={search} onChange={(e) => setSearch(e.target.value)} />
           </form>
+          {provider && (
+            <span className="text-[11px] font-semibold uppercase tracking-wider px-2 py-0.5 rounded-md bg-muted text-muted-foreground border border-border">
+              {provider}
+            </span>
+          )}
           <div className="w-px h-5 bg-border" />
           <ThemeToggle />
         </div>

@@ -11,7 +11,7 @@ import { Minus, RefreshCcw, Search, TrendingDown, TrendingUp } from "lucide-reac
 import Link from "next/link";
 import { useState } from "react";
 
-export function OracleScreener({ timeframe = "1h", limit = 50 }: { timeframe?: string; limit?: number }) {
+export function OracleScreener({ timeframe = "4h", limit = 50 }: { timeframe?: string; limit?: number }) {
   const [search, setSearch] = useState("");
   const { coinMeta } = useCoinMeta();
   const { data, isLoading, error, refetch, isRefetching } = useOracleScreener(timeframe, limit);

@@ -1,6 +1,6 @@
 """
 Futures analytics API routes
-Uses CCXT-based BinanceProvider for data fetching
+Uses CCXT-based OKXProvider for data fetching
 Redis caching for performance optimization
 """
 import logging
@@ -24,7 +24,7 @@ from app.schemas.analytics import (
 from app.routes.strategy import get_candles_df, titan, oracle
 from app.indicators.screener import run_oracle_screener
 from app.indicators.mean_reversion import detect_mean_reversion
-from app.providers.binance_provider import BinanceProvider
+from app.providers import get_provider
 from app.services.market_data import MarketDataService
 from app.storage import RedisClient
 from app.exceptions import DataProviderError, CacheError, CalculationError
@@ -50,7 +50,7 @@ async def get_supported_symbols(limit: int = 20):
 
 async def fetch_all_candles(symbols: List[str], timeframe: str = "1h", limit: int = 250):
     """Helper to fetch candles for multiple symbols concurrently, reusing provider"""
-    provider = BinanceProvider()
+    provider = get_provider()
     try:
         tasks = [get_candles_df(sym, timeframe, limit, provider=provider) for sym in symbols]
         dataframes = await asyncio.gather(*tasks, return_exceptions=True)

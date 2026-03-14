@@ -91,14 +91,14 @@ function SetupCard({ item, coinMeta }: { item: BestSetupItem; coinMeta: any }) {
           </div>
         </div>
 
-        {/* Eliz + Mayne MTF confluence */}
+        {/* MTF confluence */}
         {item.timeframe_confirmation && (
-          <div className="border-t border-border/30 pt-3 space-y-1.5">
-            <p className="text-[9px] font-black uppercase tracking-widest text-muted-foreground">MTF Confluence</p>
+          <div className="border-t border-border/30 pt-3 flex items-center justify-center gap-3">
+            <span className="text-[9px] font-black uppercase tracking-widest text-muted-foreground">MTF</span>
             <div className="flex items-center gap-3">
-              {/* Eliz lane */}
+              {/* Swing lane */}
               <div className="flex items-center gap-1.5">
-                <span className="text-[9px] font-black text-muted-foreground/60 uppercase tracking-widest">Eliz</span>
+                <span className="text-[9px] font-black text-muted-foreground/60 uppercase tracking-widest">Swing</span>
                 {(["4h", "1d"] as const).map((tf) => (
                   <span
                     key={tf}
@@ -114,9 +114,9 @@ function SetupCard({ item, coinMeta }: { item: BestSetupItem; coinMeta: any }) {
                 ))}
               </div>
               <span className="text-muted-foreground/30 text-xs">|</span>
-              {/* Mayne lane */}
+              {/* Macro lane */}
               <div className="flex items-center gap-1.5">
-                <span className="text-[9px] font-black text-muted-foreground/60 uppercase tracking-widest">Mayne</span>
+                <span className="text-[9px] font-black text-muted-foreground/60 uppercase tracking-widest">Macro</span>
                 {(["12h", "1w"] as const).map((tf) => (
                   <span
                     key={tf}
@@ -135,30 +135,26 @@ function SetupCard({ item, coinMeta }: { item: BestSetupItem; coinMeta: any }) {
           </div>
         )}
 
-        {/* Historical win rate */}
+        {/* Reason */}
         <div className="flex items-center justify-between border-t border-border/30 pt-3">
           <p className="text-[11px] text-muted-foreground leading-relaxed font-medium flex-1">
             {item.reason}
           </p>
-          <span
-            className={cn(
-              "ml-3 shrink-0 text-[10px] font-black px-2 py-0.5 rounded-md",
-              item.win_rate == null
-                ? "bg-muted/30 text-muted-foreground"
-                : item.win_rate >= 50
-                ? "bg-green-500/15 text-green-400"
-                : item.win_rate >= 33
-                ? "bg-yellow-500/15 text-yellow-400"
-                : "bg-red-500/15 text-red-400"
-            )}
-            title={
-              item.win_rate == null
-                ? "Insufficient backtest data (<10 trades)"
-                : `${item.total_trades} historical trades`
-            }
-          >
-            {item.win_rate == null ? "— hist." : `${item.win_rate.toFixed(0)}% hist.`}
-          </span>
+          {item.win_rate != null && (
+            <span
+              className={cn(
+                "ml-3 shrink-0 text-[10px] font-black px-2 py-0.5 rounded-md",
+                item.win_rate >= 50
+                  ? "bg-green-500/15 text-green-400"
+                  : item.win_rate >= 33
+                  ? "bg-yellow-500/15 text-yellow-400"
+                  : "bg-red-500/15 text-red-400"
+              )}
+              title={`${item.total_trades} historical trades`}
+            >
+              {item.win_rate.toFixed(0)}% win
+            </span>
+          )}
         </div>
       </div>
     </Link>

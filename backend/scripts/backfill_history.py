@@ -12,7 +12,7 @@ import os
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from app.storage import Database
-from app.providers.binance_provider import BinanceProvider
+from app.providers import get_provider
 from app.schemas.candle import Candle
 
 # Configuration
@@ -35,7 +35,7 @@ TIMEFRAMES = [
 
 LIMIT = 1000  # Max candles per request
 
-async def backfill_candles(provider: BinanceProvider, symbol: str, timeframe: str):
+async def backfill_candles(provider, symbol: str, timeframe: str):
     """Fetch and store candles for a single symbol/timeframe combination."""
     print(f"  📊 Fetching {symbol} {timeframe}...", end=" ", flush=True)
     
@@ -84,7 +84,7 @@ async def main():
     # Initialize
     Database.init()
     await Database.create_tables()
-    provider = BinanceProvider()
+    provider = get_provider()
     
     total_candles = 0
     total_pairs = len(SYMBOLS) * len(TIMEFRAMES)

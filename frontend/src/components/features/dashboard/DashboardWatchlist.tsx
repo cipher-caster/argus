@@ -2,8 +2,6 @@
 
 import { CoinIcon } from "@/components/features/dashboard/CoinIcon";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
-import { useOracleScreener } from "@/hooks/useAnalyticsData";
 import { useCoinMeta } from "@/hooks/useCoinMeta";
 import { formatChange, formatPrice } from "@/lib/formatters";
 import { cn } from "@/lib/utils";
@@ -11,7 +9,6 @@ import { useWatchlistStore } from "@/stores/watchlistStore";
 import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import { Plus, Star } from "lucide-react";
 import Link from "next/link";
-import { useMemo } from "react";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
 
@@ -35,36 +32,11 @@ function useWatchlistTickers() {
   });
 }
 
-function ScoreChip({ score }: { score: number | null }) {
-  if (score === null) return <span className="text-muted-foreground/30 text-[10px] font-mono w-7 text-center block">—</span>;
-
-  const colorClass =
-    score >= 3 ? "bg-green-500/20 text-green-700 dark:text-green-400 border-green-500/30" :
-    score >= 1 ? "bg-green-500/10 text-green-600/70 dark:text-green-500/70 border-green-500/20" :
-    score <= -3 ? "bg-red-500/20 text-red-700 dark:text-red-400 border-red-500/30" :
-    score <= -1 ? "bg-red-500/10 text-red-600/70 dark:text-red-500/70 border-red-500/20" :
-    "bg-muted/40 text-muted-foreground border-border/30";
-
-  const label = score > 0 ? `+${score}` : `${score}`;
-
-  return (
-    <span className={cn("inline-flex items-center justify-center w-9 px-1.5 py-0.5 rounded border text-[10px] font-black font-mono", colorClass)}>
-      {label}
-    </span>
-  );
-}
 
 export function DashboardWatchlist() {
   const { items } = useWatchlistStore();
   const { coinMeta } = useCoinMeta();
   const { data: tickers, isLoading: tickersLoading } = useWatchlistTickers();
-  const { data: screener } = useOracleScreener("1h", 50);
-
-  const scoreMap = useMemo(() => {
-    const map: Record<string, number> = {};
-    screener?.data?.forEach((s) => { map[s.symbol] = s.score; });
-    return map;
-  }, [screener]);
 
   return (
     <div className="bg-secondary/30 border border-border/50 rounded-2xl overflow-hidden h-full">
@@ -76,9 +48,6 @@ export function DashboardWatchlist() {
           {items.length > 0 && (
             <span className="bg-muted text-muted-foreground text-[10px] font-bold px-1.5 py-0.5 rounded-md">{items.length}</span>
           )}
-        </div>
-        <div className="flex items-center gap-2 text-[9px] font-bold uppercase tracking-widest text-muted-foreground/50">
-          <span className="w-9 text-center">Score</span>
         </div>
       </div>
 
@@ -95,8 +64,6 @@ export function DashboardWatchlist() {
         ) : (
           items.map((item) => {
             const ticker = tickers?.[item.symbol];
-            const normalizedSymbol = item.symbol.replace("/", "");
-            const score = scoreMap[normalizedSymbol] ?? null;
 
             return (
               <Link
@@ -111,7 +78,7 @@ export function DashboardWatchlist() {
                   </span>
                 </div>
 
-                <div className="text-right shrink-0 mr-1">
+                <div className="text-right shrink-0">
                   {tickersLoading && !ticker ? (
                     <div className="space-y-1">
                       <Skeleton className="w-14 h-3 ml-auto" />
@@ -128,19 +95,6 @@ export function DashboardWatchlist() {
                     <span className="text-[10px] text-muted-foreground/40">—</span>
                   )}
                 </div>
-
-                <TooltipProvider>
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <div className="shrink-0 cursor-default">
-                        <ScoreChip score={score} />
-                      </div>
-                    </TooltipTrigger>
-                    <TooltipContent className="text-xs">
-                      Oracle Score {score !== null ? `${score > 0 ? "+" : ""}${score}/4` : "not in top 50"}
-                    </TooltipContent>
-                  </Tooltip>
-                </TooltipProvider>
               </Link>
             );
           })

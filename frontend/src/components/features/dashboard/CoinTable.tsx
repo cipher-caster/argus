@@ -8,8 +8,6 @@
 import { Sparkline } from "@/components/features/chart/Sparkline";
 import { CoinIcon } from "@/components/features/dashboard/CoinIcon";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
-import { useOracleScreener } from "@/hooks/useAnalyticsData";
 import { getCoinName, useCoinMeta } from "@/hooks/useCoinMeta";
 import { generateDeterministicSparkline } from "@/lib/chartUtils";
 import { formatChange, formatPrice } from "@/lib/formatters";
@@ -17,7 +15,7 @@ import { CoinInfo } from "@/lib/marketApi";
 import { cn } from "@/lib/utils";
 import { ArrowDown, ArrowUp, ArrowUpDown, Search, Star } from "lucide-react";
 import Link from "next/link";
-import { memo, useEffect, useMemo, useState } from "react";
+import { memo, useEffect, useState } from "react";
 
 interface CoinTableProps {
   coins: CoinInfo[];
@@ -27,46 +25,6 @@ interface CoinTableProps {
   onSort: (field: string) => void;
 }
 
-function ScoreBadge({ symbol }: { symbol: string }) {
-  const { data: screener } = useOracleScreener("1h", 50);
-
-  const item = useMemo(() => {
-    if (!screener?.data) return null;
-    const normalized = symbol.replace("/", "");
-    return screener.data.find((s) => s.symbol === normalized) ?? null;
-  }, [screener, symbol]);
-
-  if (!item) return <span className="text-muted-foreground/40 text-xs font-mono">—</span>;
-
-  const score = item.score;
-
-  const colorClass =
-    score >= 3 ? "bg-green-500/20 text-green-700 dark:text-green-400 border-green-500/30" :
-    score >= 1 ? "bg-green-500/10 text-green-600/70 dark:text-green-500/70 border-green-500/20" :
-    score <= -3 ? "bg-red-500/20 text-red-700 dark:text-red-400 border-red-500/30" :
-    score <= -1 ? "bg-red-500/10 text-red-600/70 dark:text-red-500/70 border-red-500/20" :
-    "bg-muted/40 text-muted-foreground border-border/30";
-
-  const label = score > 0 ? `+${score}` : `${score}`;
-
-  return (
-    <TooltipProvider>
-      <Tooltip>
-        <TooltipTrigger asChild>
-          <span className={cn("inline-flex items-center px-2 py-0.5 rounded-md border text-[11px] font-black font-mono cursor-default", colorClass)}>
-            {label}
-          </span>
-        </TooltipTrigger>
-        <TooltipContent className="text-xs space-y-1 max-w-[200px]">
-          <p className="font-bold">{item.symbol} — Oracle {label}/4</p>
-          <p>Bias: <span className={item.bias === "BULLISH" ? "text-green-600 dark:text-green-400" : "text-red-600 dark:text-red-400"}>{item.bias}</span></p>
-          <p>State: {item.state}</p>
-          <p className="text-muted-foreground">{item.advice}</p>
-        </TooltipContent>
-      </Tooltip>
-    </TooltipProvider>
-  );
-}
 
 function CoinTableComponent({ coins, isLoading, sortBy, sortOrder, onSort }: CoinTableProps) {
   const [favorites, setFavorites] = useState<string[]>([]);
@@ -136,18 +94,6 @@ function CoinTableComponent({ coins, isLoading, sortBy, sortOrder, onSort }: Coi
             <th className="px-4 py-3 text-[11px] font-bold text-muted-foreground uppercase tracking-wider text-center w-24">Last 7 Days</th>
             <th className="px-4 py-3 text-[11px] font-bold text-muted-foreground uppercase tracking-wider text-right">24h High</th>
             <th className="px-4 py-3 text-[11px] font-bold text-muted-foreground uppercase tracking-wider text-right">24h Low</th>
-            <th className="px-4 py-3 text-[11px] font-bold text-muted-foreground uppercase tracking-wider text-center w-20">
-              <TooltipProvider>
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <span className="cursor-default border-b border-dashed border-muted-foreground/40">Signal</span>
-                  </TooltipTrigger>
-                  <TooltipContent className="text-xs max-w-[220px]">
-                    Oracle Earnest Score (-4 to +4). Combines RSI, Bollinger Bands, ADX, and EMA200 alignment. Updated every 3 minutes.
-                  </TooltipContent>
-                </Tooltip>
-              </TooltipProvider>
-            </th>
           </tr>
         </thead>
         <tbody className="divide-y divide-border/50">
@@ -194,7 +140,7 @@ function CoinTableComponent({ coins, isLoading, sortBy, sortOrder, onSort }: Coi
             ))
           ) : coins.length === 0 ? (
             <tr>
-              <td colSpan={11} className="px-4 py-20 text-center">
+              <td colSpan={10} className="px-4 py-20 text-center">
                 <div className="flex flex-col items-center gap-3 text-muted-foreground">
                   <Search size={32} className="opacity-20" />
                   <p className="text-sm">No coins found matching criteria</p>
@@ -248,9 +194,6 @@ function CoinTableComponent({ coins, isLoading, sortBy, sortOrder, onSort }: Coi
                   </td>
                   <td className="px-4 py-4 text-right text-muted-foreground text-[13px] font-mono">${formatPrice(coin.high_24h || 0)}</td>
                   <td className="px-4 py-4 text-right text-muted-foreground text-[13px] font-mono">${formatPrice(coin.low_24h || 0)}</td>
-                  <td className="px-4 py-4 text-center">
-                    <ScoreBadge symbol={coin.symbol} />
-                  </td>
                 </tr>
               );
             })

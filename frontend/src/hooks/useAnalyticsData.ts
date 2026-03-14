@@ -30,7 +30,7 @@ export function useBestSetups(timeframe: string = "4h", limit: number = 50) {
   });
 }
 
-export function useOracleScreener(timeframe: string = "1h", limit: number = 50) {
+export function useOracleScreener(timeframe: string = "4h", limit: number = 50) {
   return useQuery({
     queryKey: ["analytics", "screener", timeframe, limit],
     queryFn: () => fetchOracleScreener(timeframe, limit),
@@ -42,7 +42,7 @@ export function useOracleScreener(timeframe: string = "1h", limit: number = 50) 
 }
 
 
-export function useContrarianRadar(timeframe: string = "1h", limit: number = 50) {
+export function useContrarianRadar(timeframe: string = "4h", limit: number = 50) {
   return useQuery({
     queryKey: ["analytics", "contrarian-radar", timeframe, limit],
     queryFn: () => fetchMeanReversion(timeframe, limit),

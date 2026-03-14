@@ -74,14 +74,14 @@ From market/summary:
 
 First, resolve the coin ticker to `BASE/USDT` format (e.g., `BTC` → `BTC/USDT`, `SOL` → `SOL/USDT`).
 
-Parse optional timeframe from `$ARGUMENTS` (e.g., `BTC 4h` → `micro_tf=4h`, default `micro_tf=1h`). Titan timeframe defaults to `4h`.
+Parse optional timeframe from `$ARGUMENTS` (e.g., `BTC 1h` → `micro_tf=1h`, default `micro_tf=4h`). Titan timeframe defaults to `4h`.
 
 Also check `$ARGUMENTS` for long-term intent keywords: `long`, `hold`, `hodl`, `invest`, `accumulate`, `swing`, `position`. If any are present, set `long_term_mode = true`.
 
 Fetch all of these in parallel:
 
 1. `GET http://localhost:8000/api/ticker/BTC%2FUSDT`
-2. `GET http://localhost:8000/api/strategy/oracle/BTC%2FUSDT?micro_tf=1h&macro_tf=1d`
+2. `GET http://localhost:8000/api/strategy/oracle/BTC%2FUSDT?micro_tf=4h&macro_tf=1d`
 3. `GET http://localhost:8000/api/strategy/titan/BTC%2FUSDT?timeframe=4h`
 4. `GET http://localhost:8000/api/market/coins?search=BTC&page=1&page_size=10`
 
