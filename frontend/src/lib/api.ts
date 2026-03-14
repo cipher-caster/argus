@@ -221,6 +221,32 @@ export async function fetchOracleSignalSummary(): Promise<OracleSignalSummaryRes
   return response.json();
 }
 
+export interface BestSetupItem {
+  symbol: string;
+  direction: "LONG" | "SHORT";
+  conviction: number;
+  entry: number;
+  tp: number;
+  sl: number;
+  reason: string;
+  oracle_score: number;
+  titan_signal: string;
+}
+
+export interface BestSetupsResponse {
+  data: BestSetupItem[];
+  last_updated: number;
+}
+
+/**
+ * Fetch Best Setups (Oracle + Titan combined, high-conviction only)
+ */
+export async function fetchBestSetups(timeframe: string = "4h", limit: number = 50): Promise<BestSetupsResponse> {
+  const response = await fetch(`${API_URL}/api/analytics/best-setups?timeframe=${timeframe}&limit=${limit}`);
+  if (!response.ok) throw new Error("Failed to fetch best setups");
+  return response.json();
+}
+
 /**
  * Fetch Titan Radar
  */

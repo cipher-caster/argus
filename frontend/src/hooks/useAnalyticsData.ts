@@ -5,7 +5,7 @@
  * Optimized with stale-while-revalidate for better UX
  */
 
-import { fetchAnalyticsSymbols, fetchMeanReversion, fetchOracleScreener, fetchOracleSignalSummary, fetchRelativeStrength, fetchTitanRadar } from "@/lib/api";
+import { fetchAnalyticsSymbols, fetchBestSetups, fetchMeanReversion, fetchOracleScreener, fetchOracleSignalSummary, fetchRelativeStrength, fetchTitanRadar } from "@/lib/api";
 import { keepPreviousData, useQuery } from "@tanstack/react-query";
 
 /**
@@ -16,6 +16,17 @@ export function useAnalyticsSymbols(limit: number = 20) {
     queryKey: ["analytics", "symbols", limit],
     queryFn: () => fetchAnalyticsSymbols(limit),
     staleTime: 5 * 60 * 1000, // 5 minutes
+  });
+}
+
+export function useBestSetups(timeframe: string = "4h", limit: number = 50) {
+  return useQuery({
+    queryKey: ["analytics", "best-setups", timeframe, limit],
+    queryFn: () => fetchBestSetups(timeframe, limit),
+    staleTime: 120_000,
+    gcTime: 5 * 60_000,
+    refetchOnWindowFocus: false,
+    placeholderData: keepPreviousData,
   });
 }
 

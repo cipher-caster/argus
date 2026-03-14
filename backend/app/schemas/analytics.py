@@ -53,6 +53,21 @@ class OracleSignalSummaryResponse(BaseModel):
     market_state: str
     last_updated: int = 0
 
+class BestSetupItem(BaseModel):
+    symbol: str
+    direction: str       # LONG or SHORT
+    conviction: int      # 0-100 combined score
+    entry: float
+    tp: float
+    sl: float
+    reason: str
+    oracle_score: int
+    titan_signal: str
+
+class BestSetupsResponse(BaseModel):
+    data: List[BestSetupItem]
+    last_updated: int = 0
+
 class TitanRadarItem(BaseModel):
     symbol: str
     price: float

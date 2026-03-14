@@ -18,7 +18,9 @@ from app.schemas.analytics import (
     MeanReversionItem,
     OracleSignalSummaryResponse,
     TitanRadarResponse,
-    TitanRadarItem
+    TitanRadarItem,
+    BestSetupItem,
+    BestSetupsResponse,
 )
 
 from app.routes.strategy import get_candles_df, titan
@@ -195,6 +197,104 @@ async def get_oracle_signal_summary():
     await RedisClient.set_json(cache_key, result, ttl=CACHE_TTL)
     return OracleSignalSummaryResponse(**result)
 
+
+
+@router.get("/best-setups", response_model=BestSetupsResponse)
+async def get_best_setups(timeframe: str = "4h", limit: int = 50):
+    """
+    High-conviction setups where Oracle and Titan agree on direction.
+    Returns max 10 results sorted by conviction score (0-100).
+    """
+    cache_key = f"analytics:best-setups:{timeframe}:{limit}"
+    cached = await RedisClient.get_json(cache_key)
+    if cached:
+        return BestSetupsResponse(**cached)
+
+    symbols = await MarketDataService.get_top_symbols(limit=limit)
+
+    # Fetch Titan candles (primary timeframe)
+    titan_candles = await fetch_all_candles(symbols, timeframe=timeframe, limit=300)
+
+    # Reuse Oracle screener cache (1h) if available, else compute fresh
+    screener_cache_key = f"analytics:screener:1h:{limit}"
+    raw = await RedisClient.get_json(screener_cache_key)
+    if raw is None:
+        oracle_candles = await fetch_all_candles(symbols, timeframe="1h")
+        btc_df = oracle_candles.get("BTCUSDT", pd.DataFrame())
+        screener_list = run_oracle_screener(oracle_candles, btc_df)
+    elif isinstance(raw, list):
+        screener_list = raw
+    else:
+        screener_list = raw.get("data", [])
+
+    oracle_lookup = {item["symbol"]: item for item in screener_list if isinstance(item, dict)}
+
+    results = []
+    for sym, df in titan_candles.items():
+        try:
+            t = titan.analyze(df)
+            if "error" in t:
+                continue
+
+            t_signal = t["signal"]
+            t_confidence = t["confidence"]
+
+            is_long = t_signal in ("BUY", "BUY_LIMIT")
+            is_short = t_signal in ("SELL", "SELL_LIMIT")
+            if not (is_long or is_short) or t_confidence < 55:
+                continue
+
+            o = oracle_lookup.get(sym)
+            if not o:
+                continue
+
+            o_score = o.get("score", 0)
+            o_bias = o.get("bias", "NEUTRAL")
+            o_state = o.get("state", "")
+
+            if o_state == "SLEEPING":
+                continue
+            if is_long and (o_score < 2 or o_bias != "BULLISH"):
+                continue
+            if is_short and (o_score > -2 or o_bias != "BEARISH"):
+                continue
+
+            # Conviction: Oracle 40pts + Titan 40pts + bonuses 20pts
+            oracle_pts = (abs(o_score) / 4) * 40
+            titan_pts = (t_confidence / 100) * 40
+            bonus = 0
+            if t_signal in ("BUY", "SELL"):   # perfect setup, not just limit
+                bonus += 10
+            if abs(o_score) >= 3:
+                bonus += 10
+            conviction = int(min(100, oracle_pts + titan_pts + bonus))
+
+            targets = t.get("targets", {})
+            price = float(df.iloc[-1]["close"])
+            reasons = t.get("reasons", [])
+            reason = f"Oracle {o_bias} {o_score:+d}/4 | " + " | ".join(reasons[:2])
+
+            results.append(BestSetupItem(
+                symbol=sym,
+                direction="LONG" if is_long else "SHORT",
+                conviction=conviction,
+                entry=round(float(targets.get("entry", price)), 6),
+                tp=round(float(targets.get("tp", 0)), 6),
+                sl=round(float(targets.get("sl", 0)), 6),
+                reason=reason,
+                oracle_score=o_score,
+                titan_signal=t_signal,
+            ))
+        except Exception as e:
+            logger.warning(f"best-setups error for {sym}: {e}")
+            continue
+
+    results.sort(key=lambda x: x.conviction, reverse=True)
+    results = results[:10]
+
+    response = {"data": [r.model_dump() for r in results], "last_updated": int(time.time() * 1000)}
+    await RedisClient.set_json(cache_key, response, ttl=CACHE_TTL)
+    return BestSetupsResponse(**response)
 
 
 @router.get("/titan-radar", response_model=TitanRadarResponse)
