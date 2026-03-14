@@ -12,8 +12,6 @@ from typing import List, Dict, Any, Optional
 
 from app.schemas.analytics import (
     ScreenerResponse,
-    RelativeStrengthResponse,
-    RelativeStrengthItem,
     MeanReversionResponse,
     MeanReversionItem,
     OracleSignalSummaryResponse,
@@ -25,7 +23,6 @@ from app.schemas.analytics import (
 
 from app.routes.strategy import get_candles_df, titan, oracle
 from app.indicators.screener import run_oracle_screener
-from app.indicators.relative_strength import calculate_relative_strength
 from app.indicators.mean_reversion import detect_mean_reversion
 from app.providers.binance_provider import BinanceProvider
 from app.services.market_data import MarketDataService
@@ -98,30 +95,6 @@ async def get_oracle_screener(limit: int = 50, timeframe: str = "1h"):
     return ScreenerResponse(**response)
 
 
-
-@router.get("/relative-strength", response_model=RelativeStrengthResponse)
-async def get_relative_strength_analytics(limit: int = 50, timeframe: str = "1h"):
-    """Compare altcoin performance vs BTC with specific timeframe"""
-    cache_key = f"analytics:strength:{timeframe}:{limit}"
-    
-    cached = await RedisClient.get_json(cache_key)
-    if cached:
-        if isinstance(cached, list): return RelativeStrengthResponse(data=[RelativeStrengthItem(**item) for item in cached], last_updated=0)
-        return RelativeStrengthResponse(**cached)
-    
-    symbols = await MarketDataService.get_top_symbols(limit=limit)
-    df_data = await fetch_all_candles(symbols, timeframe=timeframe)
-    btc_df = df_data.get("BTCUSDT", pd.DataFrame())
-    
-    results = []
-    for sym, df in df_data.items():
-        if sym == "BTCUSDT": continue
-        rs = calculate_relative_strength(df, btc_df)
-        results.append(RelativeStrengthItem(symbol=sym, **rs))
-    
-    response = {"data": [r.model_dump() for r in results], "last_updated": int(time.time() * 1000)}
-    await RedisClient.set_json(cache_key, response, ttl=CACHE_TTL)
-    return RelativeStrengthResponse(**response)
 
 
 @router.get("/contrarian-radar", response_model=MeanReversionResponse)

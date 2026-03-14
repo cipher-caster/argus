@@ -117,18 +117,6 @@ export interface ScreenerResponse {
   last_updated: number;
 }
 
-export interface RelativeStrengthItem {
-  symbol: string;
-  performance_relative_pct: number;
-  strength: string;
-  current_ratio: number;
-}
-
-export interface RelativeStrengthResponse {
-  data: RelativeStrengthItem[];
-  last_updated: number;
-}
-
 export interface MeanReversionItem {
   symbol: string;
   is_extended: boolean;
@@ -191,15 +179,6 @@ export async function fetchAnalyticsSymbols(limit: number = 20): Promise<Analyti
 export async function fetchOracleScreener(timeframe: string = "1h", limit: number = 50): Promise<ScreenerResponse> {
   const response = await fetch(`${API_URL}/api/analytics/screener?timeframe=${timeframe}&limit=${limit}`);
   if (!response.ok) throw new Error("Failed to fetch screener");
-  return response.json();
-}
-
-/**
- * Fetch Relative Strength data
- */
-export async function fetchRelativeStrength(timeframe: string = "1h", limit: number = 50): Promise<RelativeStrengthResponse> {
-  const response = await fetch(`${API_URL}/api/analytics/relative-strength?timeframe=${timeframe}&limit=${limit}`);
-  if (!response.ok) throw new Error("Failed to fetch relative strength");
   return response.json();
 }
 

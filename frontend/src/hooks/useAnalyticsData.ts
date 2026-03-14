@@ -5,7 +5,7 @@
  * Optimized with stale-while-revalidate for better UX
  */
 
-import { fetchAnalyticsSymbols, fetchBestSetups, fetchMeanReversion, fetchOracleScreener, fetchOracleSignalSummary, fetchRelativeStrength, fetchTitanRadar } from "@/lib/api";
+import { fetchAnalyticsSymbols, fetchBestSetups, fetchMeanReversion, fetchOracleScreener, fetchOracleSignalSummary, fetchTitanRadar } from "@/lib/api";
 import { keepPreviousData, useQuery } from "@tanstack/react-query";
 
 /**
@@ -41,16 +41,6 @@ export function useOracleScreener(timeframe: string = "1h", limit: number = 50) 
   });
 }
 
-export function useRelativeStrength(timeframe: string = "1h", limit: number = 50) {
-  return useQuery({
-    queryKey: ["analytics", "relative-strength", timeframe, limit],
-    queryFn: () => fetchRelativeStrength(timeframe, limit),
-    staleTime: 120_000, // 2 minutes
-    gcTime: 5 * 60_000,
-    refetchOnWindowFocus: false,
-    placeholderData: keepPreviousData,
-  });
-}
 
 export function useContrarianRadar(timeframe: string = "1h", limit: number = 50) {
   return useQuery({

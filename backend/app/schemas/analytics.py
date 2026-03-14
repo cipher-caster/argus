@@ -23,16 +23,6 @@ class ScreenerResponse(BaseModel):
     data: List[ScreenerItem]
     last_updated: int = 0
 
-class RelativeStrengthItem(BaseModel):
-    symbol: str
-    performance_relative_pct: float
-    strength: str
-    current_ratio: float
-
-class RelativeStrengthResponse(BaseModel):
-    data: List[RelativeStrengthItem]
-    last_updated: int = 0
-
 class MeanReversionItem(BaseModel):
     symbol: str
     is_extended: bool

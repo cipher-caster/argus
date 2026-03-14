@@ -162,7 +162,6 @@ async def sync_analytics_cache(ctx):
     """
     from app.routes.analytics import (
         get_oracle_screener,
-        get_relative_strength_analytics,
         get_contrarian_radar,
         get_oracle_signal_summary,
         get_best_setups,
@@ -175,7 +174,6 @@ async def sync_analytics_cache(ctx):
     for tf in timeframes:
         try:
             await get_oracle_screener(limit=50, timeframe=tf)
-            await get_relative_strength_analytics(limit=50, timeframe=tf)
             await get_contrarian_radar(limit=50, timeframe=tf)
             logger.info(f"Job: Analytics cache warmed for {tf}")
         except Exception as e:

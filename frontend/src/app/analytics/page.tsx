@@ -1,7 +1,7 @@
 "use client";
 
 import { cn } from "@/lib/utils";
-import { BarChart2, Gauge, Info, Sparkles, TrendingDown, TrendingUp } from "lucide-react";
+import { Gauge, Info, Sparkles, TrendingDown, TrendingUp } from "lucide-react";
 import dynamic from "next/dynamic";
 import { useState } from "react";
 
@@ -17,17 +17,12 @@ const TitanSignalsPanel = dynamic(() => import("@/components/analytics/TitanSign
   loading: () => <div className="h-[400px] flex items-center justify-center text-muted-foreground">Loading Titan Signals…</div>,
 });
 
-const RelativeStrength = dynamic(() => import("@/components/analytics").then((mod) => ({ default: mod.RelativeStrength })), {
-  loading: () => <div className="h-[400px] flex items-center justify-center text-muted-foreground">Loading Relative Strength…</div>,
-});
-
-type ChartType = "best-setups" | "titan-signals" | "contrarian-radar" | "relative-strength";
+type ChartType = "best-setups" | "titan-signals" | "contrarian-radar";
 
 const MENU_ITEMS: { id: ChartType; label: string; icon: any }[] = [
   { id: "best-setups", label: "Best Setups", icon: Sparkles },
   { id: "titan-signals", label: "Titan Signals", icon: TrendingUp },
   { id: "contrarian-radar", label: "Contrarian Radar", icon: Gauge },
-  { id: "relative-strength", label: "Relative Strength", icon: BarChart2 },
 ];
 
 const CHART_INFO: Record<ChartType, { title: string; description: string }> = {
@@ -42,10 +37,6 @@ const CHART_INFO: Record<ChartType, { title: string; description: string }> = {
   "contrarian-radar": {
     title: "Contrarian Radar",
     description: "Coins overextended 3x+ ATR from their 200 EMA. Different signal type — mean reversion plays, not trend following.",
-  },
-  "relative-strength": {
-    title: "Alpha Leaders",
-    description: "Altcoins outperforming Bitcoin. Coins with positive relative performance are gaining real value, not just riding BTC.",
   },
 };
 
@@ -129,7 +120,6 @@ export default function AnalyticsPage() {
             {activeTab === "best-setups" && <BestSetups timeframe={timeframe} />}
             {activeTab === "titan-signals" && <TitanSignalsPanel timeframe={timeframe} />}
             {activeTab === "contrarian-radar" && <ContrarianRadar timeframe={timeframe} />}
-            {activeTab === "relative-strength" && <RelativeStrength timeframe={timeframe} />}
           </div>
         </div>
       </div>

@@ -62,7 +62,6 @@ async def test_analytics_timeframe_parameters(async_client):
     """Verify all analytics endpoints accept and pass the timeframe parameter."""
     endpoints = [
         "/api/analytics/screener",
-        "/api/analytics/relative-strength",
         "/api/analytics/contrarian-radar"
     ]
     
