@@ -23,8 +23,8 @@ export function useBestSetups(timeframe: string = "4h", limit: number = 50) {
   return useQuery({
     queryKey: ["analytics", "best-setups", timeframe, limit],
     queryFn: () => fetchBestSetups(timeframe, limit),
-    staleTime: 120_000,
-    gcTime: 5 * 60_000,
+    staleTime: 300_000, // 5 min — backend cache is 6 min, pre-warmed every 5 min
+    gcTime: 10 * 60_000,
     refetchOnWindowFocus: false,
     placeholderData: keepPreviousData,
   });
