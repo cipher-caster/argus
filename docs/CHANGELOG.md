@@ -2,6 +2,23 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.5.5] - 2026-03-14
+
+### Removed
+
+- **Market Health**: Redundant with Oracle macro bias (both measure EMA200 bullish/bearish %).
+- **Trend Radar**: EMA200 bucket view — same information already surfaced per-coin in Oracle Screener.
+- **Structure Scanner**: Monday range breakout/fakeout — niche signal with incomplete logic.
+- **Confluence Gauge**: Re-aggregated Oracle Screener scores; replaced by inline `market_state` calculation in `signal-summary` endpoint.
+- **Liquidity Map**: PWH/PWL sweep detection — placeholder logic, unreliable signals.
+
+### Changed
+
+- **Analytics page**: Streamlined from 7 tabs to 5 (Oracle Screener, Titan Signals, Titan Scanner, Contrarian Radar, Relative Strength). Removed top ConfluenceGauge banner.
+- **Relative Strength**: Restored to analytics sidebar (was previously built but not accessible from UI).
+- **signal-summary endpoint**: Now derives `market_state` directly from screener scores instead of calling ConfluenceAggregator. Removes the redundant `calculate_market_health` call.
+- **Backend**: Deleted `market_health.py`, `trend_radar.py`, `structure.py`, `confluence.py`, `liquidity.py` from `indicators/`.
+
 ## [0.5.4] - 2026-01-31
 
 ### Added

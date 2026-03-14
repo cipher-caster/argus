@@ -5,7 +5,7 @@
  * Optimized with stale-while-revalidate for better UX
  */
 
-import { fetchAnalyticsSymbols, fetchLiquiditySweeps, fetchMarketHealth, fetchMeanReversion, fetchOracleScreener, fetchOracleSignalSummary, fetchRelativeStrength, fetchTitanRadar } from "@/lib/api";
+import { fetchAnalyticsSymbols, fetchMeanReversion, fetchOracleScreener, fetchOracleSignalSummary, fetchRelativeStrength, fetchTitanRadar } from "@/lib/api";
 import { keepPreviousData, useQuery } from "@tanstack/react-query";
 
 /**
@@ -27,28 +27,6 @@ export function useOracleScreener(timeframe: string = "1h", limit: number = 50) 
     gcTime: 5 * 60_000, // Keep in cache for 5 min
     refetchOnWindowFocus: false,
     placeholderData: keepPreviousData, // Show old data while fetching new
-  });
-}
-
-export function useMarketHealth(timeframe: string = "1h", limit: number = 100) {
-  return useQuery({
-    queryKey: ["analytics", "market-health", timeframe, limit],
-    queryFn: () => fetchMarketHealth(timeframe, limit),
-    staleTime: 120_000, // 2 minutes
-    gcTime: 5 * 60_000,
-    refetchOnWindowFocus: false,
-    placeholderData: keepPreviousData,
-  });
-}
-
-export function useLiquiditySweeps(timeframe: string = "1h", limit: number = 50) {
-  return useQuery({
-    queryKey: ["analytics", "liquidity-sweeps", timeframe, limit],
-    queryFn: () => fetchLiquiditySweeps(timeframe, limit),
-    staleTime: 120_000, // 2 minutes
-    gcTime: 5 * 60_000,
-    refetchOnWindowFocus: false,
-    placeholderData: keepPreviousData,
   });
 }
 

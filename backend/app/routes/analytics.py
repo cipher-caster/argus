@@ -12,32 +12,19 @@ from typing import List, Dict, Any, Optional
 
 from app.schemas.analytics import (
     ScreenerResponse,
-    MarketHealthResponse,
-    LiquiditySweepResponse,
-    LiquiditySweepItem,
     RelativeStrengthResponse,
     RelativeStrengthItem,
     MeanReversionResponse,
     MeanReversionItem,
     OracleSignalSummaryResponse,
-    TrendRadarResponse,
-    StructureResponse,
-    StructureItem,
-    StructureItem,
-    ConfluenceResponse,
     TitanRadarResponse,
     TitanRadarItem
 )
 
 from app.routes.strategy import get_candles_df, titan
 from app.indicators.screener import run_oracle_screener
-from app.indicators.market_health import calculate_market_health
-from app.indicators.liquidity import detect_liquidity_sweeps
 from app.indicators.relative_strength import calculate_relative_strength
 from app.indicators.mean_reversion import detect_mean_reversion
-from app.indicators.trend_radar import TrendRadar
-from app.indicators.structure import StructureScanner
-from app.indicators.confluence import ConfluenceAggregator
 from app.providers.binance_provider import BinanceProvider
 from app.services.market_data import MarketDataService
 from app.storage import RedisClient
@@ -108,58 +95,6 @@ async def get_oracle_screener(limit: int = 50, timeframe: str = "1h"):
     return ScreenerResponse(**response)
 
 
-@router.get("/market-health", response_model=MarketHealthResponse)
-async def get_market_health(limit: int = 100, timeframe: str = "1h"):
-    """Get aggregate market health metrics with specific timeframe"""
-    cache_key = f"analytics:health:{timeframe}:{limit}"
-    
-    cached = await RedisClient.get_json(cache_key)
-    if cached:
-        return MarketHealthResponse(**cached)
-    
-    symbols = await MarketDataService.get_top_symbols(limit=limit)
-    df_data = await fetch_all_candles(symbols, timeframe=timeframe)
-    health = calculate_market_health(df_data)
-    
-    health['last_updated'] = int(time.time() * 1000)
-    await RedisClient.set_json(cache_key, health, ttl=CACHE_TTL)
-    return MarketHealthResponse(**health)
-
-
-@router.get("/liquidity-sweeps", response_model=LiquiditySweepResponse)
-async def get_liquidity_sweeps_analytics(limit: int = 50, timeframe: str = "1h"):
-    """Identify coins sweeping major levels with specific timeframe"""
-    cache_key = f"analytics:liquidity:{timeframe}:{limit}"
-    
-    cached = await RedisClient.get_json(cache_key)
-    if cached:
-        if isinstance(cached, list): return LiquiditySweepResponse(data=[LiquiditySweepItem(**item) for item in cached], last_updated=0)
-        return LiquiditySweepResponse(**cached)
-    
-    symbols = await MarketDataService.get_top_symbols(limit=limit)
-    df_data = await fetch_all_candles(symbols, timeframe=timeframe)
-    
-    # Calculate bars per week based on timeframe
-    bars_per_week = {"15m": 672, "1h": 168, "4h": 42, "12h": 14, "1d": 7, "3d": 3, "1w": 1}
-    weekly_window = bars_per_week.get(timeframe, 168)
-    
-    results = []
-    for sym, df in df_data.items():
-        # Pre-process some levels for sweep detection if not present
-        if 'pwh' not in df.columns and len(df) > weekly_window:
-            # Approximate Weekly High/Low based on timeframe
-            df['pwh'] = df['high'].shift(1).rolling(weekly_window).max()
-            df['pwl'] = df['low'].shift(1).rolling(weekly_window).min()
-            
-        sweep = detect_liquidity_sweeps(df)
-        if sweep['bull_sweep'] or sweep['bear_sweep']:
-            results.append(LiquiditySweepItem(symbol=sym, **sweep))
-    
-    # Cache as dicts for JSON serialization
-    response = {"data": [r.model_dump() for r in results], "last_updated": int(time.time() * 1000)}
-    await RedisClient.set_json(cache_key, response, ttl=CACHE_TTL)
-    return LiquiditySweepResponse(**response)
-
 
 @router.get("/relative-strength", response_model=RelativeStrengthResponse)
 async def get_relative_strength_analytics(limit: int = 50, timeframe: str = "1h"):
@@ -224,34 +159,31 @@ async def get_oracle_signal_summary():
     btc_df = df_data.get("BTCUSDT", pd.DataFrame())
     
     screener_data = run_oracle_screener(df_data, btc_df)
-    health = calculate_market_health(df_data)
-    
+
     bullish = len([s for s in screener_data if s['score'] >= 3])
     bearish = len([s for s in screener_data if s['score'] <= -3])
-    
-    top_signals = [f"{s['symbol']} {s['score']}/4" for s in screener_data if abs(s['score']) >= 3][:5]
-    
-    # Use Confluence Engine for consistent "Market State"
-    from app.indicators.confluence import ConfluenceAggregator
-    confluence = ConfluenceAggregator()
-    confluence_result = confluence.analyze(screener_data)
-    
-    # Map Confluence verdict to Summary state
-    # TSUNAMI_BULL -> STRONG BULL, etc.
-    c_verdict = confluence_result['verdict']
-    state_map = {
-        "TSUNAMI_BULL": "STRONG BULL",
-        "TSUNAMI_BEAR": "STRONG BEAR",
-        "SLEEPING": "SLEEPING",
-        "VOLATILE": "VOLATILE",
-        "CHOP": "NEUTRAL"
-    }
-    
-    market_state = state_map.get(c_verdict, "NEUTRAL")
 
-    # If Confluence is Neutral/Chop, we can check Health for a tie-breaker?
-    # Or just trust Confluence. Let's trust Confluence for consistency.
-    
+    top_signals = [f"{s['symbol']} {s['score']}/4" for s in screener_data if abs(s['score']) >= 3][:5]
+
+    # Derive market state directly from screener scores
+    total = len(screener_data)
+    if total > 0:
+        bulls = len([s for s in screener_data if s['score'] >= 1])
+        bears = len([s for s in screener_data if s['score'] <= -1])
+        sleeping = len([s for s in screener_data if s['score'] == 0])
+        bull_pct = bulls / total
+        bear_pct = bears / total
+        if bull_pct > 0.5 and bulls > 2 * max(bears, 1):
+            market_state = "STRONG BULL"
+        elif bear_pct > 0.5 and bears > 2 * max(bulls, 1):
+            market_state = "STRONG BEAR"
+        elif sleeping / total > 0.5:
+            market_state = "SLEEPING"
+        else:
+            market_state = "NEUTRAL"
+    else:
+        market_state = "NEUTRAL"
+
     result = {
         "bullish_pct": round((bullish / len(screener_data)) * 100, 1) if screener_data else 0,
         "bearish_pct": round((bearish / len(screener_data)) * 100, 1) if screener_data else 0,
@@ -263,64 +195,6 @@ async def get_oracle_signal_summary():
     await RedisClient.set_json(cache_key, result, ttl=CACHE_TTL)
     return OracleSignalSummaryResponse(**result)
 
-
-@router.get("/trend-radar", response_model=TrendRadarResponse)
-async def get_trend_radar(limit: int = 50):
-    """The Trend God: Position relative to 200 EMA"""
-    cache_key = f"analytics:trend-radar:{limit}"
-    cached = await RedisClient.get_json(cache_key)
-    if cached: return TrendRadarResponse(**cached)
-    
-    symbols = await MarketDataService.get_top_symbols(limit=limit)
-    # Trend radar always needs Daily data for 200 EMA accuracy
-    df_data = await fetch_all_candles(symbols, timeframe="1d")
-    
-    radar = TrendRadar()
-    result = radar.analyze(df_data)
-    
-    result['last_updated'] = int(time.time() * 1000)
-    await RedisClient.set_json(cache_key, result, ttl=CACHE_TTL)
-    return TrendRadarResponse(**result)
-
-@router.get("/structure", response_model=StructureResponse)
-async def get_market_structure(limit: int = 50):
-    """The Weekly Trap: Monday Range Analysis"""
-    cache_key = f"analytics:structure:{limit}"
-    cached = await RedisClient.get_json(cache_key)
-    if cached: 
-        if isinstance(cached, list): return StructureResponse(data=[StructureItem(**i) for i in cached], last_updated=0)
-        return StructureResponse(**cached)
-    
-    symbols = await MarketDataService.get_top_symbols(limit=limit)
-    # Structure needs enough data to find Monday. 4H or 1H is good.
-    df_data = await fetch_all_candles(symbols, timeframe="1h", limit=168*2) # 2 weeks of 1h
-    
-    scanner = StructureScanner()
-    data = scanner.analyze(df_data)
-    
-    response = {"data": data, "last_updated": int(time.time() * 1000)}
-    await RedisClient.set_json(cache_key, response, ttl=CACHE_TTL)
-    return StructureResponse(**response)
-
-@router.get("/confluence", response_model=ConfluenceResponse)
-async def get_market_confluence(limit: int = 50):
-    """The Confluence Engine: Global Earnest Scores"""
-    # Reuse screener logic but aggregated
-    screener_key = f"analytics:screener:1h:{limit}"
-    screener_data = await RedisClient.get_json(screener_key)
-    
-    if not screener_data:
-        # If screener not cached, run it
-        symbols = await MarketDataService.get_top_symbols(limit=limit)
-        df_data = await fetch_all_candles(symbols, timeframe="1h")
-        btc_df = df_data.get("BTCUSDT", pd.DataFrame())
-        screener_data = run_oracle_screener(df_data, btc_df)
-    
-    aggregator = ConfluenceAggregator()
-    result = aggregator.analyze(screener_data)
-    result['last_updated'] = int(time.time() * 1000)
-    
-    return ConfluenceResponse(**result)
 
 
 @router.get("/titan-radar", response_model=TitanRadarResponse)

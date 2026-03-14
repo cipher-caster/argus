@@ -117,34 +117,6 @@ export interface ScreenerResponse {
   last_updated: number;
 }
 
-export interface MarketHealthResponse {
-  summary: {
-    total_coins: number;
-    bullish_pct: number;
-    bearish_pct: number;
-    squeezing_pct: number;
-  };
-  volatility: {
-    DANGER: number;
-    ACTIVE: number;
-    STABLE: number;
-  };
-  last_updated: number;
-}
-
-export interface LiquiditySweepItem {
-  symbol: string;
-  bull_sweep: boolean;
-  bear_sweep: boolean;
-  swept_level: number;
-  type: string;
-}
-
-export interface LiquiditySweepResponse {
-  data: LiquiditySweepItem[];
-  last_updated: number;
-}
-
 export interface RelativeStrengthItem {
   symbol: string;
   performance_relative_pct: number;
@@ -177,48 +149,6 @@ export interface OracleSignalSummaryResponse {
   bearish_pct: number;
   top_signals: string[];
   market_state: string;
-  last_updated: number;
-}
-
-export interface TrendRadarItem {
-  symbol: string;
-  price: number;
-  ema200: number;
-  distance_pct: number;
-  status: string;
-  volume: number;
-}
-
-export interface TrendRadarResponse {
-  map: TrendRadarItem[];
-  buckets: Record<string, string[]>;
-  summary: Record<string, number>;
-  last_updated: number;
-}
-
-export interface StructureItem {
-  symbol: string;
-  price: number;
-  monday_high: number;
-  monday_low: number;
-  status: string;
-  range_pct: number;
-}
-
-export interface StructureResponse {
-  data: StructureItem[];
-  last_updated: number;
-}
-
-export interface ConfluenceResponse {
-  verdict: string;
-  metrics: {
-    total_analyzed: number;
-    sleeping_pct: number;
-    bullish_pct: number;
-    bearish_pct: number;
-  };
-  score_distribution: Record<string, number>;
   last_updated: number;
 }
 
@@ -265,24 +195,6 @@ export async function fetchOracleScreener(timeframe: string = "1h", limit: numbe
 }
 
 /**
- * Fetch Market Health metrics
- */
-export async function fetchMarketHealth(timeframe: string = "1h", limit: number = 100): Promise<MarketHealthResponse> {
-  const response = await fetch(`${API_URL}/api/analytics/market-health?timeframe=${timeframe}&limit=${limit}`);
-  if (!response.ok) throw new Error("Failed to fetch market health");
-  return response.json();
-}
-
-/**
- * Fetch Liquidity Sweeps
- */
-export async function fetchLiquiditySweeps(timeframe: string = "1h", limit: number = 50): Promise<LiquiditySweepResponse> {
-  const response = await fetch(`${API_URL}/api/analytics/liquidity-sweeps?timeframe=${timeframe}&limit=${limit}`);
-  if (!response.ok) throw new Error("Failed to fetch sweeps");
-  return response.json();
-}
-
-/**
  * Fetch Relative Strength data
  */
 export async function fetchRelativeStrength(timeframe: string = "1h", limit: number = 50): Promise<RelativeStrengthResponse> {
@@ -306,33 +218,6 @@ export async function fetchMeanReversion(timeframe: string = "1h", limit: number
 export async function fetchOracleSignalSummary(): Promise<OracleSignalSummaryResponse> {
   const response = await fetch(`${API_URL}/api/analytics/signal-summary`);
   if (!response.ok) throw new Error("Failed to fetch signal summary");
-  return response.json();
-}
-
-/**
- * Fetch Trend Radar
- */
-export async function fetchTrendRadar(limit: number = 50): Promise<TrendRadarResponse> {
-  const response = await fetch(`${API_URL}/api/analytics/trend-radar?limit=${limit}`);
-  if (!response.ok) throw new Error("Failed to fetch trend radar");
-  return response.json();
-}
-
-/**
- * Fetch Market Structure
- */
-export async function fetchStructure(limit: number = 50): Promise<StructureResponse> {
-  const response = await fetch(`${API_URL}/api/analytics/structure?limit=${limit}`);
-  if (!response.ok) throw new Error("Failed to fetch structure");
-  return response.json();
-}
-
-/**
- * Fetch Confluence State
- */
-export async function fetchConfluence(limit: number = 50): Promise<ConfluenceResponse> {
-  const response = await fetch(`${API_URL}/api/analytics/confluence?limit=${limit}`);
-  if (!response.ok) throw new Error("Failed to fetch confluence");
   return response.json();
 }
 

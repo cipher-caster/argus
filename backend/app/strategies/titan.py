@@ -144,9 +144,9 @@ class TitanStrategy:
         
         return {
             "status": status,
-            "rsi_val": rsi,
-            "is_overbought": rsi_overbought,
-            "is_oversold": rsi_oversold,
+            "rsi_val": float(rsi),
+            "is_overbought": bool(rsi_overbought),
+            "is_oversold": bool(rsi_oversold),
             "macd_crossed": "UP" if macd_bullish else "DOWN"
         }
 

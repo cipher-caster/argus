@@ -1,8 +1,7 @@
 "use client";
 
-import { ConfluenceGauge } from "@/components/analytics";
 import { cn } from "@/lib/utils";
-import { BoxSelect, Gauge, HeartPulse, Info, Layers, LayoutGrid, Scan, ShieldCheck } from "lucide-react";
+import { BarChart2, Gauge, Info, LayoutGrid, Scan, ShieldCheck } from "lucide-react";
 import dynamic from "next/dynamic";
 import { useState } from "react";
 
@@ -11,20 +10,8 @@ const OracleScreener = dynamic(() => import("@/components/analytics").then((mod)
   loading: () => <div className="h-[500px] flex items-center justify-center text-muted-foreground">Loading Oracle Screener...</div>,
 });
 
-const MarketHealth = dynamic(() => import("@/components/analytics").then((mod) => ({ default: mod.MarketHealth })), {
-  loading: () => <div className="h-[400px] flex items-center justify-center text-muted-foreground">Loading Market Health...</div>,
-});
-
 const ContrarianRadar = dynamic(() => import("@/components/analytics").then((mod) => ({ default: mod.ContrarianRadar })), {
   loading: () => <div className="h-[400px] flex items-center justify-center text-muted-foreground">Loading Contrarian Radar...</div>,
-});
-
-const TrendRadar = dynamic(() => import("@/components/analytics").then((mod) => ({ default: mod.TrendRadar })), {
-  loading: () => <div className="h-[400px] flex items-center justify-center text-muted-foreground">Loading Trend Radar...</div>,
-});
-
-const StructureScanner = dynamic(() => import("@/components/analytics").then((mod) => ({ default: mod.StructureScanner })), {
-  loading: () => <div className="h-[400px] flex items-center justify-center text-muted-foreground">Loading Structure Scanner...</div>,
 });
 
 const TitanRadar = dynamic(() => import("@/components/analytics").then((mod) => ({ default: mod.TitanRadar })), {
@@ -35,16 +22,18 @@ const TitanSignalsPanel = dynamic(() => import("@/components/analytics/TitanSign
   loading: () => <div className="h-[400px] flex items-center justify-center text-muted-foreground">Loading Titan Signals...</div>,
 });
 
-type ChartType = "screener" | "market-health" | "contrarian-radar" | "trend-radar" | "structure" | "titan-radar" | "titan-signals";
+const RelativeStrength = dynamic(() => import("@/components/analytics").then((mod) => ({ default: mod.RelativeStrength })), {
+  loading: () => <div className="h-[400px] flex items-center justify-center text-muted-foreground">Loading Relative Strength...</div>,
+});
+
+type ChartType = "screener" | "contrarian-radar" | "titan-radar" | "titan-signals" | "relative-strength";
 
 const MENU_ITEMS: { id: ChartType; label: string; icon: any }[] = [
   { id: "screener", label: "Oracle Screener", icon: LayoutGrid },
-  { id: "titan-signals", label: "Titan Signals (Live)", icon: ShieldCheck }, // Priority
-  { id: "trend-radar", label: "Trend Radar (200D)", icon: Layers },
-  { id: "structure", label: "Weekly Structure", icon: BoxSelect },
+  { id: "titan-signals", label: "Titan Signals (Live)", icon: ShieldCheck },
   { id: "titan-radar", label: "Titan Scanner (Discovery)", icon: Scan },
-  { id: "market-health", label: "Market Health", icon: HeartPulse },
   { id: "contrarian-radar", label: "Contrarian Radar", icon: Gauge },
+  { id: "relative-strength", label: "Relative Strength", icon: BarChart2 },
 ];
 
 const CHART_INFO: Record<ChartType, { title: string; description: string }> = {
@@ -56,25 +45,17 @@ const CHART_INFO: Record<ChartType, { title: string; description: string }> = {
     title: "Titan Signals (Predictive)",
     description: "Your execution dashboard. Uses 'Wait Logic' to prevent chasing pumps and provides specific Limit Entry prices at mathematical supports. Best for setting actual trade orders.",
   },
-  "trend-radar": {
-    title: "The Trend God",
-    description: "Visualizes every coin's location relative to its 200-Day EMA. Identifies 'Retest' entries, 'Bullish' trends, and 'Overextended' risks.",
-  },
-  structure: {
-    title: "The Weekly Trap",
-    description: "Analyzes Monday's trading range to identify Breakouts (Trend Continuation) vs Traps (Chop). Filters out low-probability environments.",
-  },
-  "market-health": {
-    title: "Market Health",
-    description: "The heartbeat of the market. Monitors aggregate sentiment metrics, institutional volatility balances, and the percentage of the market trending bullish.",
+  "titan-radar": {
+    title: "Titan Scanner (Discovery)",
+    description: "A bird's-eye view of 50+ assets. Automatically detects trend alignment and momentum breakouts using the Titan hybrid system. Best for finding what to watch.",
   },
   "contrarian-radar": {
     title: "Contrarian Radar",
     description: "Monitors extreme ATR extensions. Identifies pairs that are overstretched from their mean (EMA) and due for a mean-reversion move.",
   },
-  "titan-radar": {
-    title: "Titan Scanner (Discovery)",
-    description: "A bird's-eye view of 50+ assets. Automatically detects trend alignment and momentum breakouts using the Titan hybrid system. Best for finding what to watch.",
+  "relative-strength": {
+    title: "Alpha Leaders",
+    description: "Compares each altcoin's performance against Bitcoin. Identifies which coins are showing real alpha — gaining value even when priced in BTC.",
   },
 };
 
@@ -99,28 +80,21 @@ export default function AnalyticsPage() {
         </div>
 
         {/* Global Timeframe Selector */}
-        {["screener", "market-health", "contrarian-radar", "titan-radar", "titan-signals"].includes(activeTab) && (
-          <div className="flex bg-secondary/30 p-1 rounded-xl border border-border/50 backdrop-blur-sm self-start md:self-auto">
-            {TIMEFRAMES.map((tf) => (
-              <button
-                key={tf.id}
-                onClick={() => setTimeframe(tf.id)}
-                className={cn(
-                  "px-4 py-2 rounded-lg text-[11px] font-black uppercase tracking-wider transition-all duration-300",
-                  timeframe === tf.id ? "bg-primary text-primary-foreground shadow-lg shadow-primary/20" : "text-muted-foreground hover:text-foreground hover:bg-white/5",
-                )}
-              >
-                {tf.label}
-              </button>
-            ))}
-          </div>
-        )}
+        <div className="flex bg-secondary/30 p-1 rounded-xl border border-border/50 backdrop-blur-sm self-start md:self-auto">
+          {TIMEFRAMES.map((tf) => (
+            <button
+              key={tf.id}
+              onClick={() => setTimeframe(tf.id)}
+              className={cn(
+                "px-4 py-2 rounded-lg text-[11px] font-black uppercase tracking-wider transition-all duration-300",
+                timeframe === tf.id ? "bg-primary text-primary-foreground shadow-lg shadow-primary/20" : "text-muted-foreground hover:text-foreground hover:bg-white/5",
+              )}
+            >
+              {tf.label}
+            </button>
+          ))}
+        </div>
       </div>
-
-      {/* Market Confluence Status - Prominent Banner */}
-      <section className="animate-in fade-in slide-in-from-top-2 duration-500">
-        <ConfluenceGauge />
-      </section>
 
       <div className="grid grid-cols-1 lg:grid-cols-4 gap-6 items-start animate-in fade-in slide-in-from-bottom-4 duration-700">
         {/* Navigation Sidebar */}
@@ -156,12 +130,10 @@ export default function AnalyticsPage() {
         <div className="lg:col-span-3 min-h-[500px] bg-secondary/10 rounded-3xl border border-border/30 overflow-hidden shadow-2xl shadow-black/20">
           <div className="p-6 md:p-8">
             {activeTab === "screener" && <OracleScreener timeframe={timeframe} />}
-            {activeTab === "trend-radar" && <TrendRadar />}
-            {activeTab === "structure" && <StructureScanner />}
-            {activeTab === "market-health" && <MarketHealth timeframe={timeframe} />}
             {activeTab === "titan-radar" && <TitanRadar timeframe={timeframe} />}
             {activeTab === "titan-signals" && <TitanSignalsPanel timeframe={timeframe} />}
             {activeTab === "contrarian-radar" && <ContrarianRadar timeframe={timeframe} />}
+            {activeTab === "relative-strength" && <RelativeStrength timeframe={timeframe} />}
           </div>
         </div>
       </div>

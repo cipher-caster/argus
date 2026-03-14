@@ -23,22 +23,6 @@ class ScreenerResponse(BaseModel):
     data: List[ScreenerItem]
     last_updated: int = 0
 
-class MarketHealthResponse(BaseModel):
-    summary: Dict[str, Any]
-    volatility: Dict[str, Any]
-    last_updated: int = 0
-
-class LiquiditySweepItem(BaseModel):
-    symbol: str
-    bull_sweep: bool
-    bear_sweep: bool
-    swept_level: Optional[float]
-    type: Optional[str]
-
-class LiquiditySweepResponse(BaseModel):
-    data: List[LiquiditySweepItem]
-    last_updated: int = 0
-
 class RelativeStrengthItem(BaseModel):
     symbol: str
     performance_relative_pct: float
@@ -67,45 +51,6 @@ class OracleSignalSummaryResponse(BaseModel):
     bearish_pct: float
     top_signals: List[str] # e.g. ["SOL STRONG_BUY", "ETH BUY"]
     market_state: str
-    last_updated: int = 0
-
-# New Analytics Engines
-class TrendRadarItem(BaseModel):
-    symbol: str
-    price: float
-    ema200: float
-    distance_pct: float
-    status: str
-    volume: float
-
-class TrendRadarResponse(BaseModel):
-    map: List[TrendRadarItem]
-    buckets: Dict[str, List[str]]
-    summary: Dict[str, int]
-    last_updated: int = 0
-
-class StructureItem(BaseModel):
-    symbol: str
-    price: float
-    monday_high: float
-    monday_low: float
-    status: str
-    range_pct: float
-
-class StructureResponse(BaseModel):
-    data: List[StructureItem]
-    last_updated: int = 0
-
-class ConfluenceMetrics(BaseModel):
-    total_analyzed: int
-    sleeping_pct: float
-    bullish_pct: float
-    bearish_pct: float
-
-class ConfluenceResponse(BaseModel):
-    verdict: str
-    metrics: ConfluenceMetrics
-    score_distribution: Dict[int, int]
     last_updated: int = 0
 
 class TitanRadarItem(BaseModel):
