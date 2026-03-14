@@ -50,18 +50,19 @@ async def get_candles_df(symbol: str, timeframe: str, limit: int = 500, provider
         '30m': 30 * 60 * 1000,
         '1h': 60 * 60 * 1000,
         '4h': 4 * 60 * 60 * 1000,
+        '12h': 12 * 60 * 60 * 1000,
         '1d': 24 * 60 * 60 * 1000,
+        '3d': 3 * 24 * 60 * 60 * 1000,
         '1w': 7 * 24 * 60 * 60 * 1000,
     }.get(timeframe, 60 * 60 * 1000)
-    
+
     is_count_sufficient = len(db_candles) >= (limit * 0.8)
-    
+
     is_fresh = False
     if db_candles:
-        last_candle_ts = db_candles[0].timestamp # Sorted desc, so 0 is latest
-        # Allow 2x timeframe lag before considering stale (e.g. 2 hours for 1h candles)
-        # For 1d candles, this might be too loose (48h), but reasonable for now.
-        is_fresh = (now_ms - last_candle_ts) < (tf_ms * 2.5)
+        last_candle_ts = db_candles[0].timestamp  # Sorted desc, so 0 is latest
+        # Stale if the latest candle is older than 1 full timeframe period
+        is_fresh = (now_ms - last_candle_ts) < tf_ms
         
     is_sufficient = is_count_sufficient and is_fresh
     
@@ -70,14 +71,7 @@ async def get_candles_df(symbol: str, timeframe: str, limit: int = 500, provider
         try:
             local_provider = provider or BinanceProvider()
             try:
-                # Calculate since timestamp
-                timeframe_ms = {
-                    '1h': 60 * 60 * 1000,
-                    '1d': 24 * 60 * 60 * 1000,
-                }.get(timeframe, 60 * 60 * 1000)
-                
-                # Fetch 2x limit to be safe
-                fetch_limit = limit if limit <= 1000 else 1000
+                fetch_limit = min(limit, 1000)
                 
                 logger.info(f"Fetching {timeframe} for {symbol} from Binance")
                 fresh = await local_provider.get_ohlcv(symbol, timeframe=timeframe, limit=fetch_limit)
@@ -169,8 +163,7 @@ async def get_oracle_strategy(
     except HTTPException as he:
         raise he
     except Exception as e:
-        import traceback
-        traceback.print_exc()
+        logger.error(f"Oracle strategy error for {symbol}: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail=str(e))
 
 
@@ -202,6 +195,5 @@ async def get_titan_strategy(
     except HTTPException as he:
         raise he
     except Exception as e:
-        import traceback
-        traceback.print_exc()
+        logger.error(f"Titan strategy error for {symbol}: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail=str(e))

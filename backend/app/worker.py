@@ -165,6 +165,8 @@ async def sync_analytics_cache(ctx):
         get_relative_strength_analytics,
         get_contrarian_radar,
         get_oracle_signal_summary,
+        get_best_setups,
+        get_titan_radar,
     )
 
     logger.info("Job: Pre-warming Analytics Cache...")
@@ -179,10 +181,21 @@ async def sync_analytics_cache(ctx):
         except Exception as e:
             logger.warning(f"Cache warm failed for {tf}: {e}")
 
+    # Warm endpoints that don't vary by timeframe list but have expensive computation
     try:
         await get_oracle_signal_summary()
     except Exception as e:
         logger.warning(f"Cache warm failed for signal-summary: {e}")
+
+    try:
+        await get_best_setups(timeframe="4h", limit=50)
+    except Exception as e:
+        logger.warning(f"Cache warm failed for best-setups: {e}")
+
+    try:
+        await get_titan_radar(limit=50, timeframe="4h")
+    except Exception as e:
+        logger.warning(f"Cache warm failed for titan-radar: {e}")
 
     logger.info("Job: Analytics Cache Pre-warm Complete")
 
