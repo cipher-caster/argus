@@ -1,193 +1,89 @@
-# Argus Documentation Index
+# Argus Documentation
 
-**Last Updated**: 2026-01-31
-
-Welcome to the Argus documentation! This guide helps you navigate the codebase efficiently.
+**Last Updated**: 2026-03-14
 
 ---
 
-## 🚀 Quick Start
+## Quick Start
 
-**For AI Agents**: Start with [AI_AGENT_GUIDE.md](./AI_AGENT_GUIDE.md)
+**For AI agents or new developers**: Start with [AI_AGENT_GUIDE.md](./AI_AGENT_GUIDE.md)
 
-**For Developers**:
-
-1. Read [AI_AGENT_GUIDE.md](./AI_AGENT_GUIDE.md) for overview
-2. Review [Backend Architecture](./backend/ARCHITECTURE.md)
-3. Review [Frontend Architecture](./frontend/ARCHITECTURE.md)
-4. Check [Error Handling Guide](./backend/ERROR_HANDLING.md)
+**For trading / using the app**: Start with [SLASH_COMMANDS.md](./SLASH_COMMANDS.md)
 
 ---
 
-## � Documentation Structure
+## Document Index
 
-### Getting Started
+### Using Argus
 
-- **[AI Agent Guide](./AI_AGENT_GUIDE.md)** - Comprehensive guide for AI agents and developers
-  - Architecture overview
-  - Key concepts (caching, error handling, validation)
-  - Coding conventions
-  - Common tasks
-  - Recent improvements
+| Document | Description |
+|---|---|
+| [SLASH_COMMANDS.md](./SLASH_COMMANDS.md) | `/read` command guide — how to generate coin and market reports, interpret signals, read the chart, spot setup and HODL analysis |
+| [CONTEXT.md](./CONTEXT.md) | Project context, decisions, and rationale |
 
 ### Backend
 
-- **[Architecture](./backend/ARCHITECTURE.md)** - Backend system design (EXISTS - brief)
-- **[Error Handling](./backend/ERROR_HANDLING.md)** - Custom exceptions and logging patterns
-- **[Data Architecture](./backend/DATA_ARCHITECTURE.md)** - Data flow and storage (if exists)
+| Document | Description |
+|---|---|
+| [backend/API.md](./backend/API.md) | Full REST API reference — all endpoints, parameters, response fields |
+| [backend/ARCHITECTURE.md](./backend/ARCHITECTURE.md) | Backend system design and data flow |
+| [backend/DATA_ARCHITECTURE.md](./backend/DATA_ARCHITECTURE.md) | Data storage, caching strategy, Redis/Postgres usage |
+| [backend/ERROR_HANDLING.md](./backend/ERROR_HANDLING.md) | Custom exception hierarchy and logging patterns |
+| [backend/TROUBLESHOOTING.md](./backend/TROUBLESHOOTING.md) | Common issues and fixes |
+| [backend/COIN_METADATA_SYNC.md](./backend/COIN_METADATA_SYNC.md) | Coin metadata sync from CoinGecko |
+| [DOCKER_PERMISSIONS.md](./DOCKER_PERMISSIONS.md) | Docker volume permission setup |
 
 ### Frontend
 
-- **[Architecture](./frontend/ARCHITECTURE.md)** - Frontend system design
-  - Component patterns
-  - State management
-  - Performance optimizations
-  - TypeScript patterns
+| Document | Description |
+|---|---|
+| [frontend/ARCHITECTURE.md](./frontend/ARCHITECTURE.md) | Frontend patterns, component structure, state management |
+| [frontend/TESTING.md](./frontend/TESTING.md) | Frontend testing guide |
 
-### Other
+### Analytics & Strategies
 
-- **[Analytics Service](./ANALYTICS_SERVICE.md)** - Analytics implementation
-- **[Context](./CONTEXT.md)** - Project context and decisions
-- **[Changelog](./CHANGELOG.md)** - Version history
-- **[Roadmap](./ROADMAP.md)** - Future plans
+| Document | Description |
+|---|---|
+| [strategies/OVERVIEW.md](./strategies/OVERVIEW.md) | Oracle + Titan strategies overview, Earnest Brain voting table, backtest methodology, Eliz+Mayne MTF framework |
+| [analytics/ORACLE_SCREENER.md](./analytics/ORACLE_SCREENER.md) | Oracle Screener deep-dive — voter logic, scoring, signal synthesis |
+| [analytics/TITAN_STRATEGY.md](./analytics/TITAN_STRATEGY.md) | Titan strategy — signal types, confidence scoring, indicator stack |
+| [analytics/TITAN_SIGNALS.md](./analytics/TITAN_SIGNALS.md) | Titan Signals panel documentation |
+| [analytics/CONTRARIAN_RADAR.md](./analytics/CONTRARIAN_RADAR.md) | Contrarian Radar — ATR mean-reversion logic |
+
+### Project Management
+
+| Document | Description |
+|---|---|
+| [IMPROVEMENT_PLAN.md](./IMPROVEMENT_PLAN.md) | Active backlog with status (Done / In Progress / Planned) |
+| [ROADMAP.md](./ROADMAP.md) | Planned features and future direction |
+| [CHANGELOG.md](./CHANGELOG.md) | Version history |
 
 ---
 
-## 🎯 Find What You Need
+## Find What You Need
+
+### "I want to analyze a coin or the market"
+→ [SLASH_COMMANDS.md](./SLASH_COMMANDS.md) — run `/read BTC` or `/read market`
+
+### "I want to understand the trading signals"
+→ [SLASH_COMMANDS.md — How to Read the Report](./SLASH_COMMANDS.md#how-to-read-the-report)
+→ [strategies/OVERVIEW.md](./strategies/OVERVIEW.md)
+
+### "I want to buy a coin and hold long term"
+→ [SLASH_COMMANDS.md — Long-Term / HODL Section](./SLASH_COMMANDS.md#long-term--hodl-section)
+→ Run `/read ETH hold`
 
 ### "I want to understand the codebase"
-
-→ [AI Agent Guide](./AI_AGENT_GUIDE.md)
+→ [AI_AGENT_GUIDE.md](./AI_AGENT_GUIDE.md)
 
 ### "I want to add a new API endpoint"
+→ [AI_AGENT_GUIDE.md — Common Tasks](./AI_AGENT_GUIDE.md#common-tasks)
+→ [backend/API.md](./backend/API.md)
 
-→ [AI Agent Guide - Common Tasks](./AI_AGENT_GUIDE.md#common-tasks)  
-→ [Backend Architecture](./backend/ARCHITECTURE.md)  
-→ [Error Handling](./backend/ERROR_HANDLING.md)
+### "I'm getting errors"
+→ [backend/ERROR_HANDLING.md](./backend/ERROR_HANDLING.md)
+→ [backend/TROUBLESHOOTING.md](./backend/TROUBLESHOOTING.md)
 
-### "I want to add a new frontend component"
-
-→ [Frontend Architecture - Component Patterns](./frontend/ARCHITECTURE.md#component-patterns)
-
-### "I'm getting errors in my code"
-
-→ [Error Handling Guide](./backend/ERROR_HANDLING.md)
-
-### "I want to understand the data flow"
-
-→ [AI Agent Guide - Architecture](./AI_AGENT_GUIDE.md#architecture-overview)  
-→ [Backend Architecture - Data Flow](./backend/ARCHITECTURE.md)
-
-### "I want to optimize performance"
-
-→ [AI Agent Guide - Recent Improvements](./AI_AGENT_GUIDE.md#recent-improvements)  
-→ [Frontend Architecture - Performance](./frontend/ARCHITECTURE.md#performance-optimizations)
-
----
-
-## 📋 Documentation Maintenance
-
-### When to Update Docs
-
-**Update immediately**:
-
-- New architecture patterns introduced
-- Breaking changes to API
-- New major features
-
-**Update monthly**:
-
-- Recent improvements section
-- Common tasks section
-- Troubleshooting section
-
-**Update as needed**:
-
-- Code examples (keep them current)
-- Best practices (as they evolve)
-
-### How to Update
-
-1. **Identify affected docs** - Which files need updates?
-2. **Make changes** - Update content, add examples
-3. **Update "Last Updated" date** - At top of file
-4. **Test code examples** - Verify they work
-5. **Commit** - Clear commit message
-
----
-
-## � Key Principles
-
-These principles guide the Argus codebase:
-
-1. **Type Safety** - Always use TypeScript/Python type hints
-2. **Documentation** - Comprehensive docstrings and comments
-3. **Error Handling** - Custom exceptions with clear messages
-4. **Testing** - Write tests for all new features
-5. **Performance** - Cache-aware, optimized queries
-6. **Production Ready** - No debug logs, proper logging
-
----
-
-## 🤝 Contributing
-
-When contributing to Argus:
-
-1. **Read relevant docs** before making changes
-2. **Follow existing patterns** - Don't invent new ones
-3. **Write tests** - For all new features
-4. **Update docs** - If you change architecture/patterns
-5. **Use conventions** - Logging, docstrings, validation
-
----
-
-## 📝 Template for New Docs
-
-When creating new documentation files:
-
-```markdown
-# Title
-
-**Last Updated**: YYYY-MM-DD
-
-Brief description of what this document covers.
-
----
-
-## Section 1
-
-Content...
-
-## Section 2
-
-Content...
-
----
-
-## Related Documents
-
-- [Link to related doc](./path/to/doc.md)
-```
-
----
-
-## 💡 Documentation Best Practices
-
-1. **Be concise** - Get to the point quickly
-2. **Use examples** - Show, don't just tell
-3. **Keep updated** - Stale docs are worse than no docs
-4. **Link liberally** - Connect related concepts
-5. **Structure clearly** - Use headings, lists, code blocks
-
----
-
-## 🔗 External Resources
-
-- **FastAPI Docs**: https://fastapi.tiangolo.com/
-- **Next.js Docs**: https://nextjs.org/docs
-- **TanStack Query**: https://tanstack.com/query/latest
-- **Pydantic**: https://docs.pydantic.dev/
-
----
-
-**Questions?** Check the [AI Agent Guide](./AI_AGENT_GUIDE.md) first - it covers 90% of common scenarios!
+### "I want to understand data flow and caching"
+→ [backend/DATA_ARCHITECTURE.md](./backend/DATA_ARCHITECTURE.md)
+→ [backend/ARCHITECTURE.md](./backend/ARCHITECTURE.md)

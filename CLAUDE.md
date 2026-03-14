@@ -60,7 +60,7 @@ docker compose exec redis redis-cli
 **Backend layers** (`backend/app/`):
 - `routes/` — FastAPI route handlers with input validation
 - `services/` — Business logic, cache coordination (`market_data.py`)
-- `indicators/` — Technical analysis (pandas-ta): `screener.py`, `relative_strength.py`, `mean_reversion.py`
+- `indicators/` — Technical analysis (pandas-ta): `screener.py`, `mean_reversion.py`
 - `strategies/` — Trading signal generation: `oracle.py` (Earnest + Prophet), `titan.py` (hybrid trend-momentum)
 - `providers/` — CCXT Binance wrapper (`binance_provider.py`)
 - `schemas/` — Pydantic v2 models
@@ -70,9 +70,9 @@ docker compose exec redis redis-cli
 **Frontend layers** (`frontend/src/`):
 - `app/` — Next.js 14 App Router pages (`/`, `/chart/[symbol]`, `/markets/[type]`, `/analytics`)
 - `components/features/` — Feature components (dashboard, chart)
-- `components/analytics/` — Analytics panels: `OracleScreener`, `TitanRadar`, `TitanSignalsPanel`, `ContrarianRadar`, `RelativeStrength`
+- `components/analytics/` — Analytics panels: `OracleScreener`, `TitanRadar`, `TitanSignalsPanel`, `ContrarianRadar`, `BestSetups`
 - `components/ui/` — Shadcn UI primitives
-- `hooks/` — TanStack Query v5 custom hooks (cache: 120s staleTime, 5min gcTime)
+- `hooks/` — TanStack Query v5 custom hooks (staleTime varies: 60s–300s, gcTime 5min)
 - `stores/` — Zustand stores (theme, indicators, watchlist, chart settings)
 - `lib/` — API client factory and per-domain API functions
 
@@ -90,5 +90,23 @@ Detailed architecture and implementation docs live in `docs/`:
 - `docs/backend/ARCHITECTURE.md` — Backend system design
 - `docs/frontend/ARCHITECTURE.md` — Frontend patterns
 - `docs/backend/ERROR_HANDLING.md` — Exception hierarchy details
-- `docs/CHANGELOG.md` — Version history (current: v0.5.4)
+- `docs/CHANGELOG.md` — Version history (current: v0.5.5)
 - `docs/ROADMAP.md` — Planned features
+- `docs/IMPROVEMENT_PLAN.md` — Active improvement backlog with status
+
+## AI Slash Commands
+
+Custom Claude Code commands live in `.claude/commands/`:
+
+### `/read [COIN|market]`
+
+Calls the live Argus APIs and produces a structured intelligence report.
+
+```
+/read BTC          # Deep-dive: price, Oracle signal, Titan signal, backtest stats
+/read SOL 4h       # Same but with 4h as the Oracle micro timeframe
+/read market       # Market overview: sentiment, screener highlights, best setups, movers
+/read              # Alias for /read market
+```
+
+Requires the backend to be running (`http://localhost:8000`). If it's down, start it with `docker-compose up -d`.

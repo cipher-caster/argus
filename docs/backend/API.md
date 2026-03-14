@@ -78,17 +78,6 @@ Oracle Prophet v9.0 analysis (Earnest score -4 to +4, bias, state) for top coins
 - `limit`: Number of coins (default 50)
 - `timeframe`: `1h` (default), `4h`, `1d`
 
-### Relative Strength
-
-`GET /analytics/relative-strength`
-
-Compares altcoin performance vs BTC benchmark.
-
-**Query Parameters:**
-
-- `limit`: Number of coins (default 50)
-- `timeframe`: `1h` (default), `4h`, `1d`
-
 ### Contrarian Radar
 
 `GET /analytics/contrarian-radar`

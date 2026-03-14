@@ -4,57 +4,39 @@ import { CoinIcon } from "@/components/features/dashboard/CoinIcon";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { useCoinMeta } from "@/hooks/useCoinMeta";
-import { fetchTitanRadar, TitanRadarItem } from "@/lib/api";
+import { useTitanRadar } from "@/hooks/useAnalyticsData";
+import { TitanRadarItem } from "@/lib/api";
 import { formatPrice } from "@/lib/formatters";
 import { cn } from "@/lib/utils";
 import { ArrowDown, ArrowUp, Info, PauseCircle, RefreshCcw, ShieldCheck } from "lucide-react";
 import Link from "next/link";
-import { useEffect, useState } from "react";
 
 export function TitanSignalsPanel({ timeframe = "4h" }: { timeframe?: string }) {
-  const [data, setData] = useState<TitanRadarItem[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [lastUpdated, setLastUpdated] = useState<number>(0);
+  const { data: res, isLoading, refetch } = useTitanRadar(50, timeframe);
   const { coinMeta } = useCoinMeta();
 
-  const loadData = async () => {
-    try {
-      setLoading(true);
-      const res = await fetchTitanRadar(50, timeframe);
+  const priority = ["BTCUSDT", "ETHUSDT", "SOLUSDT", "BNBUSDT", "XRPUSDT"];
 
-      const priority = ["BTCUSDT", "ETHUSDT", "SOLUSDT", "BNBUSDT", "XRPUSDT"];
-      const filtered = res.data.filter((item) => {
-        const normalized = item.symbol.replace("/", "");
-        return priority.includes(normalized) || item.confidence >= 60;
-      });
+  const data = (() => {
+    if (!res) return [];
+    const filtered = res.data.filter((item) => {
+      const normalized = item.symbol.replace("/", "");
+      return priority.includes(normalized) || item.confidence >= 60;
+    });
+    filtered.sort((a, b) => {
+      const normA = a.symbol.replace("/", "");
+      const normB = b.symbol.replace("/", "");
+      const pA = priority.indexOf(normA);
+      const pB = priority.indexOf(normB);
+      if (pA !== -1 && pB !== -1) return pA - pB;
+      if (pA !== -1) return -1;
+      if (pB !== -1) return 1;
+      return b.confidence - a.confidence;
+    });
+    return filtered.slice(0, 8);
+  })();
 
-      filtered.sort((a, b) => {
-        const normA = a.symbol.replace("/", "");
-        const normB = b.symbol.replace("/", "");
-        const pA = priority.indexOf(normA);
-        const pB = priority.indexOf(normB);
-        if (pA !== -1 && pB !== -1) return pA - pB;
-        if (pA !== -1) return -1;
-        if (pB !== -1) return 1;
-        return b.confidence - a.confidence;
-      });
-
-      setData(filtered.slice(0, 8));
-      setLastUpdated(res.last_updated);
-    } catch (e) {
-      console.error(e);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    loadData();
-    const interval = setInterval(loadData, 60 * 1000);
-    return () => clearInterval(interval);
-  }, [timeframe]);
-
-  if (loading && data.length === 0) {
+  if (isLoading && data.length === 0) {
     return (
       <div className="space-y-4">
         <Skeleton className="h-10 w-48" />
@@ -74,13 +56,17 @@ export function TitanSignalsPanel({ timeframe = "4h" }: { timeframe?: string }) 
           <h2 className="text-lg font-bold flex items-center gap-2">
             <ShieldCheck className="text-primary" size={20} />
             Titan Signals (Live)
-            <button onClick={loadData} className="ml-1 p-1 hover:bg-muted rounded-full transition-colors text-muted-foreground/50 hover:text-primary" title="Refresh">
+            <button onClick={() => refetch()} className="ml-1 p-1 hover:bg-muted rounded-full transition-colors text-muted-foreground/50 hover:text-primary" title="Refresh">
               <RefreshCcw size={14} />
             </button>
           </h2>
           <div className="flex items-center gap-2">
             <p className="text-xs text-muted-foreground">Predictive Entry Setups ({timeframe.toUpperCase()})</p>
-            <span className="text-xs text-muted-foreground border-l border-border pl-2 ml-1">Updated: {new Date(lastUpdated).toLocaleTimeString()}</span>
+            {res && (
+              <span className="text-xs text-muted-foreground border-l border-border pl-2 ml-1">
+                Updated: {new Date(res.last_updated).toLocaleTimeString()}
+              </span>
+            )}
           </div>
         </div>
       </div>
@@ -94,7 +80,6 @@ export function TitanSignalsPanel({ timeframe = "4h" }: { timeframe?: string }) 
               <th className="px-4 py-3 font-semibold text-center">Action</th>
               <th className="px-4 py-3 font-semibold text-center">Confidence</th>
               <th className="px-4 py-3 font-semibold text-right">Limit Entry</th>
-              <th className="px-4 py-3 font-semibold text-center">Distance</th>
               <th className="px-4 py-3 font-semibold text-right">Targets (TP/SL)</th>
               <th className="px-4 py-3 font-semibold text-right">Logic</th>
             </tr>
@@ -114,8 +99,7 @@ function SignalRow({ item, coinMeta }: { item: TitanRadarItem; coinMeta: any }) 
   const isWait = item.signal.includes("WAIT");
   const isBuy = item.signal.includes("BUY");
   const isSell = item.signal.includes("SELL");
-
-  const entryDiff = ((item.price - item.entry) / item.entry) * 100;
+  const isLimit = item.signal.includes("LIMIT");
 
   return (
     <tr className="hover:bg-muted/20 transition-colors">
@@ -141,21 +125,16 @@ function SignalRow({ item, coinMeta }: { item: TitanRadarItem; coinMeta: any }) 
           )}
         >
           {isWait ? <PauseCircle size={10} /> : isBuy ? <ArrowUp size={10} /> : <ArrowDown size={10} />}
-          {item.signal.replace("_", " ")}
+          {item.signal.replace(/_/g, " ")}
         </div>
       </td>
 
       {/* Confidence Column */}
       <td className="px-4 py-3 text-center font-mono text-xs text-muted-foreground">{item.confidence}%</td>
 
-      {/* Limit Entry Column */}
-      <td className="px-4 py-3 text-right font-mono text-xs font-bold text-primary">{formatPrice(item.entry)}</td>
-
-      {/* Distance Column */}
-      <td className="px-4 py-3 text-center">
-        <span className="text-[10px] text-muted-foreground bg-secondary/50 px-2 py-0.5 rounded">
-          {Math.abs(entryDiff).toFixed(2)}% {entryDiff > 0 ? "Above" : "Below"}
-        </span>
+      {/* Limit Entry — only meaningful for LIMIT signals */}
+      <td className="px-4 py-3 text-right font-mono text-xs font-bold text-primary">
+        {isLimit ? formatPrice(item.entry) : <span className="text-muted-foreground">—</span>}
       </td>
 
       {/* Targets Column */}

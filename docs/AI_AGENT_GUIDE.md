@@ -89,7 +89,7 @@ PostgreSQL (historical) ← Routes/Services → Frontend
 4. **Indicators** (`app/indicators/*.py`):
    - Technical analysis calculations
    - Uses pandas-ta for common indicators
-   - Active: `screener.py`, `relative_strength.py`, `mean_reversion.py`
+   - Active: `screener.py`, `mean_reversion.py`
 
 5. **Strategies** (`app/strategies/*.py`):
    - Trading signal generation
@@ -152,11 +152,11 @@ Component → TanStack Query Hook → API Client → Backend
 
 - **Market tickers**: 30s TTL (fast, live prices)
 - **Market snapshot**: 5min TTL (slow, rich metadata from CoinGecko)
-- **Analytics results**: 180s TTL (expensive calculations)
+- **Analytics results**: 360s TTL (expensive calculations — pre-warmed every 300s by worker)
 
 **Frontend Cache (TanStack Query)**:
 
-- **staleTime**: 120s for analytics (how long data is considered fresh)
+- **staleTime**: 60s–300s depending on endpoint (best-setups: 300s, screener: 120s, signal-summary: 60s)
 - **gcTime**: 5min (how long cached data is kept)
 - **refetchOnWindowFocus**: false (don't refetch when switching tabs)
 - **keepPreviousData**: true (smooth transitions)
@@ -380,6 +380,22 @@ npm run build
 
 - ✅ Removed Market Health, Trend Radar, Structure Scanner, Confluence Gauge, Liquidity Map (all redundant)
 - ✅ Analytics streamlined from 7 tabs to 5
+
+---
+
+## 🤖 AI Slash Commands
+
+Custom Claude Code slash commands live in `.claude/commands/`. These call the live Argus APIs and generate structured intelligence reports.
+
+### `/read [COIN|market]`
+
+```
+/read BTC          # Coin deep-dive: price, Oracle, Titan, backtest, spot setup, key levels
+/read ETH hold     # + Long-term HODL analysis with 12H/1D/1W macro stack and DCA plan
+/read market       # Market overview: sentiment, screener, best setups, movers
+```
+
+See `docs/SLASH_COMMANDS.md` for full documentation including how to interpret every section of the report.
 
 ---
 
