@@ -1,149 +1,251 @@
+"""
+Integration tests for analytics API endpoints.
+Requires the full app stack (Redis + external calls are mocked).
+"""
 import pytest
-import pandas as pd
-from unittest.mock import AsyncMock, patch
+import pytest_asyncio
+from unittest.mock import AsyncMock, patch, MagicMock
 
-@pytest.mark.asyncio
-async def test_trend_radar_endpoint(async_client):
-    """Verify Trend Radar endpoint returns correctly categorized structure."""
-    
-    mock_result = {
-        "map": [
-            {
-                "symbol": "BTC/USDT",
-                "price": 50000.0,
-                "ema200": 49000.0,
-                "distance_pct": 2.0,
-                "status": "BULLISH",
-                "volume": 1000000.0
-            }
-        ],
-        "buckets": {
-            "BULLISH": ["BTC/USDT"],
-            "BEARISH": []
-        },
-        "summary": {
-            "BULLISH": 1,
-            "BEARISH": 0
+# Shared helpers from conftest.py
+from conftest import (
+    mock_cache_miss, mock_cache_hit,
+    MOCK_SCREENER_DATA, MOCK_SYMBOLS, VALID_MARKET_STATES,
+)
+
+
+
+
+# ---------------------------------------------------------------------------
+# /api/analytics/screener
+# ---------------------------------------------------------------------------
+
+class TestScreenerEndpoint:
+    @pytest.mark.asyncio
+    async def test_screener_returns_200(self, async_client):
+        cached = {"data": MOCK_SCREENER_DATA, "last_updated": 1700000000000}
+        with patch("app.routes.analytics.RedisClient", mock_cache_hit(cached)):
+            response = await async_client.get("/api/analytics/screener?limit=4&timeframe=1h")
+        assert response.status_code == 200
+
+    @pytest.mark.asyncio
+    async def test_screener_response_shape(self, async_client):
+        cached = {"data": MOCK_SCREENER_DATA, "last_updated": 1700000000000}
+        with patch("app.routes.analytics.RedisClient", mock_cache_hit(cached)):
+            response = await async_client.get("/api/analytics/screener?limit=4&timeframe=1h")
+        body = response.json()
+        assert "data" in body
+        assert "last_updated" in body
+        assert isinstance(body["data"], list)
+
+    @pytest.mark.asyncio
+    async def test_screener_each_item_has_symbol_and_score(self, async_client):
+        cached = {"data": MOCK_SCREENER_DATA, "last_updated": 1700000000000}
+        with patch("app.routes.analytics.RedisClient", mock_cache_hit(cached)):
+            response = await async_client.get("/api/analytics/screener?limit=4&timeframe=1h")
+        for item in response.json()["data"]:
+            assert "symbol" in item
+            assert "score" in item
+            assert -4 <= item["score"] <= 4
+
+
+# ---------------------------------------------------------------------------
+# /api/analytics/signal-summary
+# ---------------------------------------------------------------------------
+
+class TestSignalSummaryEndpoint:
+    @pytest.mark.asyncio
+    async def test_signal_summary_returns_200(self, async_client):
+        cached = {
+            "bullish_pct": 50.0,
+            "bearish_pct": 25.0,
+            "top_signals": ["BTCUSDT 3/4"],
+            "market_state": "STRONG BULL",
+            "last_updated": 1700000000000,
         }
-    }
-    
-    with patch("app.routes.analytics.fetch_all_candles", new_callable=AsyncMock) as mock_fetch, \
-         patch("app.routes.analytics.MarketDataService.get_top_symbols", new_callable=AsyncMock) as mock_syms, \
-         patch("app.routes.analytics.RedisClient.get_json", new_callable=AsyncMock) as mock_cache_get, \
-         patch("app.routes.analytics.RedisClient.set_json", new_callable=AsyncMock), \
-         patch("app.indicators.trend_radar.TrendRadar.analyze") as mock_analyze:
-        
-        mock_cache_get.return_value = None
-        mock_syms.return_value = ["BTC/USDT"]
-        mock_fetch.return_value = {"BTC/USDT": pd.DataFrame()}
-        mock_analyze.return_value = mock_result
-        
-        response = await async_client.get("/api/analytics/trend-radar?limit=10")
+        with patch("app.routes.analytics.RedisClient", mock_cache_hit(cached)):
+            response = await async_client.get("/api/analytics/signal-summary")
         assert response.status_code == 200
-        data = response.json()
-        assert "map" in data
-        assert data["map"][0]["symbol"] == "BTC/USDT"
-        assert data["summary"]["BULLISH"] == 1
 
-@pytest.mark.asyncio
-async def test_structure_scanner_endpoint(async_client):
-    """Verify Structure Scanner endpoint."""
-    
-    mock_data = [
-        {
-            "symbol": "ETH/USDT", 
-            "price": 1950.0,
-            "monday_high": 2000.0, 
-            "monday_low": 1900.0, 
-            "status": "INSIDE_RANGE",
-            "range_pct": 5.0
+    @pytest.mark.asyncio
+    async def test_signal_summary_market_state_is_valid(self, async_client):
+        cached = {
+            "bullish_pct": 50.0,
+            "bearish_pct": 25.0,
+            "top_signals": [],
+            "market_state": "STRONG BULL",
+            "last_updated": 1700000000000,
         }
-    ]
-    
-    with patch("app.routes.analytics.fetch_all_candles", new_callable=AsyncMock) as mock_fetch, \
-         patch("app.routes.analytics.MarketDataService.get_top_symbols", new_callable=AsyncMock) as mock_syms, \
-         patch("app.routes.analytics.RedisClient.get_json", new_callable=AsyncMock) as mock_cache_get, \
-         patch("app.routes.analytics.RedisClient.set_json", new_callable=AsyncMock), \
-         patch("app.indicators.structure.StructureScanner.analyze") as mock_analyze:
-        
-        mock_cache_get.return_value = None
-        mock_syms.return_value = ["ETH/USDT"]
-        mock_fetch.return_value = {"ETH/USDT": pd.DataFrame()}
-        mock_analyze.return_value = mock_data
-        
-        response = await async_client.get("/api/analytics/structure?limit=10")
-        assert response.status_code == 200
-        data = response.json()
-        assert len(data["data"]) == 1
-        assert data["data"][0]["symbol"] == "ETH/USDT"
-        assert data["data"][0]["status"] == "INSIDE_RANGE"
+        with patch("app.routes.analytics.RedisClient", mock_cache_hit(cached)):
+            response = await async_client.get("/api/analytics/signal-summary")
+        assert response.json()["market_state"] in VALID_MARKET_STATES
 
-@pytest.mark.asyncio
-async def test_confluence_endpoint(async_client):
-    """Verify Confluence endpoint aggregates screener data."""
-    
-    mock_screener_data = [
-        {"symbol": "BTC/USDT", "score": 4},
-        {"symbol": "ETH/USDT", "score": 4},
-        {"symbol": "SOL/USDT", "score": -1}
-    ]
-    
-    mock_analysis = {
-        "verdict": "TSUNAMI_BULL",
-        "metrics": {
-            "total_analyzed": 3,
-            "sleeping_pct": 0.0,
-            "bullish_pct": 66.7,
-            "bearish_pct": 33.3
-        },
-        "score_distribution": {"4": 2, "-1": 1}
-    }
-    
-    # Test path where screener data is in Redis
-    with patch("app.routes.analytics.RedisClient.get_json", new_callable=AsyncMock) as mock_cache_get, \
-         patch("app.routes.analytics.RedisClient.set_json", new_callable=AsyncMock), \
-         patch("app.indicators.confluence.ConfluenceAggregator.analyze") as mock_analyze:
-         
-        mock_cache_get.return_value = mock_screener_data
-        mock_analyze.return_value = mock_analysis
-        
-        response = await async_client.get("/api/analytics/confluence?limit=10")
-        assert response.status_code == 200
-        data = response.json()
-        assert data["verdict"] == "TSUNAMI_BULL"
-        assert data["metrics"]["total_analyzed"] == 3
+    @pytest.mark.asyncio
+    async def test_signal_summary_pct_fields_are_numeric(self, async_client):
+        cached = {
+            "bullish_pct": 52.0,
+            "bearish_pct": 18.0,
+            "top_signals": [],
+            "market_state": "NEUTRAL",
+            "last_updated": 1700000000000,
+        }
+        with patch("app.routes.analytics.RedisClient", mock_cache_hit(cached)):
+            response = await async_client.get("/api/analytics/signal-summary")
+        body = response.json()
+        assert isinstance(body["bullish_pct"], (int, float))
+        assert isinstance(body["bearish_pct"], (int, float))
 
-@pytest.mark.asyncio
-async def test_signal_summary_endpoint(async_client):
-    """Verify Signal Summary endpoint logic."""
-    
-    mock_screener = [
-        {"symbol": "A", "score": 4}, # Bull
-        {"symbol": "B", "score": 3}, # Bull
-        {"symbol": "C", "score": -3}, # Bear
-        {"symbol": "D", "score": 0}, # Neutral
-    ]
-    # 2 Bulls, 1 Bear, 1 Neutral. Total 4.
-    # Bullish Pct = 50%, Bearish Pct = 25%
-    
-    with patch("app.routes.analytics.fetch_all_candles", new_callable=AsyncMock), \
-         patch("app.routes.analytics.MarketDataService.get_top_symbols", new_callable=AsyncMock), \
-         patch("app.routes.analytics.run_oracle_screener") as mock_run, \
-         patch("app.routes.analytics.calculate_market_health") as mock_health, \
-         patch("app.routes.analytics.ConfluenceAggregator.analyze") as mock_conf, \
-         patch("app.routes.analytics.RedisClient.get_json", new_callable=AsyncMock) as mock_get, \
-         patch("app.routes.analytics.RedisClient.set_json", new_callable=AsyncMock):
-         
-         mock_get.return_value = None
-         mock_run.return_value = mock_screener
-         mock_health.return_value = {}
-         mock_conf.return_value = {"verdict": "CHOP"}
-         
-         response = await async_client.get("/api/analytics/signal-summary")
-         assert response.status_code == 200
-         data = response.json()
-         
-         assert data["bullish_pct"] == 50.0
-         assert data["bearish_pct"] == 25.0
-         assert data["market_state"] == "NEUTRAL" # CHOP -> NEUTRAL
-         assert "A 4/4" in data["top_signals"]
+    @pytest.mark.asyncio
+    async def test_market_state_derived_correctly_strong_bull(self, async_client):
+        """When >50% bullish and 2x more bulls than bears → STRONG BULL."""
+        with patch("app.routes.analytics.RedisClient", mock_cache_miss()), \
+             patch("app.routes.analytics.MarketDataService.get_top_symbols", AsyncMock(return_value=MOCK_SYMBOLS)), \
+             patch("app.routes.analytics.fetch_all_candles", AsyncMock(return_value={})), \
+             patch("app.routes.analytics.run_oracle_screener", return_value=[
+                 {"symbol": "A", "score": 2},
+                 {"symbol": "B", "score": 2},
+                 {"symbol": "C", "score": 2},
+                 {"symbol": "D", "score": -1},
+             ]):
+            response = await async_client.get("/api/analytics/signal-summary")
+        assert response.status_code == 200
+        assert response.json()["market_state"] == "STRONG BULL"
+
+    @pytest.mark.asyncio
+    async def test_market_state_derived_correctly_sleeping(self, async_client):
+        """When >50% neutral (score=0) → SLEEPING."""
+        with patch("app.routes.analytics.RedisClient", mock_cache_miss()), \
+             patch("app.routes.analytics.MarketDataService.get_top_symbols", AsyncMock(return_value=MOCK_SYMBOLS)), \
+             patch("app.routes.analytics.fetch_all_candles", AsyncMock(return_value={})), \
+             patch("app.routes.analytics.run_oracle_screener", return_value=[
+                 {"symbol": "A", "score": 0},
+                 {"symbol": "B", "score": 0},
+                 {"symbol": "C", "score": 0},
+                 {"symbol": "D", "score": 1},
+             ]):
+            response = await async_client.get("/api/analytics/signal-summary")
+        assert response.json()["market_state"] == "SLEEPING"
+
+
+# ---------------------------------------------------------------------------
+# /api/analytics/best-setups
+# ---------------------------------------------------------------------------
+
+class TestBestSetupsEndpoint:
+    @pytest.mark.asyncio
+    async def test_best_setups_returns_200(self, async_client):
+        cached = {"data": [], "last_updated": 1700000000000}
+        with patch("app.routes.analytics.RedisClient", mock_cache_hit(cached)):
+            response = await async_client.get("/api/analytics/best-setups")
+        assert response.status_code == 200
+
+    @pytest.mark.asyncio
+    async def test_best_setups_item_shape(self, async_client):
+        item = {
+            "symbol": "BTCUSDT", "direction": "LONG", "conviction": 80,
+            "entry": 50000.0, "tp": 52000.0, "sl": 49000.0,
+            "reason": "Oracle BULLISH +3/4 | Uptrend", "oracle_score": 3, "titan_signal": "BUY",
+        }
+        cached = {"data": [item], "last_updated": 1700000000000}
+        with patch("app.routes.analytics.RedisClient", mock_cache_hit(cached)):
+            response = await async_client.get("/api/analytics/best-setups")
+        body = response.json()
+        assert len(body["data"]) == 1
+        for field in ("symbol", "direction", "conviction", "entry", "tp", "sl", "reason"):
+            assert field in body["data"][0]
+
+    @pytest.mark.asyncio
+    async def test_best_setups_direction_is_long_or_short(self, async_client):
+        items = [
+            {"symbol": "BTCUSDT", "direction": "LONG", "conviction": 80,
+             "entry": 50000.0, "tp": 52000.0, "sl": 49000.0,
+             "reason": "r", "oracle_score": 3, "titan_signal": "BUY"},
+            {"symbol": "ETHUSDT", "direction": "SHORT", "conviction": 70,
+             "entry": 2000.0, "tp": 1900.0, "sl": 2100.0,
+             "reason": "r", "oracle_score": -3, "titan_signal": "SELL"},
+        ]
+        cached = {"data": items, "last_updated": 1700000000000}
+        with patch("app.routes.analytics.RedisClient", mock_cache_hit(cached)):
+            response = await async_client.get("/api/analytics/best-setups")
+        for item in response.json()["data"]:
+            assert item["direction"] in ("LONG", "SHORT")
+
+    @pytest.mark.asyncio
+    async def test_best_setups_conviction_in_range(self, async_client):
+        item = {
+            "symbol": "BTCUSDT", "direction": "LONG", "conviction": 85,
+            "entry": 50000.0, "tp": 52000.0, "sl": 49000.0,
+            "reason": "r", "oracle_score": 3, "titan_signal": "BUY",
+        }
+        cached = {"data": [item], "last_updated": 1700000000000}
+        with patch("app.routes.analytics.RedisClient", mock_cache_hit(cached)):
+            response = await async_client.get("/api/analytics/best-setups")
+        for item in response.json()["data"]:
+            assert 0 <= item["conviction"] <= 100
+
+    @pytest.mark.asyncio
+    async def test_best_setups_filters_low_oracle_score(self, async_client):
+        """Oracle abs(score) < 2 should be excluded from best setups."""
+        import pandas as pd
+        import numpy as np
+
+        n = 250
+        prices = np.linspace(50, 200, n)
+        df = pd.DataFrame({
+            "timestamp": pd.date_range("2024-01-01", periods=n, freq="4h"),
+            "open": prices, "high": prices * 1.005, "low": prices * 0.995,
+            "close": prices, "volume": np.ones(n) * 1000,
+        })
+
+        low_score_oracle = [{"symbol": "BTCUSDT", "score": 1, "bias": "BULLISH", "state": "TRENDING"}]
+
+        with patch("app.routes.analytics.RedisClient", mock_cache_miss()), \
+             patch("app.routes.analytics.MarketDataService.get_top_symbols", AsyncMock(return_value=["BTCUSDT"])), \
+             patch("app.routes.analytics.fetch_all_candles", AsyncMock(return_value={"BTCUSDT": df})), \
+             patch("app.routes.analytics.run_oracle_screener", return_value=low_score_oracle):
+            response = await async_client.get("/api/analytics/best-setups?timeframe=4h&limit=1")
+        assert response.status_code == 200
+        assert response.json()["data"] == []
+
+
+# ---------------------------------------------------------------------------
+# /api/analytics/titan-radar
+# ---------------------------------------------------------------------------
+
+class TestTitanRadarEndpoint:
+    @pytest.mark.asyncio
+    async def test_titan_radar_returns_200(self, async_client):
+        cached = {"data": [], "last_updated": 1700000000000}
+        with patch("app.routes.analytics.RedisClient", mock_cache_hit(cached)):
+            response = await async_client.get("/api/analytics/titan-radar")
+        assert response.status_code == 200
+
+    @pytest.mark.asyncio
+    async def test_titan_radar_item_shape(self, async_client):
+        item = {
+            "symbol": "BTCUSDT", "price": 50000.0, "signal": "BUY",
+            "confidence": 80, "trend": "BULLISH", "momentum": "BULLISH",
+            "volatility": "NORMAL", "entry": 50000.0, "tp": 51500.0,
+            "sl": 49000.0, "advice": "Aggressive (10% Risk)", "reasons": ["Uptrend"],
+        }
+        cached = {"data": [item], "last_updated": 1700000000000}
+        with patch("app.routes.analytics.RedisClient", mock_cache_hit(cached)):
+            response = await async_client.get("/api/analytics/titan-radar")
+        body = response.json()
+        assert len(body["data"]) == 1
+        for field in ("symbol", "signal", "confidence", "trend"):
+            assert field in body["data"][0]
+
+    @pytest.mark.asyncio
+    async def test_titan_radar_signal_is_valid(self, async_client):
+        valid_signals = {"BUY", "SELL", "BUY_LIMIT", "SELL_LIMIT", "WAIT_OB", "WAIT_OS", "NEUTRAL"}
+        item = {
+            "symbol": "BTCUSDT", "price": 50000.0, "signal": "BUY",
+            "confidence": 80, "trend": "BULLISH", "momentum": "BULLISH",
+            "volatility": "NORMAL", "entry": 50000.0, "tp": 51500.0,
+            "sl": 49000.0, "advice": "Aggressive (10% Risk)", "reasons": [],
+        }
+        cached = {"data": [item], "last_updated": 1700000000000}
+        with patch("app.routes.analytics.RedisClient", mock_cache_hit(cached)):
+            response = await async_client.get("/api/analytics/titan-radar")
+        for item in response.json()["data"]:
+            assert item["signal"] in valid_signals

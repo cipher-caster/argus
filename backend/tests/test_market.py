@@ -1,9 +1,14 @@
+"""
+Tests for market data endpoints and staleness logic.
+Verifies that stale DB data triggers a Binance fetch, and fresh data does not.
+"""
 import pytest
-from unittest.mock import AsyncMock, patch
-from app.routes.market import get_ohlcv
+import time
+from unittest.mock import AsyncMock, MagicMock, patch
 
-# Mock DB candles response
+
 class MockCandle:
+    """Mock DB candle object with required OHLCV fields."""
     def __init__(self, timestamp):
         self.timestamp = timestamp
         self.open = 100
@@ -12,75 +17,72 @@ class MockCandle:
         self.close = 105
         self.volume = 1000
 
-@pytest.mark.asyncio
-async def test_ohlcv_staleness_logic():
-    """
-    Test that stale data triggers a Binance fetch call.
-    Uses patching to mock DB session and BinanceProvider.
-    """
-    from unittest.mock import MagicMock
-    # 1. Setup Mock DB session returning old data
-    mock_session = AsyncMock()
-    mock_result = MagicMock() # Result object is synchronous
-    
-    # Create a stale candle (older than 1h + buffer)
-    import time
-    old_ts = int((time.time() - 7200) * 1000) # 2 hours ago
-    stale_candle = MockCandle(old_ts)
 
-    mock_result.scalars.return_value.all.return_value = [stale_candle]
+def _make_mock_session(candles):
+    """Create an async mock DB session that returns the given candles."""
+    mock_session = AsyncMock()
+    mock_result = MagicMock()
+    mock_result.scalars.return_value.all.return_value = candles
     mock_session.execute.return_value = mock_result
-    
-    # 2. Patch dependencies
+    return mock_session
+
+
+@pytest.mark.asyncio
+async def test_ohlcv_stale_data_triggers_binance_fetch():
+    """
+    When DB data is older than the staleness threshold,
+    MarketDataService should call BinanceProvider to refresh.
+    """
+    from app.routes.market import get_ohlcv
+
+    old_ts = int((time.time() - 7200) * 1000)  # 2 hours ago
+    stale_candle = MockCandle(old_ts)
+    mock_session = _make_mock_session([stale_candle])
+
     with patch("app.storage.Database.get_session") as mock_get_session:
         mock_get_session.return_value.__aenter__.return_value = mock_session
-        
-        # Patch the class where it's defined. 
-        # Since market.py does "from app.providers.binance_provider import BinanceProvider" locally,
-        # patching app.providers.binance_provider.BinanceProvider is generally correct.
+
         with patch("app.providers.binance_provider.BinanceProvider") as MockProvider:
             mock_provider_instance = AsyncMock()
             MockProvider.return_value = mock_provider_instance
-            mock_provider_instance.get_ohlcv.return_value = [] 
-            
-            print(f"Test: Calling get_ohlcv with stale candle ts={old_ts} vs now={int(time.time()*1000)}")
-            
+            mock_provider_instance.get_ohlcv.return_value = []
+
+            # The endpoint may raise because mock returns empty data — that's OK.
+            # We're testing that the provider was instantiated and called.
             try:
                 await get_ohlcv("BTC/USDT", timeframe="1h", limit=100, end_timestamp=None)
-            except Exception as e:
-                print(f"Test Exception (expected): {e}")
+            except Exception:
+                pass  # Expected — incomplete mock chain
 
-            # Verify instantiation
-            assert MockProvider.called, "BinanceProvider not instantiated"
-            # Verify method call
-            assert mock_provider_instance.get_ohlcv.called, "get_ohlcv not called on provider"
-            print("Verified: Stale data triggered Binance fetch")
+            assert MockProvider.called, \
+                "BinanceProvider should be instantiated when data is stale"
+            assert mock_provider_instance.get_ohlcv.called, \
+                "BinanceProvider.get_ohlcv should be called when data is stale"
+
 
 @pytest.mark.asyncio
-async def test_ohlcv_fresh_data():
-    """Test that fresh data does NOT trigger fetch"""
-    mock_session = AsyncMock()
-    mock_result = AsyncMock()
-    
-    import time
+async def test_ohlcv_fresh_data_skips_binance_fetch():
+    """
+    When DB data is recent (within staleness threshold),
+    BinanceProvider should NOT be called.
+    """
+    from app.routes.market import get_ohlcv
+
     now_ts = int(time.time() * 1000)
     fresh_candle = MockCandle(now_ts)
-    
-    mock_result.scalars.return_value.all.return_value = [fresh_candle]
-    mock_session.execute.return_value = mock_result
-    
+    mock_session = _make_mock_session([fresh_candle])
+
     with patch("app.storage.Database.get_session") as mock_get_session:
         mock_get_session.return_value.__aenter__.return_value = mock_session
-        
+
         with patch("app.providers.binance_provider.BinanceProvider") as MockProvider:
             mock_provider_instance = AsyncMock()
             MockProvider.return_value = mock_provider_instance
-            
+
             try:
                 await get_ohlcv("BTC/USDT", timeframe="1h", limit=100)
-            except:
-                pass
-            
-            # Should NOT call binance
-            assert not mock_provider_instance.get_ohlcv.called
-            print("Verified: Fresh data used valid DB cache")
+            except Exception:
+                pass  # Expected — incomplete mock chain
+
+            assert not mock_provider_instance.get_ohlcv.called, \
+                "BinanceProvider.get_ohlcv should NOT be called when data is fresh"
