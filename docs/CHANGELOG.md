@@ -2,6 +2,24 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.6.1] - 2026-03-14
+
+### Added
+
+- **Best Setups — Oracle backtest win rate**: Each setup card now shows a color-coded historical win rate badge from the Oracle backtest (`XX% hist.`). Thresholds based on 2:1 RR math (break-even = 33.3%): ≥50% green, 33–49% yellow, <33% red. Shows `— hist.` when `total_trades < 10`.
+- **Best Setups — Eliz+Mayne MTF confluence**: Each card shows Titan signal confirmation across 4 timeframes grouped into two analyst lanes:
+  - Eliz lane: 4H (entry trigger) + 1D (swing structure)
+  - Mayne lane: 12H (higher-TF bias) + 1W (macro/weekly direction)
+  - Green badge = confirmed, gray = not aligned. Full 4-TF confluence = highest-conviction swing.
+- **Test suite (119 tests)**: Comprehensive backend pytest coverage — Oracle strategy (Earnest voters, signal synthesis, analyze output), Titan strategy (signal enum, confidence range, directional logic, targets), analytics screener robustness, market data, worker jobs, strategy routes.
+
+### Fixed
+
+- **MTF candle limits**: 12H and 1W fetches bumped to 250/200 candles (Titan requires 200+). Was fetching 100, causing `error` returns on those timeframes.
+- **Mean reversion boolean output**: Type conversion fix for `is_extended` field.
+
+---
+
 ## [0.6.0] - 2026-03-14
 
 ### Added

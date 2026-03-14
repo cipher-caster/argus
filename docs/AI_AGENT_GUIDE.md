@@ -1,6 +1,6 @@
 # Argus Codebase Guide for AI Agents
 
-**Last Updated**: 2026-01-31  
+**Last Updated**: 2026-03-14
 **Purpose**: Help AI agents quickly understand the Argus cryptocurrency analytics platform
 
 ---
@@ -89,7 +89,7 @@ PostgreSQL (historical) ← Routes/Services → Frontend
 4. **Indicators** (`app/indicators/*.py`):
    - Technical analysis calculations
    - Uses pandas-ta for common indicators
-   - Custom indicators: structure, oracle, titan
+   - Active: `screener.py`, `relative_strength.py`, `mean_reversion.py`
 
 5. **Strategies** (`app/strategies/*.py`):
    - Trading signal generation
@@ -360,28 +360,26 @@ npm run build
 
 ---
 
-## 📊 Recent Improvements (2026-01-31)
+## 📊 Recent Improvements (2026-03-14)
 
-### Performance Optimizations
+### v0.6.1 — Best Setups Enrichment + MTF Confluence
 
-- ✅ Backend cache TTL: 60s → 180s (3x improvement)
-- ✅ Frontend staleTime: 60s → 120s (fewer refetches)
-- ✅ Lazy loading: 6 analytics components
-- ✅ Loading skeletons: OracleScreener, MarketHealth
+- ✅ Oracle backtest win rate surfaced on Best Setups cards (≥50% green, 33–49% yellow, <33% red; null when <10 trades)
+- ✅ Eliz+Mayne MTF confluence: Titan signal confirmed on 4H/1D (Eliz) and 12H/1W (Mayne)
+- ✅ 119 backend tests: oracle, titan, analytics, market, worker, screener
 
-### Code Quality
+### v0.6.0 — Dashboard Redesign
 
-- ✅ Custom exception hierarchy with proper HTTP status codes
-- ✅ Comprehensive docstrings (Google-style) in all services
-- ✅ Shared validation schemas for input validation
-- ✅ Replaced all `print()` with `logger` calls
-- ✅ Removed debug `console.log()` from frontend
+- ✅ New dashboard layout: DashboardStatusBar, ActiveSetups, BTCCard, DashboardWatchlist, TopMovers
+- ✅ /markets page for full CoinTable (freed dashboard from data overload)
+- ✅ Space Grotesk + DM Mono fonts (self-hosted)
+- ✅ DrawingToolbar removed — chart is now full-width
+- ✅ CoinDetailsPanel shows Oracle + Titan signals
 
-### Testing
+### v0.5.5 — Analytics Cleanup
 
-- ✅ 26 tests passing
-- ✅ Error handling test suite
-- ✅ Market data service tests
+- ✅ Removed Market Health, Trend Radar, Structure Scanner, Confluence Gauge, Liquidity Map (all redundant)
+- ✅ Analytics streamlined from 7 tabs to 5
 
 ---
 
@@ -397,10 +395,9 @@ npm run build
 
 ### Current Limitations
 
-1. **TODO**: `strategies/titan.py` line 165 - Squeeze indicator needs percentile check
-2. **Routes**: `routes/strategy.py` may need error handling review
-3. **Indicators**: Not all indicator functions have docstrings yet
-4. **Frontend**: No pagination on large tables (500+ items)
+1. **Indicators**: Not all indicator functions have docstrings yet
+2. **Frontend**: No pagination on large tables (500+ items)
+3. **Signal History**: No persistent log of fired signals yet (Item 4 in IMPROVEMENT_PLAN)
 
 ### Best Practices
 

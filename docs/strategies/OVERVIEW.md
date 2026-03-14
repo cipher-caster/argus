@@ -1,55 +1,74 @@
 # Argus Trading Strategies
 
-Argus includes professional-grade trading strategies ported from Pine Script (TradingView) to Python, allowing for real-time market scanning and live backtesting.
-
-## Available Strategies
-
-You can toggle these strategies from the **Indicators** menu on any chart.
-
-### 1. Prophet Strategy (v9.0) - Trend Following
-
-The core engine of Argus. A robust swing-trading strategy that combines "Earnest" momentum scoring with a "Macro Context" filter.
-
-- **Logic**: Earnest Brain (RSI, Bollinger, ADX, EMA) + Daily Trend Filter.
-- **Signals**: Fires when momentum aligns with the **Titan Trend** (Daily).
-- **Best for**: Trend following on 1H/4H timeframes.
+Argus includes two professional-grade trading strategies ported from Pine Script (TradingView) to Python, allowing for real-time market scanning and live backtesting.
 
 ---
 
-## The "Earnest Brain" (Voting System)
+## Strategy 1: Oracle (Prophet v9.0) — Swing Trend Following
 
-The strategy uses a confluence-based voting system to generate a confidence score:
+**Class**: `OracleStrategy` in `backend/app/strategies/oracle.py`
+**API**: `GET /api/strategy/oracle/{symbol}`
 
-| Voter         | Logic      | Bullish (+1)           | Bearish (-1)           |
-| ------------- | ---------- | ---------------------- | ---------------------- |
-| **RSI**       | Momentum   | 50 < RSI < 70          | 30 < RSI < 50          |
-| **Bollinger** | Volatility | Breaking out above Mid | Breaking out below Mid |
-| **ADX**       | Strength   | Trend > 20 & P > EMA   | Trend > 20 & P < EMA   |
-| **EMA**       | Trend      | Price > EMA 200        | Price < EMA 200        |
+The core scoring engine. Combines an "Earnest Brain" micro-analysis with a "Prophet" macro-context filter.
+
+- **Earnest Brain**: 4-voter confluence system (RSI, Bollinger, ADX, EMA) → score -4 to +4
+- **Macro Filter**: Daily Ichimoku Cloud + EMA200 + OBV trend check → BULLISH / NEUTRAL / BEARISH
+- **Signal synthesis**: `STRONG_BUY`, `BUY`, `STRONG_SELL`, `SELL`, `NEUTRAL`
+- **Best for**: 1H/4H swing entries with daily trend alignment
+
+See `docs/analytics/ORACLE_SCREENER.md` for full voter logic.
+
+---
+
+## Strategy 2: Titan — Unified Trend + Momentum
+
+**Class**: `TitanStrategy` in `backend/app/strategies/titan.py`
+**API**: `GET /api/strategy/titan/{symbol}`
+
+A hybrid strategy combining trend structure with momentum confirmation.
+
+- **Signals**: `BUY`, `SELL`, `BUY_LIMIT`, `SELL_LIMIT`, `WAIT_OB`, `WAIT_OS`
+- **Confidence**: 0–100 score
+- **Best for**: 4H entries with momentum confirmation
+
+See `docs/analytics/TITAN_STRATEGY.md` for full signal logic.
+
+---
+
+## Earnest Brain (Voting System)
+
+Used by Oracle. Calculates the -4 to +4 Earnest Score:
+
+| Voter | Bullish (+1) | Bearish (-1) | Neutral (0) |
+|---|---|---|---|
+| **RSI** | 50 < RSI < 70 | 30 < RSI < 50 | Extremes (≥70 or ≤30) |
+| **Bollinger** | BB pos > 0.1 | BB pos < -0.1 | Near midband |
+| **ADX** | ADX > 20 & price > EMA200 | ADX > 20 & price < EMA200 | ADX ≤ 20 |
+| **EMA** | Price > EMA200 | Price < EMA200 | — |
 
 ---
 
 ## Live Backtesting & Performance
 
-Argus runs a real-time simulation on all visible chart history to calculate the efficacy of the selected strategy.
+Both strategies expose backtest data. Oracle's `_run_backtest()` simulates trades on historical candles:
 
-### Performance Metrics
+- **Trade targets**: TP = ATR × 3.0, SL = ATR × 1.5 (2:1 reward-to-risk)
+- **Break-even win rate**: 33.3% (at 2:1 RR)
+- **Metrics returned**: `win_rate`, `total_trades`, `net_profit`, last 5 trades detail
 
-Displayed in the floating **Strategy Panel**:
-
-- **Win Rate**: Percentage of trades that hit Target (3R) before Stop Loss (1.5R).
-- **Net PnL**: Cumulative percentage gain/loss across all simulated trades.
-- **Total Trades**: Number of signals detected in the current history.
-
-### Visual Verification
-
-- **Arrows**: Green (Buy) and Red (Sell) markers are plotted on historical candles where the strategy entered.
-- **Advice**: A human-readable summary of the current market state and trade potential.
+Win rate thresholds used in Best Setups cards:
+- ≥ 50% → green (solidly profitable)
+- 33–49% → yellow (marginal but above break-even)
+- < 33% → red (below break-even)
+- `null` when total_trades < 10 (insufficient sample)
 
 ---
 
-## Implementation Details
+## Eliz + Mayne MTF Confluence
 
-- **Backend Engine**: `backend/app/strategies/oracle.py`
-- **Backtest Logic**: `_run_backtest()` simulates trades with ATR-based targets.
-- **API Endpoint**: `GET /api/strategy/oracle/{symbol}`
+Best Setups cards show Titan signal confirmation across 4 timeframes, based on the Eliz (@eliz883) + Trader Mayne (@Tradermayne) framework:
+
+- **Eliz lane**: 4H (entry trigger) + 1D (swing structure)
+- **Mayne lane**: 12H (higher-TF bias) + 1W (macro/weekly direction)
+
+All four confirmed = full confluence swing trade. Partial confirmation = lower-timeframe or entry-only setup.

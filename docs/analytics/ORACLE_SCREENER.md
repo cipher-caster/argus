@@ -4,44 +4,58 @@
 
 ## The Earnest Score
 
-Every asset is given a "Confidence Score" from **0 to 4** based on a voting system. Call this the "Earnest Score".
+Every asset is given a score from **-4 to +4** based on a voting system (the "Earnest Brain"). Positive = bullish momentum, negative = bearish.
 
 ### The Voters
 
-The score is the sum of four independent voters. If they agree, the score is high. If they disagree, the score is low.
+The score is the sum of four independent voters. Implementation: `backend/app/strategies/oracle.py → _calculate_earnest_score()`
 
-1.  **RSI Voter**:
-    - **Bull Vote (+1)**: RSI between 50-70 (Trend Strength) or Bullish Divergence.
-    - **Bear Vote (-1)**: RSI < 50 or Bearish Divergence.
-2.  **Bollinger Voter**:
-    - **Bull Vote (+1)**: Price above Middle Band + Bandwidth expanding.
-    - **Bear Vote (-1)**: Price below Middle Band.
-3.  **EMA Trend Voter**:
-    - **Bull Vote (+1)**: Price > 20 EMA > 50 EMA.
-    - **Bear Vote (-1)**: Price < 20 EMA < 50 EMA.
-4.  **ADX Momentum Voter**:
-    - **Bull Vote (+1)**: ADX > 25 (Strong Trend).
-    - **Neutral (0)**: ADX < 25 (Chop).
+| Voter | Bullish (+1) | Bearish (-1) | Neutral (0) |
+|---|---|---|---|
+| **RSI** | 50 < RSI < 70 | 30 < RSI < 50 | RSI ≥ 70 or ≤ 30 (extremes excluded) |
+| **Bollinger** | BB position > 0.1 (above mid) | BB position < -0.1 (below mid) | Near midband |
+| **ADX** | ADX > 20 AND price > EMA200 | ADX > 20 AND price < EMA200 | ADX ≤ 20 (chop) |
+| **EMA** | Price > EMA200 | Price < EMA200 | — |
+
+> BB position = `(close - bb_mid) / (bb_upper - bb_lower)`
 
 ### The Scorecard
 
-- **+4 / +3**: **STRONG BUY** (High probability trend following).
-- **+1 / +2**: **WEAK BUY** (Wait for confirmation).
-- **0**: **NEUTRAL** (Do not trade).
-- **-1 / -2**: **WEAK SELL**.
-- **-3 / -4**: **STRONG SELL**.
+- **+4 / +3**: **STRONG BUY** — high-probability trend following
+- **+1 / +2**: **WEAK BUY** — wait for confirmation
+- **0**: **NEUTRAL** — do not trade
+- **-1 / -2**: **WEAK SELL**
+- **-3 / -4**: **STRONG SELL**
 
-## Market State & Liquidity
+## Macro Bias (Prophet Filter)
 
-The Oracle also classifies the specific asset's state:
+The Oracle also runs a macro check on the daily timeframe via `_calculate_macro_bias()`:
 
-- **SLEEPING**: Low volatility. Do not trade breakouts.
-- **ACTIVE**: Normal volatility. Good for trading.
-- **DANGER**: High volatility. Stop-hunts likely. Manage risk tightly.
+| Check | Condition |
+|---|---|
+| Trend | Price > EMA200 |
+| Cloud | Price > Ichimoku Cloud Top |
+| OBV | OBV > OBV 20-period SMA |
 
-## Relative Strength (vs BTC)
+- Score ≥ 2 → **BULLISH**
+- Score = 1 → **NEUTRAL**
+- Score = 0 → **BEARISH**
 
-The Screener compares the asset's performance to Bitcoin over the same timeframe.
+Signal synthesis (`_synthesize_signal()`):
+- Macro ≥ 2 AND Earnest ≥ 3 → `STRONG_BUY`
+- Earnest ≥ 3 (any macro) → `BUY`
+- Macro = 0 AND Earnest ≤ -3 → `STRONG_SELL`
+- Earnest ≤ -3 (any macro) → `SELL`
 
-- **STRONG**: Outperforming BTC (Alpha). Focus on Longs here during Bull runs.
-- **WEAK**: Underperforming BTC. Avoid Longs even if the signal is buy (Beta lag).
+## Market State
+
+The Oracle classifies the asset's volatility regime via `_detect_market_state()`:
+
+- **SLEEPING**: ADX ≤ 20. Choppy/ranging. Do not trade breakouts.
+- **TRENDING**: 20 < ADX ≤ 40. Normal trending conditions.
+- **SUPER TREND**: ADX > 40. Strong directional move.
+
+Volatility tag (based on normalized ATR = `atr/close * 100`):
+- **STABLE**: norm_atr < 0.5%
+- **ACTIVE**: 0.5–2%
+- **DANGER**: > 2% — reduce leverage
