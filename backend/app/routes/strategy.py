@@ -3,10 +3,13 @@ Strategy API Routes
 Endpoints for running technical strategies on market data
 """
 
+import logging
 from fastapi import APIRouter, HTTPException, Query
 from typing import Dict, Any, Optional
 import pandas as pd
 from sqlmodel import select
+
+logger = logging.getLogger(__name__)
 
 from app.strategies.oracle import OracleStrategy
 from app.strategies.titan import TitanStrategy
@@ -76,7 +79,7 @@ async def get_candles_df(symbol: str, timeframe: str, limit: int = 500, provider
                 # Fetch 2x limit to be safe
                 fetch_limit = limit if limit <= 1000 else 1000
                 
-                print(f"I: Fetching {timeframe} for {symbol} strategy...")
+                logger.info(f"Fetching {timeframe} for {symbol} from Binance")
                 fresh = await local_provider.get_ohlcv(symbol, timeframe=timeframe, limit=fetch_limit)
                 
                 # Save to DB (Async)
@@ -110,7 +113,7 @@ async def get_candles_df(symbol: str, timeframe: str, limit: int = 500, provider
                 if not provider:  # Only close if we created it locally
                     await local_provider.close()
         except Exception as e:
-             print(f"E: Failed to fetch strategy data: {e}")
+             logger.error(f"Failed to fetch strategy data for {symbol} {timeframe}: {e}")
              return pd.DataFrame()
     else:
         # Use DB data

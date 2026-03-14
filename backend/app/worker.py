@@ -161,31 +161,29 @@ async def sync_analytics_cache(ctx):
     Runs every 5 minutes, offset from snapshot job.
     """
     from app.routes.analytics import (
-        get_oracle_screener, get_market_health, 
-        get_liquidity_sweeps_analytics, get_relative_strength_analytics,
-        get_contrarian_radar, get_oracle_signal_summary
+        get_oracle_screener,
+        get_relative_strength_analytics,
+        get_contrarian_radar,
+        get_oracle_signal_summary,
     )
-    
+
     logger.info("Job: Pre-warming Analytics Cache...")
-    
+
     timeframes = ["1h", "4h", "1d"]
     for tf in timeframes:
         try:
             await get_oracle_screener(limit=50, timeframe=tf)
-            await get_market_health(limit=100, timeframe=tf)
-            await get_liquidity_sweeps_analytics(limit=50, timeframe=tf)
             await get_relative_strength_analytics(limit=50, timeframe=tf)
             await get_contrarian_radar(limit=50, timeframe=tf)
             logger.info(f"Job: Analytics cache warmed for {tf}")
         except Exception as e:
             logger.warning(f"Cache warm failed for {tf}: {e}")
-    
-    # Also warm the signal summary (no timeframe param)
+
     try:
         await get_oracle_signal_summary()
     except Exception as e:
         logger.warning(f"Cache warm failed for signal-summary: {e}")
-    
+
     logger.info("Job: Analytics Cache Pre-warm Complete")
 
 # --- Worker Settings ---
