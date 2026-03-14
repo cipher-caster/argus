@@ -413,7 +413,7 @@ See `docs/SLASH_COMMANDS.md` for full documentation including how to interpret e
 
 1. **Indicators**: Not all indicator functions have docstrings yet
 2. **Frontend**: No pagination on large tables (500+ items)
-3. **Signal History**: No persistent log of fired signals yet (Item 4 in IMPROVEMENT_PLAN)
+3. **Signal History**: No persistent log of fired signals yet
 
 ### Best Practices
 

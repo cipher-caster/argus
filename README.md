@@ -103,5 +103,4 @@ Requires the backend to be running. If it's offline: `docker-compose up -d`
 - [`docs/backend/API.md`](docs/backend/API.md) — REST API reference
 - [`docs/backend/ARCHITECTURE.md`](docs/backend/ARCHITECTURE.md) — Backend design
 - [`docs/frontend/ARCHITECTURE.md`](docs/frontend/ARCHITECTURE.md) — Frontend patterns
-- [`docs/IMPROVEMENT_PLAN.md`](docs/IMPROVEMENT_PLAN.md) — Active backlog
 - [`docs/CHANGELOG.md`](docs/CHANGELOG.md) — Version history

@@ -92,7 +92,6 @@ Detailed architecture and implementation docs live in `docs/`:
 - `docs/backend/ERROR_HANDLING.md` — Exception hierarchy details
 - `docs/CHANGELOG.md` — Version history (current: v0.5.5)
 - `docs/ROADMAP.md` — Planned features
-- `docs/IMPROVEMENT_PLAN.md` — Active improvement backlog with status
 
 ## AI Slash Commands
 

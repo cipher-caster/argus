@@ -54,7 +54,6 @@
 
 | Document | Description |
 |---|---|
-| [IMPROVEMENT_PLAN.md](./IMPROVEMENT_PLAN.md) | Active backlog with status (Done / In Progress / Planned) |
 | [ROADMAP.md](./ROADMAP.md) | Planned features and future direction |
 | [CHANGELOG.md](./CHANGELOG.md) | Version history |
 
