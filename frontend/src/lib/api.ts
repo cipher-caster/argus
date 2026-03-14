@@ -231,6 +231,17 @@ export interface BestSetupItem {
   reason: string;
   oracle_score: number;
   titan_signal: string;
+  /** Win rate % from Oracle backtest. null when total_trades < 10 (insufficient sample). Break-even is 33.3% at 2:1 RR. */
+  win_rate: number | null;
+  /** Number of simulated trades. null when < 10. */
+  total_trades: number | null;
+  /**
+   * Eliz+Mayne MTF confluence. Titan signal confirmed on each timeframe.
+   * Eliz lane: 4h (entry trigger) + 1d (swing structure)
+   * Mayne lane: 12h (higher-TF bias) + 1w (macro/weekly direction)
+   * null when data unavailable.
+   */
+  timeframe_confirmation: { "4h": boolean; "1d": boolean; "12h": boolean; "1w": boolean } | null;
 }
 
 export interface BestSetupsResponse {

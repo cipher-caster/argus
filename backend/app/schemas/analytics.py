@@ -63,6 +63,13 @@ class BestSetupItem(BaseModel):
     reason: str
     oracle_score: int
     titan_signal: str
+    # Oracle backtest stats (None when < 10 trades — insufficient sample)
+    win_rate: Optional[float] = None   # % of winning trades; break-even at 33.3% for 2:1 RR
+    total_trades: Optional[int] = None
+    # Eliz+Mayne MTF confluence: Titan signal direction confirmed on each timeframe
+    # Eliz lane: 4h (entry trigger) + 1d (swing structure)
+    # Mayne lane: 12h (higher bias) + 1w (macro/weekly direction)
+    timeframe_confirmation: Optional[Dict[str, bool]] = None
 
 class BestSetupsResponse(BaseModel):
     data: List[BestSetupItem]

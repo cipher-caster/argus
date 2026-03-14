@@ -23,7 +23,7 @@ from app.schemas.analytics import (
     BestSetupsResponse,
 )
 
-from app.routes.strategy import get_candles_df, titan
+from app.routes.strategy import get_candles_df, titan, oracle
 from app.indicators.screener import run_oracle_screener
 from app.indicators.relative_strength import calculate_relative_strength
 from app.indicators.mean_reversion import detect_mean_reversion
@@ -291,6 +291,63 @@ async def get_best_setups(timeframe: str = "4h", limit: int = 50):
 
     results.sort(key=lambda x: x.conviction, reverse=True)
     results = results[:10]
+
+    # Enrich filtered results (≤10 coins) with:
+    #   1. Oracle backtest stats — win_rate / total_trades
+    #      Thresholds: ≥50% green, 33–49% yellow, <33% red (break-even = 33.3% at 2:1 RR).
+    #      Both fields stay None when total_trades < 10 (insufficient sample).
+    #
+    #   2. Eliz+Mayne MTF confluence — Titan signal confirmed on 4 timeframes:
+    #      Eliz lane → 4h (entry trigger) + 1d (swing structure)
+    #      Mayne lane → 12h (higher-TF bias) + 1w (weekly/macro direction)
+    #      A timeframe is "confirmed" if Titan agrees with the setup direction.
+    if results:
+        filtered_syms = [r.symbol for r in results]
+        try:
+            micro_dfs, daily_dfs, h12_dfs, w1_dfs = await asyncio.gather(
+                fetch_all_candles(filtered_syms, timeframe="1h", limit=300),
+                fetch_all_candles(filtered_syms, timeframe="1d", limit=300),
+                fetch_all_candles(filtered_syms, timeframe="12h", limit=250),  # Titan needs 200+ candles
+                fetch_all_candles(filtered_syms, timeframe="1w", limit=200),   # Titan needs 200+ candles
+            )
+            for item in results:
+                is_long = item.direction == "LONG"
+
+                # 1. Oracle backtest
+                micro_df = micro_dfs.get(item.symbol)
+                daily_df = daily_dfs.get(item.symbol)
+                if micro_df is not None and daily_df is not None:
+                    analysis = oracle.analyze(micro_df, daily_df)
+                    perf = analysis.get("performance", {})
+                    total = perf.get("total_trades", 0)
+                    if total >= 10:
+                        item.win_rate = perf.get("win_rate")
+                        item.total_trades = total
+
+                # 2. MTF confluence
+                mtf_sources = {
+                    "4h": titan_candles.get(item.symbol),  # Eliz — already fetched
+                    "1d": daily_df,                         # Eliz — reuse from above
+                    "12h": h12_dfs.get(item.symbol),        # Mayne
+                    "1w": w1_dfs.get(item.symbol),          # Mayne
+                }
+                tf_confirmation = {}
+                for tf, df in mtf_sources.items():
+                    if df is None or df.empty:
+                        tf_confirmation[tf] = False
+                        continue
+                    try:
+                        t = titan.analyze(df)
+                        sig = t.get("signal", "")
+                        tf_confirmation[tf] = (
+                            sig in ("BUY", "BUY_LIMIT") if is_long
+                            else sig in ("SELL", "SELL_LIMIT")
+                        )
+                    except Exception:
+                        tf_confirmation[tf] = False
+                item.timeframe_confirmation = tf_confirmation
+        except Exception as e:
+            logger.warning(f"MTF enrichment failed: {e}")
 
     response = {"data": [r.model_dump() for r in results], "last_updated": int(time.time() * 1000)}
     await RedisClient.set_json(cache_key, response, ttl=CACHE_TTL)

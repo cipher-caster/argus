@@ -11,38 +11,53 @@ Added `ScoreBadge` component to `/markets` CoinTable. Fetches `useOracleScreener
 
 ---
 
-## Item 2 — Backtest Win Rate on Best Setups Cards
-**Files:**
-- `backend/app/routes/analytics.py` — `get_best_setups()` endpoint
-- `backend/app/schemas/analytics.py` — `BestSetupItem` schema
-- `frontend/src/components/analytics/BestSetups.tsx`
+## ✅ Item 2 — Backtest Win Rate on Best Setups Cards
+**Status: DONE (v0.5.6)**
+
+Surfaced Oracle backtest stats (`win_rate`, `total_trades`) on each Best Setups card.
+
+**Implementation:**
+- Added `win_rate: Optional[float]` and `total_trades: Optional[int]` to `BestSetupItem` schema (both default `None`)
+- In `get_best_setups()`, after the conviction filter produces ≤10 coins, fetches 1h + 1d candles for those coins and runs `oracle.analyze()` to get backtest performance
+- Both fields remain `None` when `total_trades < 10` (sample too small to be meaningful)
+- Frontend shows a colored badge (`XX% hist.`) in the bottom-right of each card, or `— hist.` when data is insufficient
+
+**Thresholds (based on 2:1 RR math — break-even = 33.3%):**
+- ≥ 50% → green (solidly profitable)
+- 33–49% → yellow (marginal but above break-even)
+- < 33% → red (below break-even, losing on this coin)
+
+**Files changed:**
+- `backend/app/schemas/analytics.py`
+- `backend/app/routes/analytics.py`
 - `frontend/src/lib/api.ts`
-
-The Oracle strategy already runs a backtest and returns `performance.win_rate` and `performance.net_profit`. The best-setups endpoint currently discards this data. Surface it on each card.
-
-- Add `win_rate: float` and `total_trades: int` fields to `BestSetupItem`
-- In `get_best_setups()`, fetch Oracle strategy data per coin to get backtest stats
-- On each setup card show: `"Historical: 29% win rate (17 trades)"` with color coding:
-  - ≥50% → green, 35–50% → yellow, <35% → red
-
-**Result:** Every setup card shows whether the strategy has actually worked on that coin historically.
+- `frontend/src/components/analytics/BestSetups.tsx`
 
 ---
 
-## Item 3 — Multi-Timeframe Confirmation on Best Setups
-**Files:**
-- `backend/app/routes/analytics.py` — `get_best_setups()` endpoint
-- `backend/app/schemas/analytics.py` — `BestSetupItem` schema
-- `frontend/src/components/analytics/BestSetups.tsx`
+## ✅ Item 3 — Multi-Timeframe Confirmation on Best Setups (Eliz + Mayne Framework)
+**Status: DONE (v0.5.7)**
+
+MTF confluence based on the Eliz (@eliz883) + Trader Mayne (@Tradermayne) framework used in Walsh Wealth / WealthGroup circles:
+
+- **Eliz lane** → 4H (entry trigger) + 1D (swing structure). Intermediate setups.
+- **Mayne lane** → 12H (higher-TF bias) + 1W (macro/weekly direction). Big-picture filter.
+
+When all four align → full confluence, highest-conviction swing trade.
+When only Eliz aligns → intermediate setup, treat as shorter-duration.
+When only Mayne aligns → macro bias present but no near-term trigger yet.
+
+**Implementation:**
+- Added `timeframe_confirmation: Optional[Dict[str, bool]]` to `BestSetupItem` schema
+- In `get_best_setups()`, after filtering ≤10 coins, fetches 1d/12h/1w candles concurrently (4h reuses already-fetched `titan_candles`)
+- Runs Titan on each TF; "confirmed" = Titan signal matches setup direction (BUY/BUY_LIMIT for LONG, SELL/SELL_LIMIT for SHORT)
+- Frontend shows two grouped badge rows: `Eliz: 4H 1D` and `Mayne: 12H 1W` — green when confirmed, gray when not
+
+**Files changed:**
+- `backend/app/schemas/analytics.py`
+- `backend/app/routes/analytics.py`
 - `frontend/src/lib/api.ts`
-
-A setup confirmed on 1H + 4H + 1D is far stronger than one on a single timeframe. We already call Oracle and Titan per coin — extend this to run on all three timeframes.
-
-- Add `timeframe_confirmation: { "1h": bool, "4h": bool, "1d": bool }` to `BestSetupItem`
-- In `get_best_setups()`, run Titan on 1h, 4h, and 1d candles per coin
-- On setup cards show: `1H ✓  4H ✓  1D ✗` — confirmed timeframes in green, unconfirmed in gray
-
-**Result:** You can immediately see if a setup is a quick scalp (1H only) or a swing trade (all three aligned).
+- `frontend/src/components/analytics/BestSetups.tsx`
 
 ---
 
@@ -122,9 +137,8 @@ cd frontend && npm run test
 ## Order of Execution
 
 ```
-Item 2 → Item 3 → Item 4 → Item 5
+✅ Item 1 → ✅ Item 2 → ✅ Item 3 → Item 4 → ✅ Item 5
 ```
 
-Items 2–3 are backend additions with UI changes (~2–4 hours each).
-Item 4 is the largest — needs a DB migration and worker job (~1 day).
-Item 5 (tests) can be done incrementally alongside any of the above — start with backend unit tests since they're fastest to write and highest value.
+Item 4 is the remaining large item — needs a DB migration and worker job (~1 day).
+Item 5 (tests) is done and can be extended incrementally alongside any of the above.
