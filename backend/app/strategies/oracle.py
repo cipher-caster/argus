@@ -238,29 +238,29 @@ class OracleStrategy:
                 df.loc[idx, 'fvg_top'] = fvg['top']
                 df.loc[idx, 'fvg_bottom'] = fvg['bottom']
 
-        # Detect the *last unmitigated FVG* for the current price action
+        # Detect all unmitigated FVGs using a stack
         df['active_fvg_type'] = None
-        current_bull_fvg = None # [bottom, top]
-        current_bear_fvg = None 
+        open_bull_fvgs = [] # List of [bottom, top]
+        open_bear_fvgs = [] 
 
         for i in range(len(df)):
             row = df.iloc[i]
-            # 1. Update with new FVGs
-            if row['fvg_type'] == 'bullish':
-                current_bull_fvg = [row['fvg_bottom'], row['fvg_top']]
-            elif row['fvg_type'] == 'bearish':
-                current_bear_fvg = [row['fvg_bottom'], row['fvg_top']]
             
-            # 2. Check for mitigation (price filling the gap)
-            if current_bull_fvg and row['low'] <= current_bull_fvg[0]:
-                current_bull_fvg = None # Mitigated
-            if current_bear_fvg and row['high'] >= current_bear_fvg[1]:
-                current_bear_fvg = None # Mitigated
+            # 1. Add new FVGs to the stack
+            if row['fvg_type'] == 'bullish':
+                open_bull_fvgs.append([row['fvg_bottom'], row['fvg_top']])
+            elif row['fvg_type'] == 'bearish':
+                open_bear_fvgs.append([row['fvg_bottom'], row['fvg_top']])
+            
+            # 2. Check for mitigation across the entire stack
+            # We keep only gaps that haven't been touched by price yet
+            open_bull_fvgs = [fvg for fvg in open_bull_fvgs if row['low'] > fvg[0]]
+            open_bear_fvgs = [fvg for fvg in open_bear_fvgs if row['high'] < fvg[1]]
                 
-            # 3. Assign active FVG to row
-            if current_bull_fvg:
+            # 3. Assign the most recent active FVG type to the row
+            if open_bull_fvgs:
                 df.at[df.index[i], 'active_fvg_type'] = 'bullish'
-            elif current_bear_fvg:
+            elif open_bear_fvgs:
                 df.at[df.index[i], 'active_fvg_type'] = 'bearish'
 
     def _calculate_earnest_score(self, row: pd.Series) -> Dict[str, Any]:
