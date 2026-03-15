@@ -150,6 +150,12 @@ class TitanStrategy:
             if not idx.empty:
                 df.loc[idx, 'sweep_type'] = sweep['type']
 
+        # HTF Levels: 24H and 7D High/Low for Confluence
+        df['htf_24h_high'] = df['high'].rolling(24).max()
+        df['htf_24h_low'] = df['low'].rolling(24).min()
+        df['htf_7d_high'] = df['high'].rolling(24 * 7).max()
+        df['htf_7d_low'] = df['low'].rolling(24 * 7).min()
+
     def _analyze_momentum(self, row: pd.Series) -> Dict[str, Any]:
         """Analyzes RSI and MACD for momentum alignment."""
         rsi = row.get('rsi', 50)
@@ -212,12 +218,25 @@ class TitanStrategy:
         st_val = row.get('supertrend', 0)
         ema20 = row.get('ema20', row['close'])
         mss_type = row.get('mss_type')
+        atr = row.get('atr', row['close'] * 0.01)
         
+        # HTF Confluence Check (Proximity to 24H or 7D levels)
+        near_htf_low = False
+        near_htf_high = False
+        if not pd.isna(row.get('htf_24h_low')):
+            near_htf_low = abs(row['close'] - row['htf_24h_low']) <= atr or abs(row['close'] - row.get('htf_7d_low', 0)) <= atr
+        if not pd.isna(row.get('htf_24h_high')):
+            near_htf_high = abs(row['close'] - row['htf_24h_high']) <= atr or abs(row['close'] - row.get('htf_7d_high', 0)) <= atr
+
         # BULLISH SETUP
         if trend == "BULLISH":
             # SMC TRIGGER: Bullish MSS + Sweep Confluence
             if mss_type == 'bullish':
-                if recent_sweep == 'bullish':
+                if recent_sweep == 'bullish' and near_htf_low:
+                    signal_type = "STRONG_BUY"
+                    confidence = 100
+                    reasons.append("SMC: ELITE CONFLUENCE (Sweep + MSS + HTF Support).")
+                elif recent_sweep == 'bullish':
                     signal_type = "STRONG_BUY"
                     confidence = 95
                     reasons.append("SMC: High-Conviction Sweep + MSS Combo.")
@@ -262,7 +281,11 @@ class TitanStrategy:
         elif trend == "BEARISH":
             # SMC TRIGGER: Bearish MSS + Sweep Confluence
             if mss_type == 'bearish':
-                if recent_sweep == 'bearish':
+                if recent_sweep == 'bearish' and near_htf_high:
+                    signal_type = "STRONG_SELL"
+                    confidence = 100
+                    reasons.append("SMC: ELITE CONFLUENCE (Sweep + MSS + HTF Resistance).")
+                elif recent_sweep == 'bearish':
                     signal_type = "STRONG_SELL"
                     confidence = 95
                     reasons.append("SMC: High-Conviction Sweep + MSS Combo.")
