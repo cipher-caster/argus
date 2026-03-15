@@ -22,18 +22,29 @@ function SetupCard({ item, coinMeta }: { item: BestSetupItem; coinMeta: any }) {
   const isLong = item.direction === "LONG";
   const tpPct = isLong ? pct(item.entry, item.tp) : pct(item.tp, item.entry);
   const slPct = isLong ? pct(item.entry, item.sl) : pct(item.sl, item.entry);
+  const isElite = item.conviction >= 95;
 
   return (
     <Link href={`/chart/${item.symbol.replace("/", "-")}`} className="block group">
-      <div className="bg-secondary/30 border border-border/50 rounded-2xl p-5 hover:border-primary/40 hover:bg-secondary/50 transition-all duration-300 space-y-4">
+      <div className={cn(
+        "bg-secondary/30 border rounded-2xl p-5 hover:bg-secondary/50 transition-all duration-300 space-y-4",
+        isElite ? "border-amber-500/50 shadow-[0_0_15px_rgba(245,158,11,0.1)]" : "border-border/50 hover:border-primary/40"
+      )}>
         {/* Header row */}
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
             <CoinIcon symbol={item.symbol} coinMeta={coinMeta} size={36} className="rounded-xl" />
             <div>
-              <span className="font-black text-sm tracking-tight group-hover:text-primary transition-colors">
-                {item.symbol.replace("USDT", "")}
-              </span>
+              <div className="flex items-center gap-2">
+                <span className="font-black text-sm tracking-tight group-hover:text-primary transition-colors">
+                  {item.symbol.replace("USDT", "")}
+                </span>
+                {isElite && (
+                  <Badge className="bg-amber-500 text-[8px] h-4 px-1 font-black animate-pulse border-none">
+                    ELITE
+                  </Badge>
+                )}
+              </div>
               <p className="text-xs text-muted-foreground font-mono">${formatPrice(item.entry)}</p>
             </div>
           </div>

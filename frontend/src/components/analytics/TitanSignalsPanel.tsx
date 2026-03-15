@@ -100,14 +100,29 @@ function SignalRow({ item, coinMeta }: { item: TitanRadarItem; coinMeta: any }) 
   const isBuy = item.signal.includes("BUY");
   const isSell = item.signal.includes("SELL");
   const isLimit = item.signal.includes("LIMIT");
+  const isElite = item.confidence >= 95;
 
   return (
     <tr className="hover:bg-muted/20 transition-colors">
       <td className="px-4 py-3 font-bold">
-        <Link href={`/chart/${item.symbol.replace("/", "-")}`} className="flex items-center gap-2 hover:text-primary transition-colors">
-          <CoinIcon symbol={item.symbol} coinMeta={coinMeta} size={24} />
-          <span>{item.symbol.split("/")[0]}</span>
-        </Link>
+        <div className="flex items-center gap-2">
+          <Link href={`/chart/${item.symbol.replace("/", "-")}`} className="flex items-center gap-2 hover:text-primary transition-colors">
+            <CoinIcon symbol={item.symbol} coinMeta={coinMeta} size={24} />
+            <span>{item.symbol.split("/")[0]}</span>
+          </Link>
+          <div className="flex gap-1">
+            {item.mss_type && (
+              <Badge variant="outline" className="text-[7px] h-3 px-0.5 font-black bg-blue-500/10 border-blue-500/30 text-blue-500">
+                MSS
+              </Badge>
+            )}
+            {item.sweep_type && (
+              <Badge variant="outline" className="text-[7px] h-3 px-0.5 font-black bg-amber-500/10 border-amber-500/30 text-amber-500">
+                SWEEP
+              </Badge>
+            )}
+          </div>
+        </div>
       </td>
       <td className="px-4 py-3 text-right font-mono text-xs">{formatPrice(item.price)}</td>
 
@@ -115,13 +130,15 @@ function SignalRow({ item, coinMeta }: { item: TitanRadarItem; coinMeta: any }) 
         <div
           className={cn(
             "inline-flex items-center gap-1.5 px-3 py-1 rounded-md text-[10px] font-black uppercase tracking-wide border mx-auto",
-            isWait
-              ? "bg-yellow-500/10 text-yellow-500 border-yellow-500/20"
-              : isBuy
-                ? "bg-green-500/10 text-green-500 border-green-500/20 shadow-[0_0_10px_-3px_rgba(34,197,94,0.3)]"
-                : isSell
-                  ? "bg-red-500/10 text-red-500 border-red-500/20 shadow-[0_0_10px_-3px_rgba(239,68,68,0.3)]"
-                  : "bg-secondary text-muted-foreground",
+            isElite
+              ? isBuy ? "bg-emerald-600 text-white border-emerald-400 animate-pulse shadow-[0_0_10px_rgba(16,185,129,0.4)]" : "bg-rose-600 text-white border-rose-400 animate-pulse shadow-[0_0_10px_rgba(244,63,94,0.4)]"
+              : isWait
+                ? "bg-yellow-500/10 text-yellow-500 border-yellow-500/20"
+                : isBuy
+                  ? "bg-green-500/10 text-green-500 border-green-500/20 shadow-[0_0_10px_-3px_rgba(34,197,94,0.3)]"
+                  : isSell
+                    ? "bg-red-500/10 text-red-500 border-red-500/20 shadow-[0_0_10px_-3px_rgba(239,68,68,0.3)]"
+                    : "bg-secondary text-muted-foreground",
           )}
         >
           {isWait ? <PauseCircle size={10} /> : isBuy ? <ArrowUp size={10} /> : <ArrowDown size={10} />}

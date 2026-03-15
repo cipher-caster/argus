@@ -238,30 +238,21 @@ async def get_best_setups(timeframe: str = "4h", limit: int = 50):
                 continue
 
             o_score = o.get("score", 0)
-            o_bias = o.get("bias", "NEUTRAL")
-            o_state = o.get("state", "")
-
-            if o_state == "SLEEPING":
-                continue
-            if is_long and (o_score < 2 or o_bias != "BULLISH"):
-                continue
-            if is_short and (o_score > -2 or o_bias != "BEARISH"):
-                continue
-
-            # Conviction: Oracle 40pts + Titan 40pts + bonuses 20pts
-            oracle_pts = (abs(o_score) / 4) * 40
+            # Use the /5 score for conviction calculation
+            oracle_pts = (abs(o_score) / 5) * 40
             titan_pts = (t_confidence / 100) * 40
             bonus = 0
             if t_signal in ("BUY", "SELL"):   # perfect setup, not just limit
                 bonus += 10
-            if abs(o_score) >= 3:
+            if abs(o_score) >= 4: # Strongest Oracle
                 bonus += 10
             conviction = int(min(100, oracle_pts + titan_pts + bonus))
 
             targets = t.get("targets", {})
             price = float(df.iloc[-1]["close"])
             reasons = t.get("reasons", [])
-            reason = f"Oracle {o_bias} {o_score:+d}/4 | " + " | ".join(reasons[:2])
+            o_bias = o.get("bias", "NEUTRAL")
+            reason = f"Oracle {o_bias} {o_score:+d}/5 | " + " | ".join(reasons[:2])
 
             results.append(BestSetupItem(
                 symbol=sym,
@@ -386,7 +377,9 @@ async def get_titan_radar(limit: int = 50, timeframe: str = "4h"):
                 tp=analysis['targets'].get('tp', 0),
                 sl=analysis['targets'].get('sl', 0),
                 advice=analysis['sizing'],
-                reasons=analysis.get('reasons', [])
+                reasons=analysis.get('reasons', []),
+                mss_type=analysis.get('mss_type'),
+                sweep_type=analysis.get('sweep_type')
             )
             results.append(item)
         except CalculationError as e:

@@ -170,6 +170,8 @@ export interface TitanRadarItem {
   sl: number;
   advice: string;
   reasons: string[];
+  mss_type?: "bullish" | "bearish" | null;
+  sweep_type?: "bullish" | "bearish" | null;
 }
 
 export interface TitanRadarResponse {
