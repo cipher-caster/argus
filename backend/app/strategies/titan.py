@@ -3,6 +3,8 @@ import pandas_ta as ta
 import numpy as np
 from typing import Dict, Any, Optional
 
+from app.indicators.calculator import _mss_to_list
+
 class TitanStrategy:
     """
     Titan Unified Crypto Trading System
@@ -119,6 +121,16 @@ class TitanStrategy:
             df['supertrend_dir'] = st[f'SUPERTd_{self.st_len}_{self.st_mult}']
             df['supertrend'] = st[f'SUPERT_{self.st_len}_{self.st_mult}']
 
+        # SMC: Market Structure Shift
+        shifts = _mss_to_list(df, lookback=2)
+        df['mss_type'] = None
+        df['mss_price'] = None
+        for shift in shifts:
+            idx = df[df['timestamp'] == shift['timestamp']].index
+            if not idx.empty:
+                df.loc[idx, 'mss_type'] = shift['type']
+                df.loc[idx, 'mss_price'] = shift['price']
+
     def _analyze_momentum(self, row: pd.Series) -> Dict[str, Any]:
         """Analyzes RSI and MACD for momentum alignment."""
         rsi = row.get('rsi', 50)
@@ -180,11 +192,20 @@ class TitanStrategy:
         st_bullish = row.get('supertrend_dir', 0) > 0
         st_val = row.get('supertrend', 0)
         ema20 = row.get('ema20', row['close'])
+        mss_type = row.get('mss_type')
         
         # BULLISH SETUP
         if trend == "BULLISH":
+            # SMC TRIGGER: Bullish MSS
+            if mss_type == 'bullish':
+                signal_type = "STRONG_BUY"
+                confidence = 90
+                reasons.append("SMC: Bullish Market Structure Shift detected.")
+                reasons.append("Trend: Macro Bullish Alignment.")
+                ideal_entry = row['close']
+
             # Overbought Check
-            if momentum['rsi_val'] > 70:
+            elif momentum['rsi_val'] > 70:
                 signal_type = "WAIT_OB" # Overbought
                 confidence = 0
                 reasons.append("Status: Overbought (RSI > 70)")
@@ -214,8 +235,16 @@ class TitanStrategy:
             
         # BEARISH SETUP
         elif trend == "BEARISH":
+            # SMC TRIGGER: Bearish MSS
+            if mss_type == 'bearish':
+                signal_type = "STRONG_SELL"
+                confidence = 90
+                reasons.append("SMC: Bearish Market Structure Shift detected.")
+                reasons.append("Trend: Macro Bearish Alignment.")
+                ideal_entry = row['close']
+
             # Oversold Check
-            if momentum['rsi_val'] < 30:
+            elif momentum['rsi_val'] < 30:
                 signal_type = "WAIT_OS" # Oversold
                 confidence = 0
                 reasons.append("Status: Oversold (RSI < 30)")

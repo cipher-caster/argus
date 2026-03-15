@@ -116,6 +116,14 @@ INDICATOR_REGISTRY: Dict[str, Dict[str, Any]] = {
         "params": [],
         "description": "Detects 3-candle Fair Value Gaps (ICT/SMC)",
     },
+    "mss": {
+        "display_name": "Market Structure Shift",
+        "type": "overlay",
+        "params": [
+            {"name": "lookback", "type": "int", "default": 2, "min": 1, "max": 10}
+        ],
+        "description": "Detects Bullish/Bearish Market Structure Shifts (ICT/SMC)",
+    },
 }
 
 
@@ -211,6 +219,10 @@ def calculate_indicator(
 
         elif indicator_name == "fvg":
             result_data = _fvg_to_list(df)
+
+        elif indicator_name == "mss":
+            lookback = params.get("lookback", 2)
+            result_data = _mss_to_list(df, lookback)
             
     except Exception as e:
         print(f"Error calculating {indicator_name}: {e}")
@@ -353,3 +365,60 @@ def _fvg_to_list(df: pd.DataFrame) -> List[Dict[str, Any]]:
             })
             
     return result
+
+
+def _mss_to_list(df: pd.DataFrame, lookback: int = 2) -> List[Dict[str, Any]]:
+    """Detect Market Structure Shifts (MSS)"""
+    result = []
+    if len(df) < (lookback * 2 + 1):
+        return []
+
+    last_pivot_high = None
+    last_pivot_low = None
+    
+    for i in range(lookback, len(df) - lookback):
+        # 1. Detect Pivot High
+        is_pivot_high = True
+        for j in range(1, lookback + 1):
+            if df['high'].iloc[i] <= df['high'].iloc[i-j] or df['high'].iloc[i] <= df['high'].iloc[i+j]:
+                is_pivot_high = False
+                break
+        if is_pivot_high:
+            last_pivot_high = df['high'].iloc[i]
+            # print(f"Pivot High found at {i}: {last_pivot_high}")
+
+        # 2. Detect Pivot Low
+        is_pivot_low = True
+        for j in range(1, lookback + 1):
+            if df['low'].iloc[i] >= df['low'].iloc[i-j] or df['low'].iloc[i] >= df['low'].iloc[i+j]:
+                is_pivot_low = False
+                break
+        if is_pivot_low:
+            last_pivot_low = df['low'].iloc[i]
+            # print(f"Pivot Low found at {i}: {last_pivot_low}")
+
+        # 3. Detect Structural Breaks (MSS) - Checked every candle
+        # Bullish MSS: Close > Last Pivot High
+        if last_pivot_high and df['close'].iloc[i] > last_pivot_high:
+            # print(f"Bullish MSS detected at {i}: {df['close'].iloc[i]} > {last_pivot_high}")
+            ts = df['timestamp'].iloc[i]
+            result.append({
+                "timestamp": int(ts.timestamp() * 1000) if isinstance(ts, pd.Timestamp) else int(ts),
+                "type": "bullish",
+                "price": float(last_pivot_high)
+            })
+            last_pivot_high = None # Reset until next pivot
+
+        # Bearish MSS: Close < Last Pivot Low
+        elif last_pivot_low and df['close'].iloc[i] < last_pivot_low:
+            # print(f"Bearish MSS detected at {i}: {df['close'].iloc[i]} < {last_pivot_low}")
+            ts = df['timestamp'].iloc[i]
+            result.append({
+                "timestamp": int(ts.timestamp() * 1000) if isinstance(ts, pd.Timestamp) else int(ts),
+                "type": "bearish",
+                "price": float(last_pivot_low)
+            })
+            last_pivot_low = None
+            
+    return result
+
