@@ -275,6 +275,7 @@ export interface OracleStrategyResponse {
   bias: "BULLISH" | "BEARISH" | "NEUTRAL";
   state: string;
   volatility: string;
+  active_fvg_type?: "bullish" | "bearish" | null;
   earnest: {
     score: number;
     voters: Record<string, number>;
@@ -306,9 +307,12 @@ export interface TitanStrategyResponse {
   symbol: string;
   timeframe: string;
   price: number;
-  signal: "BUY" | "BUY_LIMIT" | "SELL" | "SELL_LIMIT" | "WAIT_OB" | "WAIT_OS" | "NEUTRAL";
+  signal: string;
   confidence: number;
   trend: "BULLISH" | "BEARISH" | "NEUTRAL";
+  mss_type?: "bullish" | "bearish" | null;
+  mss_price?: number | null;
+  sweep_type?: "bullish" | "bearish" | null;
   momentum: {
     status: string;
     rsi_val: number;

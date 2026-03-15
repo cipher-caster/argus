@@ -61,11 +61,18 @@ function deriveSpotSetup(
     const rr1 = tp1 ? (tp1 - entry) / (entry - sl) : undefined;
     const rr2 = tp2 ? (tp2 - entry) / (entry - sl) : undefined;
     const rrMax = maxTarget ? (maxTarget - entry) / (entry - sl) : undefined;
+    
+    let reason = useLimit
+      ? `Oracle ${oracle.signal.replace("_", " ")} + Titan BULLISH. Wait for pullback to EMA20.`
+      : "Oracle and Titan both bullish — confirmed entry.";
+    
+    if (titan.confidence >= 95) {
+      reason = `[INSTITUTIONAL EDGE] ${reason}`;
+    }
+
     return {
       stance: useLimit ? "BUY_LIMIT" : "BUY",
-      reason: useLimit
-        ? `Oracle ${oracle.signal.replace("_", " ")} + Titan BULLISH. Wait for pullback to EMA20.`
-        : "Oracle and Titan both bullish — confirmed entry.",
+      reason,
       entry, tp1, tp2, maxTarget, sl, rr1, rr2, rrMax,
       entryNote: useLimit
         ? `Limit ~${(((price - entry) / price) * 100).toFixed(1)}% below current`
@@ -145,7 +152,7 @@ function deriveSummary(
 ): string {
   const base = oracle.symbol.replace("/USDT", "");
   const oracleStr = oracle.signal.replace(/_/g, " ");
-  const situation = `${base} is trading at $${price.toFixed(2)} with Oracle ${oracleStr} (${oracle.earnest.score}/4 voters) and Titan ${titan.trend} trend (${titan.confidence}% confidence).`;
+  const situation = `${base} is trading at $${price.toFixed(2)} with Oracle ${oracleStr} (${oracle.earnest.score}/5 voters) and Titan ${titan.trend} trend (${titan.confidence}% confidence).`;
 
   const bullLevel = levels.resistances[0]?.price ?? setup.tp1;
   const bullTrigger =
@@ -225,6 +232,9 @@ function AnalysisBody({ oracle, titan, price }: {
   const summary = deriveSummary(oracle, titan, price, setup, levels);
   const isBullOracle = oracle.bias === "BULLISH";
   const isBearOracle = oracle.bias === "BEARISH";
+  const hasFVG = !!oracle.active_fvg_type;
+  const hasMSS = !!titan.mss_type;
+  const hasSweep = !!titan.sweep_type;
 
   return (
     <div className="divide-y divide-border">
@@ -233,6 +243,33 @@ function AnalysisBody({ oracle, titan, price }: {
         <SectionTitle icon={<ShieldAlert size={13} />}>Summary</SectionTitle>
         <p className="text-[12px] leading-relaxed text-muted-foreground">{summary}</p>
       </div>
+
+      {/* ── Institutional Confluence (SMC) ──────────────────────────── */}
+      {(hasFVG || hasMSS || hasSweep) && (
+        <div className="p-5 bg-amber-500/5 space-y-3">
+          <SectionTitle icon={<Target size={13} className="text-amber-600" />}>Institutional Context (SMC)</SectionTitle>
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+            {hasFVG && (
+              <div className="p-2 rounded-lg bg-background border border-amber-500/20">
+                <div className="text-[9px] font-bold uppercase text-amber-600 mb-1">Fair Value Gap</div>
+                <div className="text-xs font-bold text-foreground capitalize">{oracle.active_fvg_type} Gap Active</div>
+              </div>
+            )}
+            {hasMSS && (
+              <div className="p-2 rounded-lg bg-background border border-amber-500/20">
+                <div className="text-[9px] font-bold uppercase text-amber-600 mb-1">Market Structure</div>
+                <div className="text-xs font-bold text-foreground capitalize">{titan.mss_type} Shift @ ${fmt(titan.mss_price || 0)}</div>
+              </div>
+            )}
+            {hasSweep && (
+              <div className="p-2 rounded-lg bg-background border border-amber-500/20">
+                <div className="text-[9px] font-bold uppercase text-amber-600 mb-1">Liquidity Grab</div>
+                <div className="text-xs font-bold text-foreground capitalize">{titan.sweep_type} Sweep Detected</div>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
 
       {/* ── Oracle Signal ───────────────────────────────────────────── */}
       <div className="p-5 space-y-3">

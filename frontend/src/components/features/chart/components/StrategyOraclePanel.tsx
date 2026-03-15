@@ -30,10 +30,12 @@ export function StrategyOraclePanel({ symbol, timeframe }: StrategyOraclePanelPr
 
   const isBullish = data.bias === "BULLISH";
   const isBearish = data.bias === "BEARISH";
+  const isElite = data.confidence === "5/5" || data.advice.includes("ELITE");
+  const hasFVG = !!data.active_fvg_type;
 
   const getSignalColor = (signal: string) => {
-    if (signal.includes("BUY")) return "text-emerald-700 dark:text-emerald-400 bg-emerald-500/10 border-emerald-500/20";
-    if (signal.includes("SELL")) return "text-rose-700 dark:text-rose-400 bg-rose-500/10 border-rose-500/20";
+    if (signal.includes("BUY")) return isElite ? "text-white bg-emerald-600 border-emerald-400 shadow-[0_0_10px_rgba(16,185,129,0.5)]" : "text-emerald-700 dark:text-emerald-400 bg-emerald-500/10 border-emerald-500/20";
+    if (signal.includes("SELL")) return isElite ? "text-white bg-rose-600 border-rose-400 shadow-[0_0_10px_rgba(244,63,94,0.5)]" : "text-rose-700 dark:text-rose-400 bg-rose-500/10 border-rose-500/20";
     return "text-slate-600 dark:text-slate-400 bg-slate-400/10 border-slate-400/20";
   };
 
@@ -42,12 +44,21 @@ export function StrategyOraclePanel({ symbol, timeframe }: StrategyOraclePanelPr
       {/* Header */}
       <div className="bg-muted p-3 border-b border-border flex items-center justify-between">
         <div className="flex items-center gap-2">
-          <Zap className="w-4 h-4 text-amber-600 dark:text-amber-500" />
-          <span className="font-bold text-xs tracking-wider uppercase text-foreground">Prophet Strategy</span>
+          <Zap className={cn("w-4 h-4", isElite ? "text-amber-500 animate-pulse" : "text-amber-600 dark:text-amber-500")} />
+          <span className="font-bold text-xs tracking-wider uppercase text-foreground">
+            {isElite ? "Elite Prophet" : "Prophet Strategy"}
+          </span>
         </div>
-        <Badge variant="outline" className="text-[10px] h-5 px-1.5 font-mono opacity-80 border-muted-foreground/30 text-foreground">
-          V9.0
-        </Badge>
+        <div className="flex gap-1">
+          {hasFVG && (
+            <Badge variant="outline" className="text-[8px] h-4 px-1 font-bold bg-amber-500/10 border-amber-500/30 text-amber-600">
+              FVG
+            </Badge>
+          )}
+          <Badge variant="outline" className="text-[10px] h-5 px-1.5 font-mono opacity-80 border-muted-foreground/30 text-foreground">
+            V9.1
+          </Badge>
+        </div>
       </div>
 
       <div className="p-4 space-y-4">
