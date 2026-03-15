@@ -92,6 +92,23 @@ export async function fetchProviderInfo(): Promise<{ provider: string }> {
   return response.json();
 }
 
+/**
+ * Switch the active data provider
+ */
+export async function setProvider(provider: string): Promise<{ provider: string }> {
+  const response = await fetch(`${API_URL}/api/provider`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ provider }),
+  });
+
+  if (!response.ok) {
+    throw new Error(`Failed to switch provider: ${response.statusText}`);
+  }
+
+  return response.json();
+}
+
 // --- Analytics Types ---
 
 export interface AnalyticsSymbolsResponse {

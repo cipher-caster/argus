@@ -123,9 +123,39 @@ async def get_ticker(symbol: str):
 
 @router.get("/provider")
 async def get_provider_info():
-    """Get current data provider information"""
+    """Get current data provider"""
     import os
-    return {"provider": os.getenv("DATA_PROVIDER", "binance").lower()}
+    r = RedisClient.get_instance()
+    stored = await r.get("config:provider")
+    name = stored if stored else os.getenv("DATA_PROVIDER", "binance").lower()
+    return {"provider": name}
+
+
+@router.put("/provider")
+async def switch_provider(body: dict):
+    """Switch the active data provider at runtime"""
+    import os
+    from app.providers.binance_provider import BinanceProvider
+    from app.providers.okx_provider import OKXProvider
+
+    name = body.get("provider", "").lower()
+    if name not in ("binance", "okx"):
+        raise HTTPException(status_code=400, detail="provider must be 'binance' or 'okx'")
+
+    # Persist in Redis with no TTL so worker picks it up
+    r = RedisClient.get_instance()
+    await r.set("config:provider", name)
+
+    # Hot-swap the backend provider instance
+    old = _provider
+    new = BinanceProvider() if name == "binance" else OKXProvider()
+    set_provider(new)
+    os.environ["DATA_PROVIDER"] = name
+    if old:
+        await old.close()
+
+    logger.info(f"Provider switched to {name}")
+    return {"provider": name}
 
 
 @router.get("/market/summary", response_model=MarketSummaryResponse)

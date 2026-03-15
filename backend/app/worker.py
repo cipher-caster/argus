@@ -1,16 +1,38 @@
 import asyncio
 import logging
+import os
 from arq import cron
 from app.storage import RedisClient, Database
 from app.providers import get_provider
+from app.providers.binance_provider import BinanceProvider
+from app.providers.okx_provider import OKXProvider
 from app.schemas.market_data import MarketSummary, MarketTicker
 
 # Configure Logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-# Global Provider Instance
+# Global Provider Instance (hot-swappable based on Redis config)
 provider = None
+_active_provider = None
+_active_provider_name = None
+_provider_unavailable_until: float = 0  # epoch seconds; 0 = not in backoff
+_PROVIDER_BACKOFF_SECONDS = 300  # retry unavailable provider every 5 min
+
+
+async def get_active_provider():
+    """Return the provider matching the current Redis config, rebuilding only on change."""
+    global _active_provider, _active_provider_name
+    r = RedisClient.get_instance()
+    config_name = await r.get("config:provider")
+    target = config_name or os.getenv("DATA_PROVIDER", "binance")
+    if _active_provider_name != target:
+        if _active_provider:
+            await _active_provider.close()
+        _active_provider = BinanceProvider() if target == "binance" else OKXProvider()
+        _active_provider_name = target
+        logger.info(f"Worker provider set to {target}")
+    return _active_provider
 
 async def startup(ctx):
     """Initialize resources on worker startup"""
@@ -48,8 +70,37 @@ async def sync_market_summary(ctx):
     logger.info("Job: Syncing Market Summary...")
     
     try:
-        # Fetch all tickers from Binance
-        tickers = await provider.get_all_tickers()
+        import time
+        global _provider_unavailable_until
+
+        active = await get_active_provider()
+        in_backoff = active.name != "binance" and time.time() < _provider_unavailable_until
+
+        if in_backoff:
+            # Primary provider is in cooldown — use Binance directly, no timeout wait
+            fallback = BinanceProvider()
+            try:
+                tickers = await fallback.get_all_tickers()
+            finally:
+                await fallback.close()
+        else:
+            try:
+                tickers = await active.get_all_tickers()
+                _provider_unavailable_until = 0  # clear backoff on success
+            except Exception as provider_err:
+                if active.name != "binance":
+                    _provider_unavailable_until = time.time() + _PROVIDER_BACKOFF_SECONDS
+                    logger.warning(
+                        f"Job: {active.name} unavailable ({provider_err}), "
+                        f"falling back to Binance for {_PROVIDER_BACKOFF_SECONDS // 60}m"
+                    )
+                    fallback = BinanceProvider()
+                    try:
+                        tickers = await fallback.get_all_tickers()
+                    finally:
+                        await fallback.close()
+                else:
+                    raise
         
         # Convert to list of MarketTicker objects (USDT pairs only)
         ticker_list = []
@@ -160,6 +211,7 @@ async def sync_analytics_cache(ctx):
     This makes initial page loads instant instead of waiting for live data.
     Runs every 5 minutes, offset from snapshot job.
     """
+    import time
     from app.routes.analytics import (
         get_oracle_screener,
         get_contrarian_radar,
@@ -168,7 +220,16 @@ async def sync_analytics_cache(ctx):
         get_titan_radar,
     )
 
-    logger.info("Job: Pre-warming Analytics Cache...")
+    # Make get_provider() inside analytics functions use the effective provider.
+    # If the primary provider is in backoff, analytics would create a new OKX instance
+    # and hang for 15s on every fetch_all_candles call (~9 calls = 135s job time).
+    effective = (
+        "binance"
+        if _active_provider_name != "binance" and time.time() < _provider_unavailable_until
+        else (_active_provider_name or os.getenv("DATA_PROVIDER", "binance"))
+    )
+    os.environ["DATA_PROVIDER"] = effective
+    logger.info(f"Job: Pre-warming Analytics Cache (provider={effective})...")
 
     timeframes = ["1h", "4h", "1d"]
     for tf in timeframes:
@@ -225,7 +286,7 @@ class WorkerSettings:
 
     # Jobs
     cron_jobs = [
-        cron(sync_market_summary, second={0, 30}),  # Live data (Binance) every 30s
+        cron(sync_market_summary, second={0}),  # Live data every 60s
         cron(sync_market_snapshot, minute={0, 5, 10, 15, 20, 25, 30, 35, 40, 45, 50, 55}),  # Snapshot (CoinGecko) every 5m
         cron(sync_analytics_cache, minute={2, 7, 12, 17, 22, 27, 32, 37, 42, 47, 52, 57}),  # Analytics every 5m (offset)
     ]

@@ -1,7 +1,7 @@
 "use client";
 
 import { ArgusLogo } from "@/components/common/ArgusLogo";
-import { fetchProviderInfo } from "@/lib/api";
+import { fetchProviderInfo, setProvider } from "@/lib/api";
 import { BarChart2, ChevronDown, Globe, LineChart, Search } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
@@ -54,16 +54,45 @@ function NavDropdown({ label, items, active }: NavDropdownProps) {
   );
 }
 
+const PROVIDERS = ["binance", "okx"] as const;
+
 export function Navbar() {
   const pathname = usePathname();
   const [search, setSearch] = useState("");
-  const [provider, setProvider] = useState<string | null>(null);
+  const [provider, setProviderState] = useState<string | null>(null);
+  const [providerOpen, setProviderOpen] = useState(false);
+  const [switching, setSwitching] = useState(false);
+  const providerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     fetchProviderInfo()
-      .then((info) => setProvider(info.provider))
+      .then((info) => setProviderState(info.provider))
       .catch(() => {});
   }, []);
+
+  useEffect(() => {
+    function handleClickOutside(e: MouseEvent) {
+      if (providerRef.current && !providerRef.current.contains(e.target as Node)) {
+        setProviderOpen(false);
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
+  async function handleProviderSwitch(name: string) {
+    if (name === provider || switching) return;
+    setSwitching(true);
+    setProviderOpen(false);
+    try {
+      const res = await setProvider(name);
+      setProviderState(res.provider);
+    } catch {
+      // silently revert — provider badge stays unchanged
+    } finally {
+      setSwitching(false);
+    }
+  }
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
@@ -117,9 +146,34 @@ export function Navbar() {
             <input type="text" placeholder="Search coin..." className="bg-transparent border-none outline-none text-foreground text-[13px] w-full placeholder:text-muted-foreground/50" value={search} onChange={(e) => setSearch(e.target.value)} />
           </form>
           {provider && (
-            <span className="text-[11px] font-semibold uppercase tracking-wider px-2 py-0.5 rounded-md bg-muted text-muted-foreground border border-border">
-              {provider}
-            </span>
+            <div className="relative" ref={providerRef}>
+              <button
+                onClick={() => setProviderOpen((o) => !o)}
+                disabled={switching}
+                className="flex items-center gap-1 text-[11px] font-semibold uppercase tracking-wider px-2 py-0.5 rounded-md bg-muted text-muted-foreground border border-border hover:border-primary hover:text-foreground transition-colors disabled:opacity-50"
+              >
+                {switching ? "..." : provider}
+                <ChevronDown size={10} className={cn("transition-transform duration-150", providerOpen && "rotate-180")} />
+              </button>
+              {providerOpen && (
+                <div className="absolute right-0 top-full mt-1.5 bg-secondary border border-border rounded-xl p-1 shadow-2xl z-[1001] min-w-[100px] animate-in fade-in zoom-in duration-150">
+                  {PROVIDERS.map((name) => (
+                    <button
+                      key={name}
+                      onClick={() => handleProviderSwitch(name)}
+                      className={cn(
+                        "w-full text-left px-3 py-1.5 rounded-lg text-[11px] font-semibold uppercase tracking-wider transition-colors",
+                        name === provider
+                          ? "bg-primary/10 text-primary"
+                          : "text-muted-foreground hover:bg-muted hover:text-foreground"
+                      )}
+                    >
+                      {name}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
           )}
           <div className="w-px h-5 bg-border" />
           <ThemeToggle />

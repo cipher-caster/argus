@@ -14,8 +14,12 @@ class OKXProvider(DataProvider):
     def __init__(self):
         self._exchange = ccxt.okx({
             'enableRateLimit': True,
+            'timeout': 15000,  # 15s — avoids hanging on slow OKX endpoints
             'options': {
-                'defaultType': 'spot'
+                'defaultType': 'spot',
+                # Only load spot markets — skips FUTURES/SWAP/OPTIONS fetches
+                # which are slow and not needed for USDT pair screener
+                'fetchMarkets': ['spot'],
             }
         })
         self._symbols_cache: Optional[List[SymbolInfo]] = None
