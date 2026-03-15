@@ -3,7 +3,7 @@ import pandas_ta as ta
 import numpy as np
 from typing import Dict, Any, Optional
 
-from app.indicators.calculator import _mss_to_list
+from app.indicators.calculator import _mss_to_list, _sweep_to_list
 
 class TitanStrategy:
     """
@@ -50,8 +50,19 @@ class TitanStrategy:
         # 5. Volatility (Bollinger Squeeze + ATR)
         volatility = self._analyze_volatility(row)
         
+        # SMC: Check for recent sweeps (last 5 candles)
+        recent_df = df.tail(5)
+        recent_sweep_type = None
+        bull_sweeps = recent_df[recent_df['sweep_type'] == 'bullish']
+        bear_sweeps = recent_df[recent_df['sweep_type'] == 'bearish']
+        
+        if not bull_sweeps.empty:
+            recent_sweep_type = 'bullish'
+        elif not bear_sweeps.empty:
+            recent_sweep_type = 'bearish'
+
         # 6. Signal Generation (Enhanced with Predictive Logic)
-        signal = self._generate_signal(trend, momentum, volatility, row)
+        signal = self._generate_signal(trend, momentum, volatility, row, recent_sweep_type)
         
         # 7. Targets & Risk Management
         # Pass signal type to calculate directional targets (TP/SL)
@@ -131,6 +142,14 @@ class TitanStrategy:
                 df.loc[idx, 'mss_type'] = shift['type']
                 df.loc[idx, 'mss_price'] = shift['price']
 
+        # SMC: Liquidity Sweep
+        sweeps = _sweep_to_list(df, lookback=24)
+        df['sweep_type'] = None
+        for sweep in sweeps:
+            idx = df[df['timestamp'] == sweep['timestamp']].index
+            if not idx.empty:
+                df.loc[idx, 'sweep_type'] = sweep['type']
+
     def _analyze_momentum(self, row: pd.Series) -> Dict[str, Any]:
         """Analyzes RSI and MACD for momentum alignment."""
         rsi = row.get('rsi', 50)
@@ -177,10 +196,10 @@ class TitanStrategy:
             "squeeze": False # TODO: Implement historical percentile check
         }
 
-    def _generate_signal(self, trend: str, momentum: Dict[str, Any], volatility: Dict[str, Any], row: pd.Series) -> Dict[str, Any]:
+    def _generate_signal(self, trend: str, momentum: Dict[str, Any], volatility: Dict[str, Any], row: pd.Series, recent_sweep: str = None) -> Dict[str, Any]:
         """
         Synthesizes indicators into a Signal.
-        Now includes PREDICTIVE Logic (Wait for pullback).
+        Now includes PREDICTIVE Logic (Wait for pullback) and SMC Confluence.
         """
         
         signal_type = "NEUTRAL"
@@ -196,11 +215,17 @@ class TitanStrategy:
         
         # BULLISH SETUP
         if trend == "BULLISH":
-            # SMC TRIGGER: Bullish MSS
+            # SMC TRIGGER: Bullish MSS + Sweep Confluence
             if mss_type == 'bullish':
-                signal_type = "STRONG_BUY"
-                confidence = 90
-                reasons.append("SMC: Bullish Market Structure Shift detected.")
+                if recent_sweep == 'bullish':
+                    signal_type = "STRONG_BUY"
+                    confidence = 95
+                    reasons.append("SMC: High-Conviction Sweep + MSS Combo.")
+                else:
+                    signal_type = "STRONG_BUY"
+                    confidence = 90
+                    reasons.append("SMC: Bullish Market Structure Shift detected.")
+                
                 reasons.append("Trend: Macro Bullish Alignment.")
                 ideal_entry = row['close']
 
@@ -235,11 +260,17 @@ class TitanStrategy:
             
         # BEARISH SETUP
         elif trend == "BEARISH":
-            # SMC TRIGGER: Bearish MSS
+            # SMC TRIGGER: Bearish MSS + Sweep Confluence
             if mss_type == 'bearish':
-                signal_type = "STRONG_SELL"
-                confidence = 90
-                reasons.append("SMC: Bearish Market Structure Shift detected.")
+                if recent_sweep == 'bearish':
+                    signal_type = "STRONG_SELL"
+                    confidence = 95
+                    reasons.append("SMC: High-Conviction Sweep + MSS Combo.")
+                else:
+                    signal_type = "STRONG_SELL"
+                    confidence = 90
+                    reasons.append("SMC: Bearish Market Structure Shift detected.")
+                
                 reasons.append("Trend: Macro Bearish Alignment.")
                 ideal_entry = row['close']
 

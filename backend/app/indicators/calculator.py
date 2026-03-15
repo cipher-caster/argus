@@ -4,9 +4,12 @@ Provides a registry of technical indicators with configurable parameters
 """
 
 from typing import Dict, List, Any, Optional
+import logging
 from pydantic import BaseModel
 import pandas as pd
 import pandas_ta as ta
+
+logger = logging.getLogger(__name__)
 
 
 class IndicatorDefinition(BaseModel):
@@ -124,6 +127,14 @@ INDICATOR_REGISTRY: Dict[str, Dict[str, Any]] = {
         ],
         "description": "Detects Bullish/Bearish Market Structure Shifts (ICT/SMC)",
     },
+    "sweep": {
+        "display_name": "Liquidity Sweep",
+        "type": "overlay",
+        "params": [
+            {"name": "lookback", "type": "int", "default": 24, "min": 5, "max": 200}
+        ],
+        "description": "Detects wicks beyond 24H high/low (ICT/SMC Liquidity Grab)",
+    },
 }
 
 
@@ -223,9 +234,13 @@ def calculate_indicator(
         elif indicator_name == "mss":
             lookback = params.get("lookback", 2)
             result_data = _mss_to_list(df, lookback)
+
+        elif indicator_name == "sweep":
+            lookback = params.get("lookback", 24)
+            result_data = _sweep_to_list(df, lookback)
             
     except Exception as e:
-        print(f"Error calculating {indicator_name}: {e}")
+        logger.error(f"Error calculating {indicator_name}: {e}")
         return None
     
     return IndicatorResult(
@@ -385,7 +400,7 @@ def _mss_to_list(df: pd.DataFrame, lookback: int = 2) -> List[Dict[str, Any]]:
                 break
         if is_pivot_high:
             last_pivot_high = df['high'].iloc[i]
-            # print(f"Pivot High found at {i}: {last_pivot_high}")
+            logger.debug(f"Pivot High found at {i}: {last_pivot_high}")
 
         # 2. Detect Pivot Low
         is_pivot_low = True
@@ -395,12 +410,12 @@ def _mss_to_list(df: pd.DataFrame, lookback: int = 2) -> List[Dict[str, Any]]:
                 break
         if is_pivot_low:
             last_pivot_low = df['low'].iloc[i]
-            # print(f"Pivot Low found at {i}: {last_pivot_low}")
+            logger.debug(f"Pivot Low found at {i}: {last_pivot_low}")
 
         # 3. Detect Structural Breaks (MSS) - Checked every candle
         # Bullish MSS: Close > Last Pivot High
         if last_pivot_high and df['close'].iloc[i] > last_pivot_high:
-            # print(f"Bullish MSS detected at {i}: {df['close'].iloc[i]} > {last_pivot_high}")
+            logger.info(f"Bullish MSS detected at {i}: {df['close'].iloc[i]} > {last_pivot_high}")
             ts = df['timestamp'].iloc[i]
             result.append({
                 "timestamp": int(ts.timestamp() * 1000) if isinstance(ts, pd.Timestamp) else int(ts),
@@ -411,7 +426,7 @@ def _mss_to_list(df: pd.DataFrame, lookback: int = 2) -> List[Dict[str, Any]]:
 
         # Bearish MSS: Close < Last Pivot Low
         elif last_pivot_low and df['close'].iloc[i] < last_pivot_low:
-            # print(f"Bearish MSS detected at {i}: {df['close'].iloc[i]} < {last_pivot_low}")
+            logger.info(f"Bearish MSS detected at {i}: {df['close'].iloc[i]} < {last_pivot_low}")
             ts = df['timestamp'].iloc[i]
             result.append({
                 "timestamp": int(ts.timestamp() * 1000) if isinstance(ts, pd.Timestamp) else int(ts),
@@ -420,5 +435,46 @@ def _mss_to_list(df: pd.DataFrame, lookback: int = 2) -> List[Dict[str, Any]]:
             })
             last_pivot_low = None
             
+    return result
+
+
+def _sweep_to_list(df: pd.DataFrame, lookback: int = 24) -> List[Dict[str, Any]]:
+    """Detect Liquidity Sweeps (ICT/SMC)"""
+    result = []
+    if len(df) < lookback + 1:
+        return []
+
+    # Calculate rolling max/min of previous candles
+    # shift(1) to exclude the current candle
+    prev_highs = df['high'].shift(1).rolling(lookback).max()
+    prev_lows = df['low'].shift(1).rolling(lookback).min()
+
+    for i in range(lookback, len(df)):
+        h_level = prev_highs.iloc[i]
+        l_level = prev_lows.iloc[i]
+        
+        if pd.isna(h_level) or pd.isna(l_level):
+            continue
+
+        # Bearish Sweep: High > prev_high AND Close < prev_high
+        if df['high'].iloc[i] > h_level and df['close'].iloc[i] < h_level:
+            ts = df['timestamp'].iloc[i]
+            result.append({
+                "timestamp": int(ts.timestamp() * 1000) if isinstance(ts, pd.Timestamp) else int(ts),
+                "type": "bearish",
+                "level": float(h_level)
+            })
+            logger.info(f"Bearish Sweep detected at {i}: High swept {h_level}")
+
+        # Bullish Sweep: Low < prev_low AND Close > prev_low
+        elif df['low'].iloc[i] < l_level and df['close'].iloc[i] > l_level:
+            ts = df['timestamp'].iloc[i]
+            result.append({
+                "timestamp": int(ts.timestamp() * 1000) if isinstance(ts, pd.Timestamp) else int(ts),
+                "type": "bullish",
+                "level": float(l_level)
+            })
+            logger.info(f"Bullish Sweep detected at {i}: Low swept {l_level}")
+
     return result
 
