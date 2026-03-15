@@ -303,12 +303,14 @@ export interface OracleStrategyResponse {
     win_rate: number;
     net_profit: number;
   };
+  last_updated?: number;
 }
 
 export interface TitanStrategyResponse {
   symbol: string;
   timeframe: string;
   price: number;
+  last_updated?: number;
   signal: string;
   confidence: number;
   trend: "BULLISH" | "BEARISH" | "NEUTRAL";

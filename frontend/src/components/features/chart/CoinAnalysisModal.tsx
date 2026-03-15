@@ -609,8 +609,13 @@ function CoinAnalysisModalComponent({ isOpen, onClose, symbol, timeframe, oracle
             <Zap size={16} className="text-amber-500" />
             <div>
               <div className="font-bold text-foreground">{base} Deep Analysis</div>
-              <div className="text-[11px] text-muted-foreground">
-                Oracle {oracle.micro_tf}/{oracle.macro_tf} · Titan 4H · ${price.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 4 })}
+              <div className="text-[11px] text-muted-foreground flex items-center gap-2">
+                <span>Oracle {oracle.micro_tf}/{oracle.macro_tf} · Titan 4H · ${price.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 4 })}</span>
+                {oracle.last_updated && (
+                  <span className="border-l border-border pl-2 opacity-70">
+                    Last Analyzed: {new Date(oracle.last_updated).toLocaleTimeString()}
+                  </span>
+                )}
               </div>
             </div>
           </div>

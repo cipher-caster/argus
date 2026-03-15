@@ -4,6 +4,7 @@ Endpoints for running technical strategies on market data
 """
 
 import logging
+import time
 from fastapi import APIRouter, HTTPException, Query
 from typing import Dict, Any, Optional
 import pandas as pd
@@ -157,6 +158,7 @@ async def get_oracle_strategy(
         result['micro_tf'] = micro_tf
         result['macro_tf'] = macro_tf
         result['price'] = df_micro.iloc[-1]['close']
+        result['last_updated'] = int(time.time() * 1000)
         
         return result
         
@@ -189,6 +191,7 @@ async def get_titan_strategy(
         result['symbol'] = symbol
         result['timeframe'] = timeframe
         result['price'] = df.iloc[-1]['close']
+        result['last_updated'] = int(time.time() * 1000)
         
         return result
         

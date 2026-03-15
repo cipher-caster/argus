@@ -185,9 +185,16 @@ export function BestSetups({ timeframe = "4h" }: { timeframe?: string }) {
             <TrendingUp size={16} className="text-primary" />
             Best Setups
           </h3>
-          <p className="text-[11px] text-muted-foreground mt-0.5">
-            {items.length > 0 ? `${items.length} high-conviction setup${items.length > 1 ? "s" : ""} found` : "Scanning markets…"}
-          </p>
+          <div className="flex items-center gap-2 mt-0.5">
+            <p className="text-[11px] text-muted-foreground">
+              {items.length > 0 ? `${items.length} high-conviction setup${items.length > 1 ? "s" : ""} found` : "Scanning markets…"}
+            </p>
+            {data?.last_updated && (
+              <span className="text-[10px] text-muted-foreground border-l border-border pl-2 opacity-60 font-medium">
+                Last Analyzed: {new Date(data.last_updated).toLocaleTimeString()}
+              </span>
+            )}
+          </div>
         </div>
         <button
           onClick={() => refetch()}
