@@ -110,6 +110,12 @@ INDICATOR_REGISTRY: Dict[str, Dict[str, Any]] = {
         ],
         "description": "Auto Fibonacci Retracement Levels",
     },
+    "fvg": {
+        "display_name": "Fair Value Gap",
+        "type": "overlay",
+        "params": [],
+        "description": "Detects 3-candle Fair Value Gaps (ICT/SMC)",
+    },
 }
 
 
@@ -202,6 +208,9 @@ def calculate_indicator(
         elif indicator_name == "auto_fib":
             lookback = params.get("lookback", 200)
             result_data = _fib_to_list(df["timestamp"], df["high"], df["low"], lookback)
+
+        elif indicator_name == "fvg":
+            result_data = _fvg_to_list(df)
             
     except Exception as e:
         print(f"Error calculating {indicator_name}: {e}")
@@ -310,6 +319,37 @@ def _fib_to_list(timestamps: pd.Series, high: pd.Series, low: pd.Series, lookbac
                 "fib_0_618": float(h - (diff * 0.618)),
                 "fib_0_786": float(h - (diff * 0.786)),
                 "bottom": float(l)
+            })
+            
+    return result
+
+
+def _fvg_to_list(df: pd.DataFrame) -> List[Dict[str, Any]]:
+    """Detect 3-candle Fair Value Gaps (FVG)"""
+    result = []
+    # Need at least 3 candles to detect FVG
+    if len(df) < 3:
+        return []
+        
+    for i in range(2, len(df)):
+        # Bullish FVG: Low of current (i) > High of (i-2)
+        if df['low'].iloc[i] > df['high'].iloc[i-2]:
+            ts = df['timestamp'].iloc[i-1]
+            result.append({
+                "timestamp": int(ts.timestamp() * 1000) if isinstance(ts, pd.Timestamp) else int(ts),
+                "type": "bullish",
+                "bottom": float(df['high'].iloc[i-2]),
+                "top": float(df['low'].iloc[i])
+            })
+            
+        # Bearish FVG: High of current (i) < Low of (i-2)
+        elif df['high'].iloc[i] < df['low'].iloc[i-2]:
+            ts = df['timestamp'].iloc[i-1]
+            result.append({
+                "timestamp": int(ts.timestamp() * 1000) if isinstance(ts, pd.Timestamp) else int(ts),
+                "type": "bearish",
+                "top": float(df['low'].iloc[i-2]),
+                "bottom": float(df['high'].iloc[i])
             })
             
     return result

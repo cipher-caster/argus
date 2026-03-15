@@ -3,6 +3,8 @@ import pandas_ta as ta
 import numpy as np
 from typing import Dict, Any, Optional
 
+from app.indicators.calculator import _fvg_to_list
+
 class OracleStrategy:
     """
     Manila Prophet v9.0 Implementation
@@ -57,7 +59,7 @@ class OracleStrategy:
         return {
             "mode": "prophet",
             "signal": self._synthesize_signal(earnest_result['score'], macro_result['score']),
-            "confidence": f"{abs(earnest_result['score'])}/4",
+            "confidence": f"{abs(earnest_result['score'])}/5",
             "bias": macro_result['bias'],
             "state": state_result['state'],
             "volatility": state_result['volatility_tag'],
@@ -221,6 +223,46 @@ class OracleStrategy:
         df['span_b'] = ((high52 + low52) / 2).shift(26)
         df['cloud_top'] = df[['span_a', 'span_b']].max(axis=1)
 
+        # SMC: Fair Value Gaps
+        fvgs = _fvg_to_list(df)
+        df['fvg_type'] = None
+        df['fvg_top'] = None
+        df['fvg_bottom'] = None
+        
+        # Map FVGs to the specific candle where they were created
+        for fvg in fvgs:
+            # We match by timestamp (which we assigned to the middle candle)
+            idx = df[df['timestamp'] == fvg['timestamp']].index
+            if not idx.empty:
+                df.loc[idx, 'fvg_type'] = fvg['type']
+                df.loc[idx, 'fvg_top'] = fvg['top']
+                df.loc[idx, 'fvg_bottom'] = fvg['bottom']
+
+        # Detect the *last unmitigated FVG* for the current price action
+        df['active_fvg_type'] = None
+        current_bull_fvg = None # [bottom, top]
+        current_bear_fvg = None 
+
+        for i in range(len(df)):
+            row = df.iloc[i]
+            # 1. Update with new FVGs
+            if row['fvg_type'] == 'bullish':
+                current_bull_fvg = [row['fvg_bottom'], row['fvg_top']]
+            elif row['fvg_type'] == 'bearish':
+                current_bear_fvg = [row['fvg_bottom'], row['fvg_top']]
+            
+            # 2. Check for mitigation (price filling the gap)
+            if current_bull_fvg and row['low'] <= current_bull_fvg[0]:
+                current_bull_fvg = None # Mitigated
+            if current_bear_fvg and row['high'] >= current_bear_fvg[1]:
+                current_bear_fvg = None # Mitigated
+                
+            # 3. Assign active FVG to row
+            if current_bull_fvg:
+                df.at[df.index[i], 'active_fvg_type'] = 'bullish'
+            elif current_bear_fvg:
+                df.at[df.index[i], 'active_fvg_type'] = 'bearish'
+
     def _calculate_earnest_score(self, row: pd.Series) -> Dict[str, Any]:
         """Calculates the -4 to +4 Earnest Voter Score."""
         score = 0
@@ -277,6 +319,17 @@ class OracleStrategy:
             details['ema'] = int(val)
         else:
             details['ema'] = 0
+
+        # Voter 5: SMC (FVG Confluence)
+        fvg_type = row.get('active_fvg_type')
+        if fvg_type == 'bullish':
+            score += 1
+            details['smc_fvg'] = 1
+        elif fvg_type == 'bearish':
+            score -= 1
+            details['smc_fvg'] = -1
+        else:
+            details['smc_fvg'] = 0
 
         return {"score": int(score), "voters": details}
 
