@@ -2,10 +2,11 @@
 
 import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
-import { X, Target, TrendingUp, TrendingDown, ShieldAlert, Zap, AlertTriangle, BarChart2 } from "lucide-react";
+import { X, Target, TrendingUp, TrendingDown, ShieldAlert, Zap, AlertTriangle, BarChart2, History, Activity } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { OracleStrategyResponse, TitanStrategyResponse } from "@/lib/api";
+import { OracleStrategyResponse, TitanStrategyResponse, SignalLogItem } from "@/lib/api";
 import { useStrategyTitan } from "@/hooks/useStrategyTitan";
+import { useBacktestStats, useSignalLog } from "@/hooks/useAnalyticsData";
 import { Badge } from "@/components/ui/badge";
 
 interface CoinAnalysisModalProps {
@@ -217,6 +218,176 @@ function VoterDot({ score }: { score: number }) {
     >
       {score > 0 ? `+${score}` : score}
     </span>
+  );
+}
+
+// ─── Signal Track Record ─────────────────────────────────────────────────────
+
+function formatSignalDate(ms: number) {
+  const d = new Date(ms);
+  const mon = d.toLocaleString("en-US", { month: "short" });
+  return `${mon} ${d.getDate()}, ${d.getFullYear()} ${d.getHours().toString().padStart(2, "0")}:${d.getMinutes().toString().padStart(2, "0")}`;
+}
+
+function formatSignalPrice(p: number) {
+  if (p >= 1000) return p.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  if (p >= 1) return p.toFixed(4);
+  return p.toFixed(6);
+}
+
+const OUTCOME_STYLE = {
+  WIN: "text-emerald-500 bg-emerald-500/10",
+  LOSS: "text-red-500 bg-red-500/10",
+  REVIEW: "text-amber-500 bg-amber-500/10",
+  OPEN: "text-sky-500 bg-sky-500/10",
+} as const;
+
+function SignalTrackRecord({ symbol, currentPrice }: { symbol: string; currentPrice: number }) {
+  const symbolKey = symbol.replace("/", "");
+  const { data: backtestData } = useBacktestStats();
+  const { data: signalData, isLoading } = useSignalLog(symbolKey, undefined, 50);
+
+  const coinStats = backtestData?.coins?.find((c) => c.symbol === symbolKey);
+  const signals = signalData?.data ?? [];
+  const openSignals = signals.filter((s) => s.outcome === "OPEN");
+  const closedSignals = signals.filter((s) => s.outcome !== "OPEN");
+
+  if (!coinStats && !signals.length && !isLoading) return null;
+
+  const wr = coinStats?.win_rate ?? 0;
+  const isProfitable = coinStats && coinStats.profit_r > 0 && wr > 40;
+  const isMarginal = coinStats && wr > 33 && !isProfitable;
+
+  return (
+    <div className="p-5 space-y-3">
+      <SectionTitle icon={<Activity size={13} />}>Signal Track Record</SectionTitle>
+
+      {/* Backtest Stats */}
+      {coinStats && (
+        <div className="grid grid-cols-2 sm:grid-cols-5 gap-2">
+          {[
+            {
+              label: "Win Rate",
+              value: `${wr}%`,
+              cls: wr >= 45 ? "text-emerald-500" : wr >= 33 ? "text-amber-500" : "text-red-500",
+            },
+            {
+              label: "Profit",
+              value: `${coinStats.profit_r > 0 ? "+" : ""}${coinStats.profit_r}R`,
+              cls: coinStats.profit_r > 0 ? "text-emerald-500" : coinStats.profit_r < 0 ? "text-red-500" : "text-muted-foreground",
+            },
+            { label: "Signals", value: `${coinStats.total}`, cls: "text-foreground" },
+            { label: "Long WR", value: `${coinStats.long_wr ?? 0}%`, cls: "text-emerald-500" },
+            { label: "Short WR", value: `${coinStats.short_wr ?? 0}%`, cls: "text-red-500" },
+          ].map(({ label, value, cls }) => (
+            <div key={label} className="p-2 rounded-lg bg-muted/30 border border-border/50 text-center">
+              <div className={cn("text-sm font-black", cls)}>{value}</div>
+              <div className="text-[8px] text-muted-foreground font-bold uppercase tracking-widest">{label}</div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {coinStats && (
+        <div className="flex items-center gap-2">
+          <div className="h-2 rounded-full bg-secondary/60 flex-1 overflow-hidden">
+            <div
+              className={cn("h-full rounded-full",
+                wr >= 45 ? "bg-emerald-500" : wr >= 33 ? "bg-amber-500" : "bg-red-500"
+              )}
+              style={{ width: `${wr}%` }}
+            />
+          </div>
+          <span className={cn("text-[10px] font-black px-2 py-0.5 rounded-md",
+            isProfitable ? "bg-emerald-500/10 text-emerald-500" :
+            isMarginal ? "bg-amber-500/10 text-amber-500" : "bg-red-500/10 text-red-500"
+          )}>
+            {isProfitable ? "PROFITABLE" : isMarginal ? "MARGINAL" : "UNPROFITABLE"}
+          </span>
+        </div>
+      )}
+
+      {/* Open Signals */}
+      {openSignals.length > 0 && (
+        <div className="space-y-1.5">
+          <div className="text-[10px] font-bold text-sky-500 uppercase tracking-wider">Active Signals</div>
+          {openSignals.map((s) => {
+            const isLong = s.direction === "LONG";
+            const distToTp = isLong
+              ? ((s.tp - currentPrice) / currentPrice * 100)
+              : ((currentPrice - s.tp) / currentPrice * 100);
+            const distToSl = isLong
+              ? ((currentPrice - s.sl) / currentPrice * 100)
+              : ((s.sl - currentPrice) / currentPrice * 100);
+            return (
+              <div key={s.id} className="flex items-center justify-between p-2.5 rounded-lg bg-sky-500/[0.05] border border-sky-500/20">
+                <div className="flex items-center gap-2">
+                  <span className={cn("text-[10px] font-black px-1.5 py-0.5 rounded",
+                    isLong ? "bg-emerald-500/10 text-emerald-500" : "bg-red-500/10 text-red-500"
+                  )}>{s.direction}</span>
+                  <span className="text-[11px] font-mono text-muted-foreground">E: ${formatSignalPrice(s.entry)}</span>
+                </div>
+                <div className="flex items-center gap-2 text-[10px] font-bold">
+                  <span className="text-emerald-500">TP {distToTp > 0 ? "+" : ""}{distToTp.toFixed(1)}%</span>
+                  <span className="text-red-500">SL {distToSl > 0 ? "+" : ""}{distToSl.toFixed(1)}%</span>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+
+      {/* Signal History Table */}
+      {closedSignals.length > 0 && (
+        <div className="space-y-1.5">
+          <div className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">Recent Signals</div>
+          <div className="overflow-x-auto rounded-lg border border-border/40">
+            <table className="w-full">
+              <thead>
+                <tr className="bg-muted/30 text-[9px] font-black uppercase tracking-widest text-muted-foreground">
+                  <th className="py-2 px-2.5 text-left">Date</th>
+                  <th className="py-2 px-2.5 text-left">Dir</th>
+                  <th className="py-2 px-2.5 text-left">Entry</th>
+                  <th className="py-2 px-2.5 text-left">TP</th>
+                  <th className="py-2 px-2.5 text-left">SL</th>
+                  <th className="py-2 px-2.5 text-left">Result</th>
+                  <th className="py-2 px-2.5 text-left">Exit</th>
+                </tr>
+              </thead>
+              <tbody>
+                {closedSignals.map((s) => {
+                  const isLong = s.direction === "LONG";
+                  const outcomeStyle = OUTCOME_STYLE[s.outcome] ?? OUTCOME_STYLE.OPEN;
+                  return (
+                    <tr key={s.id} className="border-b border-border/20 text-[11px] hover:bg-secondary/20">
+                      <td className="py-2 px-2.5 text-muted-foreground whitespace-nowrap">{formatSignalDate(s.fired_at)}</td>
+                      <td className="py-2 px-2.5">
+                        <span className={cn("text-[9px] font-black px-1 py-0.5 rounded",
+                          isLong ? "bg-emerald-500/10 text-emerald-500" : "bg-red-500/10 text-red-500"
+                        )}>{s.direction}</span>
+                      </td>
+                      <td className="py-2 px-2.5 font-mono text-muted-foreground">${formatSignalPrice(s.entry)}</td>
+                      <td className="py-2 px-2.5 font-mono text-emerald-600 dark:text-emerald-400">${formatSignalPrice(s.tp)}</td>
+                      <td className="py-2 px-2.5 font-mono text-red-600 dark:text-red-400">${formatSignalPrice(s.sl)}</td>
+                      <td className="py-2 px-2.5">
+                        <span className={cn("text-[9px] font-black px-1.5 py-0.5 rounded-md", outcomeStyle)}>{s.outcome}</span>
+                      </td>
+                      <td className="py-2 px-2.5 font-mono text-muted-foreground">
+                        {s.resolved_price ? `$${formatSignalPrice(s.resolved_price)}` : "—"}
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+
+      {isLoading && !signals.length && (
+        <div className="text-center text-[11px] text-muted-foreground py-4">Loading signal history…</div>
+      )}
+    </div>
   );
 }
 
@@ -572,6 +743,9 @@ function AnalysisBody({ oracle, titan, price }: {
           )}
         </div>
       </div>
+
+      {/* ── Signal Track Record ───────────────────────────────────── */}
+      <SignalTrackRecord symbol={oracle.symbol} currentPrice={price} />
 
     </div>
   );

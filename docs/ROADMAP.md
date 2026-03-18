@@ -67,13 +67,38 @@
 
 ## Planned
 
-### Phase 11: Signal History Log
-- [ ] Worker job logs every Best Setup that fires (symbol, direction, entry, tp, sl, conviction)
-- [ ] Follow-up job (24h) resolves outcome: WIN / LOSS / OPEN
-- [ ] Frontend table: signal log with outcomes
-- [ ] Foundation for trusting and tuning Oracle+Titan over time
+### Phase 11: Signal History Log ✓
+- [x] Worker job logs every Best Setup that fires (symbol, direction, entry, tp, sl, conviction)
+- [x] 4H candle close schedule (6 scans/day) + startup scan
+- [x] Outcome resolution every 30 min (WIN / LOSS / REVIEW at 7d)
+- [x] Market gate system (block SLEEPING/VOLATILE, macro guard, BTC sell filter)
+- [x] Configurable settings UI (watchlist, min confidence, review days, gates)
+- [x] 11-coin watchlist from 20-coin backtest sweep (BTC, ETH, BNB, TRX, XRP, FET, NEAR, ARB, ATOM, DOGE, APT)
 
-### Phase 12: Advanced Features
+### Phase 12: Backtest Leaderboard + UI Polish ✓
+- [x] Backtest Performance leaderboard with per-coin stats (WR, R-profit, L/S split)
+- [x] Expandable coin rows showing individual signal history
+- [x] Signal Log dropdown filter (replaced button row)
+- [x] Date/time display instead of relative age
+- [x] Active Signals dashboard widget (open live signals)
+
+### Phase 13: Chart Signal Intelligence
+- [ ] CoinSignalIntel sidebar panel on chart deep-dive page
+- [ ] Per-coin backtest stats card (WR, R-profit, status badge) in sidebar
+- [ ] Recent signals list for current coin (last 5–10, live + backtest)
+- [ ] Open signal highlight with TP/SL distance from current price
+
+### Phase 14: Test Coverage
+- [ ] Unit tests for signal log worker jobs (log_watchlist_setups, resolve_signal_outcomes)
+- [ ] Unit tests for market gate logic (_passes_market_gate with config permutations)
+- [ ] Unit tests for backtest stats aggregation endpoint
+- [ ] Frontend component tests (BacktestPerformance, SignalLog, CoinSignalIntel)
+- [ ] E2E tests: Analytics page tab navigation and data rendering
+- [ ] E2E tests: Signal Log filter/dropdown interaction
+- [ ] E2E tests: Backtest row expand/collapse with signal detail fetch
+- [ ] E2E tests: Chart page sidebar with signal intel panel
+
+### Phase 15: Advanced Features
 - [ ] Portfolio tracking & user accounts
 - [ ] Price alerts / push notifications
 - [ ] WebSocket push for live ticker updates

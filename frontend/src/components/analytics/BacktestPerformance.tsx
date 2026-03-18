@@ -1,23 +1,106 @@
 "use client";
 
 import { useState } from "react";
-import { useBacktestStats } from "@/hooks/useAnalyticsData";
-import { CoinBacktestStats } from "@/lib/api";
+import { useBacktestStats, useSignalLog } from "@/hooks/useAnalyticsData";
+import { CoinBacktestStats, SignalLogItem } from "@/lib/api";
 import { cn } from "@/lib/utils";
-import { BarChart3, ArrowUpDown, Trophy, Target, TrendingUp, TrendingDown } from "lucide-react";
+import { BarChart3, ArrowUpDown, Trophy, Target, TrendingUp, TrendingDown, ChevronRight } from "lucide-react";
 
 type SortKey = "profit_r" | "win_rate" | "total";
 
-function CoinRow({ coin, rank }: { coin: CoinBacktestStats; rank: number }) {
+function formatPrice(p: number) {
+  if (p >= 1000) return p.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  if (p >= 1) return p.toFixed(4);
+  return p.toFixed(6);
+}
+
+function formatDate(ms: number) {
+  const d = new Date(ms);
+  const mon = d.toLocaleString("en-US", { month: "short" });
+  return `${mon} ${d.getDate()}, ${d.getFullYear()} ${d.getHours().toString().padStart(2, "0")}:${d.getMinutes().toString().padStart(2, "0")}`;
+}
+
+function SignalDetail({ symbol }: { symbol: string }) {
+  const { data, isLoading } = useSignalLog(symbol, "backtest", 200);
+
+  if (isLoading) return <tr><td colSpan={7} className="py-4 text-center text-muted-foreground text-[11px]">Loading signals…</td></tr>;
+  if (!data?.data.length) return <tr><td colSpan={7} className="py-4 text-center text-muted-foreground text-[11px]">No backtest signals found.</td></tr>;
+
+  return (
+    <tr>
+      <td colSpan={7} className="p-0">
+        <div className="bg-secondary/20 border-t border-border/20 px-6 py-3">
+          <div className="overflow-x-auto rounded-xl border border-border/30">
+            <table className="w-full">
+              <thead>
+                <tr className="bg-secondary/40 text-[9px] font-black uppercase tracking-widest text-muted-foreground">
+                  <th className="py-2 px-3 text-left">Date</th>
+                  <th className="py-2 px-3 text-left">Dir</th>
+                  <th className="py-2 px-3 text-left">Entry</th>
+                  <th className="py-2 px-3 text-left">TP</th>
+                  <th className="py-2 px-3 text-left">SL</th>
+                  <th className="py-2 px-3 text-left">Conv.</th>
+                  <th className="py-2 px-3 text-left">Outcome</th>
+                  <th className="py-2 px-3 text-left">Exit</th>
+                </tr>
+              </thead>
+              <tbody>
+                {data.data.map((s) => {
+                  const isLong = s.direction === "LONG";
+                  const outcomeStyle =
+                    s.outcome === "WIN" ? "text-emerald-500 bg-emerald-500/10" :
+                    s.outcome === "LOSS" ? "text-red-500 bg-red-500/10" :
+                    s.outcome === "REVIEW" ? "text-amber-500 bg-amber-500/10" :
+                    "text-sky-500 bg-sky-500/10";
+                  return (
+                    <tr key={s.id} className="border-b border-border/10 text-[11px] hover:bg-secondary/10">
+                      <td className="py-2 px-3 text-muted-foreground whitespace-nowrap">{formatDate(s.fired_at)}</td>
+                      <td className="py-2 px-3">
+                        <span className={cn("font-black text-[10px] px-1.5 py-0.5 rounded",
+                          isLong ? "bg-emerald-500/10 text-emerald-500" : "bg-red-500/10 text-red-500"
+                        )}>
+                          {s.direction}
+                        </span>
+                      </td>
+                      <td className="py-2 px-3 font-mono text-muted-foreground">${formatPrice(s.entry)}</td>
+                      <td className="py-2 px-3 font-mono text-emerald-600 dark:text-emerald-400">${formatPrice(s.tp)}</td>
+                      <td className="py-2 px-3 font-mono text-red-600 dark:text-red-400">${formatPrice(s.sl)}</td>
+                      <td className="py-2 px-3 font-bold text-muted-foreground">{s.conviction}</td>
+                      <td className="py-2 px-3">
+                        <span className={cn("text-[10px] font-black px-1.5 py-0.5 rounded-md", outcomeStyle)}>
+                          {s.outcome}
+                        </span>
+                      </td>
+                      <td className="py-2 px-3 font-mono text-muted-foreground">
+                        {s.resolved_price ? `$${formatPrice(s.resolved_price)}` : "—"}
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </td>
+    </tr>
+  );
+}
+
+function CoinRow({ coin, rank, expanded, onToggle }: { coin: CoinBacktestStats; rank: number; expanded: boolean; onToggle: () => void }) {
   const isProfitable = coin.profit_r > 0 && (coin.win_rate ?? 0) > 40;
   const isMarginal = (coin.win_rate ?? 0) > 33 && !isProfitable;
   const wr = coin.win_rate ?? 0;
 
   return (
-    <tr className={cn(
-      "border-b border-border/20 hover:bg-secondary/30 transition-colors",
-      rank <= 3 && "bg-primary/[0.03]"
-    )}>
+    <>
+    <tr
+      onClick={onToggle}
+      className={cn(
+        "border-b border-border/20 hover:bg-secondary/30 transition-colors cursor-pointer",
+        rank <= 3 && "bg-primary/[0.03]",
+        expanded && "bg-secondary/20"
+      )}
+    >
       <td className="py-3.5 px-3 text-center">
         {rank <= 3 ? (
           <Trophy size={14} className={cn(
@@ -28,7 +111,10 @@ function CoinRow({ coin, rank }: { coin: CoinBacktestStats; rank: number }) {
         )}
       </td>
       <td className="py-3.5 px-3">
-        <span className="text-[14px] font-black tracking-tight">{coin.base}</span>
+        <div className="flex items-center gap-1.5">
+          <ChevronRight size={12} className={cn("text-muted-foreground transition-transform duration-200", expanded && "rotate-90")} />
+          <span className="text-[14px] font-black tracking-tight">{coin.base}</span>
+        </div>
       </td>
       <td className="py-3.5 px-3 min-w-[180px]">
         <div className="flex items-center gap-2">
@@ -90,12 +176,15 @@ function CoinRow({ coin, rank }: { coin: CoinBacktestStats; rank: number }) {
         </span>
       </td>
     </tr>
+    {expanded && <SignalDetail symbol={coin.symbol} />}
+    </>
   );
 }
 
 export function BacktestPerformance() {
   const { data, isLoading, isError } = useBacktestStats();
   const [sortBy, setSortBy] = useState<SortKey>("profit_r");
+  const [expandedCoin, setExpandedCoin] = useState<string | null>(null);
 
   const sorted = [...(data?.coins ?? [])].sort((a, b) => {
     if (sortBy === "profit_r") return b.profit_r - a.profit_r;
@@ -190,7 +279,13 @@ export function BacktestPerformance() {
             </thead>
             <tbody>
               {sorted.map((coin, i) => (
-                <CoinRow key={coin.symbol} coin={coin} rank={i + 1} />
+                <CoinRow
+                  key={coin.symbol}
+                  coin={coin}
+                  rank={i + 1}
+                  expanded={expandedCoin === coin.symbol}
+                  onToggle={() => setExpandedCoin(expandedCoin === coin.symbol ? null : coin.symbol)}
+                />
               ))}
             </tbody>
           </table>

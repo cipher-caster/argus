@@ -4,7 +4,7 @@ import { useState, useEffect } from "react";
 import { useSignalLog, useSignalLogConfig, useUpdateSignalLogConfig } from "@/hooks/useAnalyticsData";
 import { SignalLogItem, SignalLogConfig } from "@/lib/api";
 import { cn } from "@/lib/utils";
-import { RefreshCw, Settings2, Save, Check } from "lucide-react";
+import { RefreshCw, Settings2, Save, Check, ChevronDown } from "lucide-react";
 
 const SYMBOLS = ["All", "BTC", "ETH", "BNB", "TRX", "XRP", "FET", "NEAR", "ARB", "ATOM", "DOGE", "APT"];
 const SOURCES = ["All", "Live", "Backtest"];
@@ -22,13 +22,14 @@ function formatPrice(p: number) {
   return p.toFixed(6);
 }
 
-function timeAgo(ms: number) {
-  const diff = Date.now() - ms;
-  const h = Math.floor(diff / 3_600_000);
-  const d = Math.floor(diff / 86_400_000);
-  if (d >= 1) return `${d}d ago`;
-  if (h >= 1) return `${h}h ago`;
-  return "< 1h ago";
+function formatDateTime(ms: number) {
+  const d = new Date(ms);
+  const mon = d.toLocaleString("en-US", { month: "short" });
+  const day = d.getDate();
+  const yr = d.getFullYear();
+  const hh = d.getHours().toString().padStart(2, "0");
+  const mm = d.getMinutes().toString().padStart(2, "0");
+  return `${mon} ${day}, ${yr} ${hh}:${mm}`;
 }
 
 function pct(from: number, to: number, dir: "LONG" | "SHORT") {
@@ -86,7 +87,7 @@ function SignalRow({ item }: { item: SignalLogItem }) {
           </span>
         )}
       </td>
-      <td className="py-3 px-4 text-muted-foreground">{timeAgo(item.fired_at)}</td>
+      <td className="py-3 px-4 text-muted-foreground whitespace-nowrap">{formatDateTime(item.fired_at)}</td>
       <td className="py-3 px-4">
         <div className="flex flex-col gap-1">
           <span className={cn(
@@ -276,22 +277,20 @@ export function SignalLog() {
     <div className="space-y-6">
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div className="flex flex-wrap gap-2">
-          {SYMBOLS.map((sym) => (
-            <button
-              key={sym}
-              onClick={() => setActiveSymbol(sym)}
-              className={cn(
-                "px-3 py-1.5 rounded-lg text-[11px] font-black uppercase tracking-wider transition-all",
-                activeSymbol === sym
-                  ? "bg-primary text-primary-foreground shadow-md"
-                  : "bg-secondary/40 text-muted-foreground hover:text-foreground hover:bg-secondary/70"
-              )}
+        <div className="flex flex-wrap items-center gap-2">
+          <div className="relative">
+            <select
+              value={activeSymbol}
+              onChange={(e) => setActiveSymbol(e.target.value)}
+              className="appearance-none bg-secondary/40 border border-border/50 rounded-lg px-3 py-1.5 pr-7 text-[11px] font-black uppercase tracking-wider cursor-pointer hover:bg-secondary/70 transition-all focus:outline-none focus:ring-1 focus:ring-primary"
             >
-              {sym}
-            </button>
-          ))}
-          <div className="w-px bg-border/50 mx-1" />
+              {SYMBOLS.map((sym) => (
+                <option key={sym} value={sym}>{sym}</option>
+              ))}
+            </select>
+            <ChevronDown size={10} className="absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none text-muted-foreground" />
+          </div>
+          <div className="w-px h-6 bg-border/50" />
           {SOURCES.map((src) => (
             <button
               key={src}
@@ -375,7 +374,7 @@ export function SignalLog() {
       ) : !data?.data.length ? (
         <div className="h-48 flex flex-col items-center justify-center text-muted-foreground text-sm gap-2">
           <span className="text-3xl">📭</span>
-          <span>No signals logged yet. The worker logs setups every 5 minutes.</span>
+          <span>No signals logged yet. The worker logs setups at 4H candle closes.</span>
         </div>
       ) : (
         <div className="overflow-x-auto rounded-2xl border border-border/40">
@@ -388,7 +387,7 @@ export function SignalLog() {
                 <th className="py-3 px-4 text-left">SL</th>
                 <th className="py-3 px-4 text-left">Conv.</th>
                 <th className="py-3 px-4 text-left">Outcome</th>
-                <th className="py-3 px-4 text-left">Age</th>
+                <th className="py-3 px-4 text-left">Date</th>
                 <th className="py-3 px-4 text-left">Mkt State</th>
               </tr>
             </thead>

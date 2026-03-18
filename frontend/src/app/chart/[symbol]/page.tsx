@@ -2,6 +2,7 @@
 
 import { CandlestickChart } from "@/components/features/chart/CandlestickChart";
 import { ChartSettingsModal } from "@/components/features/chart/ChartSettingsModal";
+import { CoinSignalIntel } from "@/components/features/chart/CoinSignalIntel";
 import { CoinDetailsPanel } from "@/components/features/dashboard/CoinDetailsPanel";
 import { WatchlistPanel } from "@/components/features/dashboard/WatchlistPanel";
 import { useAvailableIndicators, useCalculatedIndicators } from "@/hooks/useIndicators";
@@ -75,9 +76,10 @@ export default function ChartPage({ params }: ChartPageProps) {
         </div>
 
         {/* Right: Watchlist + Coin Signal Panel */}
-        <aside className="bg-secondary border-l border-border flex flex-col overflow-hidden">
+        <aside className="bg-secondary border-l border-border flex flex-col overflow-hidden overflow-y-auto scrollbar-thin scrollbar-thumb-muted">
           <WatchlistPanel currentSymbol={symbol} />
           <CoinDetailsPanel symbol={symbol} timeframe={timeframe} />
+          <CoinSignalIntel symbol={symbol} currentPrice={currentPrice ?? undefined} />
         </aside>
       </main>
     </div>
