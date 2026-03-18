@@ -297,7 +297,7 @@ class WorkerSettings:
         cron(sync_market_snapshot, minute={0, 5, 10, 15, 20, 25, 30, 35, 40, 45, 50, 55}),  # Snapshot (CoinGecko) every 5m
         cron(sync_analytics_cache, minute={2, 7, 12, 17, 22, 27, 32, 37, 42, 47, 52, 57}),  # Analytics every 5m (offset)
         cron(log_watchlist_setups, hour={0, 4, 8, 12, 16, 20}, minute={3}),  # Signal log at each 4H candle close (+3m for data to settle)
-        cron(resolve_signal_outcomes, minute={30}),  # Resolve outcomes every hour
+        cron(resolve_signal_outcomes, minute={0, 30}),  # Resolve outcomes every 30min
     ]
 
 if __name__ == "__main__":
