@@ -2,6 +2,7 @@
 
 import { CoinIcon } from "@/components/features/dashboard/CoinIcon";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { useBestSetups } from "@/hooks/useAnalyticsData";
 import { useCoinMeta } from "@/hooks/useCoinMeta";
 import { BestSetupItem } from "@/lib/api";
@@ -84,7 +85,16 @@ export function ActiveSetups() {
       <div className="flex items-center justify-between px-4 py-3.5 border-b border-border/30">
         <div className="flex items-center gap-2">
           <Zap size={14} className="text-primary" />
-          <span className="text-xs font-black uppercase tracking-widest">Active Setups</span>
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <span className="text-xs font-black uppercase tracking-widest cursor-help">Active Setups</span>
+              </TooltipTrigger>
+              <TooltipContent side="bottom" className="max-w-[240px] text-xs">
+                Real-time opportunities — top Oracle + Titan confluence setups across the market right now
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
           {!isLoading && items.length > 0 && (
             <span className="bg-primary/20 text-primary text-[10px] font-bold px-1.5 py-0.5 rounded-md">{items.length}</span>
           )}

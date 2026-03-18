@@ -5,8 +5,8 @@
  * Optimized with stale-while-revalidate for better UX
  */
 
-import { fetchAnalyticsSymbols, fetchBestSetups, fetchMeanReversion, fetchOracleScreener, fetchOracleSignalSummary, fetchTitanRadar } from "@/lib/api";
-import { keepPreviousData, useQuery } from "@tanstack/react-query";
+import { fetchAnalyticsSymbols, fetchBestSetups, fetchMeanReversion, fetchOracleScreener, fetchOracleSignalSummary, fetchSignalLog, fetchSignalLogConfig, fetchTitanRadar, updateSignalLogConfig, SignalLogConfig } from "@/lib/api";
+import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 /**
  * Hook for fetching supported analytics symbols
@@ -72,5 +72,34 @@ export function useTitanRadar(limit: number = 50, timeframe: string = "4h") {
     gcTime: 5 * 60_000,
     refetchOnWindowFocus: false,
     placeholderData: keepPreviousData,
+  });
+}
+
+export function useSignalLog(symbol?: string, source?: string, limit: number = 100) {
+  return useQuery({
+    queryKey: ["analytics", "signal-log", symbol, source, limit],
+    queryFn: () => fetchSignalLog(symbol, source, limit),
+    staleTime: 60_000, // 1 minute — resolution job runs hourly, logging every 5 min
+    gcTime: 5 * 60_000,
+    refetchOnWindowFocus: false,
+    placeholderData: keepPreviousData,
+  });
+}
+
+export function useSignalLogConfig() {
+  return useQuery({
+    queryKey: ["signal-log-config"],
+    queryFn: fetchSignalLogConfig,
+    staleTime: 5 * 60_000,
+  });
+}
+
+export function useUpdateSignalLogConfig() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: updateSignalLogConfig,
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["signal-log-config"] });
+    },
   });
 }

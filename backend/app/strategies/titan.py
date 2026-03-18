@@ -330,27 +330,36 @@ class TitanStrategy:
             "ideal_entry": ideal_entry
         }
 
-    def _calculate_risk_levels(self, row: pd.Series, signal_type: str, entry_price: float = None) -> Dict[str, float]:
-        """Calculates TP/SL based on ATR."""
+    def _calculate_risk_levels(self, row: pd.Series, signal_type: str, entry_price: float = None, adx: float = None) -> Dict[str, float]:
+        """
+        Calculates TP/SL based on ATR with adaptive targets.
+        - SUPER TREND (ADX > 40): TP = 3.0× ATR (strong trend has legs)
+        - TRENDING (ADX 20–40):   TP = 2.0× ATR (take profit faster)
+        - SL always 1.5× ATR
+        """
         atr = row.get('atr', 0)
         price = entry_price if entry_price else row['close']
-        
+
         if atr == 0:
             return {"entry": price, "tp": 0, "sl": 0}
-            
+
+        # Adaptive TP multiplier based on trend strength
+        row_adx = adx if adx is not None else row.get('adx', 25)
+        tp_mult = 3.0 if (not pd.isna(row_adx) and row_adx > 40) else 2.0
+        rr = round(tp_mult / 1.5, 2)
+
         # Long Logic
         if "BUY" in signal_type or signal_type == "STRONG_BUY":
             sl = price - (atr * 1.5)
-            # Uncapped for Trailing, but provide a "Target 1" for reference
-            tp = price + (atr * 3.0) 
-            return {"entry": price, "sl": sl, "tp": tp, "r_r": 2.0}
-            
+            tp = price + (atr * tp_mult)
+            return {"entry": price, "sl": sl, "tp": tp, "r_r": rr}
+
         # Short Logic
         elif "SELL" in signal_type or signal_type == "STRONG_SELL":
             sl = price + (atr * 1.5)
-            tp = price - (atr * 3.0)
-            return {"entry": price, "sl": sl, "tp": tp, "r_r": 2.0}
-            
+            tp = price - (atr * tp_mult)
+            return {"entry": price, "sl": sl, "tp": tp, "r_r": rr}
+
         return {"entry": price, "sl": 0, "tp": 0}
 
     def _calculate_sizing(self, confidence: int) -> str:

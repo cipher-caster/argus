@@ -19,6 +19,10 @@ from app.schemas.analytics import (
     TitanRadarItem,
     BestSetupItem,
     BestSetupsResponse,
+    SignalLogConfig,
+    SignalLogItem,
+    SignalLogSummary,
+    SignalLogResponse,
 )
 
 from app.routes.strategy import get_candles_df, titan, oracle
@@ -392,6 +396,79 @@ async def get_titan_radar(limit: int = 50, timeframe: str = "4h"):
     # Sort by confidence desc
     results.sort(key=lambda x: x.confidence, reverse=True)
     
-    response = {"data": [r.model_dump() for r in results], "last_updated": int(time.time() * 1000)} 
+    response = {"data": [r.model_dump() for r in results], "last_updated": int(time.time() * 1000)}
     await RedisClient.set_json(cache_key, response, ttl=CACHE_TTL)
     return TitanRadarResponse(**response)
+
+
+SIGNAL_LOG_CONFIG_KEY = "signal_log:config"
+SIGNAL_LOG_DEFAULTS = {
+    "watchlist": ["BTCUSDT", "ETHUSDT", "BNBUSDT"],
+    "min_titan_confidence": 55,
+    "review_days": 7,
+    "block_sleeping": True,
+    "block_volatile": True,
+    "macro_guard": True,
+    "block_btc_sell": True,
+}
+
+
+@router.get("/signal-log/config", response_model=SignalLogConfig)
+async def get_signal_log_config():
+    """Return current signal log configuration."""
+    data = await RedisClient.get_json(SIGNAL_LOG_CONFIG_KEY)
+    if data:
+        return SignalLogConfig(**data)
+    return SignalLogConfig(**SIGNAL_LOG_DEFAULTS)
+
+
+@router.put("/signal-log/config", response_model=SignalLogConfig)
+async def update_signal_log_config(config: SignalLogConfig):
+    """Update signal log configuration. Persisted in Redis."""
+    payload = config.model_dump()
+    # Use large TTL since setex requires positive ttl (no SET without expiry)
+    await RedisClient.set_json(SIGNAL_LOG_CONFIG_KEY, payload, ttl=86400 * 365)
+    return config
+
+
+@router.get("/signal-log", response_model=SignalLogResponse)
+async def get_signal_log(symbol: Optional[str] = None, source: Optional[str] = None, limit: int = 100):
+    """
+    Returns logged swing signals for the watchlist (BTC/ETH/SOL/BNB).
+    Each row captures what fired, when, and whether it resolved as WIN/LOSS/REVIEW/OPEN.
+    Filter by source='live' or source='backtest'.
+    """
+    from sqlalchemy import select as sa_select, desc
+    from app.schemas.signal_log import SignalLog
+    from app.storage import Database
+
+    async with Database.get_session() as session:
+        stmt = sa_select(SignalLog).order_by(desc(SignalLog.fired_at)).limit(limit)
+        if symbol:
+            sym_upper = symbol.upper() + "USDT" if not symbol.upper().endswith("USDT") else symbol.upper()
+            stmt = stmt.where(SignalLog.symbol == sym_upper)
+        if source:
+            stmt = stmt.where(SignalLog.source == source)
+
+        result = await session.execute(stmt)
+        rows = result.scalars().all()
+
+    items = [SignalLogItem(**row.__dict__) for row in rows]
+
+    wins = sum(1 for r in items if r.outcome == "WIN")
+    losses = sum(1 for r in items if r.outcome == "LOSS")
+    closed = wins + losses
+    summary = SignalLogSummary(
+        total=len(items),
+        open=sum(1 for r in items if r.outcome == "OPEN"),
+        win=wins,
+        loss=losses,
+        review=sum(1 for r in items if r.outcome == "REVIEW"),
+        win_rate=round(wins / closed * 100, 1) if closed > 0 else None,
+    )
+
+    return SignalLogResponse(
+        data=items,
+        summary=summary,
+        last_updated=int(time.time() * 1000),
+    )

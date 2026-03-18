@@ -1,6 +1,7 @@
 "use client";
 
 import { CoinIcon } from "@/components/features/dashboard/CoinIcon";
+import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { useCoinMeta } from "@/hooks/useCoinMeta";

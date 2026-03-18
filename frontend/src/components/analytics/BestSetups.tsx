@@ -1,6 +1,7 @@
 "use client";
 
 import { CoinIcon } from "@/components/features/dashboard/CoinIcon";
+import { Badge } from "@/components/ui/badge";
 import { useBestSetups } from "@/hooks/useAnalyticsData";
 import { useCoinMeta } from "@/hooks/useCoinMeta";
 import { BestSetupItem } from "@/lib/api";

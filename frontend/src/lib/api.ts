@@ -357,6 +357,78 @@ export async function fetchTitanStrategy(symbol: string, timeframe: string = "4h
 /**
  * Fetch Oracle Strategy analysis
  */
+export interface SignalLogItem {
+  id: number;
+  symbol: string;
+  direction: "LONG" | "SHORT";
+  timeframe: string;
+  entry: number;
+  tp: number;
+  sl: number;
+  conviction: number;
+  oracle_signal: string;
+  titan_signal: string;
+  oracle_score: number;
+  titan_confidence: number;
+  market_state: string;
+  fired_reason: string;
+  fired_at: number;
+  source: "live" | "backtest";
+  outcome: "OPEN" | "WIN" | "LOSS" | "REVIEW";
+  resolved_at: number | null;
+  resolved_price: number | null;
+}
+
+export interface SignalLogSummary {
+  total: number;
+  open: number;
+  win: number;
+  loss: number;
+  review: number;
+  win_rate: number | null;
+}
+
+export interface SignalLogResponse {
+  data: SignalLogItem[];
+  summary: SignalLogSummary;
+  last_updated: number;
+}
+
+export interface SignalLogConfig {
+  watchlist: string[];
+  min_titan_confidence: number;
+  review_days: number;
+  block_sleeping: boolean;
+  block_volatile: boolean;
+  macro_guard: boolean;
+  block_btc_sell: boolean;
+}
+
+export async function fetchSignalLogConfig(): Promise<SignalLogConfig> {
+  const response = await fetch(`${API_URL}/api/analytics/signal-log/config`);
+  if (!response.ok) throw new Error("Failed to fetch signal log config");
+  return response.json();
+}
+
+export async function updateSignalLogConfig(config: SignalLogConfig): Promise<SignalLogConfig> {
+  const response = await fetch(`${API_URL}/api/analytics/signal-log/config`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(config),
+  });
+  if (!response.ok) throw new Error("Failed to update signal log config");
+  return response.json();
+}
+
+export async function fetchSignalLog(symbol?: string, source?: string, limit: number = 100): Promise<SignalLogResponse> {
+  const params = new URLSearchParams({ limit: limit.toString() });
+  if (symbol) params.append("symbol", symbol);
+  if (source) params.append("source", source);
+  const response = await fetch(`${API_URL}/api/analytics/signal-log?${params}`);
+  if (!response.ok) throw new Error(`Failed to fetch signal log: ${response.statusText}`);
+  return response.json();
+}
+
 export async function fetchOracleStrategy(symbol: string, micro_tf: string = "1h", macro_tf: string = "1d"): Promise<OracleStrategyResponse> {
   const params = new URLSearchParams({
     micro_tf,

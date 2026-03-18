@@ -263,10 +263,11 @@ async def sync_analytics_cache(ctx):
 from arq.connections import RedisSettings
 import os
 from urllib.parse import urlparse
+from app.jobs.signal_log import log_watchlist_setups, resolve_signal_outcomes
 
 class WorkerSettings:
     # Market data and analytics cache jobs
-    functions = [sync_market_summary, sync_market_snapshot, sync_analytics_cache]
+    functions = [sync_market_summary, sync_market_snapshot, sync_analytics_cache, log_watchlist_setups, resolve_signal_outcomes]
     on_startup = startup
     on_shutdown = shutdown
     
@@ -289,6 +290,8 @@ class WorkerSettings:
         cron(sync_market_summary, second={0}),  # Live data every 60s
         cron(sync_market_snapshot, minute={0, 5, 10, 15, 20, 25, 30, 35, 40, 45, 50, 55}),  # Snapshot (CoinGecko) every 5m
         cron(sync_analytics_cache, minute={2, 7, 12, 17, 22, 27, 32, 37, 42, 47, 52, 57}),  # Analytics every 5m (offset)
+        cron(log_watchlist_setups, minute={4, 9, 14, 19, 24, 29, 34, 39, 44, 49, 54, 59}),  # Signal log every 5m (offset)
+        cron(resolve_signal_outcomes, minute={30}),  # Resolve outcomes every hour
     ]
 
 if __name__ == "__main__":

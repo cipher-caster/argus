@@ -1,6 +1,7 @@
 "use client";
 
 import { ActiveSetups } from "@/components/features/dashboard/ActiveSetups";
+import { ActiveSignals } from "@/components/features/dashboard/ActiveSignals";
 import { BTCCard } from "@/components/features/dashboard/BTCCard";
 import { DashboardStatusBar } from "@/components/features/dashboard/DashboardStatusBar";
 import { DashboardWatchlist } from "@/components/features/dashboard/DashboardWatchlist";
@@ -27,6 +28,11 @@ export default function Dashboard() {
             <BTCCard />
             <DashboardWatchlist />
           </div>
+        </section>
+
+        {/* Active Signals */}
+        <section className="animate-in fade-in slide-in-from-bottom-4 duration-700 delay-50">
+          <ActiveSignals />
         </section>
 
         {/* Top Movers */}

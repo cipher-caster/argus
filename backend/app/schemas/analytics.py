@@ -82,3 +82,47 @@ class TitanRadarItem(BaseModel):
 class TitanRadarResponse(BaseModel):
     data: List[TitanRadarItem]
     last_updated: int = 0
+
+class SignalLogConfig(BaseModel):
+    watchlist: List[str] = ["BTCUSDT", "ETHUSDT", "BNBUSDT"]
+    min_titan_confidence: int = 55
+    review_days: int = 7
+    block_sleeping: bool = True
+    block_volatile: bool = True
+    macro_guard: bool = True
+    block_btc_sell: bool = True
+
+
+class SignalLogItem(BaseModel):
+    id: int
+    symbol: str
+    direction: str          # LONG | SHORT
+    timeframe: str
+    entry: float
+    tp: float
+    sl: float
+    conviction: int
+    oracle_signal: str
+    titan_signal: str
+    oracle_score: int
+    titan_confidence: int
+    market_state: str
+    fired_reason: str
+    fired_at: int           # epoch ms
+    source: str = "live"   # "live" | "backtest"
+    outcome: str            # OPEN | WIN | LOSS | REVIEW
+    resolved_at: Optional[int] = None
+    resolved_price: Optional[float] = None
+
+class SignalLogSummary(BaseModel):
+    total: int
+    open: int
+    win: int
+    loss: int
+    review: int
+    win_rate: Optional[float] = None   # WIN / (WIN + LOSS), None if no closed trades
+
+class SignalLogResponse(BaseModel):
+    data: List[SignalLogItem]
+    summary: SignalLogSummary
+    last_updated: int = 0

@@ -51,6 +51,7 @@ class Database:
         from sqlmodel import SQLModel
         # Ensure models are imported so metadata is populated
         from app.schemas.candle import Candle
+        from app.schemas.signal_log import SignalLog
         async with cls._engine.begin() as conn:
             await conn.run_sync(SQLModel.metadata.create_all)
     

@@ -1,7 +1,7 @@
 "use client";
 
 import { cn } from "@/lib/utils";
-import { Gauge, Info, Sparkles, TrendingDown, TrendingUp } from "lucide-react";
+import { Gauge, History, Info, Sparkles, TrendingDown, TrendingUp } from "lucide-react";
 import dynamic from "next/dynamic";
 import { useState } from "react";
 
@@ -17,12 +17,17 @@ const TitanSignalsPanel = dynamic(() => import("@/components/analytics/TitanSign
   loading: () => <div className="h-[400px] flex items-center justify-center text-muted-foreground">Loading Titan Signals…</div>,
 });
 
-type ChartType = "best-setups" | "titan-signals" | "contrarian-radar";
+const SignalLog = dynamic(() => import("@/components/analytics").then((mod) => ({ default: mod.SignalLog })), {
+  loading: () => <div className="h-[400px] flex items-center justify-center text-muted-foreground">Loading Signal Log…</div>,
+});
+
+type ChartType = "best-setups" | "titan-signals" | "contrarian-radar" | "signal-log";
 
 const MENU_ITEMS: { id: ChartType; label: string; icon: any }[] = [
   { id: "best-setups", label: "Best Setups", icon: Sparkles },
   { id: "titan-signals", label: "Titan Signals", icon: TrendingUp },
   { id: "contrarian-radar", label: "Contrarian Radar", icon: Gauge },
+  { id: "signal-log", label: "Signal Log", icon: History },
 ];
 
 const CHART_INFO: Record<ChartType, { title: string; description: string }> = {
@@ -37,6 +42,10 @@ const CHART_INFO: Record<ChartType, { title: string; description: string }> = {
   "contrarian-radar": {
     title: "Contrarian Radar",
     description: "Coins overextended 3x+ ATR from their 200 EMA. Different signal type — mean reversion plays, not trend following.",
+  },
+  "signal-log": {
+    title: "Signal Log",
+    description: "Forward-test track record for BTC, ETH, SOL, BNB on 4H. Only logs signals when market conditions are swing-tradeable. Resolves as WIN / LOSS / REVIEW (7d).",
   },
 };
 
@@ -120,6 +129,7 @@ export default function AnalyticsPage() {
             {activeTab === "best-setups" && <BestSetups timeframe={timeframe} />}
             {activeTab === "titan-signals" && <TitanSignalsPanel timeframe={timeframe} />}
             {activeTab === "contrarian-radar" && <ContrarianRadar timeframe={timeframe} />}
+            {activeTab === "signal-log" && <SignalLog />}
           </div>
         </div>
       </div>
