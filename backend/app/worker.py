@@ -52,6 +52,13 @@ async def startup(ctx):
     except Exception as e:
         logger.warning(f"Startup: initial signal scan failed (non-fatal): {e}")
 
+    # Recover active trading positions on startup
+    try:
+        await manage_positions(ctx)
+        logger.info("Startup: position recovery complete")
+    except Exception as e:
+        logger.warning(f"Startup: position recovery failed (non-fatal): {e}")
+
 async def shutdown(ctx):
     """Cleanup on worker shutdown"""
     global provider
@@ -270,16 +277,96 @@ from arq.connections import RedisSettings
 import os
 from urllib.parse import urlparse
 from app.jobs.signal_log import log_watchlist_setups, resolve_signal_outcomes
+from app.trading.orchestrator import TradeOrchestrator, get_trading_config
+
+_trade_orchestrator = TradeOrchestrator()
+
+
+async def execute_signals(ctx):
+    """
+    Pick up new OPEN live signals and create PENDING positions via the orchestrator.
+    Runs 2 minutes after the signal scan at each 4H candle close.
+    """
+    from sqlalchemy import select
+    from app.schemas.signal_log import SignalLog
+    from app.schemas.trading import Position
+
+    config = await get_trading_config()
+    if not config.get("enabled", False):
+        return
+
+    logger.info("Job: execute_signals — processing new signals...")
+
+    async with Database.get_session() as session:
+        # Signals that are OPEN and have no Position yet
+        result = await session.execute(
+            select(SignalLog).where(
+                SignalLog.outcome == "OPEN",
+                SignalLog.source == "live",
+                ~SignalLog.id.in_(
+                    select(Position.signal_log_id).where(
+                        Position.signal_log_id.is_not(None)
+                    )
+                ),
+            )
+        )
+        new_signals = result.scalars().all()
+
+    logger.info(f"Job: execute_signals — {len(new_signals)} unprocessed signal(s) found")
+    for signal in new_signals:
+        try:
+            await _trade_orchestrator.process_signal(signal)
+        except Exception as e:
+            logger.warning(f"execute_signals error for {signal.symbol}: {e}")
+
+
+async def manage_positions(ctx):
+    """
+    Check fills and TP/SL hits on all active positions. Runs every 5 minutes.
+    """
+    config = await get_trading_config()
+    if not config.get("enabled", False):
+        return
+
+    logger.info("Job: manage_positions — checking active positions...")
+    try:
+        await _trade_orchestrator.check_pending_fills()
+        await _trade_orchestrator.check_open_positions()
+        await _trade_orchestrator.check_circuit_breaker()
+    except Exception as e:
+        logger.error(f"Job Failed: manage_positions: {e}", exc_info=True)
+
+
+async def sync_trading_balance(ctx):
+    """
+    Cache current portfolio balance in Redis for quick API access. Runs every 10 minutes.
+    """
+    config = await get_trading_config()
+    if not config.get("enabled", False):
+        return
+    try:
+        from app.trading.portfolio import PortfolioTracker
+        portfolio = PortfolioTracker(config["initial_capital"])
+        balance = await portfolio.get_balance()
+        await RedisClient.set_json("trading:balance", {"balance": round(balance, 2)}, ttl=300)
+        logger.info(f"Job: sync_trading_balance — ${balance:.2f}")
+    except Exception as e:
+        logger.error(f"Job Failed: sync_trading_balance: {e}")
+
 
 class WorkerSettings:
     # Market data and analytics cache jobs
-    functions = [sync_market_summary, sync_market_snapshot, sync_analytics_cache, log_watchlist_setups, resolve_signal_outcomes]
+    functions = [
+        sync_market_summary, sync_market_snapshot, sync_analytics_cache,
+        log_watchlist_setups, resolve_signal_outcomes,
+        execute_signals, manage_positions, sync_trading_balance,
+    ]
     on_startup = startup
     on_shutdown = shutdown
-    
+
     # Default local Redis
     redis_settings = RedisSettings(host='localhost', port=6379)
-    
+
     # Override from environment
     redis_url = os.getenv("REDIS_URL")
     if redis_url:
@@ -296,8 +383,11 @@ class WorkerSettings:
         cron(sync_market_summary, second={0}),  # Live data every 60s
         cron(sync_market_snapshot, minute={0, 5, 10, 15, 20, 25, 30, 35, 40, 45, 50, 55}),  # Snapshot (CoinGecko) every 5m
         cron(sync_analytics_cache, minute={2, 7, 12, 17, 22, 27, 32, 37, 42, 47, 52, 57}),  # Analytics every 5m (offset)
-        cron(log_watchlist_setups, hour={0, 4, 8, 12, 16, 20}, minute={3}),  # Signal log at each 4H candle close (+3m for data to settle)
-        cron(resolve_signal_outcomes, minute={0, 30}),  # Resolve outcomes every 30min
+        cron(log_watchlist_setups, hour={0, 4, 8, 12, 16, 20}, minute={3}),  # Signal log at each 4H candle close (+3m for data)
+        cron(resolve_signal_outcomes, minute={0, 30}),  # Resolve signal outcomes every 30min
+        cron(execute_signals, hour={0, 4, 8, 12, 16, 20}, minute={5}),  # Execute signals 2min after scan
+        cron(manage_positions, minute={0, 5, 10, 15, 20, 25, 30, 35, 40, 45, 50, 55}),  # Check fills/TP/SL every 5min
+        cron(sync_trading_balance, minute={1, 11, 21, 31, 41, 51}),  # Cache balance every 10min
     ]
 
 if __name__ == "__main__":

@@ -50,10 +50,34 @@ class CalculationError(ArgusException):
 class ValidationError(ArgusException):
     """
     Raised when input validation fails.
-    
+
     Examples:
         - Invalid symbol format
         - Invalid timeframe
         - Out of range parameters
+    """
+    pass
+
+
+class ExecutionError(ArgusException):
+    """
+    Raised when a trade execution or simulation step fails.
+
+    Examples:
+        - Position creation failed
+        - Price lookup failed during fill check
+        - Unexpected state transition
+    """
+    pass
+
+
+class RiskCheckError(ArgusException):
+    """
+    Raised when a risk management gate rejects a trade.
+
+    Examples:
+        - Max positions exceeded
+        - Drawdown threshold breached
+        - Conviction below minimum
     """
     pass

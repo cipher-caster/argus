@@ -2,7 +2,7 @@
 
 import { ArgusLogo } from "@/components/common/ArgusLogo";
 import { fetchProviderInfo, setProvider } from "@/lib/api";
-import { BarChart2, ChevronDown, Globe, LineChart, Search } from "lucide-react";
+import { BarChart2, ChevronDown, Globe, LineChart, Search, TrendingUp } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
@@ -101,7 +101,7 @@ export function Navbar() {
     window.location.href = `/chart/${cleanSymbol}-USDT`;
   };
 
-  const isFullWidthPage = pathname?.startsWith("/chart") || pathname === "/analytics" || pathname?.startsWith("/markets");
+  const isFullWidthPage = pathname?.startsWith("/chart") || pathname === "/analytics" || pathname?.startsWith("/markets") || pathname === "/trading";
 
   return (
     <nav className="h-14 bg-background border-b border-border sticky top-0 z-[1000]">
@@ -136,6 +136,13 @@ export function Navbar() {
             >
               <BarChart2 size={16} />
               <span>Analytics</span>
+            </Link>
+            <Link
+              href="/trading"
+              className={cn("flex items-center gap-1.5 px-3 h-9 text-sm font-semibold no-underline rounded-lg transition-all", pathname === "/trading" ? "text-primary bg-primary/10" : "text-muted-foreground hover:text-foreground hover:bg-muted")}
+            >
+              <TrendingUp size={16} />
+              <span>Trading</span>
             </Link>
           </div>
         </div>

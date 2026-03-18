@@ -461,6 +461,176 @@ export async function fetchBacktestStats(): Promise<BacktestStatsResponse> {
   return response.json();
 }
 
+// --- Trading Types ---
+
+export interface TradingPortfolio {
+  balance: number;
+  unrealized_pnl: number;
+  total_equity: number;
+  exposure: {
+    total_usdt: number;
+    pct_of_balance: number;
+    positions: number;
+  };
+  initial_capital: number;
+  enabled: boolean;
+  mode: "paper";
+}
+
+export interface Position {
+  id: number;
+  signal_log_id: number | null;
+  symbol: string;
+  direction: "LONG" | "SHORT";
+  status: "PENDING" | "OPEN" | "CLOSED" | "CANCELLED";
+  intended_entry: number;
+  actual_entry: number | null;
+  intended_tp: number;
+  intended_sl: number;
+  actual_exit: number | null;
+  quantity: number;
+  quote_amount: number;
+  risk_amount: number;
+  pnl_usd: number | null;
+  pnl_pct: number | null;
+  outcome: "WIN" | "LOSS" | "EXPIRED" | null;
+  conviction: number;
+  market_state: string;
+  fired_reason: string;
+  created_at: number;
+  filled_at: number | null;
+  closed_at: number | null;
+  // Runtime fields for OPEN positions
+  current_price?: number;
+  unrealized_pnl_usd?: number;
+  unrealized_pnl_pct?: number;
+}
+
+export interface TradeEvent {
+  id: number;
+  event_type: string;
+  details: Record<string, unknown>;
+  timestamp: number;
+}
+
+export interface PositionDetail extends Position {
+  events: TradeEvent[];
+}
+
+export interface PositionsResponse {
+  data: Position[];
+  total: number;
+}
+
+export interface HistoryResponse {
+  data: Position[];
+  limit: number;
+  offset: number;
+}
+
+export interface TradingStats {
+  total_trades: number;
+  wins: number;
+  losses: number;
+  win_rate: number | null;
+  avg_win_pct: number | null;
+  avg_loss_pct: number | null;
+  profit_factor: number | null;
+  total_pnl_usd: number;
+  max_drawdown_pct: number;
+  balance: number;
+  equity_curve: Array<{
+    timestamp: number;
+    balance: number;
+    symbol: string;
+    outcome: string;
+    pnl_usd: number;
+  }>;
+}
+
+export interface TradingConfig {
+  enabled: boolean;
+  initial_capital: number;
+  max_position_size_pct: number;
+  max_concurrent_positions: number;
+  max_correlated_positions: number;
+  max_drawdown_pct: number;
+  min_conviction: number;
+  order_expiry_hours: number;
+  correlation_groups: Record<string, string[]>;
+}
+
+export async function fetchTradingPortfolio(): Promise<TradingPortfolio> {
+  const response = await fetch(`${API_URL}/api/trading/portfolio`);
+  if (!response.ok) throw new Error("Failed to fetch portfolio");
+  return response.json();
+}
+
+export async function fetchPositions(status?: string, symbol?: string): Promise<PositionsResponse> {
+  const params = new URLSearchParams();
+  if (status) params.append("status", status);
+  if (symbol) params.append("symbol", symbol);
+  const response = await fetch(`${API_URL}/api/trading/positions?${params}`);
+  if (!response.ok) throw new Error("Failed to fetch positions");
+  return response.json();
+}
+
+export async function fetchPositionDetail(id: number): Promise<PositionDetail> {
+  const response = await fetch(`${API_URL}/api/trading/positions/${id}`);
+  if (!response.ok) throw new Error("Failed to fetch position");
+  return response.json();
+}
+
+export async function fetchTradeHistory(limit = 50, offset = 0, symbol?: string): Promise<HistoryResponse> {
+  const params = new URLSearchParams({ limit: limit.toString(), offset: offset.toString() });
+  if (symbol) params.append("symbol", symbol);
+  const response = await fetch(`${API_URL}/api/trading/history?${params}`);
+  if (!response.ok) throw new Error("Failed to fetch trade history");
+  return response.json();
+}
+
+export async function fetchTradingConfig(): Promise<TradingConfig> {
+  const response = await fetch(`${API_URL}/api/trading/config`);
+  if (!response.ok) throw new Error("Failed to fetch trading config");
+  return response.json();
+}
+
+export async function updateTradingConfig(patch: Partial<TradingConfig>): Promise<TradingConfig> {
+  const response = await fetch(`${API_URL}/api/trading/config`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(patch),
+  });
+  if (!response.ok) throw new Error("Failed to update trading config");
+  return response.json();
+}
+
+export async function fetchTradingStats(): Promise<TradingStats> {
+  const response = await fetch(`${API_URL}/api/trading/stats`);
+  if (!response.ok) throw new Error("Failed to fetch trading stats");
+  return response.json();
+}
+
+export async function closePosition(id: number): Promise<Position> {
+  const response = await fetch(`${API_URL}/api/trading/close/${id}`, { method: "POST" });
+  if (!response.ok) throw new Error("Failed to close position");
+  return response.json();
+}
+
+export async function closeAllPositions(): Promise<{ closed: number; position_ids: number[] }> {
+  const response = await fetch(`${API_URL}/api/trading/close-all`, { method: "POST" });
+  if (!response.ok) throw new Error("Failed to close all positions");
+  return response.json();
+}
+
+export async function pauseTrading(): Promise<{ enabled: boolean; message: string }> {
+  const response = await fetch(`${API_URL}/api/trading/pause`, { method: "POST" });
+  if (!response.ok) throw new Error("Failed to pause trading");
+  return response.json();
+}
+
+// --- End Trading API ---
+
 export async function fetchOracleStrategy(symbol: string, micro_tf: string = "1h", macro_tf: string = "1d"): Promise<OracleStrategyResponse> {
   const params = new URLSearchParams({
     micro_tf,

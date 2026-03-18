@@ -21,6 +21,8 @@ services:
       - DATA_PROVIDER=okx
       - REDIS_URL=redis://redis:6379/0
       - DATABASE_URL=postgresql+asyncpg://argus:argus_password@db:5432/argus_db
+      - TELEGRAM_BOT_TOKEN=${TELEGRAM_BOT_TOKEN:-}
+      - TELEGRAM_CHAT_ID=${TELEGRAM_CHAT_ID:-}
     volumes:
       - ./backend:/app
     depends_on:
