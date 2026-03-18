@@ -429,6 +429,38 @@ export async function fetchSignalLog(symbol?: string, source?: string, limit: nu
   return response.json();
 }
 
+export interface CoinBacktestStats {
+  symbol: string;
+  base: string;
+  total: number;
+  wins: number;
+  losses: number;
+  reviews: number;
+  win_rate: number | null;
+  profit_r: number;
+  longs: number;
+  shorts: number;
+  long_wr: number | null;
+  short_wr: number | null;
+  avg_conviction: number;
+}
+
+export interface BacktestStatsResponse {
+  coins: CoinBacktestStats[];
+  overall: {
+    total_signals: number;
+    total_coins: number;
+    win_rate: number | null;
+    profit_r: number;
+  } | null;
+}
+
+export async function fetchBacktestStats(): Promise<BacktestStatsResponse> {
+  const response = await fetch(`${API_URL}/api/analytics/signal-log/stats?source=backtest`);
+  if (!response.ok) throw new Error("Failed to fetch backtest stats");
+  return response.json();
+}
+
 export async function fetchOracleStrategy(symbol: string, micro_tf: string = "1h", macro_tf: string = "1d"): Promise<OracleStrategyResponse> {
   const params = new URLSearchParams({
     micro_tf,

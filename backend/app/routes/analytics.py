@@ -401,6 +401,87 @@ async def get_titan_radar(limit: int = 50, timeframe: str = "4h"):
     return TitanRadarResponse(**response)
 
 
+@router.get("/signal-log/stats")
+async def get_signal_log_stats(source: str = "backtest"):
+    """
+    Return per-coin aggregated performance stats from signal log.
+    Used by the Backtest Performance dashboard.
+    """
+    from sqlalchemy import select as sa_select, func, case
+    from app.schemas.signal_log import SignalLog
+    from app.storage import Database
+
+    async with Database.get_session() as session:
+        stmt = sa_select(SignalLog).where(SignalLog.source == source)
+        result = await session.execute(stmt)
+        rows = result.scalars().all()
+
+    if not rows:
+        return {"coins": [], "overall": None}
+
+    # Aggregate per coin
+    from collections import defaultdict
+    by_coin = defaultdict(list)
+    for r in rows:
+        by_coin[r.symbol].append(r)
+
+    coins = []
+    all_signals = []
+    for symbol, sigs in sorted(by_coin.items()):
+        all_signals.extend(sigs)
+        wins = sum(1 for s in sigs if s.outcome == "WIN")
+        losses = sum(1 for s in sigs if s.outcome == "LOSS")
+        reviews = sum(1 for s in sigs if s.outcome == "REVIEW")
+        closed = wins + losses
+        wr = round(wins / closed * 100, 1) if closed > 0 else None
+
+        longs = [s for s in sigs if s.direction == "LONG"]
+        shorts = [s for s in sigs if s.direction == "SHORT"]
+        long_wins = sum(1 for s in longs if s.outcome == "WIN")
+        long_closed = sum(1 for s in longs if s.outcome in ("WIN", "LOSS"))
+        short_wins = sum(1 for s in shorts if s.outcome == "WIN")
+        short_closed = sum(1 for s in shorts if s.outcome in ("WIN", "LOSS"))
+
+        # R profit
+        total_r = 0.0
+        for s in sigs:
+            if s.outcome == "WIN":
+                risk = abs(s.entry - s.sl)
+                reward = abs(s.tp - s.entry)
+                total_r += reward / risk if risk > 0 else 0
+            elif s.outcome == "LOSS":
+                total_r -= 1.0
+
+        coins.append({
+            "symbol": symbol,
+            "base": symbol.replace("USDT", ""),
+            "total": len(sigs),
+            "wins": wins,
+            "losses": losses,
+            "reviews": reviews,
+            "win_rate": wr,
+            "profit_r": round(total_r, 1),
+            "longs": len(longs),
+            "shorts": len(shorts),
+            "long_wr": round(long_wins / long_closed * 100, 1) if long_closed > 0 else None,
+            "short_wr": round(short_wins / short_closed * 100, 1) if short_closed > 0 else None,
+            "avg_conviction": round(sum(s.conviction for s in sigs) / len(sigs)) if sigs else 0,
+        })
+
+    # Overall stats
+    total_wins = sum(c["wins"] for c in coins)
+    total_losses = sum(c["losses"] for c in coins)
+    total_closed = total_wins + total_losses
+    overall = {
+        "total_signals": len(all_signals),
+        "total_coins": len(coins),
+        "win_rate": round(total_wins / total_closed * 100, 1) if total_closed > 0 else None,
+        "profit_r": round(sum(c["profit_r"] for c in coins), 1),
+    }
+
+    return {"coins": coins, "overall": overall}
+
+
 SIGNAL_LOG_CONFIG_KEY = "signal_log:config"
 SIGNAL_LOG_DEFAULTS = {
     "watchlist": [

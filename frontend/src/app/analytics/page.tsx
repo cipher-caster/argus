@@ -1,7 +1,7 @@
 "use client";
 
 import { cn } from "@/lib/utils";
-import { Gauge, History, Info, Sparkles, TrendingDown, TrendingUp } from "lucide-react";
+import { BarChart3, Gauge, History, Info, Sparkles, TrendingDown, TrendingUp } from "lucide-react";
 import dynamic from "next/dynamic";
 import { useState } from "react";
 
@@ -21,13 +21,18 @@ const SignalLog = dynamic(() => import("@/components/analytics").then((mod) => (
   loading: () => <div className="h-[400px] flex items-center justify-center text-muted-foreground">Loading Signal Log…</div>,
 });
 
-type ChartType = "best-setups" | "titan-signals" | "contrarian-radar" | "signal-log";
+const BacktestPerformance = dynamic(() => import("@/components/analytics/BacktestPerformance").then((m) => ({ default: m.BacktestPerformance })), {
+  loading: () => <div className="h-[400px] flex items-center justify-center text-muted-foreground">Loading Backtest Performance…</div>,
+});
+
+type ChartType = "best-setups" | "titan-signals" | "contrarian-radar" | "signal-log" | "backtest";
 
 const MENU_ITEMS: { id: ChartType; label: string; icon: any }[] = [
   { id: "best-setups", label: "Best Setups", icon: Sparkles },
   { id: "titan-signals", label: "Titan Signals", icon: TrendingUp },
   { id: "contrarian-radar", label: "Contrarian Radar", icon: Gauge },
   { id: "signal-log", label: "Signal Log", icon: History },
+  { id: "backtest", label: "Backtest", icon: BarChart3 },
 ];
 
 const CHART_INFO: Record<ChartType, { title: string; description: string }> = {
@@ -45,7 +50,11 @@ const CHART_INFO: Record<ChartType, { title: string; description: string }> = {
   },
   "signal-log": {
     title: "Signal Log",
-    description: "Forward-test track record for BTC, ETH, SOL, BNB on 4H. Only logs signals when market conditions are swing-tradeable. Resolves as WIN / LOSS / REVIEW (7d).",
+    description: "Forward-test track record for 11 backtested coins on 4H. Only logs signals when market conditions are swing-tradeable. Resolves as WIN / LOSS / REVIEW (7d).",
+  },
+  "backtest": {
+    title: "Backtest Performance",
+    description: "Historical backtest results across all tracked coins. Win rates, R-profit, and per-coin breakdown from 1 year of 4H data.",
   },
 };
 
@@ -130,6 +139,7 @@ export default function AnalyticsPage() {
             {activeTab === "titan-signals" && <TitanSignalsPanel timeframe={timeframe} />}
             {activeTab === "contrarian-radar" && <ContrarianRadar timeframe={timeframe} />}
             {activeTab === "signal-log" && <SignalLog />}
+            {activeTab === "backtest" && <BacktestPerformance />}
           </div>
         </div>
       </div>

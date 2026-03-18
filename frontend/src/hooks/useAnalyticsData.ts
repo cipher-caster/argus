@@ -5,7 +5,7 @@
  * Optimized with stale-while-revalidate for better UX
  */
 
-import { fetchAnalyticsSymbols, fetchBestSetups, fetchMeanReversion, fetchOracleScreener, fetchOracleSignalSummary, fetchSignalLog, fetchSignalLogConfig, fetchTitanRadar, updateSignalLogConfig, SignalLogConfig } from "@/lib/api";
+import { fetchAnalyticsSymbols, fetchBacktestStats, fetchBestSetups, fetchMeanReversion, fetchOracleScreener, fetchOracleSignalSummary, fetchSignalLog, fetchSignalLogConfig, fetchTitanRadar, updateSignalLogConfig, SignalLogConfig } from "@/lib/api";
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 /**
@@ -91,6 +91,14 @@ export function useSignalLogConfig() {
     queryKey: ["signal-log-config"],
     queryFn: fetchSignalLogConfig,
     staleTime: 5 * 60_000,
+  });
+}
+
+export function useBacktestStats() {
+  return useQuery({
+    queryKey: ["analytics", "backtest-stats"],
+    queryFn: fetchBacktestStats,
+    staleTime: 10 * 60_000, // 10 min — backtest data rarely changes
   });
 }
 
