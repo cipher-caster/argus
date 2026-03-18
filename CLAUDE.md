@@ -62,6 +62,7 @@ docker compose exec redis redis-cli
 - `services/` — Business logic, cache coordination (`market_data.py`)
 - `indicators/` — Technical analysis (pandas-ta): `screener.py`, `mean_reversion.py`
 - `strategies/` — Trading signal generation: `oracle.py` (Earnest + Prophet), `titan.py` (hybrid trend-momentum)
+- `jobs/` — Worker background jobs: `signal_log.py` (scan watchlist at 4H candle close, resolve outcomes every 30min)
 - `providers/` — CCXT Binance wrapper (`binance_provider.py`)
 - `schemas/` — Pydantic v2 models
 - `storage.py` — Redis + Postgres connection pooling
@@ -70,7 +71,8 @@ docker compose exec redis redis-cli
 **Frontend layers** (`frontend/src/`):
 - `app/` — Next.js 14 App Router pages (`/`, `/chart/[symbol]`, `/markets/[type]`, `/analytics`)
 - `components/features/` — Feature components (dashboard, chart)
-- `components/analytics/` — Analytics panels: `OracleScreener`, `TitanRadar`, `TitanSignalsPanel`, `ContrarianRadar`, `BestSetups`
+- `components/analytics/` — Analytics panels: `OracleScreener`, `TitanRadar`, `TitanSignalsPanel`, `ContrarianRadar`, `BestSetups`, `SignalLog`
+- `components/features/dashboard/` — Dashboard widgets: `ActiveSetups`, `ActiveSignals`, `BTCCard`, `DashboardWatchlist`, `TopMovers`, `DashboardStatusBar`
 - `components/ui/` — Shadcn UI primitives
 - `hooks/` — TanStack Query v5 custom hooks (staleTime varies: 60s–300s, gcTime 5min)
 - `stores/` — Zustand stores (theme, indicators, watchlist, chart settings)

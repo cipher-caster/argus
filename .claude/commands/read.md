@@ -31,6 +31,7 @@ Fetch all of these in parallel using multiple `WebFetch` calls:
 3. `GET http://localhost:8000/api/analytics/screener?timeframe=1h&limit=20`
 4. `GET http://localhost:8000/api/analytics/best-setups?timeframe=4h&limit=10`
 5. `GET http://localhost:8000/api/indicators/market/dashboard`
+6. `GET http://localhost:8000/api/analytics/signal-log?source=live&limit=20`
 
 ### Output format
 
@@ -58,6 +59,13 @@ List up to 5 from best_setups.data, showing:
   MTF: 4H {✓/✗} 1D {✓/✗} 12H {✓/✗} 1W {✓/✗} (skip row if timeframe_confirmation is null)
   Reason: {reason}
 
+### Active Signals (Live)
+From signal_log.data, filter for outcome="OPEN":
+If none: "No active signals — waiting for next 4H candle setup"
+If any, list each:
+  {symbol} {direction} | Entry {entry} | TP {tp} (+X%) | SL {sl} (-X%) | Conviction {conviction}/100 | Age {time since fired_at}
+Then show summary: Win Rate {summary.win_rate}% ({summary.win} W / {summary.loss} L) or "No closed trades yet" if win_rate is null
+
 ### Top Movers (24H)
 From market/summary:
   Gainers: top 3 with % change
@@ -84,13 +92,14 @@ Fetch all of these in parallel:
 2. `GET http://localhost:8000/api/strategy/oracle/BTC%2FUSDT?micro_tf=4h&macro_tf=1d`
 3. `GET http://localhost:8000/api/strategy/titan/BTC%2FUSDT?timeframe=4h`
 4. `GET http://localhost:8000/api/market/coins?search=BTC&page=1&page_size=10`
+5. `GET http://localhost:8000/api/analytics/signal-log?symbol=BTC&source=live&limit=10`
 
 If `long_term_mode = true`, also fetch these in parallel with the above:
 
-5. `GET http://localhost:8000/api/strategy/oracle/BTC%2FUSDT?micro_tf=12h&macro_tf=1d`
-6. `GET http://localhost:8000/api/strategy/oracle/BTC%2FUSDT?micro_tf=1d&macro_tf=1w`
-7. `GET http://localhost:8000/api/strategy/titan/BTC%2FUSDT?timeframe=1d`
-8. `GET http://localhost:8000/api/strategy/titan/BTC%2FUSDT?timeframe=1w`
+6. `GET http://localhost:8000/api/strategy/oracle/BTC%2FUSDT?micro_tf=12h&macro_tf=1d`
+7. `GET http://localhost:8000/api/strategy/oracle/BTC%2FUSDT?micro_tf=1d&macro_tf=1w`
+8. `GET http://localhost:8000/api/strategy/titan/BTC%2FUSDT?timeframe=1d`
+9. `GET http://localhost:8000/api/strategy/titan/BTC%2FUSDT?timeframe=1w`
 
 Replace `BTC%2FUSDT` with the actual encoded symbol. The `market/coins` response is paginated — find the matching coin by checking the `symbol` field in the returned list.
 
@@ -134,6 +143,15 @@ Replace `BTC%2FUSDT` with the actual encoded symbol. The `market/coins` response
 - Advice: {titan.advice}
 - Reasons:
   {list titan.reasons}
+
+### Signal Log ({BASE})
+From signal_log.data:
+If any OPEN signals exist for this coin:
+  Active: {direction} | Entry {entry} | TP {tp} (+X%) | SL {sl} (-X%) | Conviction {conviction}/100 | Fired {time since fired_at}
+If recent closed signals (WIN/LOSS):
+  Recent: {direction} {outcome} | Entry {entry} → Resolved @ {resolved_price} | {time since fired_at}
+  Track Record: {summary.win_rate}% WR ({summary.win}W / {summary.loss}L)
+If no signals: "No signal log entries for {BASE} yet"
 
 ### Spot Setup
 
@@ -230,10 +248,10 @@ Rules for writing conditionals:
 ### Long-Term / HODL View
 *(Only include this section if `long_term_mode = true`)*
 
-This section uses the 1D Oracle and 1W Titan data (fetched in calls 5 & 6) to answer: "Is this a good coin to buy and hold? Where do I accumulate? What are realistic targets?"
+This section uses the 1D Oracle and 1W Titan data (fetched in calls 6–9) to answer: "Is this a good coin to buy and hold? Where do I accumulate? What are realistic targets?"
 
 **Macro Trend — Multi-Timeframe Stack:**
-Use the three higher-TF responses (calls 5–8) to build a layered picture:
+Use the higher-TF responses (calls 6–9) to build a layered picture:
 
 | Timeframe | Oracle Signal | Oracle Bias | Titan Signal | Titan Trend |
 |-----------|--------------|-------------|--------------|-------------|
