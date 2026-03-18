@@ -6,7 +6,7 @@ import { SignalLogItem, SignalLogConfig } from "@/lib/api";
 import { cn } from "@/lib/utils";
 import { RefreshCw, Settings2, Save, Check } from "lucide-react";
 
-const SYMBOLS = ["All", "BTC", "ETH", "SOL", "BNB"];
+const SYMBOLS = ["All", "BTC", "ETH", "BNB", "TRX", "XRP", "FET", "NEAR", "ARB", "ATOM", "DOGE", "APT"];
 const SOURCES = ["All", "Live", "Backtest"];
 
 const OUTCOME_CONFIG = {
@@ -114,8 +114,15 @@ function SignalRow({ item }: { item: SignalLogItem }) {
 const ALL_COINS = [
   { key: "BTCUSDT", label: "BTC" },
   { key: "ETHUSDT", label: "ETH" },
-  { key: "SOLUSDT", label: "SOL" },
   { key: "BNBUSDT", label: "BNB" },
+  { key: "TRXUSDT", label: "TRX" },
+  { key: "XRPUSDT", label: "XRP" },
+  { key: "FETUSDT", label: "FET" },
+  { key: "NEARUSDT", label: "NEAR" },
+  { key: "ARBUSDT", label: "ARB" },
+  { key: "ATOMUSDT", label: "ATOM" },
+  { key: "DOGEUSDT", label: "DOGE" },
+  { key: "APTUSDT", label: "APT" },
 ];
 
 function SettingsPanel({ config, onSave, isSaving, saved }: {

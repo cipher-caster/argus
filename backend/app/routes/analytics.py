@@ -403,7 +403,11 @@ async def get_titan_radar(limit: int = 50, timeframe: str = "4h"):
 
 SIGNAL_LOG_CONFIG_KEY = "signal_log:config"
 SIGNAL_LOG_DEFAULTS = {
-    "watchlist": ["BTCUSDT", "ETHUSDT", "BNBUSDT"],
+    "watchlist": [
+        "BTCUSDT", "ETHUSDT", "BNBUSDT",
+        "TRXUSDT", "XRPUSDT", "FETUSDT", "NEARUSDT",
+        "ARBUSDT", "ATOMUSDT", "DOGEUSDT", "APTUSDT",
+    ],
     "min_titan_confidence": 55,
     "review_days": 7,
     "block_sleeping": True,

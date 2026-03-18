@@ -52,7 +52,7 @@ from app.strategies.titan import TitanStrategy
 # Config
 # ---------------------------------------------------------------------------
 
-DEFAULT_COINS = ["BTC", "ETH", "BNB"]
+DEFAULT_COINS = ["BTC", "ETH", "BNB", "TRX", "XRP", "FET", "NEAR", "ARB", "ATOM", "DOGE", "APT"]
 
 def _parse_symbols():
     """Parse --symbols=TAO,LINK,BTC flag into watchlist tuples."""

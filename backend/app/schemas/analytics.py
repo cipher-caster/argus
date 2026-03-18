@@ -84,7 +84,11 @@ class TitanRadarResponse(BaseModel):
     last_updated: int = 0
 
 class SignalLogConfig(BaseModel):
-    watchlist: List[str] = ["BTCUSDT", "ETHUSDT", "BNBUSDT"]
+    watchlist: List[str] = [
+        "BTCUSDT", "ETHUSDT", "BNBUSDT",
+        "TRXUSDT", "XRPUSDT", "FETUSDT", "NEARUSDT",
+        "ARBUSDT", "ATOMUSDT", "DOGEUSDT", "APTUSDT",
+    ]
     min_titan_confidence: int = 55
     review_days: int = 7
     block_sleeping: bool = True

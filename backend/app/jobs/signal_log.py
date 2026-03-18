@@ -21,7 +21,11 @@ from app.schemas.signal_log import SignalLog
 logger = logging.getLogger(__name__)
 
 # Defaults (overridable via Redis config)
-DEFAULT_WATCHLIST = ["BTCUSDT", "ETHUSDT", "BNBUSDT"]
+DEFAULT_WATCHLIST = [
+    "BTCUSDT", "ETHUSDT", "BNBUSDT",
+    "TRXUSDT", "XRPUSDT", "FETUSDT", "NEARUSDT",
+    "ARBUSDT", "ATOMUSDT", "DOGEUSDT", "APTUSDT",
+]
 DEFAULT_MIN_TITAN_CONFIDENCE = 55
 DEFAULT_REVIEW_DAYS = 7
 
