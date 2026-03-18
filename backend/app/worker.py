@@ -43,8 +43,14 @@ async def startup(ctx):
     provider = get_provider()
     ctx['provider'] = provider
     logger.info("Worker initialized and ready.")
-    # Note: Historical candle data is now fetched on-demand by the API
-    # Run backfill_history.py script manually for initial data population
+    # Run initial signal scan so data is available immediately on app open
+    # (cron only fires at 4H candle closes, so without this there's a gap)
+    try:
+        await log_watchlist_setups(ctx)
+        await resolve_signal_outcomes(ctx)
+        logger.info("Startup: initial signal scan complete")
+    except Exception as e:
+        logger.warning(f"Startup: initial signal scan failed (non-fatal): {e}")
 
 async def shutdown(ctx):
     """Cleanup on worker shutdown"""
