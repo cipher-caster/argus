@@ -61,6 +61,56 @@ export function ChartCanvas({ children, className }: ChartCanvasProps) {
     height,
   });
 
+  // Pinch-to-zoom
+  useEffect(() => {
+    const el = containerRef.current;
+    if (!el || !contextChart) return;
+
+    let initialDist = 0;
+    let initialRange: { from: number; to: number } | null = null;
+
+    const getDistance = (touches: TouchList) => {
+      const dx = touches[0].clientX - touches[1].clientX;
+      const dy = touches[0].clientY - touches[1].clientY;
+      return Math.hypot(dx, dy);
+    };
+
+    const onTouchStart = (e: TouchEvent) => {
+      if (e.touches.length !== 2) return;
+      initialDist = getDistance(e.touches);
+      const range = contextChart.timeScale().getVisibleLogicalRange();
+      initialRange = range ? { from: range.from, to: range.to } : null;
+    };
+
+    const onTouchMove = (e: TouchEvent) => {
+      if (e.touches.length !== 2 || !initialRange || initialDist === 0) return;
+      e.preventDefault();
+      const newDist = getDistance(e.touches);
+      const scale = initialDist / newDist; // pinch in → scale > 1 → zoom out
+      const mid = (initialRange.from + initialRange.to) / 2;
+      const half = ((initialRange.to - initialRange.from) / 2) * scale;
+      contextChart.timeScale().setVisibleLogicalRange({
+        from: mid - half,
+        to: mid + half,
+      });
+    };
+
+    const onTouchEnd = () => {
+      initialDist = 0;
+      initialRange = null;
+    };
+
+    el.addEventListener("touchstart", onTouchStart, { passive: true });
+    el.addEventListener("touchmove", onTouchMove, { passive: false });
+    el.addEventListener("touchend", onTouchEnd, { passive: true });
+
+    return () => {
+      el.removeEventListener("touchstart", onTouchStart);
+      el.removeEventListener("touchmove", onTouchMove);
+      el.removeEventListener("touchend", onTouchEnd);
+    };
+  }, [contextChart]);
+
   // Resize Observer
   useEffect(() => {
     if (!containerRef.current) return;
