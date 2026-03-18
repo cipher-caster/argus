@@ -1,14 +1,16 @@
 #!/usr/bin/env python3
 """
-Signal Backtest Script — BTC, ETH, SOL, BNB on 4H
+Signal Backtest Script — Oracle + Titan on 4H
 ====================================================
 Replays the Oracle + Titan combined setup logic over historical candles.
 Writes results to signal_log (source='backtest') and prints observations.
 
 Usage (inside Docker):
     docker compose exec backend python scripts/run_signal_backtest.py
+    docker compose exec backend python scripts/run_signal_backtest.py --symbols=TAO,LINK --dry-run --fix-optimal
 
 Flags:
+    --symbols=X,Y   Comma-separated coins to test (default: BTC,ETH,BNB)
     --dry-run       Print signals without writing to DB
     --clear         Delete existing backtest rows before running
     --fix-optimal   Apply all proven optimizations (BLOCK_SLEEPING + ADAPTIVE_TP + SOFT_MACRO)
@@ -50,12 +52,17 @@ from app.strategies.titan import TitanStrategy
 # Config
 # ---------------------------------------------------------------------------
 
-WATCHLIST = [
-    ("BTC/USDT", "BTC/USDT"),   # (4h symbol, 1d symbol)
-    ("ETH/USDT", "ETH/USDT"),
-    ("SOL/USDT", "SOL/USDT"),
-    ("BNB/USDT", "BNB/USDT"),
-]
+DEFAULT_COINS = ["BTC", "ETH", "BNB"]
+
+def _parse_symbols():
+    """Parse --symbols=TAO,LINK,BTC flag into watchlist tuples."""
+    for arg in sys.argv:
+        if arg.startswith("--symbols="):
+            coins = [c.strip().upper() for c in arg.split("=")[1].split(",") if c.strip()]
+            return [(f"{c}/USDT", f"{c}/USDT") for c in coins]
+    return [(f"{c}/USDT", f"{c}/USDT") for c in DEFAULT_COINS]
+
+WATCHLIST = _parse_symbols()
 
 WARMUP = 200          # Candles needed before indicators are reliable
 MAX_HOLD_CANDLES = 42 # 7 days on 4H — mark REVIEW if unresolved
