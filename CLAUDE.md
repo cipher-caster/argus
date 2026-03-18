@@ -70,8 +70,8 @@ docker compose exec redis redis-cli
 
 **Frontend layers** (`frontend/src/`):
 - `app/` — Next.js 14 App Router pages (`/`, `/chart/[symbol]`, `/markets/[type]`, `/analytics`)
-- `components/features/` — Feature components (dashboard, chart)
-- `components/analytics/` — Analytics panels: `OracleScreener`, `TitanRadar`, `TitanSignalsPanel`, `ContrarianRadar`, `BestSetups`, `SignalLog`
+- `components/features/` — Feature components (dashboard, chart). Chart sidebar: `CoinDetailsPanel` (price/Oracle/Titan), `CoinSignalIntel` (backtest stats + open signals), `CoinAnalysisModal` (deep analysis with signal track record)
+- `components/analytics/` — Analytics panels: `OracleScreener`, `TitanRadar`, `TitanSignalsPanel`, `ContrarianRadar`, `BestSetups`, `SignalLog`, `BacktestPerformance`
 - `components/features/dashboard/` — Dashboard widgets: `ActiveSetups`, `ActiveSignals`, `BTCCard`, `DashboardWatchlist`, `TopMovers`, `DashboardStatusBar`
 - `components/ui/` — Shadcn UI primitives
 - `hooks/` — TanStack Query v5 custom hooks (staleTime varies: 60s–300s, gcTime 5min)
@@ -92,7 +92,7 @@ Detailed architecture and implementation docs live in `docs/`:
 - `docs/backend/ARCHITECTURE.md` — Backend system design
 - `docs/frontend/ARCHITECTURE.md` — Frontend patterns
 - `docs/backend/ERROR_HANDLING.md` — Exception hierarchy details
-- `docs/CHANGELOG.md` — Version history (current: v0.5.5)
+- `docs/CHANGELOG.md` — Version history (current: v0.7.0)
 - `docs/ROADMAP.md` — Planned features
 
 ## AI Slash Commands

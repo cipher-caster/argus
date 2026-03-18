@@ -2,6 +2,32 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.7.0] - 2026-03-18
+
+### Added
+
+- **Signal History Log (Phase 11)**: Complete signal logging system with forward-test track record.
+  - Worker scans watchlist at 4H candle closes (6x/day) + startup scan for immediate data.
+  - Outcome resolution every 30 min: WIN / LOSS / REVIEW (7-day timeout).
+  - Market gate system: block SLEEPING/VOLATILE markets, macro guard, BTC sell filter.
+  - Configurable settings UI: watchlist selection, min confidence, review days, gate toggles.
+  - 11-coin watchlist selected from 20-coin backtest sweep (BTC, ETH, BNB, TRX, XRP, FET, NEAR, ARB, ATOM, DOGE, APT).
+  - `/backtest [COIN]` slash command for running backtests from Claude Code.
+- **Backtest Performance Leaderboard (Phase 12)**: New analytics tab with per-coin backtest stats.
+  - Sortable table: win rate, R-profit, W/L, long/short split, status badge.
+  - Expandable coin rows showing individual signal history (date, direction, entry, TP, SL, outcome, exit price).
+- **Chart Signal Intelligence (Phase 13)**: Backtest + signal data integrated into chart deep-dive.
+  - `CoinSignalIntel` sidebar panel: compact backtest stats + open signals with TP distance.
+  - `CoinAnalysisModal` "Signal Track Record" section: full stats grid, active signals with live TP/SL %, history table.
+- **Active Signals Dashboard Widget**: Shows OPEN live signals on the main dashboard.
+
+### Changed
+
+- **Signal Log UX**: Replaced 12 coin filter buttons with dropdown select. Age column now shows full date/time (`Mar 18, 2026 14:30`) instead of relative time (`2d ago`).
+- **Worker Schedule**: Signal scanning optimized from every 5 min (288/day) to 4H candle closes (6/day). Resolution changed from hourly to every 30 min.
+
+---
+
 ## [0.6.1] - 2026-03-14
 
 ### Added
