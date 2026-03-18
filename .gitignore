@@ -40,6 +40,15 @@ yarn-error.log*
 coverage/
 .pytest_cache/
 
+# Runtime data
+data/
+
+# AI tools
+.gemini/
+
+# Build artifacts
+frontend/tsconfig.tsbuildinfo
+
 # Misc
 *.pem
 .vercel
