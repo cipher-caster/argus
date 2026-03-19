@@ -12,6 +12,7 @@ from dotenv import load_dotenv
 from app.routes import market_router, indicators_router, strategy_router
 from app.routes.analytics import router as analytics_router
 from app.routes.trading import router as trading_router
+from app.routes.optimization import router as optimization_router, analysis_router
 
 from app.storage import Database
 
@@ -65,6 +66,8 @@ app.include_router(indicators_router)
 app.include_router(strategy_router)
 app.include_router(analytics_router)
 app.include_router(trading_router)
+app.include_router(optimization_router)
+app.include_router(analysis_router)
 
 
 
