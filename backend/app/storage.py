@@ -53,6 +53,7 @@ class Database:
         from app.schemas.candle import Candle
         from app.schemas.signal_log import SignalLog
         from app.schemas.trading import Position, TradeEvent  # noqa: F401
+        from app.schemas.optimization import OptimizationExperiment  # noqa: F401
         async with cls._engine.begin() as conn:
             await conn.run_sync(SQLModel.metadata.create_all)
     
