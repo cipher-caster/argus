@@ -12,6 +12,7 @@ import logging
 import time
 from datetime import datetime, timezone
 
+import pandas as pd
 from sqlalchemy import select, text
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 
@@ -84,20 +85,16 @@ async def _get_oracle_score(symbol: str) -> dict:
     return {}
 
 
-def _passes_market_gate(market_state: str, btc_signal: str, config: dict) -> bool:
-    """Return True only when market conditions are swing-tradeable."""
-    blocked_states = []
-    if config.get("block_sleeping", True):
-        blocked_states.append("SLEEPING")
-    if config.get("block_volatile", True):
-        blocked_states.append("VOLATILE")
-    if market_state in blocked_states:
-        logger.info(f"Signal log gate: SKIP — market is {market_state}")
-        return False
-    if config.get("block_btc_sell", True) and btc_signal in ("SELL", "STRONG_SELL"):
-        logger.info(f"Signal log gate: SKIP — BTC Oracle is {btc_signal}")
-        return False
-    return True
+def _passes_market_gate(regime: str, config: dict) -> bool:
+    """Return True only when market conditions are tradeable.
+    Uses BTC weekly EMA50 regime instead of Oracle signals.
+    In BEAR: log SHORTS only. In BULL: log LONGS only. Always pass if regime unknown.
+    """
+    if regime == "UNKNOWN":
+        return True  # Don't block if regime data unavailable
+    if config.get("bear_long_only", False) and regime == "BEAR":
+        return True  # Allow all in bear (shorts are filtered by direction check below)
+    return True  # Gate is always open — direction filtering happens at signal level
 
 
 # ---------------------------------------------------------------------------
@@ -106,24 +103,32 @@ def _passes_market_gate(market_state: str, btc_signal: str, config: dict) -> boo
 
 async def log_watchlist_setups(ctx):
     """
-    Runs every 5 minutes. For each watchlist coin:
-    1. Check market gate (market_state + BTC Oracle)
-    2. Run Titan + Oracle check on 4H
-    3. If setup qualifies, insert OPEN row (DB deduplicates via unique constraint)
+    Runs at 4H candle close. For each watchlist coin:
+    1. Run Titan on 4H
+    2. If signal qualifies (direction + conviction), log it
+    Direction is filtered by regime: BULL → longs, BEAR → shorts
     """
-    from app.routes.strategy import get_candles_df, titan, oracle
+    from app.routes.strategy import get_candles_df, titan
 
     logger.info("Job: log_watchlist_setups — checking watchlist...")
 
     config = await _get_config()
-    market_state = await _get_market_state()
-    btc_signal = await _get_btc_oracle_signal()
-
-    if not _passes_market_gate(market_state, btc_signal, config):
-        return
-
     now_ms = int(time.time() * 1000)
     logged = 0
+
+    # Detect regime from BTC weekly EMA50
+    regime = "UNKNOWN"
+    try:
+        from app.trading.backtest_engine import load_candles
+        import pandas_ta as _ta
+        btc_weekly = await load_candles("BTC/USDT", "1w")
+        if not btc_weekly.empty and len(btc_weekly) > 50:
+            btc_weekly["ema50"] = _ta.ema(btc_weekly["close"], length=50)
+            last = btc_weekly.iloc[-1]
+            if not pd.isna(last.get("ema50")):
+                regime = "BULL" if float(last["close"]) > float(last["ema50"]) else "BEAR"
+    except Exception as e:
+        logger.warning(f"Regime detection failed: {e}, using UNKNOWN")
 
     # Collect all qualified rows first
     rows_to_insert = []
@@ -148,39 +153,25 @@ async def log_watchlist_setups(ctx):
             if not (is_long or is_short) or t_confidence < config["min_titan_confidence"]:
                 continue
 
-            # Get Oracle score from cache
-            o = await _get_oracle_score(symbol)
-            o_score = o.get("score", 0)
-            o_bias = o.get("bias", "NEUTRAL")
-            o_signal = o.get("signal", "NEUTRAL")
-
-            # Oracle must agree on direction
-            if is_long and o_score <= 0:
-                continue
-            if is_short and o_score >= 0:
+            # Regime-based direction filter: BEAR → shorts only, BULL → longs only
+            regime_aligned = (regime == "BULL" and is_long) or (regime == "BEAR" and is_short)
+            if regime != "UNKNOWN" and not regime_aligned:
+                logger.info(f"Signal log: SKIP {symbol} {t_signal} — counter-trend ({regime} regime)")
                 continue
 
-            # Soft macro guard: block worst counter-trend entries
-            if config.get("macro_guard", True):
-                if is_long and o_bias == "BEARISH":
-                    continue  # Don't LONG into bearish macro
-                if is_short and o_bias == "BULLISH":
-                    continue  # Don't SHORT into bullish macro
+            # Compute conviction (regime-based, not Oracle-based)
+            base_pts = (t_confidence / 100) * 60
+            regime_bonus = 20 if regime_aligned else 0
+            signal_bonus = 10 if t_signal in ("BUY", "SELL") else 0  # non-limit
+            conviction = int(min(100, base_pts + regime_bonus + signal_bonus))
 
-            # Compute conviction (same formula as best-setups)
-            oracle_pts = (abs(o_score) / 5) * 40
-            titan_pts = (t_confidence / 100) * 40
-            bonus = 0
-            if t_signal in ("BUY", "SELL"):
-                bonus += 10
-            if abs(o_score) >= 4:
-                bonus += 10
-            conviction = int(min(100, oracle_pts + titan_pts + bonus))
+            # Regime tag for reason
+            reg_tag = "trend" if regime_aligned else "counter"
+            reasons = t.get("reasons", [])
+            fired_reason = f"({reg_tag}) {t_signal} {t_confidence}% | " + " | ".join(reasons[:2])
 
             targets = t.get("targets", {})
             price = float(df.iloc[-1]["close"])
-            reasons = t.get("reasons", [])
-            fired_reason = f"Oracle {o_bias} {o_score:+d}/5 | {t_signal} {t_confidence}% | " + " | ".join(reasons[:2])
 
             row = dict(
                 symbol=symbol,
@@ -190,11 +181,11 @@ async def log_watchlist_setups(ctx):
                 tp=round(float(targets.get("tp", 0)), 6),
                 sl=round(float(targets.get("sl", 0)), 6),
                 conviction=conviction,
-                oracle_signal=o_signal,
+                oracle_signal="N/A",
                 titan_signal=t_signal,
-                oracle_score=o_score,
+                oracle_score=0,
                 titan_confidence=int(t_confidence),
-                market_state=market_state or "UNKNOWN",
+                market_state=regime,
                 fired_reason=fired_reason,
                 fired_at=now_ms,
                 outcome="OPEN",
@@ -202,7 +193,7 @@ async def log_watchlist_setups(ctx):
 
             rows_to_insert.append(row)
             logged += 1
-            logger.info(f"Signal log: {symbol} {row['direction']} conviction={conviction} state={market_state}")
+            logger.info(f"Signal log: {symbol} {row['direction']} conviction={conviction} regime={regime}")
 
         except Exception as e:
             logger.warning(f"log_watchlist_setups error for {symbol}: {e}")
@@ -250,7 +241,6 @@ async def log_best_setups(ctx):
         return
 
     config = await _get_config()
-    market_state = await _get_market_state()
     now_ms = int(time.time() * 1000)
     logged = 0
 
@@ -268,9 +258,8 @@ async def log_best_setups(ctx):
             if not symbol or not direction:
                 continue
 
-            o_score = item.get("oracle_score", 0)
-            o_bias = "BULLISH" if o_score > 0 else "BEARISH" if o_score < 0 else "NEUTRAL"
             t_signal = item.get("titan_signal", "")
+            reason = item.get("reason", "")
 
             row = dict(
                 symbol=symbol,
@@ -280,12 +269,11 @@ async def log_best_setups(ctx):
                 tp=round(float(item.get("tp", 0)), 6),
                 sl=round(float(item.get("sl", 0)), 6),
                 conviction=conviction,
-                oracle_signal=f"{'STRONG_BUY' if o_score >= 4 else 'BUY'}" if o_score > 0
-                    else f"{'STRONG_SELL' if o_score <= -4 else 'SELL'}",
+                oracle_signal="N/A",
                 titan_signal=t_signal,
-                oracle_score=o_score,
-                titan_confidence=0,  # not in best-setups cache
-                market_state=market_state or "UNKNOWN",
+                oracle_score=0,
+                titan_confidence=0,
+                market_state="scanner",
                 fired_reason=item.get("reason", ""),
                 fired_at=now_ms,
                 source="scanner",
