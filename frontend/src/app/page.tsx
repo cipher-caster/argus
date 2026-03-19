@@ -1,10 +1,9 @@
 "use client";
 
-import { ActiveSetups } from "@/components/features/dashboard/ActiveSetups";
-import { ActiveSignals } from "@/components/features/dashboard/ActiveSignals";
 import { BTCCard } from "@/components/features/dashboard/BTCCard";
 import { DashboardStatusBar } from "@/components/features/dashboard/DashboardStatusBar";
 import { DashboardWatchlist } from "@/components/features/dashboard/DashboardWatchlist";
+import { ActiveSetups } from "@/components/features/dashboard/ActiveSetups";
 import { TopMovers } from "@/components/features/dashboard/TopMovers";
 import { TradingWidget } from "@/components/features/dashboard/TradingWidget";
 import { BarChart2, ChevronRight } from "lucide-react";
@@ -15,12 +14,12 @@ export default function Dashboard() {
     <div className="min-h-screen bg-background text-foreground">
       <main className="max-w-[1440px] mx-auto p-6 md:p-8 space-y-5">
 
-        {/* Single status bar — Oracle state + RSI + Market Cap + BTC Dom */}
+        {/* Status bar — regime + market indicators + clickable modal */}
         <section className="animate-in fade-in slide-in-from-top-2 duration-500">
           <DashboardStatusBar />
         </section>
 
-        {/* Main Grid: Active Setups + BTC Card + Watchlist */}
+        {/* Main Grid: Best Setups + BTC Card + Watchlist */}
         <section className="grid grid-cols-1 lg:grid-cols-5 gap-5 animate-in fade-in slide-in-from-bottom-4 duration-700">
           <div className="lg:col-span-3">
             <ActiveSetups />
@@ -29,11 +28,6 @@ export default function Dashboard() {
             <BTCCard />
             <DashboardWatchlist />
           </div>
-        </section>
-
-        {/* Active Signals */}
-        <section className="animate-in fade-in slide-in-from-bottom-4 duration-700 delay-50">
-          <ActiveSignals />
         </section>
 
         {/* Trading Widget */}

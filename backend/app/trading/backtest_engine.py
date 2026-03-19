@@ -316,17 +316,25 @@ async def backtest_symbol(
         if active_signal and active_signal["direction"] == direction:
             continue
 
-        # --- Compute targets ---
+        # --- Compute targets (per-symbol overrides apply if config allows) ---
         atr = float(row.get("atr", 0))
         if atr <= 0:
             continue
 
-        if is_long:
-            sl = round(price - (atr * config.sl_mult), 6)
-        else:
-            sl = round(price + (atr * config.sl_mult), 6)
+        # Check for per-symbol overrides (e.g. BTC wider stops)
+        from app.strategies.titan import SYMBOL_OVERRIDES
+        overrides = SYMBOL_OVERRIDES.get(f"{symbol}USDT", {})
+        sl_mult = overrides.get("sl_mult", config.sl_mult)
+        tp_override = overrides.get("tp_mult", None)
 
-        if config.tp_mult > 0:
+        if is_long:
+            sl = round(price - (atr * sl_mult), 6)
+        else:
+            sl = round(price + (atr * sl_mult), 6)
+
+        if tp_override is not None:
+            tp_mult = tp_override
+        elif config.tp_mult > 0:
             tp_mult = config.tp_mult
         elif config.tp_adaptive:
             tp_mult = 3.0 if btc_state == "SUPER TREND" else 2.0

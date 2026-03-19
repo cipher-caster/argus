@@ -2,24 +2,26 @@
 
 import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
-import { X, Target, TrendingUp, TrendingDown, ShieldAlert, Zap, AlertTriangle, BarChart2, History, Activity } from "lucide-react";
+import { X, Target, TrendingUp, TrendingDown, ShieldAlert, Zap, AlertTriangle, BarChart2, Activity } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { OracleStrategyResponse, TitanStrategyResponse, SignalLogItem } from "@/lib/api";
-import { useStrategyTitan } from "@/hooks/useStrategyTitan";
+import { TitanStrategyResponse } from "@/lib/api";
 import { useBacktestStats, useSignalLog } from "@/hooks/useAnalyticsData";
 import { Badge } from "@/components/ui/badge";
+
+const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
 
 interface CoinAnalysisModalProps {
   isOpen: boolean;
   onClose: () => void;
   symbol: string;
   timeframe: string;
-  oracle: OracleStrategyResponse;
+  titan: TitanStrategyResponse;
+  regime: string;
 }
 
-// ─── Derivation helpers ─────────────────────────────────────────────────────
+// ─── Derivation helpers (regime + Titan, not Oracle) ──────────────────────
 
-type Stance = "BUY" | "BUY_LIMIT" | "WAIT" | "AVOID";
+type Stance = "BUY" | "BUY_LIMIT" | "SELL" | "SELL_LIMIT" | "WAIT" | "AVOID";
 
 interface SpotSetup {
   stance: Stance;
@@ -35,146 +37,112 @@ interface SpotSetup {
   rrMax: number | undefined;
 }
 
-function deriveMaxTarget(entry: number, tp2: number, oracle: OracleStrategyResponse): number {
-  const hist = oracle.historical_signals.slice(-50);
-  const swingHigh = hist.length > 0 ? Math.max(...hist.map((s) => s.price)) : undefined;
-  // Use swing high if meaningfully above TP2, otherwise extend TP2 by the TP1→TP2 range
-  if (swingHigh && swingHigh > tp2 * 1.005) return swingHigh;
-  return entry + 2 * (tp2 - entry);
-}
-
 function deriveSpotSetup(
-  oracle: OracleStrategyResponse,
   titan: TitanStrategyResponse,
+  regime: string,
   price: number
 ): SpotSetup {
-  const oracleBullish = oracle.signal === "STRONG_BUY" || oracle.signal === "BUY";
-  const oracleBearish = oracle.signal === "STRONG_SELL" || oracle.signal === "SELL";
-  const titanBullish = titan.signal === "BUY" || titan.signal === "BUY_LIMIT";
+  const isLong = titan.signal === "BUY" || titan.signal === "BUY_LIMIT";
+  const isShort = titan.signal === "SELL" || titan.signal === "SELL_LIMIT";
+  const regimeAligned = (regime === "BULL" && isLong) || (regime === "BEAR" && isShort);
 
-  if (oracleBullish && titanBullish) {
-    const useLimit = titan.signal === "BUY_LIMIT" && titan.targets.entry < price;
-    const entry = useLimit ? titan.targets.entry : price;
-    const tp1 = oracle.targets.tp1 > 0 ? oracle.targets.tp1 : undefined;
-    const tp2 = oracle.targets.tp2 > 0 ? oracle.targets.tp2 : titan.targets.tp;
+  if (isLong || isShort) {
+    const entry = titan.targets.entry;
+    const tp = titan.targets.tp;
     const sl = titan.targets.sl;
-    const maxTarget = tp2 ? deriveMaxTarget(entry, tp2, oracle) : undefined;
-    const rr1 = tp1 ? (tp1 - entry) / (entry - sl) : undefined;
-    const rr2 = tp2 ? (tp2 - entry) / (entry - sl) : undefined;
-    const rrMax = maxTarget ? (maxTarget - entry) / (entry - sl) : undefined;
-    
-    let reason = useLimit
-      ? `Oracle ${oracle.signal.replace("_", " ")} + Titan BULLISH. Wait for pullback to EMA20.`
-      : "Oracle and Titan both bullish — confirmed entry.";
-    
-    if (titan.confidence >= 95) {
-      reason = `[INSTITUTIONAL EDGE] ${reason}`;
-    }
+    const maxTarget = isLong ? tp * 1.3 : tp * 0.7;
+    const rr = tp && sl ? Math.abs(tp - entry) / Math.abs(entry - sl) : undefined;
+
+    const regTag = regimeAligned ? `with ${regime.toLowerCase()} trend` : `against ${regime.toLowerCase()} trend`;
+    const reason = `Titan ${titan.signal.replace("_", " ")} (${regTag}) · ${titan.confidence}% confidence`;
+
+    const useLimit = (isLong && entry < price) || (isShort && entry > price);
 
     return {
-      stance: useLimit ? "BUY_LIMIT" : "BUY",
+      stance: useLimit
+        ? (isLong ? "BUY_LIMIT" : "SELL_LIMIT")
+        : (isLong ? "BUY" : "SELL"),
       reason,
-      entry, tp1, tp2, maxTarget, sl, rr1, rr2, rrMax,
+      entry,
+      tp1: tp,
+      tp2: undefined,
+      maxTarget,
+      sl,
       entryNote: useLimit
-        ? `Limit ~${(((price - entry) / price) * 100).toFixed(1)}% below current`
+        ? `Limit ~${(((price - entry) / price) * 100).toFixed(1)}% from current`
         : "Market order",
+      rr1: rr,
+      rr2: undefined,
+      rrMax: rr,
     };
   }
 
-  if (oracleBearish) {
-    return {
-      stance: "AVOID",
-      reason: `Oracle is ${oracle.signal.replace("_", " ")} — no spot buy.`,
-      entry: undefined, tp1: undefined, tp2: undefined, maxTarget: undefined, sl: undefined,
-      rr1: undefined, rr2: undefined, rrMax: undefined,
-      entryNote: `Watch for bounce at SuperTrend $${titan.indicators.supertrend.toFixed(2)}`,
-    };
-  }
-
-  // NEUTRAL or disagreement
+  // No signal — wait
   const ema20 = titan.indicators.ema20;
-  const waitLevel = ema20 > price ? ema20 : titan.targets.entry;
-  const tp1 = oracle.targets.tp1 > 0 ? oracle.targets.tp1 : titan.targets.tp;
-  const tp2raw = oracle.targets.tp2 > 0 ? oracle.targets.tp2 : undefined;
-  const sl = titan.targets.sl;
-  const maxTarget = tp2raw ? deriveMaxTarget(waitLevel, tp2raw, oracle) : undefined;
-  const rr1 = sl > 0 && waitLevel > sl ? (tp1 - waitLevel) / (waitLevel - sl) : undefined;
-  const rrMax = maxTarget && sl > 0 ? (maxTarget - waitLevel) / (waitLevel - sl) : undefined;
+  const waitLevel = isLong ? ema20 : titan.targets.entry;
   return {
     stance: "WAIT",
-    reason: `Oracle ${oracle.signal} — wait for 1H close above $${waitLevel.toFixed(2)} for confirmation.`,
+    reason: `Titan no signal — wait for ${titan.trend === "BULLISH" ? "pullback to support" : "rejection at resistance"}`,
     entry: waitLevel,
-    tp1, tp2: tp2raw, maxTarget,
-    sl, rr1, rr2: undefined, rrMax,
-    entryNote: `On confirmed 1H close above $${waitLevel.toFixed(2)}`,
+    tp1: titan.targets.tp,
+    tp2: undefined,
+    maxTarget: undefined,
+    sl: titan.targets.sl,
+    rr1: undefined,
+    rr2: undefined,
+    rrMax: undefined,
+    entryNote: `On confirmed close ${waitLevel > price ? "above" : "below"} $${waitLevel.toFixed(2)}`,
   };
 }
 
 interface KeyLevel { label: string; price: number; note: string }
 
-function deriveKeyLevels(
-  oracle: OracleStrategyResponse,
-  titan: TitanStrategyResponse,
-  price: number
-) {
-  const hist = oracle.historical_signals.slice(-50);
-  const swingHigh = hist.length > 0 ? Math.max(...hist.map((s) => s.price)) : undefined;
-  const swingLow = hist.length > 0 ? Math.min(...hist.map((s) => s.price)) : undefined;
+function deriveKeyLevels(titan: TitanStrategyResponse, price: number) {
+  const resistances: KeyLevel[] = [];
+  const supports: KeyLevel[] = [];
 
-  const resistances: KeyLevel[] = [
-    titan.indicators.ema20 > price
-      ? { label: "EMA20 (4H)", price: titan.indicators.ema20, note: "Immediate resistance — break = bullish" }
-      : null,
-    swingHigh && swingHigh > price
-      ? { label: "Swing High", price: swingHigh, note: "Recent high cluster — key resistance" }
-      : null,
-  ].filter(Boolean).sort((a, b) => a!.price - b!.price) as KeyLevel[];
+  if (titan.indicators.ema20 > price)
+    resistances.push({ label: "EMA20 (4H)", price: titan.indicators.ema20, note: "Immediate resistance" });
+  if (titan.indicators.ema50 > price)
+    resistances.push({ label: "EMA50 (4H)", price: titan.indicators.ema50, note: "Higher timeframe resistance" });
 
-  const supports: KeyLevel[] = [
-    titan.indicators.ema20 <= price
-      ? { label: "EMA20 (4H)", price: titan.indicators.ema20, note: "Ideal limit entry zone" }
-      : null,
-    { label: "EMA50 (4H)", price: titan.indicators.ema50, note: "First cushion" },
-    { label: "SuperTrend", price: titan.indicators.supertrend, note: "Trend floor — 4H close below = bearish flip" },
-    swingLow && swingLow < price
-      ? { label: "Swing Low", price: swingLow, note: "Deep support / capitulation zone" }
-      : null,
-  ].filter(Boolean).sort((a, b) => b!.price - a!.price) as KeyLevel[];
+  if (titan.indicators.ema20 <= price)
+    supports.push({ label: "EMA20 (4H)", price: titan.indicators.ema20, note: "Ideal limit entry zone" });
+  if (titan.indicators.ema50 <= price)
+    supports.push({ label: "EMA50 (4H)", price: titan.indicators.ema50, note: "First cushion" });
+  supports.push({ label: "SuperTrend", price: titan.indicators.supertrend, note: "Trend floor — 4H close below = bearish flip" });
 
-  return { resistances, supports };
+  return {
+    resistances: resistances.sort((a, b) => a.price - b.price),
+    supports: supports.sort((a, b) => b.price - a.price),
+  };
 }
 
 function deriveSummary(
-  oracle: OracleStrategyResponse,
   titan: TitanStrategyResponse,
+  regime: string,
   price: number,
   setup: SpotSetup,
   levels: ReturnType<typeof deriveKeyLevels>
 ): string {
-  const base = oracle.symbol.replace("/USDT", "");
-  const oracleStr = oracle.signal.replace(/_/g, " ");
-  const situation = `${base} is trading at $${price.toFixed(2)} with Oracle ${oracleStr} (${oracle.earnest.score}/5 voters) and Titan ${titan.trend} trend (${titan.confidence}% confidence).`;
+  const base = titan.symbol.replace("/USDT", "");
+  const situation = `${base} is at $${price.toFixed(2)} — ${regime} regime, Titan ${titan.trend} (${titan.confidence}% confidence).`;
 
-  const bullLevel = levels.resistances[0]?.price ?? setup.tp1;
-  const bullTrigger =
-    setup.stance === "BUY" || setup.stance === "BUY_LIMIT"
-      ? `Entry plan: ${setup.entryNote} — targets $${setup.tp1?.toFixed(2) ?? "—"} then $${setup.tp2?.toFixed(2) ?? "—"}.`
-      : `Bull trigger: 1H close above $${bullLevel?.toFixed(2) ?? "resistance"} to confirm continuation.`;
+  const bullTrigger = levels.resistances.length > 0
+    ? `Bull trigger: break above $${levels.resistances[0].price.toFixed(2)} (${levels.resistances[0].label}) for continuation.`
+    : `Price above all resistance — bull momentum confirmed.`;
 
-  const supertrend = titan.indicators.supertrend;
-  const bearTrigger = `Bear trigger: 4H close below SuperTrend at $${supertrend.toFixed(2)} flips Titan bearish — avoid longs below that level.`;
+  const bearTrigger = `Bear trigger: 4H close below SuperTrend at $${titan.indicators.supertrend.toFixed(2)} flips bearish.`;
 
   const action =
-    setup.stance === "AVOID"
-      ? `Avoid spot buys now. ${setup.entryNote}.`
-      : setup.stance === "WAIT"
-      ? `Set an alert at $${setup.entry?.toFixed(2)} and wait for confirmation before entering.`
-      : `Place ${setup.stance === "BUY_LIMIT" ? "limit" : "market"} order at $${setup.entry?.toFixed(2)}, cut loss at $${setup.sl?.toFixed(2)}.`;
+    setup.stance === "AVOID" ? `Avoid entries now. ${setup.entryNote}.`
+    : setup.stance === "WAIT" ? `Set alert at $${setup.entry?.toFixed(2)} and wait for confirmation.`
+    : `Place ${setup.stance.replace("_", " ").toLowerCase()} at $${setup.entry?.toFixed(2)}, cut loss at $${setup.sl?.toFixed(2)}.`;
 
   return [situation, bullTrigger, bearTrigger, action].join(" ");
 }
 
-// ─── Sub-components ──────────────────────────────────────────────────────────
+// ─── Sub-components ────────────────────────────────────────────────────────
 
 function SectionTitle({ icon, children }: { icon: React.ReactNode; children: React.ReactNode }) {
   return (
@@ -188,16 +156,16 @@ function SectionTitle({ icon, children }: { icon: React.ReactNode; children: Rea
 function StanceColors(stance: Stance) {
   if (stance === "BUY" || stance === "BUY_LIMIT")
     return "text-emerald-700 dark:text-emerald-400 bg-emerald-500/10 border-emerald-500/30";
+  if (stance === "SELL" || stance === "SELL_LIMIT")
+    return "text-rose-700 dark:text-rose-400 bg-rose-500/10 border-rose-500/30";
   if (stance === "AVOID")
     return "text-rose-700 dark:text-rose-400 bg-rose-500/10 border-rose-500/30";
   return "text-amber-700 dark:text-amber-400 bg-amber-500/10 border-amber-500/30";
 }
 
 function SignalBadgeClass(signal: string) {
-  if (signal.includes("BUY"))
-    return "text-emerald-700 dark:text-emerald-400 bg-emerald-500/10 border-emerald-500/20";
-  if (signal.includes("SELL"))
-    return "text-rose-700 dark:text-rose-400 bg-rose-500/10 border-rose-500/20";
+  if (signal.includes("BUY")) return "text-emerald-700 dark:text-emerald-400 bg-emerald-500/10 border-emerald-500/20";
+  if (signal.includes("SELL")) return "text-rose-700 dark:text-rose-400 bg-rose-500/10 border-rose-500/20";
   return "text-slate-600 dark:text-slate-400 bg-slate-400/10 border-slate-400/20";
 }
 
@@ -206,22 +174,7 @@ function fmt(n: number | undefined, digits = 2): string {
   return n.toLocaleString(undefined, { minimumFractionDigits: digits, maximumFractionDigits: digits });
 }
 
-function VoterDot({ score }: { score: number }) {
-  return (
-    <span
-      className={cn(
-        "inline-block w-4 h-4 rounded-full text-[9px] font-black flex items-center justify-center",
-        score > 0 ? "bg-emerald-500/20 text-emerald-600 dark:text-emerald-400" :
-        score < 0 ? "bg-rose-500/20 text-rose-600 dark:text-rose-400" :
-        "bg-muted text-muted-foreground"
-      )}
-    >
-      {score > 0 ? `+${score}` : score}
-    </span>
-  );
-}
-
-// ─── Signal Track Record ─────────────────────────────────────────────────────
+// ─── Signal Track Record ───────────────────────────────────────────────────
 
 function formatSignalDate(ms: number) {
   const d = new Date(ms);
@@ -262,20 +215,11 @@ function SignalTrackRecord({ symbol, currentPrice }: { symbol: string; currentPr
     <div className="p-5 space-y-3">
       <SectionTitle icon={<Activity size={13} />}>Signal Track Record</SectionTitle>
 
-      {/* Backtest Stats */}
       {coinStats && (
         <div className="grid grid-cols-2 sm:grid-cols-5 gap-2">
           {[
-            {
-              label: "Win Rate",
-              value: `${wr}%`,
-              cls: wr >= 45 ? "text-emerald-500" : wr >= 33 ? "text-amber-500" : "text-red-500",
-            },
-            {
-              label: "Profit",
-              value: `${coinStats.profit_r > 0 ? "+" : ""}${coinStats.profit_r}R`,
-              cls: coinStats.profit_r > 0 ? "text-emerald-500" : coinStats.profit_r < 0 ? "text-red-500" : "text-muted-foreground",
-            },
+            { label: "Win Rate", value: `${wr}%`, cls: wr >= 45 ? "text-emerald-500" : wr >= 33 ? "text-amber-500" : "text-red-500" },
+            { label: "Profit", value: `${coinStats.profit_r > 0 ? "+" : ""}${coinStats.profit_r}R`, cls: coinStats.profit_r > 0 ? "text-emerald-500" : "text-red-500" },
             { label: "Signals", value: `${coinStats.total}`, cls: "text-foreground" },
             { label: "Long WR", value: `${coinStats.long_wr ?? 0}%`, cls: "text-emerald-500" },
             { label: "Short WR", value: `${coinStats.short_wr ?? 0}%`, cls: "text-red-500" },
@@ -291,34 +235,24 @@ function SignalTrackRecord({ symbol, currentPrice }: { symbol: string; currentPr
       {coinStats && (
         <div className="flex items-center gap-2">
           <div className="h-2 rounded-full bg-secondary/60 flex-1 overflow-hidden">
-            <div
-              className={cn("h-full rounded-full",
-                wr >= 45 ? "bg-emerald-500" : wr >= 33 ? "bg-amber-500" : "bg-red-500"
-              )}
-              style={{ width: `${wr}%` }}
-            />
+            <div className={cn("h-full rounded-full", wr >= 45 ? "bg-emerald-500" : wr >= 33 ? "bg-amber-500" : "bg-red-500")}
+              style={{ width: `${wr}%` }} />
           </div>
           <span className={cn("text-[10px] font-black px-2 py-0.5 rounded-md",
-            isProfitable ? "bg-emerald-500/10 text-emerald-500" :
-            isMarginal ? "bg-amber-500/10 text-amber-500" : "bg-red-500/10 text-red-500"
+            isProfitable ? "bg-emerald-500/10 text-emerald-500" : isMarginal ? "bg-amber-500/10 text-amber-500" : "bg-red-500/10 text-red-500"
           )}>
             {isProfitable ? "PROFITABLE" : isMarginal ? "MARGINAL" : "UNPROFITABLE"}
           </span>
         </div>
       )}
 
-      {/* Open Signals */}
       {openSignals.length > 0 && (
         <div className="space-y-1.5">
           <div className="text-[10px] font-bold text-sky-500 uppercase tracking-wider">Active Signals</div>
           {openSignals.map((s) => {
             const isLong = s.direction === "LONG";
-            const distToTp = isLong
-              ? ((s.tp - currentPrice) / currentPrice * 100)
-              : ((currentPrice - s.tp) / currentPrice * 100);
-            const distToSl = isLong
-              ? ((currentPrice - s.sl) / currentPrice * 100)
-              : ((s.sl - currentPrice) / currentPrice * 100);
+            const distToTp = isLong ? ((s.tp - currentPrice) / currentPrice * 100) : ((currentPrice - s.tp) / currentPrice * 100);
+            const distToSl = isLong ? ((currentPrice - s.sl) / currentPrice * 100) : ((s.sl - currentPrice) / currentPrice * 100);
             return (
               <div key={s.id} className="flex items-center justify-between p-2.5 rounded-lg bg-sky-500/[0.05] border border-sky-500/20">
                 <div className="flex items-center gap-2">
@@ -337,7 +271,6 @@ function SignalTrackRecord({ symbol, currentPrice }: { symbol: string; currentPr
         </div>
       )}
 
-      {/* Signal History Table */}
       {closedSignals.length > 0 && (
         <div className="space-y-1.5">
           <div className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">Recent Signals</div>
@@ -385,173 +318,40 @@ function SignalTrackRecord({ symbol, currentPrice }: { symbol: string; currentPr
       )}
 
       {isLoading && !signals.length && (
-        <div className="text-center text-[11px] text-muted-foreground py-4">Loading signal history…</div>
+        <div className="text-center text-[11px] text-muted-foreground py-4">Loading signal history...</div>
       )}
     </div>
   );
 }
 
-// ─── Modal body ──────────────────────────────────────────────────────────────
+// ─── Modal body ────────────────────────────────────────────────────────────
 
-function AnalysisBody({ oracle, titan, price }: {
-  oracle: OracleStrategyResponse;
+function AnalysisBody({ titan, price, regime }: {
   titan: TitanStrategyResponse;
   price: number;
+  regime: string;
 }) {
-  const setup = deriveSpotSetup(oracle, titan, price);
-  const levels = deriveKeyLevels(oracle, titan, price);
-  const summary = deriveSummary(oracle, titan, price, setup, levels);
-  const isBullOracle = oracle.bias === "BULLISH";
-  const isBearOracle = oracle.bias === "BEARISH";
-  const hasFVG = !!oracle.active_fvg_type;
-  const hasMSS = !!titan.mss_type;
-  const hasSweep = !!titan.sweep_type;
+  const setup = deriveSpotSetup(titan, regime, price);
+  const levels = deriveKeyLevels(titan, price);
+  const summary = deriveSummary(titan, regime, price, setup, levels);
+  const isLong = titan.signal === "BUY" || titan.signal === "BUY_LIMIT";
+  const isShort = titan.signal === "SELL" || titan.signal === "SELL_LIMIT";
+  const regimeAligned = (regime === "BULL" && isLong) || (regime === "BEAR" && isShort);
 
   return (
     <div className="divide-y divide-border">
       {/* ── Summary ─────────────────────────────────────────────────── */}
       <div className="p-5">
+        <div className="flex items-center gap-2 mb-3">
+          <span className={cn("text-[9px] font-black px-2 py-0.5 rounded uppercase tracking-wider",
+            regime === "BULL" ? "bg-green-500/15 text-green-500" : "bg-red-500/15 text-red-500"
+          )}>{regime}</span>
+          {!regimeAligned && (isLong || isShort) && (
+            <span className="text-[9px] font-black px-2 py-0.5 rounded bg-yellow-500/15 text-yellow-600 dark:text-yellow-400 uppercase tracking-wider">COUNTER-TREND</span>
+          )}
+        </div>
         <SectionTitle icon={<ShieldAlert size={13} />}>Summary</SectionTitle>
         <p className="text-[12px] leading-relaxed text-muted-foreground">{summary}</p>
-      </div>
-
-      {/* ── Institutional Confluence (SMC) ──────────────────────────── */}
-      {(hasFVG || hasMSS || hasSweep) && (
-        <div className="p-5 bg-amber-500/5 space-y-3">
-          <SectionTitle icon={<Target size={13} className="text-amber-600" />}>Institutional Context (SMC)</SectionTitle>
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
-            {hasFVG && (
-              <div className="p-2 rounded-lg bg-background border border-amber-500/20">
-                <div className="text-[9px] font-bold uppercase text-amber-600 mb-1">Fair Value Gap</div>
-                <div className="text-xs font-bold text-foreground capitalize">{oracle.active_fvg_type} Gap Active</div>
-              </div>
-            )}
-            {hasMSS && (
-              <div className="p-2 rounded-lg bg-background border border-amber-500/20">
-                <div className="text-[9px] font-bold uppercase text-amber-600 mb-1">Market Structure</div>
-                <div className="text-xs font-bold text-foreground capitalize">{titan.mss_type} Shift @ ${fmt(titan.mss_price || 0)}</div>
-              </div>
-            )}
-            {hasSweep && (
-              <div className="p-2 rounded-lg bg-background border border-amber-500/20">
-                <div className="text-[9px] font-bold uppercase text-amber-600 mb-1">Liquidity Grab</div>
-                <div className="text-xs font-bold text-foreground capitalize">{titan.sweep_type} Sweep Detected</div>
-              </div>
-            )}
-          </div>
-        </div>
-      )}
-
-      {/* ── Oracle Signal ───────────────────────────────────────────── */}
-      <div className="p-5 space-y-3">
-        <SectionTitle icon={<Zap size={13} />}>Oracle Signal ({oracle.micro_tf} / {oracle.macro_tf})</SectionTitle>
-
-        <div className="flex items-center gap-3 flex-wrap">
-          <Badge className={cn("text-sm font-bold px-3 py-1 border", SignalBadgeClass(oracle.signal))}>
-            {oracle.signal.replace(/_/g, " ")}
-          </Badge>
-          <span className={cn("text-sm font-bold",
-            isBullOracle ? "text-emerald-600 dark:text-emerald-400" :
-            isBearOracle ? "text-rose-600 dark:text-rose-400" :
-            "text-muted-foreground"
-          )}>
-            {oracle.bias}
-          </span>
-          <span className="text-xs text-muted-foreground">· {oracle.state} · {oracle.volatility} vol</span>
-        </div>
-
-        {/* Earnest voters */}
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-          {Object.entries(oracle.earnest.voters).map(([voter, score]) => (
-            <div key={voter} className="flex items-center justify-between p-2 rounded-lg bg-muted/30 border border-border/50">
-              <span className="text-[11px] font-bold uppercase text-muted-foreground">{voter}</span>
-              <VoterDot score={score} />
-            </div>
-          ))}
-        </div>
-
-        {/* Macro filter */}
-        <div className="p-3 rounded-lg bg-muted/20 border border-border/50 space-y-2">
-          <div className="flex items-center justify-between">
-            <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">Macro Filter (1D)</span>
-            <span className={cn("text-xs font-bold",
-              oracle.macro.bias === "BULLISH" ? "text-emerald-600 dark:text-emerald-400" :
-              oracle.macro.bias === "BEARISH" ? "text-rose-600 dark:text-rose-400" :
-              "text-muted-foreground"
-            )}>
-              Score {oracle.macro.score} · {oracle.macro.bias}
-            </span>
-          </div>
-          <div className="flex gap-3 flex-wrap">
-            {Object.entries(oracle.macro.details).map(([key, val]) => (
-              <div key={key} className="flex items-center gap-1">
-                {val
-                  ? <TrendingUp size={10} className="text-emerald-500" />
-                  : <TrendingDown size={10} className="text-rose-500" />}
-                <span className="text-[10px] text-muted-foreground uppercase font-bold">{key}</span>
-              </div>
-            ))}
-          </div>
-        </div>
-
-        {/* Advice */}
-        <div className="flex gap-2 p-3 rounded-lg bg-amber-500/5 border border-amber-500/20">
-          <ShieldAlert size={13} className="text-amber-500 shrink-0 mt-0.5" />
-          <p className="text-[11px] italic leading-relaxed text-amber-900 dark:text-amber-200/80">{oracle.advice}</p>
-        </div>
-
-        {/* Oracle targets + backtest */}
-        <div className="grid grid-cols-2 gap-3">
-          <div className="space-y-1.5 p-3 rounded-lg bg-muted/20 border border-border/50">
-            <div className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider flex items-center gap-1.5 mb-2">
-              <Target size={10} /> Targets
-            </div>
-            {oracle.targets.tp1 > 0 && (
-              <div className="flex justify-between text-xs">
-                <span className="text-muted-foreground">TP1</span>
-                <span className="font-mono font-bold text-emerald-600 dark:text-emerald-400">${fmt(oracle.targets.tp1)}</span>
-              </div>
-            )}
-            {oracle.targets.tp2 > 0 && (
-              <div className="flex justify-between text-xs">
-                <span className="text-muted-foreground">TP2</span>
-                <span className="font-mono font-bold text-emerald-600 dark:text-emerald-400">${fmt(oracle.targets.tp2)}</span>
-              </div>
-            )}
-            <div className="flex justify-between text-xs">
-              <span className="text-muted-foreground">SL</span>
-              <span className="font-mono font-bold text-rose-600 dark:text-rose-400">${fmt(oracle.targets.sl)}</span>
-            </div>
-          </div>
-
-          <div className="space-y-1.5 p-3 rounded-lg bg-muted/20 border border-border/50">
-            <div className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider flex items-center gap-1.5 mb-2">
-              <BarChart2 size={10} /> Backtest
-            </div>
-            {oracle.performance.total_trades < 10 ? (
-              <p className="text-[10px] text-muted-foreground/70 italic">Insufficient data (&lt;10 trades)</p>
-            ) : (
-              <>
-                <div className="flex justify-between text-xs">
-                  <span className="text-muted-foreground">Win Rate</span>
-                  <span className={cn("font-mono font-bold", oracle.performance.win_rate >= 33.3 ? "text-emerald-600 dark:text-emerald-400" : "text-rose-600 dark:text-rose-400")}>
-                    {oracle.performance.win_rate}%
-                  </span>
-                </div>
-                <div className="flex justify-between text-xs">
-                  <span className="text-muted-foreground">Net PnL</span>
-                  <span className={cn("font-mono font-bold", oracle.performance.net_profit >= 0 ? "text-emerald-600 dark:text-emerald-400" : "text-rose-600 dark:text-rose-400")}>
-                    {oracle.performance.net_profit > 0 ? "+" : ""}{oracle.performance.net_profit}%
-                  </span>
-                </div>
-                <div className="flex justify-between text-xs">
-                  <span className="text-muted-foreground">Trades</span>
-                  <span className="font-mono font-bold text-foreground">{oracle.performance.total_trades}</span>
-                </div>
-              </>
-            )}
-          </div>
-        </div>
       </div>
 
       {/* ── Titan Signal ────────────────────────────────────────────── */}
@@ -564,11 +364,8 @@ function AnalysisBody({ oracle, titan, price }: {
           </Badge>
           <span className={cn("text-sm font-bold",
             titan.trend === "BULLISH" ? "text-emerald-600 dark:text-emerald-400" :
-            titan.trend === "BEARISH" ? "text-rose-600 dark:text-rose-400" :
-            "text-muted-foreground"
-          )}>
-            {titan.trend}
-          </span>
+            titan.trend === "BEARISH" ? "text-rose-600 dark:text-rose-400" : "text-muted-foreground"
+          )}>{titan.trend}</span>
           <span className="text-xs text-muted-foreground">· {titan.confidence}% confidence</span>
         </div>
 
@@ -603,16 +400,15 @@ function AnalysisBody({ oracle, titan, price }: {
 
         <div className="text-[10px] text-muted-foreground">
           Momentum: <span className="font-bold text-foreground">{titan.momentum.status}</span>
-          {titan.momentum.is_overbought && " · ⚠ Overbought"}
-          {titan.momentum.is_oversold && " · ⚠ Oversold"}
+          {titan.momentum.is_overbought && " · Overbought"}
+          {titan.momentum.is_oversold && " · Oversold"}
           {titan.momentum.macd_crossed !== "NONE" && ` · MACD crossed ${titan.momentum.macd_crossed}`}
-          {" · "}Sizing: <span className="font-bold text-foreground">{titan.sizing}</span>
         </div>
       </div>
 
       {/* ── Spot Setup ──────────────────────────────────────────────── */}
       <div className="p-5 space-y-3">
-        <SectionTitle icon={<Target size={13} />}>Spot Setup</SectionTitle>
+        <SectionTitle icon={<Target size={13} />}>Setup</SectionTitle>
 
         <div className={cn("inline-flex items-center gap-2 px-3 py-1.5 rounded-lg border text-sm font-bold", StanceColors(setup.stance))}>
           {setup.stance.replace("_", " ")}
@@ -637,23 +433,9 @@ function AnalysisBody({ oracle, titan, price }: {
                 </tr>
                 {setup.tp1 !== undefined && (
                   <tr>
-                    <td className="py-1.5 pr-3 font-bold text-emerald-600 dark:text-emerald-400">TP1</td>
+                    <td className="py-1.5 pr-3 font-bold text-emerald-600 dark:text-emerald-400">TP</td>
                     <td className="py-1.5 pr-3 text-right font-mono font-bold text-emerald-600 dark:text-emerald-400">${fmt(setup.tp1)}</td>
                     <td className="py-1.5 text-right text-muted-foreground">+{(((setup.tp1 - setup.entry) / setup.entry) * 100).toFixed(1)}% from entry</td>
-                  </tr>
-                )}
-                {setup.tp2 !== undefined && (
-                  <tr>
-                    <td className="py-1.5 pr-3 font-bold text-emerald-600 dark:text-emerald-400">TP2</td>
-                    <td className="py-1.5 pr-3 text-right font-mono font-bold text-emerald-600 dark:text-emerald-400">${fmt(setup.tp2)}</td>
-                    <td className="py-1.5 text-right text-muted-foreground">+{(((setup.tp2 - setup.entry!) / setup.entry!) * 100).toFixed(1)}% from entry</td>
-                  </tr>
-                )}
-                {setup.maxTarget !== undefined && setup.entry !== undefined && (
-                  <tr>
-                    <td className="py-1.5 pr-3 font-bold text-violet-600 dark:text-violet-400">Max Target</td>
-                    <td className="py-1.5 pr-3 text-right font-mono font-bold text-violet-600 dark:text-violet-400">${fmt(setup.maxTarget)}</td>
-                    <td className="py-1.5 text-right text-muted-foreground">+{(((setup.maxTarget - setup.entry) / setup.entry) * 100).toFixed(1)}% from entry</td>
                   </tr>
                 )}
                 {setup.sl !== undefined && (
@@ -666,21 +448,14 @@ function AnalysisBody({ oracle, titan, price }: {
               </tbody>
             </table>
 
-            <div className="flex gap-4 text-[11px] text-muted-foreground">
-              {setup.rr1 !== undefined && (
-                <span>
-                  RR to TP1: <span className={cn("font-bold", setup.rr1 >= 1.5 ? "text-emerald-600 dark:text-emerald-400" : "text-amber-600 dark:text-amber-400")}>
-                    {setup.rr1.toFixed(1)}:1
-                  </span>
-                  {setup.rr1 < 1.5 && " ⚠ tight"}
+            {setup.rr1 !== undefined && (
+              <div className="text-[11px] text-muted-foreground">
+                R:R: <span className={cn("font-bold", setup.rr1 >= 1.5 ? "text-emerald-600 dark:text-emerald-400" : "text-amber-600 dark:text-amber-400")}>
+                  {setup.rr1.toFixed(1)}:1
                 </span>
-              )}
-              {setup.rr2 !== undefined && (
-                <span>
-                  RR to TP2: <span className="font-bold text-emerald-600 dark:text-emerald-400">{setup.rr2.toFixed(1)}:1</span>
-                </span>
-              )}
-            </div>
+                {setup.rr1 < 1.5 && " (tight)"}
+              </div>
+            )}
           </>
         ) : setup.stance === "AVOID" ? (
           <div className="flex gap-2 p-3 rounded-lg bg-rose-500/5 border border-rose-500/20">
@@ -724,40 +499,35 @@ function AnalysisBody({ oracle, titan, price }: {
           </div>
         </div>
 
-        {/* Invalidation lines */}
         <div className="p-3 rounded-lg bg-muted/20 border border-border/50 space-y-1.5 text-[11px]">
           <div className="font-bold text-[10px] uppercase text-muted-foreground tracking-wider mb-1.5">Invalidation</div>
           <div className="flex gap-2">
-            <span className="text-emerald-600 dark:text-emerald-400 font-bold shrink-0">Bull:</span>
+            <span className="text-emerald-600 dark:text-emerald-400 font-bold shrink-0">
+              {isLong ? "Long" : "Short"} invalid:
+            </span>
             <span className="text-muted-foreground">
-              Invalid below <span className="font-mono font-bold text-foreground">${fmt(titan.indicators.supertrend)}</span> (SuperTrend break on 4H close)
+              {isLong
+                ? <>Below <span className="font-mono font-bold text-foreground">${fmt(titan.indicators.supertrend)}</span> (SuperTrend)</>
+                : <>Above <span className="font-mono font-bold text-foreground">${fmt(titan.targets.sl)}</span> (stop loss)</>
+              }
             </span>
           </div>
-          {levels.resistances[levels.resistances.length - 1] && (
-            <div className="flex gap-2">
-              <span className="text-rose-600 dark:text-rose-400 font-bold shrink-0">Bear:</span>
-              <span className="text-muted-foreground">
-                Invalid above <span className="font-mono font-bold text-foreground">${fmt(levels.resistances[levels.resistances.length - 1].price)}</span> ({levels.resistances[levels.resistances.length - 1].label} reclaim)
-              </span>
-            </div>
-          )}
         </div>
       </div>
 
       {/* ── Signal Track Record ───────────────────────────────────── */}
-      <SignalTrackRecord symbol={oracle.symbol} currentPrice={price} />
-
+      <SignalTrackRecord symbol={titan.symbol} currentPrice={price} />
     </div>
   );
 }
 
-// ─── Modal shell ─────────────────────────────────────────────────────────────
+// ─── Modal shell ───────────────────────────────────────────────────────────
 
-function CoinAnalysisModalComponent({ isOpen, onClose, symbol, timeframe, oracle }: CoinAnalysisModalProps) {
+function CoinAnalysisModalComponent({ isOpen, onClose, symbol, timeframe, titan, regime }: CoinAnalysisModalProps) {
   const [mounted, setMounted] = useState(false);
-  const { data: titan, isLoading: titanLoading } = useStrategyTitan(symbol, "4h");
 
   useEffect(() => { setMounted(true); }, []);
+
   useEffect(() => {
     if (!isOpen) return;
     const handleKey = (e: KeyboardEvent) => { if (e.key === "Escape") onClose(); };
@@ -768,55 +538,31 @@ function CoinAnalysisModalComponent({ isOpen, onClose, symbol, timeframe, oracle
   if (!mounted || !isOpen) return null;
 
   const base = symbol.replace("/USDT", "");
-  const price = oracle.price;
+  const price = titan.targets.entry;
 
   return createPortal(
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-      {/* Backdrop */}
       <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={onClose} />
 
-      {/* Modal */}
       <div className="relative z-10 w-full max-w-2xl max-h-[90vh] flex flex-col bg-background border border-border rounded-xl shadow-2xl overflow-hidden">
-        {/* Header */}
         <div className="flex items-center justify-between px-5 py-4 border-b border-border bg-muted/50 shrink-0">
           <div className="flex items-center gap-3">
             <Zap size={16} className="text-amber-500" />
             <div>
               <div className="font-bold text-foreground">{base} Deep Analysis</div>
               <div className="text-[11px] text-muted-foreground flex items-center gap-2">
-                <span>Oracle {oracle.micro_tf}/{oracle.macro_tf} · Titan 4H · ${price.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 4 })}</span>
-                {oracle.last_updated && (
-                  <span className="border-l border-border pl-2 opacity-70">
-                    Last Analyzed: {new Date(oracle.last_updated).toLocaleTimeString()}
-                  </span>
-                )}
+                <span>Titan 4H · ${price.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 4 })}</span>
               </div>
             </div>
           </div>
-          <button
-            onClick={onClose}
-            className="p-1.5 rounded-lg hover:bg-muted transition-colors text-muted-foreground hover:text-foreground"
-          >
+          <button onClick={onClose}
+            className="p-1.5 rounded-lg hover:bg-muted transition-colors text-muted-foreground hover:text-foreground">
             <X size={16} />
           </button>
         </div>
 
-        {/* Scrollable body */}
         <div className="overflow-y-auto flex-1 scrollbar-thin scrollbar-thumb-muted">
-          {titanLoading ? (
-            <div className="flex items-center justify-center py-16 text-sm text-muted-foreground">
-              <div className="flex flex-col items-center gap-3">
-                <div className="w-6 h-6 border-2 border-primary/30 border-t-primary rounded-full animate-spin" />
-                Loading Titan data…
-              </div>
-            </div>
-          ) : titan ? (
-            <AnalysisBody oracle={oracle} titan={titan} price={price} />
-          ) : (
-            <div className="flex items-center justify-center py-16 text-sm text-muted-foreground">
-              Failed to load Titan data.
-            </div>
-          )}
+          <AnalysisBody titan={titan} price={price} regime={regime} />
         </div>
       </div>
     </div>,

@@ -58,11 +58,12 @@ docker compose exec redis redis-cli
 3. Worker background jobs fetch from Binance via CCXT, populate Redis/Postgres
 
 **Backend layers** (`backend/app/`):
-- `routes/` — FastAPI route handlers with input validation
+- `routes/` — FastAPI route handlers with input validation (`strategy.py` for regime endpoint)
 - `services/` — Business logic, cache coordination (`market_data.py`)
 - `indicators/` — Technical analysis (pandas-ta): `screener.py`, `mean_reversion.py`
-- `strategies/` — Trading signal generation: `oracle.py` (Earnest + Prophet), `titan.py` (hybrid trend-momentum)
-- `jobs/` — Worker background jobs: `signal_log.py` (scan watchlist at 4H candle close, resolve outcomes every 30min)
+- `strategies/` — Trading signal generation: `oracle.py` (deprecated from UI, backend preserved), `titan.py` (hybrid trend-momentum, primary strategy)
+- `jobs/` — Worker background jobs: `signal_log.py` (scan watchlist at 4H candle close with regime-based filtering, resolve outcomes every 30min)
+- `trading/` — Paper trading engine: orchestrator, risk manager, portfolio, backtest engine, optimizer
 - `providers/` — CCXT Binance wrapper (`binance_provider.py`)
 - `schemas/` — Pydantic v2 models
 - `storage.py` — Redis + Postgres connection pooling
@@ -70,9 +71,9 @@ docker compose exec redis redis-cli
 
 **Frontend layers** (`frontend/src/`):
 - `app/` — Next.js 14 App Router pages (`/`, `/chart/[symbol]`, `/markets/[type]`, `/analytics`)
-- `components/features/` — Feature components (dashboard, chart). Chart sidebar: `CoinDetailsPanel` (price/Oracle/Titan), `CoinSignalIntel` (backtest stats + open signals), `CoinAnalysisModal` (deep analysis with signal track record)
-- `components/analytics/` — Analytics panels: `OracleScreener`, `TitanRadar`, `TitanSignalsPanel`, `ContrarianRadar`, `BestSetups`, `SignalLog`, `BacktestPerformance`
-- `components/features/dashboard/` — Dashboard widgets: `ActiveSetups`, `ActiveSignals`, `BTCCard`, `DashboardWatchlist`, `TopMovers`, `DashboardStatusBar`
+- `components/features/` — Feature components (dashboard, chart). Chart sidebar: `CoinDetailsPanel` (price/regime/Titan), `CoinSignalIntel` (backtest stats + open signals), `CoinAnalysisModal` (deep analysis with signal track record)
+- `components/analytics/` — Analytics panels: `BestSetups`, `SignalLog`, `BacktestPerformance`
+- `components/features/dashboard/` — Dashboard widgets: `BestSetups`, `BTCCard`, `DashboardWatchlist`, `TopMovers`, `DashboardStatusBar` (regime display + modal)
 - `components/ui/` — Shadcn UI primitives
 - `hooks/` — TanStack Query v5 custom hooks (staleTime varies: 60s–300s, gcTime 5min)
 - `stores/` — Zustand stores (theme, indicators, watchlist, chart settings)
@@ -84,6 +85,7 @@ docker compose exec redis redis-cli
 - **Type safety:** Strict TypeScript on the frontend; type hints on all Python functions with Pydantic validation at API boundaries.
 - **Caching:** Always check Redis before hitting Binance. Cache keys and TTLs are managed in `services/market_data.py`.
 - **API docs:** Swagger UI available at `http://localhost:8000/docs` during development.
+- **Key endpoint:** `GET /api/strategy/regime` — BTC weekly EMA50 regime detection.
 
 ## Documentation
 
@@ -92,7 +94,7 @@ Detailed architecture and implementation docs live in `docs/`:
 - `docs/backend/ARCHITECTURE.md` — Backend system design
 - `docs/frontend/ARCHITECTURE.md` — Frontend patterns
 - `docs/backend/ERROR_HANDLING.md` — Exception hierarchy details
-- `docs/CHANGELOG.md` — Version history (current: v0.8.0)
+- `docs/CHANGELOG.md` — Version history (current: v0.9.0)
 - `docs/ROADMAP.md` — Planned features
 
 ## AI Slash Commands
@@ -104,8 +106,7 @@ Custom Claude Code commands live in `.claude/commands/`:
 Calls the live Argus APIs and produces a structured intelligence report.
 
 ```
-/read BTC          # Deep-dive: price, Oracle signal, Titan signal, backtest stats
-/read SOL 4h       # Same but with 4h as the Oracle micro timeframe
+/read BTC          # Deep-dive: price, regime + Titan signal, backtest stats
 /read market       # Market overview: sentiment, screener highlights, best setups, movers
 /read              # Alias for /read market
 ```

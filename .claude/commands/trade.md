@@ -44,4 +44,4 @@ Held: {time from filled_at to closed_at} | {fired_reason}
 - Close all: `POST /api/trading/close-all`
 - Pause: `POST /api/trading/pause`
 
-Or use the `/trading` page in the dashboard.
+Or use the dashboard Trading widget to toggle status.

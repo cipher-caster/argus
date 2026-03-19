@@ -1,6 +1,8 @@
 # Argus Slash Commands & Intelligence Reports
 
-**Last Updated**: 2026-03-14
+**Last Updated**: 2026-03-19
+
+> **Note**: Oracle has been deprecated from the UI as of v0.9.0. The `/read` command now uses regime detection (BTC weekly EMA50) + Titan signals instead. Some sections below still reference Oracle for historical context — the authoritative command definition is in `.claude/commands/read.md`.
 
 This document covers the Claude Code slash commands available in this project, how to use them, and how to interpret the output — including signal logic, price levels, spot setup guidance, and long-term HODL analysis.
 
@@ -11,7 +13,7 @@ This document covers the Claude Code slash commands available in this project, h
 | Command | Description |
 |---|---|
 | `/read [COIN]` | Deep-dive report on a single coin |
-| `/read [COIN] [timeframe]` | Same with a specific Oracle micro timeframe |
+| `/read [COIN] [timeframe]` | Same with a specific Titan timeframe |
 | `/read market` | Full market overview |
 | `/read [COIN] hold` | HODL/long-term accumulation analysis |
 

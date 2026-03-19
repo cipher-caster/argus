@@ -11,7 +11,7 @@ Argus is a **real-time cryptocurrency analytics dashboard** that provides:
 
 - Market data visualization (OHLCV charts, tickers)
 - Advanced technical indicators (RSI, MACD, structure analysis)
-- AI-powered trading signals (Oracle Screener, Titan Radar)
+- AI-powered trading signals (Titan strategy + BTC regime detection)
 - Market health monitoring
 - Multi-timeframe analysis (1m to 1w)
 
@@ -105,11 +105,11 @@ PostgreSQL (historical) ← Routes/Services → Frontend
 5. **Strategies** (`app/strategies/*.py`):
    - Trading signal generation
    - Combines multiple indicators
-   - `oracle.py` (Earnest + Prophet multi-timeframe), `titan.py` (hybrid trend + momentum)
+   - `oracle.py` (deprecated from UI, backend preserved), `titan.py` (hybrid trend + momentum, primary strategy)
 
 6. **Trading** (`app/trading/*.py`):
    - Paper trading engine
-   - `orchestrator.py`: Consumes Oracle/Titan signals, manages trade lifecycle (open/close positions)
+   - `orchestrator.py`: Consumes Titan signals (regime-filtered), manages trade lifecycle (open/close positions)
    - `risk_manager.py`: Position sizing, max drawdown gates, exposure limits
    - `portfolio.py`: Tracks open positions, realized/unrealized P&L
    - `analyzer.py`: Post-trade performance analysis (win rate, expectancy, Sharpe)
@@ -392,9 +392,18 @@ npm run build
 
 ## 📊 Recent Improvements (2026-03-19)
 
+### v0.9.0 — Regime Detection & Oracle Deprecation
+
+- ✅ **Regime Detection**: BTC weekly EMA50 regime system replaces Oracle market gate (`GET /api/strategy/regime`)
+- ✅ **Oracle Removed from UI**: Deprecated across dashboard, chart, analytics (backend code preserved)
+- ✅ **Per-Symbol Risk Overrides**: BTC (SL=1.75x, TP=4.0x), ETH (TP=4.0x) via SYMBOL_OVERRIDES
+- ✅ **Candle-Based Resolution**: Signal log and orchestrator use candle walk for TP/SL ordering
+- ✅ **Analytics Simplified**: 3 tabs (Best Setups, Signal Log, Backtest Performance)
+- ✅ **Dashboard Cleanup**: Active Signals merged into Best Setups, regime modal on status bar
+
 ### v0.8.0 — Paper Trading Engine + Optimization System
 
-- ✅ **Paper Trading Engine**: `/trading` page with TradingWidget on dashboard; Position + TradeEvent DB tables; orchestrator consumes Oracle/Titan signals and manages full trade lifecycle
+- ✅ **Paper Trading Engine**: TradingWidget on dashboard; Position + TradeEvent DB tables; orchestrator consumes Titan signals and manages full trade lifecycle
 - ✅ **Risk Manager**: Configurable position sizing, max open positions, per-trade risk gates, drawdown circuit breaker
 - ✅ **Portfolio Tracker**: Real-time P&L, open positions panel, equity curve
 - ✅ **Trading Optimization System**: `backtest_engine.py` runs parameter sweeps (SL/TP/risk multipliers); `OptimizationExperiment` table stores results; `TradeAnalyzer` computes performance metrics
@@ -407,13 +416,13 @@ npm run build
 - ✅ **Signal History Log**: `signal_log.py` job scans watchlist at every 4H candle close, persists signals to PostgreSQL, resolves outcomes every 30 min
 - ✅ **Backtest Performance tab**: Leaderboard in Analytics showing per-coin win rate, expectancy, and trade count from historical signal data
 - ✅ **Chart Signal Intelligence**: `CoinSignalIntel` sidebar panel shows backtest stats and open signals; `CoinAnalysisModal` Signal Track Record section shows historical signal outcomes per coin
-- ✅ **Active Signals widget** on dashboard: surfaces currently open Oracle/Titan signals from the signal log
+- ✅ **Active Signals widget** on dashboard: surfaces currently open Titan signals from the signal log (merged into Best Setups in v0.9.0)
 
 ### v0.6.1 — Best Setups Enrichment + MTF Confluence
 
-- ✅ Oracle backtest win rate surfaced on Best Setups cards (≥50% green, 33–49% yellow, <33% red; null when <10 trades)
+- ✅ Backtest win rate surfaced on Best Setups cards (≥50% green, 33–49% yellow, <33% red; null when <10 trades)
 - ✅ Eliz+Mayne MTF confluence: Titan signal confirmed on 4H/1D (Eliz) and 12H/1W (Mayne)
-- ✅ 216 backend tests: oracle, titan, analytics, market, worker, screener, signal log, trading routes, indicator routes
+- ✅ 220+ backend tests: titan, analytics, market, worker, screener, signal log, trading routes, indicator routes
 
 ### v0.6.0 — Dashboard Redesign
 
@@ -421,7 +430,7 @@ npm run build
 - ✅ /markets page for full CoinTable (freed dashboard from data overload)
 - ✅ Space Grotesk + DM Mono fonts (self-hosted)
 - ✅ DrawingToolbar removed — chart is now full-width
-- ✅ CoinDetailsPanel shows Oracle + Titan signals
+- ✅ CoinDetailsPanel shows Titan signals (Oracle removed in v0.9.0)
 
 ### v0.5.5 — Analytics Cleanup
 
@@ -437,9 +446,9 @@ Custom Claude Code slash commands live in `.claude/commands/`. These call the li
 ### `/read [COIN|market]`
 
 ```
-/read BTC          # Coin deep-dive: price, Oracle, Titan, backtest, spot setup, key levels
-/read ETH hold     # + Long-term HODL analysis with 12H/1D/1W macro stack and DCA plan
-/read market       # Market overview: sentiment, screener, best setups, movers
+/read BTC          # Coin deep-dive: price, regime, Titan, backtest, spot setup, key levels
+/read ETH hold     # + Long-term HODL analysis with multi-TF Titan stack and DCA plan
+/read market       # Market overview: regime, best setups, signal log, movers
 ```
 
 ### `/portfolio`

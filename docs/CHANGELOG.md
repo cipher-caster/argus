@@ -2,6 +2,59 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.9.0] - 2026-03-19 — Regime Detection & Oracle Deprecation
+
+### Added
+
+- BTC weekly EMA50 regime detection system (`GET /api/strategy/regime`)
+- DashboardStatusBar regime modal with actionable advice, aligned setups, execution guidance
+- Per-symbol risk overrides in Titan (BTC: SL=1.75x ATR, TP=4.0x ATR)
+- Candle-based TP/SL resolution in signal log and paper trading orchestrator
+- ETH added to SYMBOL_OVERRIDES (TP=4.0x)
+- Analysis scripts: btc_timeframe_analysis, btc_4h_sweep, btc_hodl_vs_trade, btc_titan_deep_dive, eth_full_analysis, regime_detector, btc_eth_db_verify
+- Dead code registry (docs/DEAD_CODE.md)
+
+### Changed
+
+- Signal logging uses regime-based direction filtering (BEAR→SHORT only, BULL→LONG only) instead of Oracle market gate
+- Best Setups rewritten: Titan-only signals, regime-filtered, no Oracle dependency
+- CoinAnalysisModal: regime + Titan (was Oracle + Titan)
+- CoinDetailsPanel: Titan-only (was Oracle + Titan)
+- Dashboard: Active Setups renamed to Best Setups, shows TP/SL prices
+- Dashboard: Active Signals merged into Best Setups
+- Analytics: reduced to 3 tabs (Best Setups, Signal Log, Backtest Performance)
+- Signal resolution uses candle walk instead of current price check
+
+### Removed
+
+- Oracle from all UI (backend code preserved for future experiments)
+- Contrarian Radar from analytics
+- OracleScreener from analytics
+- Dead /trading page link from dashboard
+
+## [0.8.2] - 2026-03-19
+
+### Added
+
+- **BTC Multi-Timeframe Analysis**: Comprehensive backtest comparing 15m, 1h, 4h, 1d timeframes for BTC across Oracle and Titan strategies.
+  - Oracle proven negative for BTC (9-12% WR across all timeframes). Root cause: Earnest voter system generates too many false signals for BTC's strong-trending character.
+  - Titan positive on 1h/4h/1d. Best config: SL=1.75x ATR, TP=4.0x ATR on 4H → EV=+0.264R (4x improvement over default +0.061R).
+  - Parameter sweep across 6 SL × 7 TP × 5 confidence thresholds on 4H (0.46yr data).
+- **ETH Multi-Timeframe Analysis**: Same analysis applied to ETH.
+  - Oracle even worse on ETH than BTC (7-21% WR across all timeframes).
+  - Titan default settings (SL=1.5x, TP=adaptive) already work well for ETH: EV=+0.167R, 50% WR on 4H.
+  - Fixed TP=4.0x gives 3x better EV (+0.494R) with same max drawdown — ETH override added.
+  - ETH does need a per-symbol override: `tp_mult=4.0` (fixed, not adaptive). SL stays default 1.5x.
+- **Per-Symbol Risk Overrides**: `SYMBOL_OVERRIDES` dict in `titan.py` for coin-specific SL/TP multipliers. BTC defaults to SL=1.75x ATR, TP=4.0x ATR (R:R 2.29). Other coins unchanged (SL=1.5x, TP=adaptive).
+- **Analysis Scripts**: `btc_timeframe_analysis.py`, `btc_titan_deep_dive.py`, `btc_4h_sweep.py` in `backend/scripts/` for reproducing results.
+- **Strategy Documentation**: BTC analysis section added to `docs/strategies/BACKTEST_RESULTS.md`.
+
+### Changed
+
+- `TitanStrategy.analyze()` now accepts optional `symbol` parameter for per-symbol risk overrides.
+- `TitanStrategy._calculate_risk_levels()` applies symbol-specific SL/TP multipliers when available.
+- All production call sites updated to pass symbol: `routes/strategy.py`, `routes/analytics.py`, `jobs/signal_log.py`, `trading/backtest_engine.py`, `worker.py`.
+
 ## [0.8.1] - 2026-03-19
 
 ### Added

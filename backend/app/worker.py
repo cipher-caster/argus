@@ -58,8 +58,8 @@ async def _recover_missed_scans(ctx, missed_closes: list):
                 if df is None or df.empty:
                     continue
 
-                # Run Titan analysis
-                t = titan.analyze(df)
+                # Run Titan analysis (pass symbol for per-symbol risk overrides)
+                t = titan.analyze(df, symbol=symbol)
                 if "error" in t:
                     continue
 

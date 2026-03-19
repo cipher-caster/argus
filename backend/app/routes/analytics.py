@@ -195,7 +195,9 @@ async def get_oracle_signal_summary():
 @router.get("/best-setups", response_model=BestSetupsResponse)
 async def get_best_setups(timeframe: str = "4h", limit: int = 50):
     """
-    High-conviction setups where Oracle and Titan agree on direction.
+    High-conviction Titan setups filtered by market regime.
+    In BULL regime: prioritizes LONG signals.
+    In BEAR regime: prioritizes SHORT signals.
     Returns max 10 results sorted by conviction score (0-100).
     """
     cache_key = f"analytics:best-setups:{timeframe}:{limit}"
@@ -208,24 +210,24 @@ async def get_best_setups(timeframe: str = "4h", limit: int = 50):
     # Fetch Titan candles (primary timeframe)
     titan_candles = await fetch_all_candles(symbols, timeframe=timeframe, limit=300)
 
-    # Reuse Oracle screener cache (1h) if available, else compute fresh
-    screener_cache_key = f"analytics:screener:1h:{limit}"
-    raw = await RedisClient.get_json(screener_cache_key)
-    if raw is None:
-        oracle_candles = await fetch_all_candles(symbols, timeframe="1h")
-        btc_df = oracle_candles.get("BTCUSDT", pd.DataFrame())
-        screener_list = run_oracle_screener(oracle_candles, btc_df)
-    elif isinstance(raw, list):
-        screener_list = raw
-    else:
-        screener_list = raw.get("data", [])
-
-    oracle_lookup = {item["symbol"]: item for item in screener_list if isinstance(item, dict)}
+    # Detect regime from BTC weekly EMA50
+    from app.trading.backtest_engine import load_candles
+    import pandas_ta as _ta
+    regime = "UNKNOWN"
+    try:
+        btc_weekly = await load_candles("BTC/USDT", "1w")
+        if not btc_weekly.empty and len(btc_weekly) > 50:
+            btc_weekly["ema50"] = _ta.ema(btc_weekly["close"], length=50)
+            last = btc_weekly.iloc[-1]
+            if not pd.isna(last.get("ema50")):
+                regime = "BULL" if float(last["close"]) > float(last["ema50"]) else "BEAR"
+    except Exception:
+        pass
 
     results = []
     for sym, df in titan_candles.items():
         try:
-            t = titan.analyze(df)
+            t = titan.analyze(df, symbol=sym)
             if "error" in t:
                 continue
 
@@ -237,30 +239,21 @@ async def get_best_setups(timeframe: str = "4h", limit: int = 50):
             if not (is_long or is_short) or t_confidence < 55:
                 continue
 
-            o = oracle_lookup.get(sym)
-            if not o:
-                continue
+            # Regime alignment boosts conviction
+            regime_aligned = (regime == "BULL" and is_long) or (regime == "BEAR" and is_short)
 
-            o_score = o.get("score", 0)
-            if is_long and o_score <= 0:
-                continue
-            if is_short and o_score >= 0:
-                continue
-            # Use the /5 score for conviction calculation
-            oracle_pts = (abs(o_score) / 5) * 40
-            titan_pts = (t_confidence / 100) * 40
-            bonus = 0
-            if t_signal in ("BUY", "SELL"):   # perfect setup, not just limit
-                bonus += 10
-            if abs(o_score) >= 4: # Strongest Oracle
-                bonus += 10
-            conviction = int(min(100, oracle_pts + titan_pts + bonus))
+            # Conviction: base from Titan confidence, bonus for regime alignment
+            base_pts = (t_confidence / 100) * 60
+            regime_bonus = 20 if regime_aligned else 0
+            signal_bonus = 10 if t_signal in ("BUY", "SELL") else 0  # non-limit
+            conviction = int(min(100, base_pts + regime_bonus + signal_bonus))
 
             targets = t.get("targets", {})
             price = float(df.iloc[-1]["close"])
             reasons = t.get("reasons", [])
-            o_bias = o.get("bias", "NEUTRAL")
-            reason = f"Oracle {o_bias} {o_score:+d}/5 | " + " | ".join(reasons[:2])
+            # Short regime tag for UI badges + indicator reasons
+            reg_tag = "trend" if regime_aligned else "counter"
+            reason = f"({reg_tag}) " + " | ".join(reasons[:2]) if reasons else f"({reg_tag}) {t_signal.replace('_', ' ')}"
 
             results.append(BestSetupItem(
                 symbol=sym,
@@ -270,7 +263,7 @@ async def get_best_setups(timeframe: str = "4h", limit: int = 50):
                 tp=round(float(targets.get("tp", 0)), 6),
                 sl=round(float(targets.get("sl", 0)), 6),
                 reason=reason,
-                oracle_score=o_score,
+                oracle_score=0,
                 titan_signal=t_signal,
             ))
         except Exception as e:
@@ -280,15 +273,7 @@ async def get_best_setups(timeframe: str = "4h", limit: int = 50):
     results.sort(key=lambda x: x.conviction, reverse=True)
     results = results[:10]
 
-    # Enrich filtered results (≤10 coins) with:
-    #   1. Oracle backtest stats — win_rate / total_trades
-    #      Thresholds: ≥50% green, 33–49% yellow, <33% red (break-even = 33.3% at 2:1 RR).
-    #      Both fields stay None when total_trades < 10 (insufficient sample).
-    #
-    #   2. Eliz+Mayne MTF confluence — Titan signal confirmed on 4 timeframes:
-    #      Eliz lane → 4h (entry trigger) + 1d (swing structure)
-    #      Mayne lane → 12h (higher-TF bias) + 1w (weekly/macro direction)
-    #      A timeframe is "confirmed" if Titan agrees with the setup direction.
+    # Enrich filtered results (≤10 coins) with MTF confluence and backtest stats
     if results:
         filtered_syms = [r.symbol for r in results]
         try:
@@ -325,7 +310,7 @@ async def get_best_setups(timeframe: str = "4h", limit: int = 50):
                         tf_confirmation[tf] = False
                         continue
                     try:
-                        t = titan.analyze(df)
+                        t = titan.analyze(df, symbol=item.symbol)
                         sig = t.get("signal", "")
                         tf_confirmation[tf] = (
                             sig in ("BUY", "BUY_LIMIT") if is_long
@@ -358,7 +343,7 @@ async def get_titan_radar(limit: int = 50, timeframe: str = "4h"):
     results = []
     for sym, df in df_data.items():
         try:
-            analysis = titan.analyze(df)
+            analysis = titan.analyze(df, symbol=sym)
             if "error" in analysis:
                 logger.debug(f"Titan analysis error for {sym}: {analysis.get('error')}")
                 continue
