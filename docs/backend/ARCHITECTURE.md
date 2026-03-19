@@ -3,7 +3,7 @@
 ## Overview
 
 Argus is a professional-grade cryptocurrency dashboard designed with a scalable, event-driven architecture.
-It uses a **Worker-Queue** pattern to decouple data ingestion from the user-facing API, ensuring low latency and high reliability.
+It uses a **Worker-Queue** pattern to decouple data ingestion from the user-facing API, ensuring low latency and high reliability. As of v0.8.0 (March 2026), the system also includes a paper trading engine that simulates Oracle + Titan signals against real market prices.
 
 ### System Diagram
 
@@ -13,18 +13,19 @@ graph TD
     API -->|Read Hot Data| Redis[(Redis Cache)]
     API -->|Read History| DB[(Postgres DB)]
 
-    Scheduler[Scheduler / Beat] -->|Push Jobs| Queue[(Redis Queue)]
+    Scheduler[arq Scheduler] -->|Push Jobs| Queue[(Redis Queue)]
     API -->|Push On-Demand Jobs| Queue
 
     Queue -->|Pop Jobs| Worker[Worker Service]
 
     Worker -->|Fetch Data| Binance[Binance API]
-    Worker -->|Fetch Data| CoinGecko[CoinGecko API]
 
     Worker -->|Write Hot Data| Redis
     Worker -->|Write Persistent Data| DB
 
-
+    Worker -->|Paper Trading| Orchestrator[TradeOrchestrator]
+    Orchestrator -->|Positions + Events| DB
+    Orchestrator -->|Alerts| Telegram[Telegram API]
 ```
 
 ## Tech Stack
@@ -42,11 +43,10 @@ graph TD
 ### Backend Components (Python)
 
 - **FastAPI**: Serves data to the frontend. No longer calls external APIs directly.
-- **Worker Service**: A dedicated background process using `arq` or `Celery`.
-  - **Responsibilities**: Rate-limit handling, data normalization, database writes.
+- **Worker Service**: A dedicated background process using **arq** (Redis-based job queue).
+  - **Responsibilities**: Rate-limit handling, data normalization, database writes, signal scanning, paper trade execution.
 - **Providers**:
-  - `BinanceProvider`: For high-frequency trade data.
-  - `CoinGeckoProvider`: For rich metadata and rankings.
+  - `BinanceProvider`: For high-frequency trade data (CCXT wrapper).
 
 ### Frontend
 
@@ -62,13 +62,76 @@ graph TD
 ## Data Flow
 
 1.  **Ingestion**:
-    - **Scheduled**: "Top 250 Coins" metadata fetched every 5m. Live prices and market summary calculated/cached every 30s.
+    - **Scheduled (arq)**: Live prices and market summary cached every 30s. Signal log scan every 5 min. Signal outcome resolution every 30 min. Paper trade position checks on each cycle.
     - **On-Demand**: When a user views a chart, the API triggers a "Backfill" job if data is missing.
 2.  **Storage**:
-    - Hot data (Price, % Change) lives in **Redis** for <5ms access.
-    - Cold data (Historical 1h/1d candles) lives in **Postgres**.
+    - Hot data (Price, % Change, trading config) lives in **Redis** for <5ms access.
+    - Cold data (Historical 1h/1d candles, signal log, positions, trade events, optimization experiments) lives in **Postgres**.
 3.  **Serving**:
     - The API simply queries Redis or Postgres. It never blocks on external API calls.
+
+## Backend Module Reference
+
+### `backend/app/routes/`
+
+| File | Router prefix | Purpose |
+|------|--------------|---------|
+| `market.py` | `/api/market` | Tickers, OHLCV candles, market summary |
+| `indicators.py` | `/api/indicators` | Technical indicator endpoints |
+| `strategy.py` | `/api/strategy` | Oracle + Titan signal endpoints |
+| `analytics.py` | `/api/analytics` | Screener, signal log, best setups |
+| `trading.py` | `/api/trading` | Paper trading — positions, trade events, portfolio, config |
+| `optimization.py` | `/api/optimization`, `/api/trading/analysis` | Experiment log, best config, apply; live vs backtest recommendations |
+
+### `backend/app/jobs/`
+
+Background jobs registered with the arq worker (`backend/app/worker.py`):
+
+| Function | Schedule | Description |
+|----------|----------|-------------|
+| `log_watchlist_setups` | every 5 min | Scans BTC/ETH/BNB + watchlist on 4H, inserts OPEN `SignalLog` rows (DB deduplicates via partial unique index on `(symbol, direction) WHERE outcome='OPEN'`) |
+| `log_best_setups` | every 5 min | Scans broader screener results and logs qualified setups |
+| `resolve_signal_outcomes` | every 30 min | Closes OPEN signals as WIN / LOSS / REVIEW by comparing current price against TP/SL levels |
+
+Market gates applied before any signal is logged: `block_sleeping`, `block_volatile`, `macro_guard`, `block_btc_sell` — all configurable via Redis key `signal_log:config`.
+
+### `backend/app/trading/`
+
+Paper trading engine. All components are async and interact with the Postgres `Position` + `TradeEvent` tables and the Redis trading config key (`trading:config`).
+
+| File | Class / entrypoint | Description |
+|------|--------------------|-------------|
+| `orchestrator.py` | `TradeOrchestrator` | Main simulation loop. `process_signal()` creates PENDING positions from new OPEN signals; `check_pending_fills()` transitions PENDING → OPEN when price reaches entry; `check_open_positions()` transitions OPEN → CLOSED on TP/SL hit or expiry; `check_circuit_breaker()` pauses trading when drawdown threshold is exceeded. Default config stored in `DEFAULT_TRADING_CONFIG` and persisted to Redis. |
+| `risk_manager.py` | `RiskManager` | Static gate methods run in sequence before any position is created: drawdown circuit breaker, max concurrent positions, correlated-pair limit (`correlation_groups` config), conviction gate (`min_conviction`). First failure rejects the trade. |
+| `portfolio.py` | `PortfolioTracker` | Real-time P&L, balance, and drawdown derived from the `Position` table + current prices pulled from Redis market tickers. Helper `_price_map_from_tickers()` converts the `market:tickers` Redis list into a `{BTCUSDT: price}` dict. |
+| `analyzer.py` | `TradeAnalyzer` | Queries closed positions and `OptimizationExperiment` rows. Surfaces per-coin, per-direction, per-market-state, and per-conviction-bucket breakdowns. Compares live win rate vs backtest win rate and generates config change recommendations. |
+| `backtest_engine.py` | `BacktestConfig`, `backtest_symbol()`, `compute_stats()` | Reusable backtest core extracted from `run_signal_backtest.py`. `BacktestConfig` is a dataclass covering all knobs (SL/TP multipliers, gate flags, conviction threshold). Used by `optimize_trading.py` and the optimization API. |
+| `notifier.py` | `notify_*` functions | Optional Telegram alerts for key trade events. Reads `TELEGRAM_BOT_TOKEN` and `TELEGRAM_CHAT_ID` env vars; all calls are no-ops if either is unset. |
+
+#### Position lifecycle
+
+```
+PENDING  →  OPEN  →  CLOSED
+                  ↘  EXPIRED   (order_expiry_hours elapsed, never filled)
+                  ↘  CANCELLED (circuit breaker or risk rejection after creation)
+```
+
+### `backend/app/schemas/`
+
+| File | SQLModel table(s) | Key constraints |
+|------|-------------------|----------------|
+| `signal_log.py` | `SignalLog` | Partial unique index `uq_signal_log_open` on `(symbol, direction) WHERE outcome='OPEN'` — enforces one active signal per pair+direction |
+| `trading.py` | `Position`, `TradeEvent` | `Position`: partial unique index `uq_position_active` on `(symbol, direction) WHERE status IN ('PENDING','OPEN')`. `TradeEvent.event_type` values: `CREATED`, `FILLED`, `TP_HIT`, `SL_HIT`, `CANCELLED`, `CIRCUIT_BREAKER`, `RISK_REJECTED` |
+| `optimization.py` | `OptimizationExperiment` | 23-field table — params tested (`sl_mult`, `tp_mult`, `tp_adaptive`, `min_titan_confidence`, gate flags, `min_conviction`) + result metrics (`win_rate`, `total_r`, `ev_per_trade`, `avg_rr`, `coin_results` JSON). `is_production=True` marks the active config. |
+
+### `backend/scripts/`
+
+| Script | Purpose |
+|--------|---------|
+| `optimize_trading.py` | CLI parameter sweep tool. 5 presets: `sl_sweep` (6 SL ATR multipliers), `tp_sweep` (6 TP ATR multipliers), `confidence_sweep` (6 confidence thresholds), `gate_sweep` (8 gate permutations), `full_grid` (up to 18 configs). Also supports `--show-best`, `--apply-best`, and `--custom='{"sl_mult":2.0}'`. Each run saves an `OptimizationExperiment` row per config and prints a ranked EV/trade table. |
+| `run_signal_backtest.py` | Standalone historical backtest CLI |
+| `backfill_history.py` | Backfill OHLCV candle history for a symbol |
+| `verify_infra.py` | Smoke-test Redis + Postgres connectivity |
 
 ## Testing Strategy
 

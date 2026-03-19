@@ -82,26 +82,46 @@
 - [x] Date/time display instead of relative age
 - [x] Active Signals dashboard widget (open live signals)
 
-### Phase 13: Chart Signal Intelligence
-- [ ] CoinSignalIntel sidebar panel on chart deep-dive page
-- [ ] Per-coin backtest stats card (WR, R-profit, status badge) in sidebar
-- [ ] Recent signals list for current coin (last 5–10, live + backtest)
-- [ ] Open signal highlight with TP/SL distance from current price
+### Phase 13: Chart Signal Intelligence ✓
+- [x] CoinSignalIntel sidebar panel on chart deep-dive page
+- [x] Per-coin backtest stats card (WR, R-profit, status badge) in sidebar
+- [x] Recent signals list for current coin (last 5–10, live + backtest)
+- [x] Open signal highlight with TP/SL distance from current price
 
-### Phase 14: Test Coverage
+### Phase 14: Paper Trading Engine ✓
+- [x] Position and TradeEvent SQLModel tables (PENDING → OPEN → CLOSED/EXPIRED lifecycle)
+- [x] TradeOrchestrator: signal → position, pending fills, TP/SL exits, circuit breaker
+- [x] RiskManager: position sizing, concurrent limits, correlation groups, conviction gate
+- [x] PortfolioTracker: real-time P&L, drawdown, position value from live tickers
+- [x] /trading frontend page with positions, trade history, portfolio stats, config
+- [x] /portfolio and /trade slash commands
+- [x] Scanner signal consolidation: log_best_setups worker job, scanner → paper trades
+
+### Phase 15: Trading Optimization System ✓
+- [x] BacktestConfig + reusable backtest_engine.py
+- [x] OptimizationExperiment table (23 fields)
+- [x] optimize_trading.py CLI with 5 presets (sl_sweep, tp_sweep, confidence_sweep, gate_sweep, full_grid)
+- [x] TradeAnalyzer: backtest vs live comparison, config recommendations
+- [x] API routes for experiments, best config, apply
+- [x] /optimize slash command
+- [x] docs/trading/knowledge.md with confirmed findings
+
+---
+
+## Planned
+
+### Phase 16: Test Coverage
 - [ ] Unit tests for signal log worker jobs (log_watchlist_setups, resolve_signal_outcomes)
 - [ ] Unit tests for market gate logic (_passes_market_gate with config permutations)
-- [ ] Unit tests for backtest stats aggregation endpoint
+- [ ] Unit tests for trading orchestrator and risk manager
 - [ ] Frontend component tests (BacktestPerformance, SignalLog, CoinSignalIntel)
 - [ ] E2E tests: Analytics page tab navigation and data rendering
-- [ ] E2E tests: Signal Log filter/dropdown interaction
-- [ ] E2E tests: Backtest row expand/collapse with signal detail fetch
-- [ ] E2E tests: Chart page sidebar with signal intel panel
+- [ ] E2E tests: Trading page position management
 
-### Phase 15: Advanced Features
-- [ ] Portfolio tracking & user accounts
+### Phase 17: Advanced Features
 - [ ] Price alerts / push notifications
 - [ ] WebSocket push for live ticker updates
+- [ ] Multi-strategy support (compare Oracle vs Titan vs custom)
 
 ---
 

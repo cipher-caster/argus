@@ -1,5 +1,11 @@
 # Signal Consolidation Plan
 
+> **STATUS: COMPLETED — 2026-03-19**
+> All changes described in this plan have been fully implemented and are in production.
+> This file is retained as a historical record of the design decisions made.
+
+---
+
 > Problem: ActiveSetups, BestSetups, and TitanSignalsPanel show ephemeral live scan signals
 > that are never logged to the database. We can't track outcomes or optimize what isn't measured.
 > The signal_log worker only logs 11 watchlist coins at 4H candle closes.

@@ -2,6 +2,40 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.8.0] - 2026-03-19
+
+### Added
+
+- **Paper Trading Engine (Phase 14)**: Full simulation engine for forward-testing signals without real capital.
+  - `Position` and `TradeEvent` SQLModel tables tracking the full lifecycle: PENDING → OPEN → CLOSED/EXPIRED.
+  - `TradeOrchestrator`: processes signals into positions, checks pending fills, manages TP/SL exits, circuit breaker on drawdown.
+  - `RiskManager`: max position size, max concurrent positions, correlated-pair limits, conviction gate.
+  - `PortfolioTracker`: real-time P&L, drawdown, position value from live prices.
+  - `/trading` frontend page with positions table, trade history, portfolio stats, and config panel.
+  - `/portfolio` and `/trade` slash commands for Claude Code.
+- **Trading Optimization System (Phase 15)**: Parameter sweep and analysis framework.
+  - `BacktestConfig` dataclass and reusable `backtest_engine.py` extracted from CLI script.
+  - `OptimizationExperiment` table storing sweep results (23 fields).
+  - `optimize_trading.py` CLI with 5 presets: `sl_sweep`, `tp_sweep`, `confidence_sweep`, `gate_sweep`, `full_grid`.
+  - `TradeAnalyzer`: compares backtest vs live performance, recommends config changes.
+  - API routes: `/api/optimization/experiments`, `/best`, `/apply`; `/api/trading/analysis`, `/recommendations`.
+  - `/optimize` slash command for full optimization loop.
+  - `docs/trading/knowledge.md` seeded with confirmed findings and dead ends.
+- **Signal Consolidation**: Scanner signals (best-setups) now logged to `signal_log` DB with `source='scanner'`.
+  - `log_best_setups` worker job reads cached best-setups every 5 min and persists qualifying signals (conviction >= 60).
+  - Removed orphaned `TitanSignalsPanel` and `TitanRadar` analytics components.
+  - Signal Log UI updated with "Scanner" source filter and violet badge.
+
+### Fixed
+
+- **Scanner signals never became paper trades**: `execute_signals` filtered on `source='live'` only — changed to `source.in_(["live", "scanner"])`.
+
+### Changed
+
+- **Backtest CLI**: Refactored `run_signal_backtest.py` from 555 → ~180 lines — now a thin wrapper over `backtest_engine.py`.
+
+---
+
 ## [0.7.0] - 2026-03-18
 
 ### Added

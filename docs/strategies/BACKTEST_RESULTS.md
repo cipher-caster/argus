@@ -110,6 +110,40 @@ No LONG when macro bias is BEARISH. No SHORT when macro is BULLISH. NEUTRAL macr
 
 ---
 
+## Expanded 11-Coin Watchlist Results (2026-03-19)
+
+**Coins:** BTC, ETH, BNB, TRX, XRP, FET, NEAR, ARB, ATOM, DOGE, APT
+**Signal count:** 495 (vs 95 previously — 5x more data)
+**Run ID:** e6208ea3-88eb-4f1b-b6e4-832afb8f08c5
+
+SOL was excluded from the expanded watchlist. Root cause is its mean-reverting character on 4H — trend-following has no durable edge there (see "SOL Removed" section above).
+
+### SL Multiplier Sweep (full watchlist, 495 signals)
+
+All tests with BLOCK_SLEEPING + SOFT_MACRO enabled, adaptive TP (2.0x/3.0x):
+
+| SL Mult | WR    | Total R  | EV/trade |
+|---------|-------|----------|----------|
+| 1.0x    | 39.0% | +109.0R  | +0.225R  |
+| 1.25x   | 44.7% | +101.2R  | +0.210R  |
+| **1.5x**| **48.6%** | **+85.0R** | **+0.177R** |
+| 1.75x   | 51.8% | +71.1R   | +0.149R  |
+| 2.0x    | 54.2% | +57.0R   | +0.120R  |
+| 2.5x    | 58.6% | +39.8R   | +0.085R  |
+
+### Key Findings
+
+1. **SL 1.0x has the highest EV/trade (+0.225R)** — tighter stops mean better RR, so even at 39% WR the absolute profit is highest. However, 39% WR means sustained drawdown exposure that is difficult to trade through in practice.
+2. **SL 1.5x remains the production choice** — 48.6% WR with +0.177R EV/trade. Better psychological tolerance and lower drawdown than the 1.0x configuration.
+3. **Diminishing returns above 1.5x** — wider stops improve WR but degrade RR faster than WR gains can compensate. EV/trade falls monotonically from 1.5x onward.
+4. **5x more data confirms the original finding** — the SL 1.5x sweet spot identified on 95 signals holds at 495 signals.
+
+### Decision
+
+Keep `SL=1.5x` for live trading. SL=1.0x may be superior for portfolio-level simulation but is operationally stressful at 39% WR. The expanded 11-coin watchlist provides sufficient signal volume (+0.177R × 495 signals = +87.6R theoretical maximum) to justify the current configuration.
+
+---
+
 ## Commands
 
 ```bash

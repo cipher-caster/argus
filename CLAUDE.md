@@ -92,7 +92,7 @@ Detailed architecture and implementation docs live in `docs/`:
 - `docs/backend/ARCHITECTURE.md` — Backend system design
 - `docs/frontend/ARCHITECTURE.md` — Frontend patterns
 - `docs/backend/ERROR_HANDLING.md` — Exception hierarchy details
-- `docs/CHANGELOG.md` — Version history (current: v0.7.0)
+- `docs/CHANGELOG.md` — Version history (current: v0.8.0)
 - `docs/ROADMAP.md` — Planned features
 
 ## AI Slash Commands
@@ -111,3 +111,33 @@ Calls the live Argus APIs and produces a structured intelligence report.
 ```
 
 Requires the backend to be running (`http://localhost:8000`). If it's down, start it with `docker-compose up -d`.
+
+### `/portfolio`
+
+Calls the Argus trading API and produces a portfolio intelligence report — positions, P&L, drawdown, balance.
+
+### `/trade`
+
+Calls the Argus trading API and produces a trade management report — enable/disable trading, view config, recent events.
+
+### `/optimize [sweep|analyze|apply|status]`
+
+Run a trading optimization loop — parameter sweeps, backtest analysis, apply best config to production.
+
+```
+/optimize sweep sl_sweep    # Run SL multiplier sweep
+/optimize analyze           # Compare backtest vs live performance
+/optimize apply             # Apply best experiment config to production
+/optimize status            # Show current production config vs best experiment
+```
+
+### `/review [trading|docs|plan]`
+
+Full system review — trading pipeline health, documentation freshness, memory audit, and next-step planning.
+
+```
+/review              # Full review: trading state, docs, memory, plan
+/review trading      # Signal pipeline and paper trading health only
+/review docs         # Documentation staleness check only
+/review plan         # Skip review, jump to planning next steps
+```

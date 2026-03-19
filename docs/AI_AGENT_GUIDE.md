@@ -1,6 +1,6 @@
 # Argus Codebase Guide for AI Agents
 
-**Last Updated**: 2026-03-14
+**Last Updated**: 2026-03-19
 **Purpose**: Help AI agents quickly understand the Argus cryptocurrency analytics platform
 
 ---
@@ -31,19 +31,30 @@ argus/
 ├── backend/               # FastAPI backend
 │   ├── app/
 │   │   ├── main.py       # FastAPI app entry point
-│   │   ├── routes/       # API endpoints
+│   │   ├── routes/       # API endpoints (market, indicators, analytics, trading, optimization)
 │   │   ├── services/     # Business logic
 │   │   ├── providers/    # External API wrappers (Binance)
 │   │   ├── indicators/   # TA calculation modules
 │   │   ├── strategies/   # Trading signal logic
+│   │   ├── trading/      # Paper trading engine
+│   │   │   ├── orchestrator.py   # Trade lifecycle manager
+│   │   │   ├── risk_manager.py   # Position sizing & risk gates
+│   │   │   ├── portfolio.py      # Portfolio & P&L tracker
+│   │   │   ├── analyzer.py       # Trade performance analyzer
+│   │   │   ├── backtest_engine.py # Parameter sweep backtester
+│   │   │   └── notifier.py       # Trade event notifications
+│   │   ├── jobs/         # Background worker jobs
+│   │   │   └── signal_log.py     # Signal scanning & outcome resolution
 │   │   ├── schemas/      # Pydantic models
 │   │   ├── storage/      # Database & Redis clients
 │   │   └── exceptions.py # Custom exception hierarchy
+│   ├── scripts/
+│   │   └── optimize_trading.py   # CLI optimization runner
 │   ├── tests/            # Pytest test suite
 │   └── worker.py         # Background jobs (Redis cache sync)
 ├── frontend/             # Next.js frontend
 │   ├── src/
-│   │   ├── app/          # Next.js 14 App Router pages
+│   │   ├── app/          # Next.js 14 App Router pages (/, /chart/[symbol], /markets, /analytics, /trading)
 │   │   ├── components/   # React components
 │   │   ├── hooks/        # TanStack Query hooks
 │   │   └── lib/          # API client, utilities
@@ -94,9 +105,21 @@ PostgreSQL (historical) ← Routes/Services → Frontend
 5. **Strategies** (`app/strategies/*.py`):
    - Trading signal generation
    - Combines multiple indicators
-   - Example: `titan.py` - hybrid trend + momentum system
+   - `oracle.py` (Earnest + Prophet multi-timeframe), `titan.py` (hybrid trend + momentum)
 
-6. **Storage** (`app/storage/`):
+6. **Trading** (`app/trading/*.py`):
+   - Paper trading engine
+   - `orchestrator.py`: Consumes Oracle/Titan signals, manages trade lifecycle (open/close positions)
+   - `risk_manager.py`: Position sizing, max drawdown gates, exposure limits
+   - `portfolio.py`: Tracks open positions, realized/unrealized P&L
+   - `analyzer.py`: Post-trade performance analysis (win rate, expectancy, Sharpe)
+   - `backtest_engine.py`: Parameter sweep backtester for optimizing risk settings
+
+7. **Jobs** (`app/jobs/*.py`):
+   - Background worker jobs beyond cache sync
+   - `signal_log.py`: Scans watchlist at 4H candle close, logs signals to DB, resolves outcomes every 30 min
+
+8. **Storage** (`app/storage/`):
    - `database.py`: PostgreSQL with sqlmodel
    - `redis_client.py`: Redis for caching
 
@@ -360,7 +383,24 @@ npm run build
 
 ---
 
-## 📊 Recent Improvements (2026-03-14)
+## 📊 Recent Improvements (2026-03-19)
+
+### v0.8.0 — Paper Trading Engine + Optimization System
+
+- ✅ **Paper Trading Engine**: `/trading` page with TradingWidget on dashboard; Position + TradeEvent DB tables; orchestrator consumes Oracle/Titan signals and manages full trade lifecycle
+- ✅ **Risk Manager**: Configurable position sizing, max open positions, per-trade risk gates, drawdown circuit breaker
+- ✅ **Portfolio Tracker**: Real-time P&L, open positions panel, equity curve
+- ✅ **Trading Optimization System**: `backtest_engine.py` runs parameter sweeps (SL/TP/risk multipliers); `OptimizationExperiment` table stores results; `TradeAnalyzer` computes performance metrics
+- ✅ **`optimize_trading.py` CLI**: Sweep → analyze → apply workflow for tuning production config
+- ✅ **Signal Consolidation**: Scanner signals now always logged to DB; TitanSignalsPanel and TitanRadar removed from analytics (signals unified into Signal Log)
+- ✅ `/portfolio` and `/trade` slash commands for live portfolio and trade management reports
+
+### v0.7.0 — Signal History Log + Chart Intelligence
+
+- ✅ **Signal History Log**: `signal_log.py` job scans watchlist at every 4H candle close, persists signals to PostgreSQL, resolves outcomes every 30 min
+- ✅ **Backtest Performance tab**: Leaderboard in Analytics showing per-coin win rate, expectancy, and trade count from historical signal data
+- ✅ **Chart Signal Intelligence**: `CoinSignalIntel` sidebar panel shows backtest stats and open signals; `CoinAnalysisModal` Signal Track Record section shows historical signal outcomes per coin
+- ✅ **Active Signals widget** on dashboard: surfaces currently open Oracle/Titan signals from the signal log
 
 ### v0.6.1 — Best Setups Enrichment + MTF Confluence
 
@@ -395,6 +435,25 @@ Custom Claude Code slash commands live in `.claude/commands/`. These call the li
 /read market       # Market overview: sentiment, screener, best setups, movers
 ```
 
+### `/portfolio`
+
+Calls the Argus trading API and produces a portfolio intelligence report — open positions, realized/unrealized P&L, drawdown, account balance.
+
+### `/trade`
+
+Calls the Argus trading API and produces a trade management report — enable/disable trading, view current config, recent trade events.
+
+### `/optimize [sweep|analyze|apply|status]`
+
+Run a trading optimization loop using `backtest_engine.py` and `OptimizationExperiment` results.
+
+```
+/optimize sweep sl_sweep    # Run SL multiplier parameter sweep
+/optimize analyze           # Compare backtest vs live performance
+/optimize apply             # Apply best experiment config to production
+/optimize status            # Show current production config vs best experiment
+```
+
 See `docs/SLASH_COMMANDS.md` for full documentation including how to interpret every section of the report.
 
 ---
@@ -413,7 +472,6 @@ See `docs/SLASH_COMMANDS.md` for full documentation including how to interpret e
 
 1. **Indicators**: Not all indicator functions have docstrings yet
 2. **Frontend**: No pagination on large tables (500+ items)
-3. **Signal History**: No persistent log of fired signals yet
 
 ### Best Practices
 
@@ -432,8 +490,11 @@ See `docs/SLASH_COMMANDS.md` for full documentation including how to interpret e
 1. `backend/app/main.py` - Application entry, router setup
 2. `backend/app/exceptions.py` - Exception hierarchy
 3. `backend/app/services/market_data.py` - Core data fetching logic
-4. `frontend/src/hooks/useAnalyticsData.ts` - Query configuration
-5. `docs/backend/ERROR_HANDLING.md` - Error handling guide
+4. `backend/app/jobs/signal_log.py` - Signal scanning and outcome resolution
+5. `backend/app/trading/orchestrator.py` - Paper trading lifecycle management
+6. `backend/app/routes/trading.py` - Trading API endpoints
+7. `frontend/src/hooks/useAnalyticsData.ts` - Query configuration
+8. `docs/backend/ERROR_HANDLING.md` - Error handling guide
 
 **Configuration**:
 

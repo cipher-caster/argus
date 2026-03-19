@@ -284,8 +284,8 @@ _trade_orchestrator = TradeOrchestrator()
 
 async def execute_signals(ctx):
     """
-    Pick up new OPEN live signals and create PENDING positions via the orchestrator.
-    Runs 2 minutes after the signal scan at each 4H candle close.
+    Pick up new OPEN signals (live + scanner) and create PENDING positions via the orchestrator.
+    Runs every 5 minutes to catch scanner signals promptly.
     """
     from sqlalchemy import select
     from app.schemas.signal_log import SignalLog
@@ -298,11 +298,11 @@ async def execute_signals(ctx):
     logger.info("Job: execute_signals — processing new signals...")
 
     async with Database.get_session() as session:
-        # Signals that are OPEN and have no Position yet
+        # Signals that are OPEN and have no Position yet (live + scanner sources)
         result = await session.execute(
             select(SignalLog).where(
                 SignalLog.outcome == "OPEN",
-                SignalLog.source == "live",
+                SignalLog.source.in_(["live", "scanner"]),
                 ~SignalLog.id.in_(
                     select(Position.signal_log_id).where(
                         Position.signal_log_id.is_not(None)
@@ -386,7 +386,7 @@ class WorkerSettings:
         cron(log_watchlist_setups, hour={0, 4, 8, 12, 16, 20}, minute={3}),  # Signal log at each 4H candle close (+3m for data)
         cron(log_best_setups, minute={3, 8, 13, 18, 23, 28, 33, 38, 43, 48, 53, 58}),  # Log scanner signals 1min after cache warm
         cron(resolve_signal_outcomes, minute={0, 30}),  # Resolve signal outcomes every 30min
-        cron(execute_signals, hour={0, 4, 8, 12, 16, 20}, minute={5}),  # Execute signals 2min after scan
+        cron(execute_signals, hour={0, 4, 8, 12, 16, 20}, minute={5}),  # Execute signals 2min after 4H candle scan
         cron(manage_positions, minute={0, 5, 10, 15, 20, 25, 30, 35, 40, 45, 50, 55}),  # Check fills/TP/SL every 5min
         cron(sync_trading_balance, minute={1, 11, 21, 31, 41, 51}),  # Cache balance every 10min
     ]
