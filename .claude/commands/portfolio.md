@@ -49,3 +49,25 @@ If trading is disabled (enabled: false), add a note:
 > Trading is currently **paused**. Enable via `PUT /api/trading/config {"enabled": true}` or the Trading page.
 
 If there are no positions yet, suggest enabling trading and waiting for the next 4H signal scan.
+
+---
+
+## Trade Intelligence (append after Performance section)
+
+Make these additional calls:
+4. GET /api/trading/analysis
+5. GET /api/trading/analysis/recommendations
+
+Format as:
+
+### Trade Intelligence
+
+**Best coin**: {highest win_rate coin from by_symbol, min 3 trades}
+**Worst coin**: {lowest win_rate coin from by_symbol, min 3 trades}
+**Best market state**: {highest win_rate from by_market_state}
+**Conviction sweet spot**: {conviction bucket with best win_rate}
+
+If recommendations exist (not "no change"), list them:
+> ⚠ **{param}**: {reason} — *{evidence}*
+
+If fewer than 10 closed trades: omit the Trade Intelligence section entirely.
