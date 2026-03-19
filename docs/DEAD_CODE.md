@@ -63,6 +63,16 @@ One-off scripts from the BTC/ETH analysis. Not part of the core system.
 | `tests/verify_refactor.py` | Manual smoke test, not automated |
 | `tests/verify_freshness.py` | Manual smoke test, not automated |
 
+## Removed Components (No Backtest Proof)
+
+| Component | File | Why Removed |
+|-----------|------|-------------|
+| **ContrarianRadar** | `frontend/src/components/analytics/ContrarianRadar.tsx` | No backtest data. Mean reversion opposite of trend following. Zero evidence of profitability. |
+| `useContrarianRadar` hook | `frontend/src/hooks/useAnalyticsData.ts` | Only consumer was ContrarianRadar |
+| `fetchMeanReversion` API fn | `frontend/src/lib/api.ts` | Only consumer was useContrarianRadar |
+| `detect_mean_reversion` | `backend/app/indicators/mean_reversion.py` | Only used by dead contrarian-radar endpoint |
+| `GET /api/analytics/contrarian-radar` | `backend/app/routes/analytics.py` | No frontend calls after removal |
+
 ## Naming Inconsistencies (Fixed)
 
 - ~~Dashboard: "Active Setups" vs Analytics: "Best Setups"~~ → Both now say "Best Setups"
