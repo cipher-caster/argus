@@ -3,7 +3,7 @@
 import { useMarketIndicators } from "@/hooks/useMarketIndicators";
 import { formatVolume } from "@/lib/formatters";
 import { cn } from "@/lib/utils";
-import { RefreshCcw, TrendingDown, TrendingUp, X } from "lucide-react";
+import { RefreshCcw, TrendingDown, TrendingUp, X, Target, Clock } from "lucide-react";
 import { useEffect, useState } from "react";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
@@ -23,6 +23,15 @@ function Divider() {
 }
 
 function RegimeModal({ regime, indicators, onClose }: { regime: RegimeData | null; indicators: any; onClose: () => void }) {
+  const [setups, setSetups] = useState<any[]>([]);
+
+  useEffect(() => {
+    fetch(`${API_URL}/api/analytics/best-setups?timeframe=4h&limit=20`)
+      .then(r => r.ok ? r.json() : { data: [] })
+      .then(d => setSetups(d.data ?? []))
+      .catch(() => {});
+  }, []);
+
   if (!regime) return null;
 
   const isBull = regime.regime === "BULL";
@@ -32,22 +41,40 @@ function RegimeModal({ regime, indicators, onClose }: { regime: RegimeData | nul
   const cap = indicators?.total_market_cap?.value;
   const dom = indicators?.btc_dominance?.value;
 
+  // Top setups matching regime direction
+  const alignedSetups = setups.filter(s => {
+    const isLong = s.direction === "LONG";
+    return (isBull && isLong) || (isBear && !isLong);
+  }).slice(0, 3);
+
+  const counterSetups = setups.filter(s => {
+    const isLong = s.direction === "LONG";
+    return (isBull && !isLong) || (isBear && isLong);
+  }).slice(0, 2);
+
+  function formatPrice(p: number) {
+    if (p >= 1000) return p.toLocaleString("en-US", { maximumFractionDigits: 0 });
+    if (p >= 1) return p.toFixed(4);
+    return p.toFixed(6);
+  }
+
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm" onClick={onClose}>
       <div
-        className="bg-background border border-border rounded-2xl shadow-2xl w-full max-w-lg mx-4 overflow-hidden"
+        className="bg-background border border-border rounded-2xl shadow-2xl w-full max-w-lg mx-4 overflow-hidden max-h-[90vh] overflow-y-auto"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}
         <div className={cn(
-          "flex items-center justify-between px-6 py-4 border-b",
-          isBull ? "bg-green-500/10 border-green-500/20" : "bg-red-500/10 border-red-500/20"
+          "flex items-center justify-between px-6 py-4 border-b sticky top-0 z-10",
+          isBull ? "bg-green-500/10 border-green-500/20" : "bg-red-500/10 border-red-500/20",
+          "bg-background"
         )}>
           <div className="flex items-center gap-3">
             {isBull ? <TrendingUp size={20} className="text-green-500" /> : <TrendingDown size={20} className="text-red-500" />}
             <div>
               <h2 className="text-lg font-black uppercase tracking-wider">{regime.regime} Market</h2>
-              <p className="text-xs text-muted-foreground">Based on BTC Weekly EMA50</p>
+              <p className="text-xs text-muted-foreground">BTC Weekly EMA50</p>
             </div>
           </div>
           <button onClick={onClose} className="text-muted-foreground hover:text-foreground transition-colors">
@@ -56,32 +83,158 @@ function RegimeModal({ regime, indicators, onClose }: { regime: RegimeData | nul
         </div>
 
         <div className="p-6 space-y-5">
-          {/* What this means */}
-          <div className="space-y-2">
-            <h3 className="text-xs font-black uppercase tracking-widest text-muted-foreground">What this means</h3>
-            <p className="text-sm leading-relaxed">
-              {isBull
-                ? "BTC is trading above its 50-week moving average. Historically, this means the market is in an uptrend. Best approach: hold BTC or look for long setups on altcoins."
-                : "BTC is trading below its 50-week moving average. The market is in a downtrend. Best approach: short setups or stay in stablecoins. Don't fight the trend."
-              }
-            </p>
+          {/* So What — the actionable part */}
+          <div className={cn(
+            "rounded-xl p-4 space-y-3",
+            isBear ? "bg-red-500/5 border border-red-500/20" : "bg-green-500/5 border border-green-500/20"
+          )}>
+            <h3 className="text-xs font-black uppercase tracking-widest text-muted-foreground flex items-center gap-1.5">
+              <Target size={12} />
+              So What — Where To Act
+            </h3>
+            {isBear ? (
+              <div className="space-y-2 text-sm">
+                <p>BTC at <strong>${formatPrice(regime.btc_price)}</strong> is <strong className="text-red-500">{Math.abs(regime.distance_pct)}% below</strong> the bull line at <strong>${formatPrice(regime.ema50)}</strong>.</p>
+                <p>Trend is down. <strong>Short setups only</strong> right now. Don't buy spot and hold — you're fighting the trend.</p>
+              </div>
+            ) : (
+              <div className="space-y-2 text-sm">
+                <p>BTC at <strong>${formatPrice(regime.btc_price)}</strong> is <strong className="text-green-500">+{regime.distance_pct}% above</strong> the bear line at <strong>${formatPrice(regime.ema50)}</strong>.</p>
+                <p>Trend is up. <strong>HODL BTC, long alts</strong>. Shorts are counter-trend — higher risk.</p>
+              </div>
+            )}
           </div>
 
-          {/* BTC vs EMA50 */}
+          {/* What to wait for */}
+          <div className="bg-muted/30 rounded-xl p-4 space-y-3">
+            <h3 className="text-xs font-black uppercase tracking-widest text-muted-foreground flex items-center gap-1.5">
+              <Clock size={12} />
+              What To Wait For
+            </h3>
+            {isBear ? (
+              <div className="space-y-2">
+                <div className="flex items-center gap-3 p-2.5 rounded-lg bg-background border border-border/50">
+                  <span className="text-green-500 font-black text-lg">↑</span>
+                  <div>
+                    <p className="text-sm font-bold">Bull regime starts</p>
+                    <p className="text-xs text-muted-foreground">Weekly close above <strong className="text-foreground">${formatPrice(regime.ema50)}</strong></p>
+                  </div>
+                </div>
+                <p className="text-xs text-muted-foreground">Until then, only short. When BTC crosses above ${formatPrice(regime.ema50)} on a weekly close, switch to longs.</p>
+              </div>
+            ) : (
+              <div className="space-y-2">
+                <div className="flex items-center gap-3 p-2.5 rounded-lg bg-background border border-border/50">
+                  <span className="text-red-500 font-black text-lg">↓</span>
+                  <div>
+                    <p className="text-sm font-bold">Bear regime warning</p>
+                    <p className="text-xs text-muted-foreground">Weekly close below <strong className="text-foreground">${formatPrice(regime.ema50)}</strong></p>
+                  </div>
+                </div>
+                <p className="text-xs text-muted-foreground">If BTC closes below ${formatPrice(regime.ema50)} on a weekly candle, shift to shorts and reduce spot exposure.</p>
+              </div>
+            )}
+          </div>
+
+          {/* Best setups right now */}
+          {alignedSetups.length > 0 && (
+            <div className="bg-muted/30 rounded-xl p-4 space-y-3">
+              <h3 className="text-xs font-black uppercase tracking-widest text-muted-foreground">
+                Best {isBear ? "Short" : "Long"} Setups Right Now
+              </h3>
+              <div className="space-y-2">
+                {alignedSetups.map((s: any) => (
+                  <div key={s.symbol} className="flex items-center justify-between p-2.5 rounded-lg bg-background border border-border/50">
+                    <div>
+                      <span className="font-black text-sm">{s.symbol.replace("/USDT", "")}</span>
+                      <span className={cn("ml-2 text-[9px] font-bold px-1.5 py-0.5 rounded",
+                        isBear ? "bg-red-500/15 text-red-500" : "bg-green-500/15 text-green-500"
+                      )}>{s.direction}</span>
+                    </div>
+                    <div className="text-right">
+                      <p className="text-xs font-mono font-bold">${formatPrice(s.entry)}</p>
+                      <p className="text-[10px] text-muted-foreground">conviction {s.conviction}%</p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Counter-trend setups (warning) */}
+          {counterSetups.length > 0 && (
+            <div className="bg-yellow-500/5 rounded-xl p-4 space-y-3 border border-yellow-500/15">
+              <h3 className="text-xs font-black uppercase tracking-widest text-yellow-600 dark:text-yellow-400">
+                Counter-Trend (Higher Risk)
+              </h3>
+              <div className="space-y-2">
+                {counterSetups.map((s: any) => (
+                  <div key={s.symbol} className="flex items-center justify-between p-2.5 rounded-lg bg-background border border-border/50 opacity-70">
+                    <div>
+                      <span className="font-black text-sm">{s.symbol.replace("/USDT", "")}</span>
+                      <span className="ml-2 text-[9px] font-bold px-1.5 py-0.5 rounded bg-yellow-500/15 text-yellow-600 dark:text-yellow-400">{s.direction}</span>
+                    </div>
+                    <div className="text-right">
+                      <p className="text-xs font-mono font-bold">${formatPrice(s.entry)}</p>
+                      <p className="text-[10px] text-muted-foreground">conviction {s.conviction}%</p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+              <p className="text-[10px] text-muted-foreground">These go against the regime. Only take if you have a strong reason.</p>
+            </div>
+          )}
+
+          {/* How to Execute — Spot vs Limit */}
+          <div className="bg-muted/30 rounded-xl p-4 space-y-3">
+            <h3 className="text-xs font-black uppercase tracking-widest text-muted-foreground">How To Execute</h3>
+            {isBear ? (
+              <div className="space-y-3">
+                <div className="p-3 rounded-lg bg-red-500/5 border border-red-500/15">
+                  <p className="text-xs font-black text-red-500 uppercase tracking-wider mb-1.5">Spot Buying</p>
+                  <p className="text-sm">Don't. BTC is below EMA50 — spot longs are fighting the trend. Wait for bull cross.</p>
+                </div>
+                <div className="p-3 rounded-lg bg-background border border-border/50">
+                  <p className="text-xs font-black text-foreground uppercase tracking-wider mb-1.5">Limit Shorts</p>
+                  <p className="text-sm">Use the setups above. Enter on limit near resistance / rejection zones. Set SL above recent highs.</p>
+                  <p className="text-xs text-muted-foreground mt-1">Futures only. Use 3-5x leverage max.</p>
+                </div>
+                <div className="p-3 rounded-lg bg-background border border-border/50">
+                  <p className="text-xs font-black text-foreground uppercase tracking-wider mb-1.5">Spot Sell / Exit</p>
+                  <p className="text-sm">If holding spot, consider reducing exposure. Move to stablecoins until bull cross.</p>
+                </div>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                <div className="p-3 rounded-lg bg-green-500/5 border border-green-500/15">
+                  <p className="text-xs font-black text-green-500 uppercase tracking-wider mb-1.5">Spot Buying</p>
+                  <p className="text-sm">Yes. HODL BTC. Buy dips on alts with long setups. Market is trending up.</p>
+                </div>
+                <div className="p-3 rounded-lg bg-background border border-border/50">
+                  <p className="text-xs font-black text-foreground uppercase tracking-wider mb-1.5">Limit Longs</p>
+                  <p className="text-sm">Use the setups above. Enter on limit near support / pullback zones. Set SL below recent lows.</p>
+                  <p className="text-xs text-muted-foreground mt-1">Spot or futures. Higher conviction than shorts.</p>
+                </div>
+                <div className="p-3 rounded-lg bg-yellow-500/5 border border-yellow-500/15">
+                  <p className="text-xs font-black text-yellow-600 dark:text-yellow-400 uppercase tracking-wider mb-1.5">Limit Shorts</p>
+                  <p className="text-sm">Counter-trend. Only for experienced traders. Use tight stops. Prefer the setups above on specific coins.</p>
+                </div>
+              </div>
+            )}
+
+          {/* BTC Position */}
           <div className="bg-muted/30 rounded-xl p-4 space-y-3">
             <h3 className="text-xs font-black uppercase tracking-widest text-muted-foreground">BTC Position</h3>
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <p className="text-[10px] text-muted-foreground uppercase font-bold">BTC Price</p>
-                <p className="text-xl font-black font-mono">${regime.btc_price?.toLocaleString()}</p>
+                <p className="text-xl font-black font-mono">${formatPrice(regime.btc_price)}</p>
               </div>
               <div>
                 <p className="text-[10px] text-muted-foreground uppercase font-bold">EMA50 (Weekly)</p>
-                <p className="text-xl font-black font-mono">${regime.ema50?.toLocaleString()}</p>
+                <p className="text-xl font-black font-mono">${formatPrice(regime.ema50)}</p>
               </div>
             </div>
-
-            {/* Visual bar */}
             <div className="space-y-1">
               <div className="flex justify-between text-[10px] font-bold text-muted-foreground">
                 <span>Distance</span>
@@ -90,7 +243,7 @@ function RegimeModal({ regime, indicators, onClose }: { regime: RegimeData | nul
                 </span>
               </div>
               <div className="h-2 bg-muted rounded-full relative overflow-hidden">
-                <div className={cn("absolute inset-y-0 left-1/2 w-px bg-border")} />
+                <div className="absolute inset-y-0 left-1/2 w-px bg-border" />
                 <div
                   className={cn(
                     "absolute inset-y-0 rounded-full",
@@ -105,29 +258,11 @@ function RegimeModal({ regime, indicators, onClose }: { regime: RegimeData | nul
                 <span>Bull zone</span>
               </div>
             </div>
-
-            <div className="flex items-center gap-2 text-xs">
-              <span className="text-muted-foreground">EMA50 trend:</span>
-              <span className={cn("font-bold", regime.ema50_slope === "rising" ? "text-green-500" : "text-red-500")}>
-                {regime.ema50_slope === "rising" ? "↑ Rising" : "↓ Falling"}
-              </span>
-            </div>
           </div>
 
-          {/* Anticipation */}
-          <div className={cn(
-            "rounded-xl p-4 space-y-2",
-            regime.approaching_cross ? "bg-yellow-500/10 border border-yellow-500/20" : "bg-muted/30"
-          )}>
-            <h3 className="text-xs font-black uppercase tracking-widest text-muted-foreground">
-              {regime.approaching_cross ? "⚡ Watch Point" : "Next Level"}
-            </h3>
-            <p className="text-sm font-medium">{regime.anticipation}</p>
-          </div>
-
-          {/* Market Indicators */}
-          <div className="bg-muted/30 rounded-xl p-4 space-y-3">
-            <h3 className="text-xs font-black uppercase tracking-widest text-muted-foreground">Market Context</h3>
+          {/* Market Context */}
+          <div className="bg-muted/30 rounded-xl p-4">
+            <h3 className="text-xs font-black uppercase tracking-widest text-muted-foreground mb-3">Market Context</h3>
             <div className="grid grid-cols-3 gap-3">
               {rsi !== undefined && (
                 <div className="text-center">
@@ -153,44 +288,6 @@ function RegimeModal({ regime, indicators, onClose }: { regime: RegimeData | nul
                 </div>
               )}
             </div>
-          </div>
-
-          {/* Action summary */}
-          <div className="border-t border-border pt-4">
-            <h3 className="text-xs font-black uppercase tracking-widest text-muted-foreground mb-2">Action Summary</h3>
-            <ul className="space-y-1.5 text-sm">
-              {isBear ? (
-                <>
-                  <li className="flex items-start gap-2">
-                    <span className="text-red-500 mt-0.5">•</span>
-                    <span>Prioritize <strong>short</strong> setups on Titan signals</span>
-                  </li>
-                  <li className="flex items-start gap-2">
-                    <span className="text-red-500 mt-0.5">•</span>
-                    <span>Avoid holding spot longs — trend is against you</span>
-                  </li>
-                  <li className="flex items-start gap-2">
-                    <span className="text-muted-foreground mt-0.5">•</span>
-                    <span className="text-muted-foreground">Watch for bull cross at weekly close above <strong>${regime.ema50?.toLocaleString()}</strong></span>
-                  </li>
-                </>
-              ) : (
-                <>
-                  <li className="flex items-start gap-2">
-                    <span className="text-green-500 mt-0.5">•</span>
-                    <span><strong>HODL</strong> BTC or look for long setups on alts</span>
-                  </li>
-                  <li className="flex items-start gap-2">
-                    <span className="text-green-500 mt-0.5">•</span>
-                    <span>Shorts are counter-trend — higher risk</span>
-                  </li>
-                  <li className="flex items-start gap-2">
-                    <span className="text-muted-foreground mt-0.5">•</span>
-                    <span className="text-muted-foreground">Watch for bear cross if BTC closes below <strong>${regime.ema50?.toLocaleString()}</strong></span>
-                  </li>
-                </>
-              )}
-            </ul>
           </div>
         </div>
       </div>
