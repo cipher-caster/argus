@@ -2,6 +2,17 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.8.1] - 2026-03-19
+
+### Added
+
+- **Test Coverage Expansion (Phase 16a)**: 56 new tests across 3 critical modules (160 → 216 total).
+  - `test_signal_log.py` (28 tests): market gate logic, config cache hit/miss, Redis helpers, watchlist/scanner signal insertion, outcome resolution (LONG win/loss, SHORT win, REVIEW timeout).
+  - `test_trading_routes.py` (18 tests): all 9 trading API endpoints — portfolio, positions (list/filter/404), history, config (get/put/null), close/close-all, pause, stats with equity curve.
+  - `test_indicator_routes.py` (10 tests): indicator list/calculate (DB + provider fallback + 400), market dashboard (with/without data), activity log (limit, event_type filter).
+
+---
+
 ## [0.8.0] - 2026-03-19
 
 ### Added

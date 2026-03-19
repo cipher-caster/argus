@@ -135,8 +135,21 @@ PENDING  →  OPEN  →  CLOSED
 
 ## Testing Strategy
 
+**216 backend tests** (pytest) organized by module:
+
+| Test File | Tests | Coverage |
+|-----------|-------|----------|
+| `test_oracle.py` | 30 | Oracle voters, signal synthesis, analyze integration |
+| `test_titan.py` | 20 | Titan trend/momentum signals, indicator edge cases |
+| `test_signal_log.py` | 28 | Market gate, config, Redis helpers, watchlist/scanner insert, outcome resolution |
+| `test_trading.py` | 42 | RiskManager gates, position sizing, PnL math, orchestrator cycle |
+| `test_trading_routes.py` | 18 | All 9 trading API endpoints (portfolio, positions, history, config, close, pause, stats) |
+| `test_indicator_routes.py` | 10 | Indicator list/calculate, market dashboard, activity log |
+| `test_analytics_*.py` | 30+ | Screener, analytics expansion, best setups |
+| Others | 38+ | Market, worker, error handling, mean reversion, calculator |
+
 - **E2E (Playwright)**: Verifies that the Frontend correctly displays data fed by the Worker.
-- **Unit Tests**: Verify that Providers correctly parse external API responses.
+- **Unit Tests**: Pure function tests (market gate, conviction math) + mocked integration tests (DB sessions, Redis cache).
 
 ---
 

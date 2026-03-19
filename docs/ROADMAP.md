@@ -60,7 +60,7 @@
 - [x] Eliz + Mayne MTF confluence (4H/1D/12H/1W Titan confirmation)
 
 ### Phase 10: Test Suite
-- [x] 119 backend tests (oracle, titan, analytics, market, worker, screener)
+- [x] 216 backend tests (oracle, titan, analytics, market, worker, screener, signal log, trading routes, indicator routes)
 - [x] TypeScript type coverage
 
 ---
@@ -110,10 +110,11 @@
 
 ## Planned
 
-### Phase 16: Test Coverage
-- [ ] Unit tests for signal log worker jobs (log_watchlist_setups, resolve_signal_outcomes)
-- [ ] Unit tests for market gate logic (_passes_market_gate with config permutations)
-- [ ] Unit tests for trading orchestrator and risk manager
+### Phase 16: Test Coverage (In Progress)
+- [x] Unit tests for signal log worker jobs (log_watchlist_setups, log_best_setups, resolve_signal_outcomes) — 28 tests
+- [x] Unit tests for market gate logic (_passes_market_gate with config permutations) — 6 tests
+- [x] Unit tests for trading API routes (all 9 endpoints) — 18 tests
+- [x] Unit tests for indicator + system routes (calculate, dashboard, activity log) — 10 tests
 - [ ] Frontend component tests (BacktestPerformance, SignalLog, CoinSignalIntel)
 - [ ] E2E tests: Analytics page tab navigation and data rendering
 - [ ] E2E tests: Trading page position management

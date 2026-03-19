@@ -356,18 +356,25 @@ async def get_ohlcv(request: OHLCVRequest):
 
 ## 🧪 Testing
 
-**Backend**:
+**Backend** (216 tests):
 
 ```bash
 # Run all tests
 docker compose exec backend pytest -v
 
 # Run specific test file
-docker compose exec backend pytest tests/test_analytics.py -v
+docker compose exec backend pytest tests/test_signal_log.py -v
 
 # Run with coverage
 docker compose exec backend pytest --cov=app tests/
 ```
+
+Key test files:
+- `test_signal_log.py` — Signal pipeline: market gate, config, Redis helpers, insert/resolve (28 tests)
+- `test_trading.py` — Risk manager, position sizing, PnL math, orchestrator cycle (42 tests)
+- `test_trading_routes.py` — All 9 trading API endpoints (18 tests)
+- `test_indicator_routes.py` — Indicator + system route endpoints (10 tests)
+- `test_oracle.py` / `test_titan.py` — Strategy logic (50 tests)
 
 **Frontend**:
 
@@ -406,7 +413,7 @@ npm run build
 
 - ✅ Oracle backtest win rate surfaced on Best Setups cards (≥50% green, 33–49% yellow, <33% red; null when <10 trades)
 - ✅ Eliz+Mayne MTF confluence: Titan signal confirmed on 4H/1D (Eliz) and 12H/1W (Mayne)
-- ✅ 119 backend tests: oracle, titan, analytics, market, worker, screener
+- ✅ 216 backend tests: oracle, titan, analytics, market, worker, screener, signal log, trading routes, indicator routes
 
 ### v0.6.0 — Dashboard Redesign
 
