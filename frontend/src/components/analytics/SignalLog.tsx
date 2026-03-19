@@ -7,7 +7,7 @@ import { cn } from "@/lib/utils";
 import { RefreshCw, Settings2, Save, Check, ChevronDown } from "lucide-react";
 
 const SYMBOLS = ["All", "BTC", "ETH", "BNB", "TRX", "XRP", "FET", "NEAR", "ARB", "ATOM", "DOGE", "APT"];
-const SOURCES = ["All", "Live", "Backtest"];
+const SOURCES = ["All", "Live", "Scanner", "Backtest"];
 
 const OUTCOME_CONFIG = {
   WIN:    { label: "WIN",    emoji: "✅", cls: "text-emerald-500 dark:text-emerald-400 bg-emerald-500/10" },
@@ -102,6 +102,8 @@ function SignalRow({ item }: { item: SignalLogItem }) {
             "text-[9px] font-bold px-1.5 py-0.5 rounded w-fit uppercase",
             item.source === "backtest"
               ? "bg-amber-500/10 text-amber-600 dark:text-amber-400"
+              : item.source === "scanner"
+              ? "bg-violet-500/10 text-violet-600 dark:text-violet-400"
               : "bg-sky-500/10 text-sky-600 dark:text-sky-400"
           )}>
             {item.source}
@@ -299,6 +301,7 @@ export function SignalLog() {
                 "px-3 py-1.5 rounded-lg text-[11px] font-black uppercase tracking-wider transition-all",
                 activeSource === src
                   ? src === "Backtest" ? "bg-amber-500/20 text-amber-600 dark:text-amber-400 border border-amber-500/40"
+                    : src === "Scanner" ? "bg-violet-500/20 text-violet-600 dark:text-violet-400 border border-violet-500/40"
                     : src === "Live" ? "bg-sky-500/20 text-sky-600 dark:text-sky-400 border border-sky-500/40"
                     : "bg-primary text-primary-foreground shadow-md"
                   : "bg-secondary/40 text-muted-foreground hover:text-foreground hover:bg-secondary/70"

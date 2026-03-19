@@ -202,7 +202,10 @@ async def log_watchlist_setups(ctx):
                 stmt = (
                     pg_insert(SignalLog)
                     .values(**row)
-                    .on_conflict_do_nothing(index_elements=["symbol", "direction"])
+                    .on_conflict_do_nothing(
+                        index_elements=["symbol", "direction"],
+                        index_where=SignalLog.outcome == "OPEN",
+                    )
                 )
                 await session.execute(stmt)
                 await session.commit()
@@ -218,6 +221,91 @@ async def log_watchlist_setups(ctx):
 
 # ---------------------------------------------------------------------------
 # Job B: resolve_signal_outcomes
+# ---------------------------------------------------------------------------
+
+# ---------------------------------------------------------------------------
+# Job B: log_best_setups (scanner signals)
+# ---------------------------------------------------------------------------
+
+async def log_best_setups(ctx):
+    """
+    Reads the cached best-setups result (warmed every 5 min by sync_analytics_cache)
+    and persists qualifying signals to signal_log with source='scanner'.
+    This ensures signals shown in ActiveSetups/BestSetups are tracked for outcomes.
+    """
+    cache_key = "analytics:best-setups:4h:50"
+    cached = await RedisClient.get_json(cache_key)
+    if not cached:
+        logger.info("Job: log_best_setups — no cached best-setups, skipping")
+        return
+
+    items = cached.get("data", [])
+    if not items:
+        return
+
+    config = await _get_config()
+    market_state = await _get_market_state()
+    now_ms = int(time.time() * 1000)
+    logged = 0
+
+    for item in items:
+        try:
+            conviction = item.get("conviction", 0)
+            if conviction < 60:
+                continue
+
+            symbol = item.get("symbol", "").replace("/", "")
+            direction = item.get("direction", "")
+            if not symbol or not direction:
+                continue
+
+            o_score = item.get("oracle_score", 0)
+            o_bias = "BULLISH" if o_score > 0 else "BEARISH" if o_score < 0 else "NEUTRAL"
+            t_signal = item.get("titan_signal", "")
+
+            row = dict(
+                symbol=symbol,
+                direction=direction,
+                timeframe="4h",
+                entry=round(float(item.get("entry", 0)), 6),
+                tp=round(float(item.get("tp", 0)), 6),
+                sl=round(float(item.get("sl", 0)), 6),
+                conviction=conviction,
+                oracle_signal=f"{'STRONG_BUY' if o_score >= 4 else 'BUY'}" if o_score > 0
+                    else f"{'STRONG_SELL' if o_score <= -4 else 'SELL'}",
+                titan_signal=t_signal,
+                oracle_score=o_score,
+                titan_confidence=0,  # not in best-setups cache
+                market_state=market_state or "UNKNOWN",
+                fired_reason=item.get("reason", ""),
+                fired_at=now_ms,
+                source="scanner",
+                outcome="OPEN",
+            )
+
+            async with Database.get_session() as session:
+                stmt = (
+                    pg_insert(SignalLog)
+                    .values(**row)
+                    .on_conflict_do_nothing(
+                        index_elements=["symbol", "direction"],
+                        index_where=SignalLog.outcome == "OPEN",
+                    )
+                )
+                await session.execute(stmt)
+                await session.commit()
+
+            logged += 1
+
+        except Exception as e:
+            logger.warning(f"log_best_setups error for {item.get('symbol', '?')}: {e}")
+
+    if logged:
+        logger.info(f"Job: log_best_setups — {logged} scanner signal(s) logged")
+
+
+# ---------------------------------------------------------------------------
+# Job C: resolve_signal_outcomes
 # ---------------------------------------------------------------------------
 
 async def resolve_signal_outcomes(ctx):

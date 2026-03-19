@@ -373,7 +373,7 @@ export interface SignalLogItem {
   market_state: string;
   fired_reason: string;
   fired_at: number;
-  source: "live" | "backtest";
+  source: "live" | "scanner" | "backtest";
   outcome: "OPEN" | "WIN" | "LOSS" | "REVIEW";
   resolved_at: number | null;
   resolved_price: number | null;
