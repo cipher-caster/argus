@@ -104,7 +104,7 @@ export function ActiveSetups() {
           <TooltipProvider>
             <Tooltip>
               <TooltipTrigger asChild>
-                <span className="text-xs font-black uppercase tracking-widest cursor-help">Active Setups</span>
+                <span className="text-xs font-black uppercase tracking-widest cursor-help">Best Setups</span>
               </TooltipTrigger>
               <TooltipContent side="bottom" className="max-w-[240px] text-xs">
                 Titan signals filtered by market regime. BULL → longs prioritized. BEAR → shorts prioritized.

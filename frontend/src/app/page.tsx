@@ -19,7 +19,7 @@ export default function Dashboard() {
           <DashboardStatusBar />
         </section>
 
-        {/* Main Grid: Setups + BTC Card + Watchlist */}
+        {/* Main Grid: Best Setups + BTC Card + Watchlist */}
         <section className="grid grid-cols-1 lg:grid-cols-5 gap-5 animate-in fade-in slide-in-from-bottom-4 duration-700">
           <div className="lg:col-span-3">
             <ActiveSetups />
