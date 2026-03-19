@@ -110,14 +110,15 @@
 
 ## Planned
 
-### Phase 16: Test Coverage (In Progress)
+### Phase 16: Test Coverage (In Progress) — see [TEST_PLAN.md](TEST_PLAN.md)
 - [x] Unit tests for signal log worker jobs (log_watchlist_setups, log_best_setups, resolve_signal_outcomes) — 28 tests
 - [x] Unit tests for market gate logic (_passes_market_gate with config permutations) — 6 tests
 - [x] Unit tests for trading API routes (all 9 endpoints) — 18 tests
 - [x] Unit tests for indicator + system routes (calculate, dashboard, activity log) — 10 tests
-- [ ] Frontend component tests (BacktestPerformance, SignalLog, CoinSignalIntel)
-- [ ] E2E tests: Analytics page tab navigation and data rendering
-- [ ] E2E tests: Trading page position management
+- [x] Unit tests for signal log stats + optimization + trade analysis — 14 tests
+- [ ] Phase A: Backtest engine, historical resolution, TradeAnalyzer integration (~19 tests)
+- [ ] Phase B: E2E data rendering, trading page, error resilience (~18 tests)
+- [ ] Phase C: API contract snapshot tests (~6 tests)
 
 ### Phase 17: Advanced Features
 - [ ] Price alerts / push notifications
