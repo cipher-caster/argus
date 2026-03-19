@@ -120,7 +120,20 @@
 - [ ] Phase B: E2E data rendering, trading page, error resilience (~18 tests)
 - [ ] Phase C: API contract snapshot tests (~6 tests)
 
-### Phase 17: Advanced Features
+### Phase 17: Analytics Page Redesign — Trading Performance Intelligence
+- [ ] Audit trade logs (Position/TradeEvent) for missing context (market condition, conviction, signal scores at entry, which risk gates passed/failed)
+- [ ] Enrich trade logging with entry-time context so we can learn *why* trades won or lost
+- [ ] Redesign analytics page around trading performance (not signal browsing)
+  - Win rate breakdown by strategy / coin / market condition
+  - PnL curve and drawdown tracking over time
+  - Risk gate audit: which gates are firing, are they helping or blocking good trades?
+  - Signal quality trends over time
+- [ ] Evaluate current panels: keep Signal Log + Backtest Performance, reconsider Contrarian Radar (not wired to trading pipeline)
+- [ ] Dashboard for user (mjm) to observe AI trader performance at a glance
+
+**Goal:** The analytics page should serve two audiences — Claude as the AI trader (feedback loop to improve), and the user as the observer (visibility into how trading is going). Current page is designed for a human browsing signals, which is no longer the primary use case.
+
+### Phase 18: Advanced Features
 - [ ] Price alerts / push notifications
 - [ ] WebSocket push for live ticker updates
 - [ ] Multi-strategy support (compare Oracle vs Titan vs custom)
