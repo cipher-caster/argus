@@ -106,11 +106,30 @@
 - [x] /optimize slash command
 - [x] docs/trading/knowledge.md with confirmed findings
 
+### Phase 16a: BTC Timeframe Analysis & Per-Symbol Overrides (v0.8.2) ✓
+- [x] BTC multi-timeframe backtest (15m, 1h, 4h, 1d) across Oracle and Titan
+- [x] ETH multi-timeframe backtest — Oracle negative, Titan positive with fixed TP
+- [x] Per-symbol risk overrides in Titan (SYMBOL_OVERRIDES: BTC SL=1.75x/TP=4.0x, ETH TP=4.0x)
+- [x] Parameter sweep: 6 SL × 7 TP × 5 confidence thresholds on 4H
+- [x] Analysis scripts: btc_timeframe_analysis, btc_4h_sweep, btc_titan_deep_dive, eth_full_analysis
+
+### Phase 16b: Regime Detection & Oracle Deprecation (v0.9.0) ✓
+- [x] BTC weekly EMA50 regime detection system (`GET /api/strategy/regime`)
+- [x] DashboardStatusBar regime modal with actionable advice, aligned setups, execution guidance
+- [x] Signal logging uses regime-based direction filtering (BEAR→SHORT, BULL→LONG) instead of Oracle market gate
+- [x] Best Setups rewritten: Titan-only, regime-filtered, no Oracle dependency
+- [x] CoinAnalysisModal and CoinDetailsPanel switched to regime + Titan (removed Oracle)
+- [x] Analytics reduced to 3 tabs (Best Setups, Signal Log, Backtest Performance)
+- [x] Candle-based TP/SL resolution in signal log and paper trading orchestrator
+- [x] Oracle removed from all UI (backend code preserved for future experiments)
+- [x] Contrarian Radar and OracleScreener removed from analytics
+- [x] Dead code registry (docs/DEAD_CODE.md)
+
 ---
 
 ## Planned
 
-### Phase 16: Test Coverage (In Progress) — see [TEST_PLAN.md](TEST_PLAN.md)
+### Phase 17: Test Coverage (In Progress) — see [TEST_PLAN.md](TEST_PLAN.md)
 - [x] Unit tests for signal log worker jobs (log_watchlist_setups, log_best_setups, resolve_signal_outcomes) — 28 tests
 - [x] Unit tests for market gate logic (_passes_market_gate with config permutations) — 6 tests
 - [x] Unit tests for trading API routes (all 9 endpoints) — 18 tests
@@ -120,7 +139,7 @@
 - [ ] Phase B: E2E data rendering, trading page, error resilience (~18 tests)
 - [ ] Phase C: API contract snapshot tests (~6 tests)
 
-### Phase 17: Analytics Page Redesign — Trading Performance Intelligence
+### Phase 18: Analytics Page Redesign — Trading Performance Intelligence
 - [ ] Audit trade logs (Position/TradeEvent) for missing context (market condition, conviction, signal scores at entry, which risk gates passed/failed)
 - [ ] Enrich trade logging with entry-time context so we can learn *why* trades won or lost
 - [ ] Redesign analytics page around trading performance (not signal browsing)
@@ -128,12 +147,12 @@
   - PnL curve and drawdown tracking over time
   - Risk gate audit: which gates are firing, are they helping or blocking good trades?
   - Signal quality trends over time
-- [ ] Evaluate current panels: keep Signal Log + Backtest Performance, reconsider Contrarian Radar (not wired to trading pipeline)
+- [ ] Evaluate current panels: keep Signal Log + Backtest Performance (Contrarian Radar already removed in v0.9.0)
 - [ ] Dashboard for user (mjm) to observe AI trader performance at a glance
 
 **Goal:** The analytics page should serve two audiences — Claude as the AI trader (feedback loop to improve), and the user as the observer (visibility into how trading is going). Current page is designed for a human browsing signals, which is no longer the primary use case.
 
-### Phase 18: Advanced Features
+### Phase 19: Advanced Features
 - [ ] Price alerts / push notifications
 - [ ] WebSocket push for live ticker updates
 - [ ] Multi-strategy support (compare Oracle vs Titan vs custom)

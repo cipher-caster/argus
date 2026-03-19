@@ -40,15 +40,15 @@ frontend/src/
 ├── app/                    # Next.js 14 App Router
 │   ├── page.tsx           # Dashboard home
 │   ├── analytics/         # Analytics pages
-│   │   └── page.tsx       # Oracle Screener, Titan Radar, etc.
+│   │   └── page.tsx       # Best Setups, Signal Log, Backtest Performance
 │   ├── chart/             # Chart viewer
 │   │   └── [symbol]/      # Dynamic routes (BTC-USDT)
 │   └── layout.tsx         # Root layout
 ├── components/            # React components
 │   ├── analytics/         # Analytics-specific components
-│   │   ├── OracleScreener.tsx
-│   │   ├── MarketHealth.tsx
-│   │   ├── TitanRadar.tsx
+│   │   ├── BestSetups.tsx
+│   │   ├── SignalLog.tsx
+│   │   ├── BacktestPerformance.tsx
 │   │   └── ...
 │   ├── features/          # Feature-specific components
 │   │   └── dashboard/     # Dashboard components
@@ -104,10 +104,10 @@ Re-render on data change
 
 ```typescript
 // Hook definition
-export function useOracleScreener(timeframe: string = "1h", limit: number = 50) {
+export function useBestSetups(timeframe: string = "4h", limit: number = 10) {
   return useQuery({
-    queryKey: ["analytics", "screener", timeframe, limit],
-    queryFn: () => fetchOracleScreener(timeframe, limit),
+    queryKey: ["analytics", "best-setups", timeframe, limit],
+    queryFn: () => fetchBestSetups(timeframe, limit),
     staleTime: 120_000, // 2 minutes before considered stale
     gcTime: 5 * 60_000, // Keep in cache for 5 minutes
     refetchOnWindowFocus: false,
@@ -116,8 +116,8 @@ export function useOracleScreener(timeframe: string = "1h", limit: number = 50) 
 }
 
 // Component usage
-function OracleScreener({ timeframe }: Props) {
-  const { data, isLoading, error } = useOracleScreener(timeframe);
+function BestSetups({ timeframe }: Props) {
+  const { data, isLoading, error } = useBestSetups(timeframe);
 
   if (isLoading) return <Skeleton />;
   if (error) return <Error />;
@@ -220,10 +220,10 @@ if (error) {
 ```typescript
 import dynamic from "next/dynamic";
 
-const OracleScreener = dynamic(
-  () => import("@/components/analytics").then((mod) => ({ default: mod.OracleScreener })),
+const BestSetups = dynamic(
+  () => import("@/components/analytics").then((mod) => ({ default: mod.BestSetups })),
   {
-    loading: () => <div>Loading Oracle Screener...</div>,
+    loading: () => <div>Loading Best Setups...</div>,
   }
 );
 ```
@@ -236,13 +236,9 @@ const OracleScreener = dynamic(
 
 **Currently Lazy Loaded**:
 
-- OracleScreener
-- MarketHealth
-- ContrarianRadar
-- TrendRadar
-- StructureScanner
-- TitanRadar
-- TitanSignalsPanel
+- BestSetups
+- SignalLog
+- BacktestPerformance
 
 ### 2. TanStack Query Configuration
 

@@ -2,59 +2,35 @@
 
 All notable changes to this project will be documented in this file.
 
-## [0.9.0] - 2026-03-19
-
-### Why: Oracle Removal + Regime Detection System
-
-**Decision:** Remove Oracle (Prophet v9.0) as a signal source from the UI. Replace with a regime detection system based on BTC weekly EMA50.
-
-**Evidence (backtested, see `docs/strategies/BACKTEST_RESULTS.md`):**
-
-| Strategy | BTC 4H EV | BTC 4H WR | ETH 4H EV | ETH 4H WR |
-|----------|-----------|-----------|-----------|-----------|
-| Oracle | -0.721R (15m), -0.357R (1h) | 9-21% | -0.357R to -0.786R | 7-21% |
-| Titan (default) | +0.140R | 48.9% | +0.167R | 50.0% |
-| Titan (optimized) | **+0.344R** | 40.9% | **+0.494R** | 40.7% |
-
-Oracle is **fundamentally broken** for trending assets:
-- BTC: 9-33% win rate across all timeframes. Earnest voter system generates too many false signals.
-- ETH: 7-21% win rate. Even worse than BTC.
-- Root cause: RSI stays overbought/oversold during strong trends, causing counter-trend entries.
-
-**Regime detection** (BTC weekly EMA50) is proven more valuable:
-- BULL regime (BTC > EMA50): HODL, long-only alts. Historical BULL periods: +274%, +33%, +5%.
-- BEAR regime (BTC < EMA50): Shorts or stablecoins. Historical BEAR periods: -48%, -22%.
-- Regime persistence: ~99.7% daily. Average BULL streak: weeks to months.
-- Switching between HODL (bull) and Titan shorts (bear) beats either approach alone.
-
-**Current regime:** BEAR (BTC weekly < EMA50 since Nov 2025).
-
-**References:**
-- `docs/strategies/BACKTEST_RESULTS.md` — full analysis with parameter sweeps
-- `backend/scripts/btc_eth_db_verify.py` — DB-verified backtest
-- `backend/scripts/regime_detector.py` — regime detection analysis
-
-### Changed
-
-- **Dashboard Status Bar**: Replace Oracle market state (STRONG BULL/BEAR/SLEEPING) with BTC weekly regime (BULL/BEAR) and anticipation (distance to EMA50 cross).
-- **Active Setups**: Remove Oracle dependency. Show Titan-only setups filtered by regime direction.
-- **Analytics Best Setups**: Remove Oracle confluence columns. Show Titan signals with regime alignment.
+## [0.9.0] - 2026-03-19 — Regime Detection & Oracle Deprecation
 
 ### Added
 
-- **Regime API**: `GET /api/analysis/regime` — returns current BTC regime, EMA50 level, distance, anticipation message.
-- **RegimeCard component**: Shows regime, EMA50 level, distance %, and next cross target on dashboard.
-- **Regime Summary Modal**: Clickable dashboard status bar opens a full modal with:
-  - Plain-English explanation of current regime
-  - BTC price vs EMA50 with visual distance bar
-  - Watch point / anticipation level
-  - Market context (RSI, MCap, BTC Dom in 3-column grid)
-  - Action summary (what to do in this regime)
+- BTC weekly EMA50 regime detection system (`GET /api/strategy/regime`)
+- DashboardStatusBar regime modal with actionable advice, aligned setups, execution guidance
+- Per-symbol risk overrides in Titan (BTC: SL=1.75x ATR, TP=4.0x ATR)
+- Candle-based TP/SL resolution in signal log and paper trading orchestrator
+- ETH added to SYMBOL_OVERRIDES (TP=4.0x)
+- Analysis scripts: btc_timeframe_analysis, btc_4h_sweep, btc_hodl_vs_trade, btc_titan_deep_dive, eth_full_analysis, regime_detector, btc_eth_db_verify
+- Dead code registry (docs/DEAD_CODE.md)
 
-### Kept (Not Removed)
+### Changed
 
-- Oracle code (`oracle.py`, Earnest voters, backtest) — preserved for future experiments. Not shown in UI.
-- Oracle Earnest score on chart sidebar `CoinDetailsPanel` — display-only, not used for entry signals.
+- Signal logging uses regime-based direction filtering (BEAR→SHORT only, BULL→LONG only) instead of Oracle market gate
+- Best Setups rewritten: Titan-only signals, regime-filtered, no Oracle dependency
+- CoinAnalysisModal: regime + Titan (was Oracle + Titan)
+- CoinDetailsPanel: Titan-only (was Oracle + Titan)
+- Dashboard: Active Setups renamed to Best Setups, shows TP/SL prices
+- Dashboard: Active Signals merged into Best Setups
+- Analytics: reduced to 3 tabs (Best Setups, Signal Log, Backtest Performance)
+- Signal resolution uses candle walk instead of current price check
+
+### Removed
+
+- Oracle from all UI (backend code preserved for future experiments)
+- Contrarian Radar from analytics
+- OracleScreener from analytics
+- Dead /trading page link from dashboard
 
 ## [0.8.2] - 2026-03-19
 

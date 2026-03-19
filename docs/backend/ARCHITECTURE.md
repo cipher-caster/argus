@@ -3,7 +3,7 @@
 ## Overview
 
 Argus is a professional-grade cryptocurrency dashboard designed with a scalable, event-driven architecture.
-It uses a **Worker-Queue** pattern to decouple data ingestion from the user-facing API, ensuring low latency and high reliability. As of v0.8.0 (March 2026), the system also includes a paper trading engine that simulates Oracle + Titan signals against real market prices.
+It uses a **Worker-Queue** pattern to decouple data ingestion from the user-facing API, ensuring low latency and high reliability. As of v0.9.0 (March 2026), the system also includes a paper trading engine that simulates Titan signals (regime-filtered) against real market prices. Oracle is deprecated from UI but backend code is preserved.
 
 ### System Diagram
 
@@ -78,7 +78,7 @@ graph TD
 |------|--------------|---------|
 | `market.py` | `/api/market` | Tickers, OHLCV candles, market summary |
 | `indicators.py` | `/api/indicators` | Technical indicator endpoints |
-| `strategy.py` | `/api/strategy` | Oracle + Titan signal endpoints |
+| `strategy.py` | `/api/strategy` | Titan signal + regime detection endpoints (Oracle deprecated from UI) |
 | `analytics.py` | `/api/analytics` | Screener, signal log, best setups |
 | `trading.py` | `/api/trading` | Paper trading — positions, trade events, portfolio, config |
 | `optimization.py` | `/api/optimization`, `/api/trading/analysis` | Experiment log, best config, apply; live vs backtest recommendations |

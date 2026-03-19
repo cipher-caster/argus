@@ -2,7 +2,7 @@
 
 **Usage:**
 - `/read BTC` — deep-dive report on a single coin
-- `/read SOL 4h` — single coin on a specific timeframe (default: 1h Oracle / 4h Titan)
+- `/read ETH` — single coin on a specific timeframe (default: 4h Titan)
 - `/read market` — full market overview
 - `/read` — same as `/read market`
 
@@ -27,11 +27,10 @@ Symbols are always in `BASE/USDT` format (e.g., `BTC/USDT`). When used in a URL 
 Fetch all of these in parallel using multiple `WebFetch` calls:
 
 1. `GET http://localhost:8000/api/market/summary`
-2. `GET http://localhost:8000/api/analytics/signal-summary`
-3. `GET http://localhost:8000/api/analytics/screener?timeframe=1h&limit=20`
-4. `GET http://localhost:8000/api/analytics/best-setups?timeframe=4h&limit=10`
-5. `GET http://localhost:8000/api/indicators/market/dashboard`
-6. `GET http://localhost:8000/api/analytics/signal-log?source=live&limit=20`
+2. `GET http://localhost:8000/api/strategy/regime`
+3. `GET http://localhost:8000/api/analytics/best-setups?timeframe=4h&limit=10`
+4. `GET http://localhost:8000/api/indicators/market/dashboard`
+5. `GET http://localhost:8000/api/analytics/signal-log?source=live&limit=20`
 
 ### Output format
 
@@ -39,20 +38,13 @@ Fetch all of these in parallel using multiple `WebFetch` calls:
 ## Argus Market Report — {current time}
 
 ### Market Pulse
-- State: {signal_summary.market_state}
-- Sentiment: {signal_summary.bullish_pct}% Bullish / {signal_summary.bearish_pct}% Bearish
+- Regime: {regime.regime} (BTC {regime.btc_price} vs EMA50 {regime.ema50_value})
+- Direction filter: {BEAR → SHORT only, BULL → LONG only}
 - BTC Dominance: {dashboard.btc_dominance}
 - BTC Volatility: {dashboard.btc_volatility}/100
 - ADX Trend Strength: {dashboard.market_adx}/100
 
-### Top Signals Right Now
-{signal_summary.top_signals — list each one}
-
-### Oracle Screener Highlights (1H)
-List the top 5 by absolute score from screener.data, showing:
-  {symbol} | Score {score} | {bias} | {state} | {opportunity}
-
-### Best Setups (4H — Oracle + Titan Confluence)
+### Best Setups (4H — Titan + Regime)
 List up to 5 from best_setups.data, showing:
   {symbol} {direction} | Conviction {conviction}/100 | Entry {entry} | TP {tp} | SL {sl}
   Win Rate: {win_rate}% ({total_trades} trades) or "Insufficient data" if null
@@ -82,24 +74,22 @@ From market/summary:
 
 First, resolve the coin ticker to `BASE/USDT` format (e.g., `BTC` → `BTC/USDT`, `SOL` → `SOL/USDT`).
 
-Parse optional timeframe from `$ARGUMENTS` (e.g., `BTC 1h` → `micro_tf=1h`, default `micro_tf=4h`). Titan timeframe defaults to `4h`.
+Parse optional timeframe from `$ARGUMENTS` (e.g., `BTC 1d` → `timeframe=1d`, default `timeframe=4h`).
 
 Also check `$ARGUMENTS` for long-term intent keywords: `long`, `hold`, `hodl`, `invest`, `accumulate`, `swing`, `position`. If any are present, set `long_term_mode = true`.
 
 Fetch all of these in parallel:
 
-1. `GET http://localhost:8000/api/ticker/BTC%2FUSDT`
-2. `GET http://localhost:8000/api/strategy/oracle/BTC%2FUSDT?micro_tf=4h&macro_tf=1d`
+1. `GET http://localhost:8000/api/market/tickers?symbols=BTC%2FUSDT`
+2. `GET http://localhost:8000/api/strategy/regime`
 3. `GET http://localhost:8000/api/strategy/titan/BTC%2FUSDT?timeframe=4h`
 4. `GET http://localhost:8000/api/market/coins?search=BTC&page=1&page_size=10`
 5. `GET http://localhost:8000/api/analytics/signal-log?symbol=BTC&source=live&limit=10`
 
 If `long_term_mode = true`, also fetch these in parallel with the above:
 
-6. `GET http://localhost:8000/api/strategy/oracle/BTC%2FUSDT?micro_tf=12h&macro_tf=1d`
-7. `GET http://localhost:8000/api/strategy/oracle/BTC%2FUSDT?micro_tf=1d&macro_tf=1w`
-8. `GET http://localhost:8000/api/strategy/titan/BTC%2FUSDT?timeframe=1d`
-9. `GET http://localhost:8000/api/strategy/titan/BTC%2FUSDT?timeframe=1w`
+6. `GET http://localhost:8000/api/strategy/titan/BTC%2FUSDT?timeframe=1d`
+7. `GET http://localhost:8000/api/strategy/titan/BTC%2FUSDT?timeframe=1w`
 
 Replace `BTC%2FUSDT` with the actual encoded symbol. The `market/coins` response is paginated — find the matching coin by checking the `symbol` field in the returned list.
 
@@ -117,23 +107,10 @@ Replace `BTC%2FUSDT` with the actual encoded symbol. The `market/coins` response
 - Volume (24H): {market_coins[0].volume_24h}
 - Market Cap: {market_coins[0].market_cap} (Rank #{market_coins[0].rank})
 
-### Oracle Signal ({oracle.micro_tf} / {oracle.macro_tf})
-- Signal: {oracle.signal}
-- Bias: {oracle.bias}
-- State: {oracle.state}
-- Volatility: {oracle.volatility}
-- Earnest Score: {oracle.earnest.score}/4
-  Voter breakdown: list each voter name and its score from oracle.earnest.voters
-- Macro Filter: Score {oracle.macro.score} | Bias {oracle.macro.bias}
-  Detail flags: list each key: true/false from oracle.macro.details
-- Advice: {oracle.advice}
-- Targets: TP1 {oracle.targets.tp1} | TP2 {oracle.targets.tp2} | SL {oracle.targets.sl}
-
-### Backtest Performance (Oracle)
-- Total Trades: {oracle.performance.total_trades}
-- Win Rate: {oracle.performance.win_rate}%
-- Net Profit: {oracle.performance.net_profit}%
-(Note: break-even is 33.3% at 2:1 RR. Warn if win rate < 33%)
+### Market Regime
+- Regime: {regime.regime} (BULL / BEAR / UNKNOWN)
+- BTC Price vs EMA50: {regime.btc_price} vs {regime.ema50_value}
+- Direction filter: {BEAR → SHORT only, BULL → LONG only, UNKNOWN → all}
 
 ### Titan Signal ({titan timeframe})
 - Signal: {titan.signal}
@@ -159,26 +136,26 @@ This section is always included. It gives a plain buy/sell plan for spot trading
 
 **Logic rules:**
 
-1. If Oracle signal is STRONG_BUY or BUY AND Titan signal is BUY or BUY_LIMIT:
+1. If regime is BULL AND Titan signal is BUY or BUY_LIMIT:
    - Entry: use Titan entry if it's a LIMIT (below current price), otherwise current price
-   - TP1: use oracle.targets.tp1 if non-zero, otherwise first resistance level (EMA20 or nearest swing high)
-   - TP2: use oracle.targets.tp2 if non-zero, otherwise major resistance (recent swing high)
-   - Cut Loss: use oracle.targets.sl if non-zero, otherwise SuperTrend level
+   - TP1: Titan TP level
+   - TP2: next major resistance above TP1 (use EMA levels or round numbers)
+   - Cut Loss: Titan SL level or SuperTrend
    - Stance: "BUY — {reason in one sentence}"
 
-2. If Oracle signal is NEUTRAL or signals disagree:
+2. If regime is BULL but Titan is NEUTRAL/WAIT, OR regime is UNKNOWN:
    - Do NOT say "no trade" and leave it at that
    - Instead, give a conditional spot plan: the specific price where it becomes a buy, the TP levels from that entry, and the cut loss
-   - Entry: "Wait for 1H/4H close above {nearest resistance}" — use EMA20 or first resistance level
+   - Entry: "Wait for 4H close above {nearest resistance}" — use EMA20 or first resistance level
    - TP1: next resistance after entry
    - TP2: major resistance / recent swing high
    - Cut Loss: SuperTrend or EMA50 (whichever is more relevant)
    - Stance: "WAIT — not a buy yet. Becomes a spot buy on confirmation above {level}"
 
-3. If Oracle signal is SELL or STRONG_SELL:
-   - No spot buy
-   - Give the level where a spot buy becomes valid again (e.g., major support bounce)
-   - Stance: "AVOID — bearish. Spot re-entry watch: {support level} with confirmation"
+3. If regime is BEAR:
+   - No spot buy — regime filters out longs in bear markets
+   - Give the level where regime would flip (BTC reclaims weekly EMA50)
+   - Stance: "AVOID — bear regime. Spot re-entry when BTC reclaims ${regime.ema50_value} (weekly EMA50)"
 
 **Always calculate and show the Risk/Reward ratio:**
 - RR = (TP1 - Entry) / (Entry - Cut Loss)
@@ -202,40 +179,39 @@ Risk/Reward: {X.X}:1 to TP1 | {X.X}:1 to TP2
 
 ### Key Levels & What to Watch
 
-Extract the following levels from the Titan indicators (titan.indicators) and Oracle data:
+Extract the following levels from the Titan indicators (titan.indicators):
 
 **Resistance levels** (above current price) — list in ascending order:
 - EMA20: {titan.indicators.ema20} — label as "Immediate resistance" if above price
-- Recent swing high: identify the highest price from oracle.historical_signals in the last 50 entries
+- Recent swing high: identify from price action context
 - Any round number confluence near those levels (e.g., $2,100, $2,200)
 
 **Support levels** (below current price) — list in descending order:
 - EMA50: {titan.indicators.ema50} — label as "First support"
 - SuperTrend: {titan.indicators.supertrend} — label as "Trend floor — break = bearish"
-- Recent swing low: identify the lowest price from oracle.historical_signals in the last 50 entries
+- Recent swing low: identify from price action context
 
 **Conditional setups — write these as IF/THEN statements:**
 
 For each key level, write one line:
-- IF price reclaims [level] with a 1H candle close above → [what signal to expect / what Oracle voter would flip / suggested action]
+- IF price reclaims [level] with a 1H candle close above → [what signal to expect / suggested action]
 - IF price loses [level] on 4H close → [what that means for bias / where next support is]
 
 Rules for writing conditionals:
 - Be specific: name the exact price, the timeframe for confirmation (1H close, 4H close), and the action
-- Reference which Oracle voter would change (e.g., "EMA voter flips to +1") when relevant
 - Reference the SuperTrend as the line between bullish and bearish Titan trend
-- If Oracle is NEUTRAL with split voters, explain which level would tip it to BUY or SELL
+- Reference regime flip level: BTC weekly EMA50 (from regime endpoint)
 - If Titan is NEUTRAL, explain what price action would trigger a BUY or SELL signal
 - Include a "key invalidation" line: the level where the current neutral/wait thesis is proven wrong in either direction
 
 **Example format:**
 ```
 🔴 Resistance: $2,074 (EMA20) — currently acting as a lid
-   → IF 1H closes above $2,074 with volume: EMA voter holds +1, watch for RSI to follow; Oracle tilts toward BUY
+   → IF 1H closes above $2,074 with volume: watch for RSI to confirm; Titan tilts toward BUY
    → Target on break: $2,150 (recent swing high cluster)
 
 🟡 Support: $2,047 (EMA50) — first cushion
-   → IF 4H closes below $2,047: EMA voter flips to -1, Oracle drops to -2 (SELL territory)
+   → IF 4H closes below $2,047: momentum weakening, Titan confidence drops
 
 🔴 Critical: $2,022 (SuperTrend) — trend floor
    → IF 4H closes below $2,022: Titan flips BEARISH confirmed, bias = SHORT, next support ~$1,980
@@ -248,25 +224,27 @@ Rules for writing conditionals:
 ### Long-Term / HODL View
 *(Only include this section if `long_term_mode = true`)*
 
-This section uses the 1D Oracle and 1W Titan data (fetched in calls 6–9) to answer: "Is this a good coin to buy and hold? Where do I accumulate? What are realistic targets?"
+This section uses the regime + multi-TF Titan data (fetched in calls 6–7) to answer: "Is this a good coin to buy and hold? Where do I accumulate? What are realistic targets?"
 
 **Macro Trend — Multi-Timeframe Stack:**
-Use the higher-TF responses (calls 6–9) to build a layered picture:
+Use the regime + higher-TF Titan responses to build a layered picture:
 
-| Timeframe | Oracle Signal | Oracle Bias | Titan Signal | Titan Trend |
-|-----------|--------------|-------------|--------------|-------------|
-| 12H       | {oracle_12h.signal} | {oracle_12h.bias} | {titan_1d.signal} | {titan_1d.trend} |
-| 1D        | {oracle_1d.signal} | {oracle_1d.bias} | — | — |
-| 1W        | {oracle_1w.signal} | {oracle_1w.bias} | {titan_1w.signal} | {titan_1w.trend} |
+| Timeframe | Titan Signal | Titan Trend | Confidence |
+|-----------|--------------|-------------|------------|
+| 4H        | {titan_4h.signal} | {titan_4h.trend} | {titan_4h.confidence}% |
+| 1D        | {titan_1d.signal} | {titan_1d.trend} | {titan_1d.confidence}% |
+| 1W        | {titan_1w.signal} | {titan_1w.trend} | {titan_1w.confidence}% |
+
+Regime: {regime.regime} (BTC vs weekly EMA50)
 
 Combined macro verdict: **BULLISH / BEARISH / NEUTRAL** — one word + one sentence reasoning.
-Rule: if 2 or more timeframes agree on direction, that is the macro verdict. If all disagree, it's NEUTRAL/CAUTION.
+Rule: if regime + 2 or more Titan timeframes agree on direction, that is the macro verdict. If they disagree, it's NEUTRAL/CAUTION.
 
 **Accumulation Zones:**
 Derive 2–3 price zones where a long-term buyer should consider buying, based on:
 - 1W Titan SuperTrend (strongest long-term floor)
-- 1D Oracle SL target if non-zero
-- Historical signal clusters at lower prices (look for dense STRONG_SELL zones in oracle.historical_signals — these are where the market found support/distribution)
+- 1D Titan SL level
+- Weekly EMA50 (regime flip level — major structural support/resistance)
 - Label each zone: "Strong Accumulation", "Aggressive Accumulation", "Deep Value"
 
 Format:
@@ -281,11 +259,11 @@ Based on the zones above, suggest a simple 3-tranche DCA plan:
 - Tranche 1 (e.g., 40% of position): at or near current price if macro is not bearish, otherwise at Strong Accumulation zone
 - Tranche 2 (e.g., 35%): at Aggressive Accumulation zone
 - Tranche 3 (e.g., 25%): at Deep Value zone
-- If macro is strongly bearish (1W Titan SELL, 1D Oracle STRONG_SELL), delay Tranche 1 and say so
+- If macro is strongly bearish (1W Titan SELL + BEAR regime), delay Tranche 1 and say so
 
 **Long-Term Targets:**
 Derive realistic upside targets for a hold of 3–12 months:
-- Target 1: nearest major resistance above current price (from historical signal highs)
+- Target 1: nearest major resistance above current price (from Titan levels + round numbers)
 - Target 2: previous cycle high or 2× accumulation zone price
 - Target 3: stretch target (3×+ from accumulation zone)
 - For each, state approximate % gain from current price
@@ -298,7 +276,7 @@ End with a clear one-line verdict:
 
 ### Summary
 3–4 sentences. Do NOT just say "wait." Instead:
-1. State the current situation in one sentence (price relative to key levels, Oracle/Titan agreement)
+1. State the current situation in one sentence (price relative to key levels, regime + Titan alignment)
 2. Give the bull trigger: the specific price and confirmation needed to go long
 3. Give the bear trigger: the specific price that confirms the downside
 4. State the recommended stance right now: what to monitor, where to set alerts
@@ -310,19 +288,12 @@ If `long_term_mode = true`, add a 5th sentence summarizing the HODL verdict and 
 
 ## Interpretation Reference
 
-### Oracle Earnest Score
-| Score | Meaning |
-|-------|---------|
-| +3 to +4 | STRONG BUY — high conviction long |
-| +1 to +2 | BUY — moderate bullish |
-| 0 | NEUTRAL — no edge |
-| -1 to -2 | SELL — moderate bearish |
-| -3 to -4 | STRONG SELL — high conviction short |
-
-### Oracle States
-- `TRENDING` — strong directional move, ride the trend
-- `RANGING` — consolidation, tighter TP, avoid chase entries
-- `VOLATILE` — high ATR, reduce size, wider stops
+### Regime (BTC Weekly EMA50)
+| Regime | Meaning |
+|--------|---------|
+| BULL | BTC above weekly EMA50 — favor LONG setups |
+| BEAR | BTC below weekly EMA50 — favor SHORT setups |
+| UNKNOWN | Insufficient data — no direction filter |
 
 ### Titan Signals
 - `BUY` / `SELL` — market entry now, trend confirmed
