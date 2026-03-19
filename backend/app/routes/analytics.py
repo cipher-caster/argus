@@ -242,6 +242,10 @@ async def get_best_setups(timeframe: str = "4h", limit: int = 50):
                 continue
 
             o_score = o.get("score", 0)
+            if is_long and o_score <= 0:
+                continue
+            if is_short and o_score >= 0:
+                continue
             # Use the /5 score for conviction calculation
             oracle_pts = (abs(o_score) / 5) * 40
             titan_pts = (t_confidence / 100) * 40

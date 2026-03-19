@@ -54,6 +54,30 @@ class RiskManager:
         return True, ""
 
     @staticmethod
+    def check_min_volatility(entry: float, sl: float) -> tuple[bool, str]:
+        """Reject stablecoin-like trades where SL is too close to entry."""
+        distance_pct = abs(entry - sl) / entry if entry > 0 else 0
+        if distance_pct < 0.002:
+            return False, f"Min volatility gate: SL distance {distance_pct:.4%} < 0.20% (stablecoin-like)"
+        return True, ""
+
+    @staticmethod
+    def check_total_exposure(
+        open_positions: list, quote_amount: float, balance: float, config: dict
+    ) -> tuple[bool, str]:
+        """Reject if total portfolio exposure would exceed cap."""
+        max_exposure_pct = config.get("max_total_exposure_pct", 300.0)
+        current_exposure = sum(p.quote_amount for p in open_positions if p.status in ("PENDING", "OPEN"))
+        total = current_exposure + quote_amount
+        cap = balance * (max_exposure_pct / 100)
+        if total > cap:
+            return False, (
+                f"Total exposure ${total:.2f} would exceed "
+                f"cap ${cap:.2f} ({max_exposure_pct}% of ${balance:.2f})"
+            )
+        return True, ""
+
+    @staticmethod
     def check_min_order_size(quote_amount: float) -> tuple[bool, str]:
         """Reject positions too small to be meaningful."""
         if quote_amount < MIN_QUOTE_USD:
@@ -73,9 +97,12 @@ class RiskManager:
         risk_amount = balance * risk_pct
         quantity    = risk_amount / |entry - sl|
         quote_amount = quantity * entry
+
+        If quote_amount exceeds max_leverage * balance, scale down to cap exposure.
         """
         risk_pct = config.get("max_position_size_pct", 10.0) / 100
         risk_amount = balance * risk_pct
+        max_leverage = config.get("max_leverage", 3.0)
 
         distance = abs(entry - sl)
         if distance <= 0:
@@ -83,6 +110,13 @@ class RiskManager:
 
         quantity = risk_amount / distance
         quote_amount = quantity * entry
+
+        # Cap notional exposure at max_leverage * balance
+        max_notional = balance * max_leverage
+        if quote_amount > max_notional:
+            quantity = max_notional / entry
+            quote_amount = max_notional
+            risk_amount = quantity * distance  # recalculate actual risk
 
         return quantity, quote_amount, risk_amount
 
@@ -123,7 +157,12 @@ class RiskManager:
         if not ok:
             return False, reason, None
 
-        # 5. Position sizing
+        # 5. Min volatility (stablecoin filter)
+        ok, reason = self.check_min_volatility(entry, sl)
+        if not ok:
+            return False, reason, None
+
+        # 6. Position sizing
         try:
             quantity, quote_amount, risk_amount = self.calculate_position_size(
                 balance, entry, sl, config
@@ -131,8 +170,13 @@ class RiskManager:
         except ValueError as e:
             return False, str(e), None
 
-        # 6. Min order size
+        # 7. Min order size
         ok, reason = self.check_min_order_size(quote_amount)
+        if not ok:
+            return False, reason, None
+
+        # 8. Total portfolio exposure
+        ok, reason = self.check_total_exposure(open_positions, quote_amount, balance, config)
         if not ok:
             return False, reason, None
 

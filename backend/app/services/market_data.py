@@ -322,7 +322,7 @@ class MarketDataService:
             "USDT/USDT", "USDC/USDT", "DAI/USDT", "FDUSD/USDT", "TUSD/USDT",
             "USDP/USDT", "EUR/USDT", "BUSD/USDT", "USDD/USDT", "PYUSD/USDT",
             "WBTC/USDT", "USDE/USDT", "USD1/USDT", "BFUSD/USDT",
-            "LUSD/USDT", "FRAX/USDT", "USTC/USDT"
+            "LUSD/USDT", "FRAX/USDT", "USTC/USDT", "RLUSD/USDT"
         }
         data = await MarketDataService.get_merged_market_data()
         

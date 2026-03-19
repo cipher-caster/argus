@@ -36,7 +36,9 @@ DEFAULT_TRADING_CONFIG = {
     "max_concurrent_positions": 3,
     "max_correlated_positions": 2,
     "max_drawdown_pct": 15.0,
+    "max_leverage": 3.0,
     "min_conviction": 60,
+    "max_total_exposure_pct": 300.0,
     "order_expiry_hours": 8,
     "correlation_groups": {
         "btc_correlated": [

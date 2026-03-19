@@ -150,7 +150,8 @@ class TestPositionSizing:
 
     def test_basic_sizing(self):
         rm = RiskManager()
-        config = make_config(max_position_size_pct=10.0)
+        # max_leverage=10 so leverage cap doesn't interfere
+        config = make_config(max_position_size_pct=10.0, max_leverage=10.0)
         # balance=100, risk=10, entry=50000, sl=49000 → distance=1000
         # quantity = 10 / 1000 = 0.01
         # quote_amount = 0.01 * 50000 = 500
@@ -163,7 +164,7 @@ class TestPositionSizing:
 
     def test_short_sizing(self):
         rm = RiskManager()
-        config = make_config(max_position_size_pct=10.0)
+        config = make_config(max_position_size_pct=10.0, max_leverage=10.0)
         # SHORT: entry=3000, sl=3100 → distance=100
         # risk = 10, quantity = 10/100 = 0.1, quote = 0.1 * 3000 = 300
         quantity, quote_amount, risk_amount = rm.calculate_position_size(
@@ -172,6 +173,19 @@ class TestPositionSizing:
         assert abs(risk_amount - 10.0) < 0.001
         assert abs(quantity - 0.1) < 1e-6
         assert abs(quote_amount - 300.0) < 0.01
+
+    def test_leverage_cap(self):
+        rm = RiskManager()
+        config = make_config(max_position_size_pct=10.0, max_leverage=3.0)
+        # balance=100, risk=10, entry=50000, sl=49000 → distance=1000
+        # uncapped: qty=0.01, quote=500 (5x leverage)
+        # capped at 3x: max_notional=300, qty=300/50000=0.006, risk=0.006*1000=6
+        quantity, quote_amount, risk_amount = rm.calculate_position_size(
+            balance=100.0, entry=50000.0, sl=49000.0, config=config
+        )
+        assert abs(quote_amount - 300.0) < 0.01
+        assert abs(quantity - 0.006) < 1e-6
+        assert abs(risk_amount - 6.0) < 0.001
 
     def test_invalid_entry_sl_raises(self):
         rm = RiskManager()
