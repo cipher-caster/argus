@@ -2,6 +2,7 @@ import json
 import time
 from typing import Optional
 
+from sqlalchemy import BigInteger, Column
 from sqlmodel import SQLModel, Field
 
 
@@ -9,7 +10,10 @@ class ActivityLog(SQLModel, table=True):
     __tablename__ = "activity_log"
 
     id: Optional[int] = Field(default=None, primary_key=True)
-    timestamp: int = Field(default_factory=lambda: int(time.time() * 1000))
+    timestamp: int = Field(
+        default_factory=lambda: int(time.time() * 1000),
+        sa_column=Column(BigInteger, nullable=False),
+    )
     event_type: str = Field(index=True)  # STARTUP, SHUTDOWN, RECOVERY_SCAN, SIGNAL_RECOVERED, OUTCOME_RESOLVED, POSITION_RECOVERED, HEARTBEAT_GAP, ERROR
     severity: str = Field(default="INFO")  # INFO, WARN, ERROR
     details: Optional[str] = Field(default=None)  # JSON string with flexible payload

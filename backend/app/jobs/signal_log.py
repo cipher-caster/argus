@@ -12,7 +12,7 @@ import logging
 import time
 from datetime import datetime, timezone
 
-from sqlalchemy import select
+from sqlalchemy import select, text
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 
 from app.storage import RedisClient, Database
@@ -204,7 +204,7 @@ async def log_watchlist_setups(ctx):
                     .values(**row)
                     .on_conflict_do_nothing(
                         index_elements=["symbol", "direction"],
-                        index_where=SignalLog.outcome == "OPEN",
+                        index_where=text("outcome = 'OPEN'"),
                     )
                 )
                 await session.execute(stmt)
@@ -289,7 +289,7 @@ async def log_best_setups(ctx):
                     .values(**row)
                     .on_conflict_do_nothing(
                         index_elements=["symbol", "direction"],
-                        index_where=SignalLog.outcome == "OPEN",
+                        index_where=text("outcome = 'OPEN'"),
                     )
                 )
                 await session.execute(stmt)

@@ -41,6 +41,7 @@ async def _recover_missed_scans(ctx, missed_closes: list):
     from app.routes.strategy import get_candles_df, titan, oracle
     from app.jobs.signal_log import _get_config, _get_oracle_score, _passes_market_gate
     from app.schemas.activity_log import log_activity
+    from sqlalchemy import text
     from sqlalchemy.dialects.postgresql import insert as pg_insert
     from app.schemas.signal_log import SignalLog
 
@@ -127,7 +128,7 @@ async def _recover_missed_scans(ctx, missed_closes: list):
                         .values(**row)
                         .on_conflict_do_nothing(
                             index_elements=["symbol", "direction"],
-                            index_where=SignalLog.outcome == "OPEN",
+                            index_where=text("outcome = 'OPEN'"),
                         )
                     )
                     result = await session.execute(stmt)
