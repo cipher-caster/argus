@@ -222,6 +222,8 @@ function RegimeModal({ regime, indicators, onClose }: { regime: RegimeData | nul
               </div>
             )}
 
+          </div>
+
           {/* BTC Position */}
           <div className="bg-muted/30 rounded-xl p-4 space-y-3">
             <h3 className="text-xs font-black uppercase tracking-widest text-muted-foreground">BTC Position</h3>

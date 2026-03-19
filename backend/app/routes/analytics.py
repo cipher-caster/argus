@@ -251,12 +251,9 @@ async def get_best_setups(timeframe: str = "4h", limit: int = 50):
             targets = t.get("targets", {})
             price = float(df.iloc[-1]["close"])
             reasons = t.get("reasons", [])
-            # User-friendly regime label
-            if regime_aligned:
-                regime_tag = f"with {regime.lower()} trend"
-            else:
-                regime_tag = f"against {regime.lower()} trend"
-            reason = f"Titan {t_signal.replace('_', ' ').title()} ({regime_tag}) | " + " | ".join(reasons[:2])
+            # Short regime tag for UI badges + indicator reasons
+            reg_tag = "trend" if regime_aligned else "counter"
+            reason = f"({reg_tag}) " + " | ".join(reasons[:2]) if reasons else f"({reg_tag}) {t_signal.replace('_', ' ')}"
 
             results.append(BestSetupItem(
                 symbol=sym,

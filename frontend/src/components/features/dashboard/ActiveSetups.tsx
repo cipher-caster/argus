@@ -23,8 +23,11 @@ function pct(from: number, to: number) {
 function SetupRow({ item, coinMeta }: { item: BestSetupItem; coinMeta: any }) {
   const isLong = item.direction === "LONG";
   const tpPct = isLong ? pct(item.entry, item.tp) : pct(item.tp, item.entry);
-  const isCounterTrend = item.reason.includes("against");
-  const isWithTrend = item.reason.includes("with");
+  const isCounterTrend = item.reason.startsWith("(counter)");
+  const isWithTrend = item.reason.startsWith("(trend)");
+
+  // Strip the regime tag prefix from reason text
+  let reason = item.reason.replace(/^\(trend\)\s*/, "").replace(/^\(counter\)\s*/, "");
 
   return (
     <Link href={`/chart/${item.symbol.replace("/", "-")}`} className="block group">
@@ -53,14 +56,19 @@ function SetupRow({ item, coinMeta }: { item: BestSetupItem; coinMeta: any }) {
             )}
           </div>
           <p className="text-[10px] text-muted-foreground truncate mt-0.5 max-w-[260px]">
-            {item.reason.length > 65 ? item.reason.slice(0, 65) + "…" : item.reason}
+            {reason.length > 55 ? reason.slice(0, 55) + "…" : reason}
           </p>
         </div>
 
         <div className="text-right shrink-0 mr-3">
           <div className="text-xs font-mono font-bold">${formatPrice(item.entry)}</div>
-          <div className={cn("text-[10px] font-bold font-mono", isLong ? "text-green-600 dark:text-green-400" : "text-red-600 dark:text-red-400")}>
-            TP +{tpPct}%
+          <div className="flex gap-2 mt-0.5">
+            <span className="text-[9px] font-bold font-mono text-green-600 dark:text-green-400">
+              TP ${formatPrice(item.tp)}
+            </span>
+            <span className="text-[9px] font-bold font-mono text-red-600 dark:text-red-400">
+              SL ${formatPrice(item.sl)}
+            </span>
           </div>
         </div>
 

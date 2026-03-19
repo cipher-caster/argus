@@ -24,8 +24,8 @@ function SetupCard({ item, coinMeta }: { item: BestSetupItem; coinMeta: any }) {
   const tpPct = isLong ? pct(item.entry, item.tp) : pct(item.tp, item.entry);
   const slPct = isLong ? pct(item.entry, item.sl) : pct(item.sl, item.entry);
   const isElite = item.conviction >= 95;
-  const isCounterTrend = item.reason.includes("against");
-  const isWithTrend = item.reason.includes("with");
+  const isCounterTrend = item.reason.startsWith("(counter)");
+  const isWithTrend = item.reason.startsWith("(trend)");
 
   return (
     <Link href={`/chart/${item.symbol.replace("/", "-")}`} className="block group">
