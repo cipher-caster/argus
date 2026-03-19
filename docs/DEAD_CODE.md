@@ -77,3 +77,13 @@ One-off scripts from the BTC/ETH analysis. Not part of the core system.
 
 - ~~Dashboard: "Active Setups" vs Analytics: "Best Setups"~~ → Both now say "Best Setups"
 - ~~"Oracle Signal" header on chart sidebar~~ → Now "Analysis"
+
+
+## Removed from Chart Page (Oracle components, 2026-03-19)
+
+| Component | File | Status |
+|-----------|------|--------|
+| StrategyOraclePanel | `frontend/src/components/features/chart/components/StrategyOraclePanel.tsx` | File exists, no longer rendered |
+| OracleMarkers | `frontend/src/components/features/chart/components/OracleMarkers.tsx` | File exists, no longer rendered |
+| useStrategyOracle hook | `frontend/src/hooks/useStrategyOracle.ts` | File exists, no longer imported by any UI component |
+| CoinAnalysisModal.backup.tsx | `frontend/src/components/features/chart/` | Backup of old Oracle-driven modal. Can be deleted.
