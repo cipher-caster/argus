@@ -109,6 +109,9 @@ async def apply_experiment(body: ApplyRequest):
     sl_cfg["block_sleeping"] = exp.block_sleeping
     sl_cfg["block_volatile"] = exp.block_volatile
     sl_cfg["macro_guard"] = exp.macro_guard
+    sl_cfg["sl_mult"] = exp.sl_mult
+    sl_cfg["tp_mult"] = exp.tp_mult
+    sl_cfg["tp_adaptive"] = exp.tp_adaptive
     await r.set("signal_log:config", json.dumps(sl_cfg))
 
     # Update trading:config
@@ -141,6 +144,9 @@ async def apply_experiment(body: ApplyRequest):
             "min_titan_confidence": exp.min_titan_confidence,
             "block_sleeping": exp.block_sleeping,
             "macro_guard": exp.macro_guard,
+            "sl_mult": exp.sl_mult,
+            "tp_mult": exp.tp_mult,
+            "tp_adaptive": exp.tp_adaptive,
         },
         "trading_config_updated": {
             "min_conviction": exp.min_conviction,

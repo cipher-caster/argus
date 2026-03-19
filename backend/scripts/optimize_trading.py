@@ -82,8 +82,6 @@ def gate_sweep_configs() -> list[BacktestConfig]:
     for block_sleep in [False, True]:
         for macro in [False, True]:
             for strict in [False, True]:
-                if strict and not macro:
-                    continue  # strict implies macro; skip invalid combo
                 configs.append(BacktestConfig(
                     symbols=BASE_SYMBOLS, sl_mult=1.5, tp_adaptive=True,
                     block_sleeping=block_sleep, macro_guard=macro, strict_macro=strict,
@@ -203,6 +201,9 @@ async def apply_config_to_redis(exp: OptimizationExperiment):
     sl_cfg["block_sleeping"] = exp.block_sleeping
     sl_cfg["block_volatile"] = exp.block_volatile
     sl_cfg["macro_guard"] = exp.macro_guard
+    sl_cfg["sl_mult"] = exp.sl_mult
+    sl_cfg["tp_mult"] = exp.tp_mult
+    sl_cfg["tp_adaptive"] = exp.tp_adaptive
     await r.set("signal_log:config", json.dumps(sl_cfg))
 
     # Update trading:config
@@ -226,7 +227,8 @@ async def apply_config_to_redis(exp: OptimizationExperiment):
 
     print(f"\n  Applied config '{exp.name}' to Redis.")
     print(f"  signal_log:config updated: min_titan_confidence={exp.min_titan_confidence}, "
-          f"block_sleeping={exp.block_sleeping}, macro_guard={exp.macro_guard}")
+          f"block_sleeping={exp.block_sleeping}, macro_guard={exp.macro_guard}, "
+          f"sl_mult={exp.sl_mult}, tp_mult={exp.tp_mult}, tp_adaptive={exp.tp_adaptive}")
     print(f"  trading:config updated: min_conviction={exp.min_conviction}")
 
 
