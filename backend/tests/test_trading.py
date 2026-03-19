@@ -588,3 +588,235 @@ class TestPriceMap:
         tickers = [{"symbol": "BTC/USDT", "price": None}]
         prices = _price_map_from_tickers(tickers)
         assert "BTCUSDT" not in prices
+
+
+# ---------------------------------------------------------------------------
+# Candle-walk TP/SL resolution (check_open_positions)
+# ---------------------------------------------------------------------------
+
+import pandas as pd
+
+
+def _make_position(symbol="BTCUSDT", direction="LONG", entry=50000.0,
+                   tp=52000.0, sl=49000.0, qty=0.01, quote=500.0):
+    pos = MagicMock()
+    pos.symbol = symbol
+    pos.direction = direction
+    pos.actual_entry = entry
+    pos.intended_tp = tp
+    pos.intended_sl = sl
+    pos.quantity = qty
+    pos.quote_amount = quote
+    pos.filled_at = 1000
+    pos.created_at = 1000
+    pos.status = "OPEN"
+    pos.outcome = None
+    pos.id = 1
+    return pos
+
+
+def _make_candles(rows):
+    """rows: list of (timestamp, open, high, low, close)"""
+    return pd.DataFrame(rows, columns=["timestamp", "open", "high", "low", "close"])
+
+
+class TestCandleWalkResolution:
+    """Test the candle-walk logic in check_open_positions."""
+
+    @pytest.mark.asyncio
+    async def test_long_tp_hit(self):
+        from app.trading.orchestrator import TradeOrchestrator
+        orch = TradeOrchestrator()
+        pos = _make_position(direction="LONG", entry=50000, tp=52000, sl=49000)
+        candles = _make_candles([
+            (1000, 50000, 50500, 49800, 50200),  # no hit
+            (2000, 50200, 52100, 50100, 51800),  # TP hit (high >= 52000)
+        ])
+
+        mock_session = AsyncMock()
+        result_mock = MagicMock()
+        result_mock.scalars.return_value.all.return_value = [pos]
+        mock_session.execute = AsyncMock(return_value=result_mock)
+        mock_session.add = MagicMock()
+        mock_session.commit = AsyncMock()
+        mock_session.__aenter__ = AsyncMock(return_value=mock_session)
+        mock_session.__aexit__ = AsyncMock(return_value=None)
+
+        config = make_config(enabled=True)
+
+        with (
+            patch("app.trading.orchestrator.get_trading_config", return_value=config),
+            patch("app.trading.orchestrator.Database.get_session", return_value=mock_session),
+            patch("app.routes.strategy.get_candles_df", new_callable=AsyncMock, return_value=candles),
+            patch("app.trading.orchestrator.notifier.notify_position_closed", new_callable=AsyncMock),
+        ):
+            await orch.check_open_positions(config=config)
+
+        assert pos.status == "CLOSED"
+        assert pos.outcome == "WIN"
+        assert pos.actual_exit == 52000.0
+
+    @pytest.mark.asyncio
+    async def test_long_sl_hit(self):
+        from app.trading.orchestrator import TradeOrchestrator
+        orch = TradeOrchestrator()
+        pos = _make_position(direction="LONG", entry=50000, tp=52000, sl=49000)
+        candles = _make_candles([
+            (1000, 50000, 50500, 49800, 50200),  # no hit
+            (2000, 50200, 50300, 48900, 49100),  # SL hit (low <= 49000)
+        ])
+
+        mock_session = AsyncMock()
+        result_mock = MagicMock()
+        result_mock.scalars.return_value.all.return_value = [pos]
+        mock_session.execute = AsyncMock(return_value=result_mock)
+        mock_session.add = MagicMock()
+        mock_session.commit = AsyncMock()
+        mock_session.__aenter__ = AsyncMock(return_value=mock_session)
+        mock_session.__aexit__ = AsyncMock(return_value=None)
+
+        config = make_config(enabled=True)
+
+        with (
+            patch("app.trading.orchestrator.get_trading_config", return_value=config),
+            patch("app.trading.orchestrator.Database.get_session", return_value=mock_session),
+            patch("app.routes.strategy.get_candles_df", new_callable=AsyncMock, return_value=candles),
+            patch("app.trading.orchestrator.notifier.notify_position_closed", new_callable=AsyncMock),
+        ):
+            await orch.check_open_positions(config=config)
+
+        assert pos.status == "CLOSED"
+        assert pos.outcome == "LOSS"
+        assert pos.actual_exit == 49000.0
+
+    @pytest.mark.asyncio
+    async def test_short_tp_hit(self):
+        from app.trading.orchestrator import TradeOrchestrator
+        orch = TradeOrchestrator()
+        pos = _make_position(direction="SHORT", entry=50000, tp=48000, sl=51000)
+        candles = _make_candles([
+            (1000, 50000, 50200, 49500, 49800),  # no hit
+            (2000, 49800, 49900, 47900, 48200),  # TP hit (low <= 48000)
+        ])
+
+        mock_session = AsyncMock()
+        result_mock = MagicMock()
+        result_mock.scalars.return_value.all.return_value = [pos]
+        mock_session.execute = AsyncMock(return_value=result_mock)
+        mock_session.add = MagicMock()
+        mock_session.commit = AsyncMock()
+        mock_session.__aenter__ = AsyncMock(return_value=mock_session)
+        mock_session.__aexit__ = AsyncMock(return_value=None)
+
+        config = make_config(enabled=True)
+
+        with (
+            patch("app.trading.orchestrator.get_trading_config", return_value=config),
+            patch("app.trading.orchestrator.Database.get_session", return_value=mock_session),
+            patch("app.routes.strategy.get_candles_df", new_callable=AsyncMock, return_value=candles),
+            patch("app.trading.orchestrator.notifier.notify_position_closed", new_callable=AsyncMock),
+        ):
+            await orch.check_open_positions(config=config)
+
+        assert pos.status == "CLOSED"
+        assert pos.outcome == "WIN"
+        assert pos.actual_exit == 48000.0
+
+    @pytest.mark.asyncio
+    async def test_both_hit_same_candle_long_bullish_means_loss(self):
+        """LONG + bullish candle (close >= open) → SL hit first → LOSS."""
+        from app.trading.orchestrator import TradeOrchestrator
+        orch = TradeOrchestrator()
+        pos = _make_position(direction="LONG", entry=50000, tp=52000, sl=49000)
+        # Bullish candle that hits both: high >= TP, low <= SL, close >= open
+        candles = _make_candles([
+            (1000, 49500, 52500, 48500, 51000),  # both hit, bullish
+        ])
+
+        mock_session = AsyncMock()
+        result_mock = MagicMock()
+        result_mock.scalars.return_value.all.return_value = [pos]
+        mock_session.execute = AsyncMock(return_value=result_mock)
+        mock_session.add = MagicMock()
+        mock_session.commit = AsyncMock()
+        mock_session.__aenter__ = AsyncMock(return_value=mock_session)
+        mock_session.__aexit__ = AsyncMock(return_value=None)
+
+        config = make_config(enabled=True)
+
+        with (
+            patch("app.trading.orchestrator.get_trading_config", return_value=config),
+            patch("app.trading.orchestrator.Database.get_session", return_value=mock_session),
+            patch("app.routes.strategy.get_candles_df", new_callable=AsyncMock, return_value=candles),
+            patch("app.trading.orchestrator.notifier.notify_position_closed", new_callable=AsyncMock),
+        ):
+            await orch.check_open_positions(config=config)
+
+        assert pos.outcome == "LOSS"
+        assert pos.actual_exit == 49000.0
+
+    @pytest.mark.asyncio
+    async def test_both_hit_same_candle_long_bearish_means_win(self):
+        """LONG + bearish candle (close < open) → TP hit first → WIN."""
+        from app.trading.orchestrator import TradeOrchestrator
+        orch = TradeOrchestrator()
+        pos = _make_position(direction="LONG", entry=50000, tp=52000, sl=49000)
+        # Bearish candle that hits both: high >= TP, low <= SL, close < open
+        candles = _make_candles([
+            (1000, 51000, 52500, 48500, 49500),  # both hit, bearish
+        ])
+
+        mock_session = AsyncMock()
+        result_mock = MagicMock()
+        result_mock.scalars.return_value.all.return_value = [pos]
+        mock_session.execute = AsyncMock(return_value=result_mock)
+        mock_session.add = MagicMock()
+        mock_session.commit = AsyncMock()
+        mock_session.__aenter__ = AsyncMock(return_value=mock_session)
+        mock_session.__aexit__ = AsyncMock(return_value=None)
+
+        config = make_config(enabled=True)
+
+        with (
+            patch("app.trading.orchestrator.get_trading_config", return_value=config),
+            patch("app.trading.orchestrator.Database.get_session", return_value=mock_session),
+            patch("app.routes.strategy.get_candles_df", new_callable=AsyncMock, return_value=candles),
+            patch("app.trading.orchestrator.notifier.notify_position_closed", new_callable=AsyncMock),
+        ):
+            await orch.check_open_positions(config=config)
+
+        assert pos.outcome == "WIN"
+        assert pos.actual_exit == 52000.0
+
+    @pytest.mark.asyncio
+    async def test_no_hit_position_stays_open(self):
+        from app.trading.orchestrator import TradeOrchestrator
+        orch = TradeOrchestrator()
+        pos = _make_position(direction="LONG", entry=50000, tp=52000, sl=49000)
+        candles = _make_candles([
+            (1000, 50000, 50500, 49800, 50200),  # no hit
+            (2000, 50200, 51000, 49500, 50800),  # no hit
+        ])
+
+        mock_session = AsyncMock()
+        result_mock = MagicMock()
+        result_mock.scalars.return_value.all.return_value = [pos]
+        mock_session.execute = AsyncMock(return_value=result_mock)
+        mock_session.add = MagicMock()
+        mock_session.commit = AsyncMock()
+        mock_session.__aenter__ = AsyncMock(return_value=mock_session)
+        mock_session.__aexit__ = AsyncMock(return_value=None)
+
+        config = make_config(enabled=True)
+
+        with (
+            patch("app.trading.orchestrator.get_trading_config", return_value=config),
+            patch("app.trading.orchestrator.Database.get_session", return_value=mock_session),
+            patch("app.routes.strategy.get_candles_df", new_callable=AsyncMock, return_value=candles),
+            patch("app.trading.orchestrator.notifier.notify_position_closed", new_callable=AsyncMock),
+        ):
+            await orch.check_open_positions(config=config)
+
+        # Position should remain unchanged
+        assert pos.status == "OPEN"
+        assert pos.outcome is None
