@@ -62,7 +62,7 @@ graph TD
 ## Data Flow
 
 1.  **Ingestion**:
-    - **Scheduled (arq)**: Live prices and market summary cached every 30s. Signal log scan every 5 min. Signal outcome resolution every 30 min. Paper trade position checks on each cycle.
+    - **Scheduled (arq)**: See worker schedule table below for full job list and timing.
     - **On-Demand**: When a user views a chart, the API triggers a "Backfill" job if data is missing.
 2.  **Storage**:
     - Hot data (Price, % Change, trading config) lives in **Redis** for <5ms access.
@@ -83,17 +83,25 @@ graph TD
 | `trading.py` | `/api/trading` | Paper trading — positions, trade events, portfolio, config |
 | `optimization.py` | `/api/optimization`, `/api/trading/analysis` | Experiment log, best config, apply; live vs backtest recommendations |
 
-### `backend/app/jobs/`
+### `backend/app/jobs/` + Worker Schedule
 
-Background jobs registered with the arq worker (`backend/app/worker.py`):
+All background jobs are registered with the arq worker (`backend/app/worker.py`). Full schedule:
 
-| Function | Schedule | Description |
-|----------|----------|-------------|
-| `log_watchlist_setups` | every 5 min | Scans BTC/ETH/BNB + watchlist on 4H, inserts OPEN `SignalLog` rows (DB deduplicates via partial unique index on `(symbol, direction) WHERE outcome='OPEN'`) |
-| `log_best_setups` | every 5 min | Scans broader screener results and logs qualified setups |
-| `resolve_signal_outcomes` | every 30 min | Closes OPEN signals as WIN / LOSS / REVIEW by comparing current price against TP/SL levels |
+| Job | Schedule | Description |
+|-----|----------|-------------|
+| `sync_market_summary` | Every 60s | Fetch all USDT tickers from Binance, cache top 250 by volume in Redis. Also updates worker heartbeat. |
+| `sync_market_snapshot` | Every 5min | Fetch top 250 coins from CoinGecko (mcap, sparklines, 1h/7d change). Cached 10min TTL. |
+| `sync_analytics_cache` | Every 5min (offset +2min) | Pre-warm `best-setups` cache so dashboard loads instantly. |
+| `log_watchlist_setups` | 4H candle closes +3min (00:03, 04:03, …, 20:03 UTC) | Run Titan on watchlist (BTC/ETH/BNB), filter by regime (BULL→LONG, BEAR→SHORT), log to `signal_log` table with `source='live'`. Deduplicates via partial unique index. |
+| `log_best_setups` | Every 5min (+3min offset) | Read cached best-setups, persist qualifying signals (conviction >= 60) as `source='scanner'`. Cheap Redis read + batch insert. |
+| `resolve_signal_outcomes` | Every 30min | Walk 4H candles from `fired_at` to resolve OPEN signals as WIN/LOSS/REVIEW. Uses candle high/low for TP/SL ordering. |
+| `execute_signals` | Every 10min | Pick up unprocessed OPEN signals (live + scanner) and create PENDING paper trade positions via TradeOrchestrator. |
+| `manage_positions` | Every 5min | Check pending fills (price reached entry?), check TP/SL hits via candle walk, run circuit breaker. |
+| `sync_trading_balance` | Every 10min | Cache portfolio balance in Redis for quick API access. |
 
-Market gates applied before any signal is logged: `block_sleeping`, `block_volatile`, `macro_guard`, `block_btc_sell` — all configurable via Redis key `signal_log:config`.
+**On startup**, the worker also runs: initial signal scan, position recovery, missed candle close recovery (regime-based), and signal execution.
+
+**Direction filtering**: Regime-based (BTC weekly EMA50). BEAR regime → SHORT signals only, BULL → LONG only, UNKNOWN → all. Configured via Redis key `signal_log:config`.
 
 ### `backend/app/trading/`
 
