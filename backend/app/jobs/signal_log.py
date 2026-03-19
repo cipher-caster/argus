@@ -323,75 +323,13 @@ async def log_best_setups(ctx):
 
 async def resolve_signal_outcomes(ctx):
     """
-    Runs every hour. Resolves all OPEN signals:
-    - WIN   — current price >= tp
-    - LOSS  — current price <= sl
-    - REVIEW — fired_at > 7 days ago, neither hit (stay visible, not auto-closed)
+    Runs every 30min. Resolves all OPEN signals using candle high/low data.
+    Walks candles chronologically from fired_at to check TP/SL ordering.
+    - WIN   — TP hit before SL
+    - LOSS  — SL hit before TP
+    - REVIEW — fired_at > 7 days ago, neither hit
     """
-    logger.info("Job: resolve_signal_outcomes — checking open signals...")
-
-    config = await _get_config()
-
-    # Get current prices from Redis
-    tickers_raw = await RedisClient.get_json("market:tickers")
-    if not tickers_raw:
-        logger.warning("resolve_signal_outcomes: no market:tickers in Redis, skipping")
-        return
-
-    # Build symbol → price map (symbols in tickers are "BASE/USDT" format)
-    prices: dict[str, float] = {}
-    for t in tickers_raw:
-        sym = t.get("symbol", "").replace("/", "")  # "BTC/USDT" → "BTCUSDT"
-        price = t.get("price")
-        if sym and price:
-            prices[sym] = float(price)
-
-    now_ms = int(time.time() * 1000)
-    review_threshold_ms = config["review_days"] * 24 * 60 * 60 * 1000
-    resolved = 0
-
-    async with Database.get_session() as session:
-        stmt = select(SignalLog).where(SignalLog.outcome == "OPEN")
-        result = await session.execute(stmt)
-        open_signals = result.scalars().all()
-
-        for sig in open_signals:
-            current_price = prices.get(sig.symbol)
-            if current_price is None:
-                continue
-
-            new_outcome = None
-
-            if sig.tp > 0 and (
-                (sig.direction == "LONG" and current_price >= sig.tp) or
-                (sig.direction == "SHORT" and current_price <= sig.tp)
-            ):
-                new_outcome = "WIN"
-
-            elif sig.sl > 0 and (
-                (sig.direction == "LONG" and current_price <= sig.sl) or
-                (sig.direction == "SHORT" and current_price >= sig.sl)
-            ):
-                new_outcome = "LOSS"
-
-            elif (now_ms - sig.fired_at) >= review_threshold_ms:
-                new_outcome = "REVIEW"
-
-            if new_outcome:
-                sig.outcome = new_outcome
-                sig.resolved_at = now_ms
-                sig.resolved_price = current_price
-                session.add(sig)
-                resolved += 1
-                logger.info(
-                    f"Signal resolved: {sig.symbol} {sig.direction} → {new_outcome} "
-                    f"@ {current_price} (entry={sig.entry} tp={sig.tp} sl={sig.sl})"
-                )
-
-        if resolved:
-            await session.commit()
-
-    logger.info(f"Job: resolve_signal_outcomes complete — {resolved} signal(s) resolved")
+    await resolve_outcomes_historical(ctx)
 
 
 # ---------------------------------------------------------------------------

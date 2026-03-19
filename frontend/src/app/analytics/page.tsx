@@ -41,7 +41,7 @@ const CHART_INFO: Record<ChartType, { title: string; description: string }> = {
   },
   "signal-log": {
     title: "Signal Log",
-    description: "Track record for all logged signals. Includes live (4H candle close), scanner (best-setups), and backtest sources. Resolves as WIN / LOSS / REVIEW (7d).",
+    description: "Track record for all logged signals across 3 sources: Live (4H candle close), Scanner (best-setups snapshots), Backtest (historical replay). Each resolves as WIN, LOSS, or REVIEW (7d). Shows fired and resolved timestamps for verification.",
   },
   "backtest": {
     title: "Backtest Performance",

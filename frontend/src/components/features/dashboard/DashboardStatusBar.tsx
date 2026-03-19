@@ -3,6 +3,7 @@
 import { useMarketIndicators } from "@/hooks/useMarketIndicators";
 import { formatVolume } from "@/lib/formatters";
 import { cn } from "@/lib/utils";
+import { useQueryClient } from "@tanstack/react-query";
 import { RefreshCcw, TrendingDown, TrendingUp, X, Target, Clock } from "lucide-react";
 import { useEffect, useState } from "react";
 
@@ -298,10 +299,12 @@ function RegimeModal({ regime, indicators, onClose }: { regime: RegimeData | nul
 }
 
 export function DashboardStatusBar() {
-  const { data: indicators } = useMarketIndicators();
+  const queryClient = useQueryClient();
+  const { data: indicators, refetch: refetchIndicators } = useMarketIndicators();
   const [regime, setRegime] = useState<RegimeData | null>(null);
   const [loading, setLoading] = useState(true);
   const [modalOpen, setModalOpen] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
 
   const fetchRegime = async () => {
     try {
@@ -313,6 +316,17 @@ export function DashboardStatusBar() {
   };
 
   useEffect(() => { fetchRegime(); }, []);
+
+  const handleRefresh = async () => {
+    setRefreshing(true);
+    await Promise.all([
+      fetchRegime(),
+      refetchIndicators(),
+      queryClient.invalidateQueries({ queryKey: ["best-setups"] }),
+      queryClient.invalidateQueries({ queryKey: ["market-tickers"] }),
+    ]);
+    setRefreshing(false);
+  };
 
   const regimeLabel = regime?.regime ?? "—";
   const isBull = regimeLabel === "BULL";
@@ -398,11 +412,12 @@ export function DashboardStatusBar() {
         )}
 
         <button
-          onClick={(e) => { e.stopPropagation(); fetchRegime(); }}
-          className="ml-auto shrink-0 text-muted-foreground hover:text-foreground transition-colors"
-          title="Refresh"
+          onClick={(e) => { e.stopPropagation(); handleRefresh(); }}
+          disabled={refreshing}
+          className="ml-auto shrink-0 text-muted-foreground hover:text-foreground transition-colors disabled:opacity-40"
+          title="Refresh all"
         >
-          <RefreshCcw size={12} />
+          <RefreshCcw size={12} className={cn(refreshing && "animate-spin")} />
         </button>
       </div>
 

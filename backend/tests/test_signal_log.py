@@ -416,124 +416,16 @@ class TestLogBestSetups:
 # ---------------------------------------------------------------------------
 
 class TestResolveOutcomes:
+    """Tests that resolve_signal_outcomes delegates to resolve_outcomes_historical."""
 
     def _make_ctx(self):
         return {}
 
-    def _make_signal(self, symbol="BTCUSDT", direction="LONG",
-                     entry=100.0, tp=110.0, sl=90.0,
-                     fired_at=None):
-        sig = MagicMock()
-        sig.symbol = symbol
-        sig.direction = direction
-        sig.entry = entry
-        sig.tp = tp
-        sig.sl = sl
-        sig.outcome = "OPEN"
-        sig.fired_at = fired_at or int(time.time() * 1000)
-        sig.resolved_at = None
-        sig.resolved_price = None
-        return sig
-
     @pytest.mark.asyncio
-    @patch("app.jobs.signal_log.Database")
-    @patch("app.jobs.signal_log._get_config", new_callable=AsyncMock)
-    @patch("app.jobs.signal_log.RedisClient")
-    async def test_long_win(self, mock_redis, mock_cfg, mock_db):
-        """LONG signal: price >= tp → WIN."""
-        mock_cfg.return_value = {"review_days": 7}
-        mock_redis.get_json = AsyncMock(return_value=[
-            {"symbol": "BTC/USDT", "price": 115.0}
-        ])
-
-        sig = self._make_signal(tp=110.0, sl=90.0)
-        mock_session = AsyncMock()
-        mock_result = MagicMock()
-        mock_result.scalars.return_value.all.return_value = [sig]
-        mock_session.execute = AsyncMock(return_value=mock_result)
-        mock_db.get_session.return_value.__aenter__ = AsyncMock(return_value=mock_session)
-        mock_db.get_session.return_value.__aexit__ = AsyncMock(return_value=False)
-
+    @patch("app.jobs.signal_log.resolve_outcomes_historical", new_callable=AsyncMock)
+    async def test_delegates_to_historical(self, mock_historical):
+        """resolve_signal_outcomes should call resolve_outcomes_historical."""
         from app.jobs.signal_log import resolve_signal_outcomes
-        await resolve_signal_outcomes(self._make_ctx())
-
-        assert sig.outcome == "WIN"
-        assert sig.resolved_price == 115.0
-        mock_session.commit.assert_awaited_once()
-
-    @pytest.mark.asyncio
-    @patch("app.jobs.signal_log.Database")
-    @patch("app.jobs.signal_log._get_config", new_callable=AsyncMock)
-    @patch("app.jobs.signal_log.RedisClient")
-    async def test_long_loss(self, mock_redis, mock_cfg, mock_db):
-        """LONG signal: price <= sl → LOSS."""
-        mock_cfg.return_value = {"review_days": 7}
-        mock_redis.get_json = AsyncMock(return_value=[
-            {"symbol": "BTC/USDT", "price": 85.0}
-        ])
-
-        sig = self._make_signal(tp=110.0, sl=90.0)
-        mock_session = AsyncMock()
-        mock_result = MagicMock()
-        mock_result.scalars.return_value.all.return_value = [sig]
-        mock_session.execute = AsyncMock(return_value=mock_result)
-        mock_db.get_session.return_value.__aenter__ = AsyncMock(return_value=mock_session)
-        mock_db.get_session.return_value.__aexit__ = AsyncMock(return_value=False)
-
-        from app.jobs.signal_log import resolve_signal_outcomes
-        await resolve_signal_outcomes(self._make_ctx())
-
-        assert sig.outcome == "LOSS"
-        assert sig.resolved_price == 85.0
-
-    @pytest.mark.asyncio
-    @patch("app.jobs.signal_log.Database")
-    @patch("app.jobs.signal_log._get_config", new_callable=AsyncMock)
-    @patch("app.jobs.signal_log.RedisClient")
-    async def test_short_win(self, mock_redis, mock_cfg, mock_db):
-        """SHORT signal: price <= tp → WIN."""
-        mock_cfg.return_value = {"review_days": 7}
-        mock_redis.get_json = AsyncMock(return_value=[
-            {"symbol": "BTC/USDT", "price": 85.0}
-        ])
-
-        sig = self._make_signal(direction="SHORT", entry=100.0, tp=90.0, sl=110.0)
-        mock_session = AsyncMock()
-        mock_result = MagicMock()
-        mock_result.scalars.return_value.all.return_value = [sig]
-        mock_session.execute = AsyncMock(return_value=mock_result)
-        mock_db.get_session.return_value.__aenter__ = AsyncMock(return_value=mock_session)
-        mock_db.get_session.return_value.__aexit__ = AsyncMock(return_value=False)
-
-        from app.jobs.signal_log import resolve_signal_outcomes
-        await resolve_signal_outcomes(self._make_ctx())
-
-        assert sig.outcome == "WIN"
-        assert sig.resolved_price == 85.0
-
-    @pytest.mark.asyncio
-    @patch("app.jobs.signal_log.Database")
-    @patch("app.jobs.signal_log._get_config", new_callable=AsyncMock)
-    @patch("app.jobs.signal_log.RedisClient")
-    async def test_review_timeout(self, mock_redis, mock_cfg, mock_db):
-        """Signal older than review_days with no TP/SL hit → REVIEW."""
-        mock_cfg.return_value = {"review_days": 7}
-        mock_redis.get_json = AsyncMock(return_value=[
-            {"symbol": "BTC/USDT", "price": 100.0}
-        ])
-
-        # fired 10 days ago
-        old_ms = int(time.time() * 1000) - (10 * 24 * 60 * 60 * 1000)
-        sig = self._make_signal(tp=110.0, sl=90.0, fired_at=old_ms)
-        mock_session = AsyncMock()
-        mock_result = MagicMock()
-        mock_result.scalars.return_value.all.return_value = [sig]
-        mock_session.execute = AsyncMock(return_value=mock_result)
-        mock_db.get_session.return_value.__aenter__ = AsyncMock(return_value=mock_session)
-        mock_db.get_session.return_value.__aexit__ = AsyncMock(return_value=False)
-
-        from app.jobs.signal_log import resolve_signal_outcomes
-        await resolve_signal_outcomes(self._make_ctx())
-
-        assert sig.outcome == "REVIEW"
-        assert sig.resolved_price == 100.0
+        ctx = self._make_ctx()
+        await resolve_signal_outcomes(ctx)
+        mock_historical.assert_awaited_once_with(ctx)

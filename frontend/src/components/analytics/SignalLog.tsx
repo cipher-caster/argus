@@ -88,6 +88,9 @@ function SignalRow({ item }: { item: SignalLogItem }) {
         )}
       </td>
       <td className="py-3 px-4 text-muted-foreground whitespace-nowrap">{formatDateTime(item.fired_at)}</td>
+      <td className="py-3 px-4 text-muted-foreground whitespace-nowrap">
+        {item.resolved_at ? formatDateTime(item.resolved_at) : "—"}
+      </td>
       <td className="py-3 px-4">
         <div className="flex flex-col gap-1">
           <span className={cn(
@@ -390,7 +393,8 @@ export function SignalLog() {
                 <th className="py-3 px-4 text-left">SL</th>
                 <th className="py-3 px-4 text-left">Conv.</th>
                 <th className="py-3 px-4 text-left">Outcome</th>
-                <th className="py-3 px-4 text-left">Date</th>
+                <th className="py-3 px-4 text-left">Fired</th>
+                <th className="py-3 px-4 text-left">Resolved</th>
                 <th className="py-3 px-4 text-left">Mkt State</th>
               </tr>
             </thead>
