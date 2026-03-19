@@ -225,7 +225,7 @@ async def get_best_setups(timeframe: str = "4h", limit: int = 50):
     results = []
     for sym, df in titan_candles.items():
         try:
-            t = titan.analyze(df)
+            t = titan.analyze(df, symbol=sym)
             if "error" in t:
                 continue
 
@@ -325,7 +325,7 @@ async def get_best_setups(timeframe: str = "4h", limit: int = 50):
                         tf_confirmation[tf] = False
                         continue
                     try:
-                        t = titan.analyze(df)
+                        t = titan.analyze(df, symbol=item.symbol)
                         sig = t.get("signal", "")
                         tf_confirmation[tf] = (
                             sig in ("BUY", "BUY_LIMIT") if is_long
@@ -358,7 +358,7 @@ async def get_titan_radar(limit: int = 50, timeframe: str = "4h"):
     results = []
     for sym, df in df_data.items():
         try:
-            analysis = titan.analyze(df)
+            analysis = titan.analyze(df, symbol=sym)
             if "error" in analysis:
                 logger.debug(f"Titan analysis error for {sym}: {analysis.get('error')}")
                 continue

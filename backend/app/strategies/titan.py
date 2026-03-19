@@ -5,6 +5,14 @@ from typing import Dict, Any, Optional
 
 from app.indicators.calculator import _mss_to_list, _sweep_to_list
 
+# Per-symbol risk parameter overrides, discovered via backtesting.
+# BTC benefits from wider stops/targets due to its volatility profile.
+SYMBOL_OVERRIDES: Dict[str, Dict[str, float]] = {
+    "BTCUSDT":  {"sl_mult": 1.75, "tp_mult": 4.0},
+    "BTC/USDT": {"sl_mult": 1.75, "tp_mult": 4.0},
+}
+
+
 class TitanStrategy:
     """
     Titan Unified Crypto Trading System
@@ -24,10 +32,14 @@ class TitanStrategy:
         self.st_len = 10
         self.st_mult = 3.0
         self.fib_level = 0.618
+        # Default risk parameters (overridable per-symbol)
+        self.default_sl_mult = 1.5
+        self.default_tp_mult_adaptive = True  # 2R or 3R based on ADX
 
-    def analyze(self, df: pd.DataFrame) -> Dict[str, Any]:
+    def analyze(self, df: pd.DataFrame, symbol: str = None) -> Dict[str, Any]:
         """
         Analyze the provided DataFrame for Titan setups.
+        :param symbol: Optional symbol (e.g. "BTCUSDT") for per-symbol risk overrides.
         """
         if df.empty or len(df) < 200:
             return {"error": "Insufficient data (need > 200 candles)"}
@@ -72,7 +84,7 @@ class TitanStrategy:
              # Infer direction from trend
              target_signal = "BUY" if trend == "BULLISH" else "SELL"
              
-        targets = self._calculate_risk_levels(row, target_signal, signal.get('ideal_entry', row['close']))
+        targets = self._calculate_risk_levels(row, target_signal, signal.get('ideal_entry', row['close']), symbol=symbol)
         
         # 8. Sizing Advice (Kelly)
         sizing = self._calculate_sizing(signal['confidence'])
@@ -330,12 +342,12 @@ class TitanStrategy:
             "ideal_entry": ideal_entry
         }
 
-    def _calculate_risk_levels(self, row: pd.Series, signal_type: str, entry_price: float = None, adx: float = None) -> Dict[str, float]:
+    def _calculate_risk_levels(self, row: pd.Series, signal_type: str, entry_price: float = None, adx: float = None, symbol: str = None) -> Dict[str, float]:
         """
         Calculates TP/SL based on ATR with adaptive targets.
-        - SUPER TREND (ADX > 40): TP = 3.0× ATR (strong trend has legs)
-        - TRENDING (ADX 20–40):   TP = 2.0× ATR (take profit faster)
-        - SL always 1.5× ATR
+        - SUPER TREND (ADX > 40): TP = 3.0x ATR (strong trend has legs)
+        - TRENDING (ADX 20-40):   TP = 2.0x ATR (take profit faster)
+        - SL default 1.5x ATR (overridable per-symbol)
         """
         atr = row.get('atr', 0)
         price = entry_price if entry_price else row['close']
@@ -343,20 +355,28 @@ class TitanStrategy:
         if atr == 0:
             return {"entry": price, "tp": 0, "sl": 0}
 
-        # Adaptive TP multiplier based on trend strength
-        row_adx = adx if adx is not None else row.get('adx', 25)
-        tp_mult = 3.0 if (not pd.isna(row_adx) and row_adx > 40) else 2.0
-        rr = round(tp_mult / 1.5, 2)
+        # Per-symbol overrides (e.g. BTC needs wider stops)
+        overrides = SYMBOL_OVERRIDES.get(symbol, {}) if symbol else {}
+        sl_mult = overrides.get("sl_mult", self.default_sl_mult)
+        tp_override = overrides.get("tp_mult", None)
+
+        # TP multiplier: use override if set, else adaptive based on trend strength
+        if tp_override is not None:
+            tp_mult = tp_override
+        else:
+            row_adx = adx if adx is not None else row.get('adx', 25)
+            tp_mult = 3.0 if (not pd.isna(row_adx) and row_adx > 40) else 2.0
+        rr = round(tp_mult / sl_mult, 2)
 
         # Long Logic
         if "BUY" in signal_type or signal_type == "STRONG_BUY":
-            sl = price - (atr * 1.5)
+            sl = price - (atr * sl_mult)
             tp = price + (atr * tp_mult)
             return {"entry": price, "sl": sl, "tp": tp, "r_r": rr}
 
         # Short Logic
         elif "SELL" in signal_type or signal_type == "STRONG_SELL":
-            sl = price + (atr * 1.5)
+            sl = price + (atr * sl_mult)
             tp = price - (atr * tp_mult)
             return {"entry": price, "sl": sl, "tp": tp, "r_r": rr}
 

@@ -135,8 +135,8 @@ async def log_watchlist_setups(ctx):
             if df is None or df.empty:
                 continue
 
-            # Run Titan
-            t = titan.analyze(df)
+            # Run Titan (pass symbol for per-symbol risk overrides)
+            t = titan.analyze(df, symbol=symbol)
             if "error" in t:
                 continue
 

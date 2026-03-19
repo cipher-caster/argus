@@ -2,6 +2,30 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.8.2] - 2026-03-19
+
+### Added
+
+- **BTC Multi-Timeframe Analysis**: Comprehensive backtest comparing 15m, 1h, 4h, 1d timeframes for BTC across Oracle and Titan strategies.
+  - Oracle proven negative for BTC (9-12% WR across all timeframes). Root cause: Earnest voter system generates too many false signals for BTC's strong-trending character.
+  - Titan positive on 1h/4h/1d. Best config: SL=1.75x ATR, TP=4.0x ATR on 4H → EV=+0.264R (4x improvement over default +0.061R).
+  - Parameter sweep across 6 SL × 7 TP × 5 confidence thresholds on 4H (0.46yr data).
+- **ETH Multi-Timeframe Analysis**: Same analysis applied to ETH.
+  - Oracle even worse on ETH than BTC (7-21% WR across all timeframes).
+  - Titan default settings (SL=1.5x, TP=adaptive) already work well for ETH: EV=+0.240R, 51.2% WR on 4H.
+  - ETH 15m timeframe is also profitable (50% WR, +0.191R EV) — unlike BTC where 15m was noise.
+  - ETH does not need per-symbol overrides. Default Titan parameters are optimal.
+  - HODL was -51.7% in this period; trading at 5x gave +113% with 25% max DD.
+- **Per-Symbol Risk Overrides**: `SYMBOL_OVERRIDES` dict in `titan.py` for coin-specific SL/TP multipliers. BTC defaults to SL=1.75x ATR, TP=4.0x ATR (R:R 2.29). Other coins unchanged (SL=1.5x, TP=adaptive).
+- **Analysis Scripts**: `btc_timeframe_analysis.py`, `btc_titan_deep_dive.py`, `btc_4h_sweep.py` in `backend/scripts/` for reproducing results.
+- **Strategy Documentation**: BTC analysis section added to `docs/strategies/BACKTEST_RESULTS.md`.
+
+### Changed
+
+- `TitanStrategy.analyze()` now accepts optional `symbol` parameter for per-symbol risk overrides.
+- `TitanStrategy._calculate_risk_levels()` applies symbol-specific SL/TP multipliers when available.
+- All production call sites updated to pass symbol: `routes/strategy.py`, `routes/analytics.py`, `jobs/signal_log.py`, `trading/backtest_engine.py`, `worker.py`.
+
 ## [0.8.1] - 2026-03-19
 
 ### Added

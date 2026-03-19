@@ -198,8 +198,8 @@ async def get_titan_strategy(
         if df.empty:
              raise HTTPException(status_code=404, detail=f"Insufficient data for {symbol}")
 
-        # Run Strategy
-        result = titan.analyze(df)
+        # Run Strategy (pass symbol for per-symbol risk overrides)
+        result = titan.analyze(df, symbol=symbol)
 
         # Add metadata
         result['symbol'] = symbol
