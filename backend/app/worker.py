@@ -37,28 +37,43 @@ async def get_active_provider():
     return _active_provider
 
 async def _recover_missed_scans(ctx, missed_closes: list):
-    """Recover signals from missed 4H candle closes during downtime."""
-    from app.routes.strategy import get_candles_df, titan, oracle
-    from app.jobs.signal_log import _get_config, _get_oracle_score, _passes_market_gate
+    """Recover signals from missed 4H candle closes during downtime.
+    Uses regime-based filtering (same as log_watchlist_setups)."""
+    from app.routes.strategy import get_candles_df, titan
+    from app.jobs.signal_log import _get_config
     from app.schemas.activity_log import log_activity
     from sqlalchemy import text
     from sqlalchemy.dialects.postgresql import insert as pg_insert
     from app.schemas.signal_log import SignalLog
+    import re
 
     config = await _get_config()
     recovered = 0
+
+    # Detect regime once (BTC weekly EMA50)
+    regime = "UNKNOWN"
+    try:
+        import pandas_ta
+        btc_df = await get_candles_df("BTC/USDT", timeframe="1w", limit=60)
+        if btc_df is not None and not btc_df.empty and "close" in btc_df.columns:
+            ema50 = pandas_ta.ema(btc_df["close"], length=50)
+            if ema50 is not None and not ema50.empty:
+                last_ema = ema50.iloc[-1]
+                last_close = float(btc_df.iloc[-1]["close"])
+                if not (last_ema != last_ema):  # NaN check
+                    regime = "BULL" if last_close > float(last_ema) else "BEAR"
+    except Exception as e:
+        logger.warning(f"Recovery: regime detection failed: {e}")
 
     for close_dt in missed_closes:
         close_ms = int(close_dt.timestamp() * 1000)
 
         for symbol in config["watchlist"]:
             try:
-                # Fetch 4H candles (historical data is available from Binance)
                 df = await get_candles_df(symbol, timeframe="4h", limit=300)
                 if df is None or df.empty:
                     continue
 
-                # Run Titan analysis (pass symbol for per-symbol risk overrides)
                 t = titan.analyze(df, symbol=symbol)
                 if "error" in t:
                     continue
@@ -71,51 +86,39 @@ async def _recover_missed_scans(ctx, missed_closes: list):
                 if not (is_long or is_short) or t_confidence < config["min_titan_confidence"]:
                     continue
 
-                # Get Oracle score
-                o = await _get_oracle_score(symbol)
-                o_score = o.get("score", 0)
-                o_bias = o.get("bias", "NEUTRAL")
-                o_signal = o.get("signal", "NEUTRAL")
-
-                if is_long and o_score <= 0:
+                # Regime-based direction filtering
+                if regime == "BEAR" and is_long:
                     continue
-                if is_short and o_score >= 0:
+                if regime == "BULL" and is_short:
                     continue
 
-                if config.get("macro_guard", True):
-                    if is_long and o_bias == "BEARISH":
-                        continue
-                    if is_short and o_bias == "BULLISH":
-                        continue
-
-                # Compute conviction
-                oracle_pts = (abs(o_score) / 5) * 40
-                titan_pts = (t_confidence / 100) * 40
-                bonus = 0
-                if t_signal in ("BUY", "SELL"):
-                    bonus += 10
-                if abs(o_score) >= 4:
-                    bonus += 10
-                conviction = int(min(100, oracle_pts + titan_pts + bonus))
+                # Conviction: 60% Titan + 20% regime bonus + 10% signal type
+                base_pts = (t_confidence / 100) * 60
+                regime_aligned = (regime == "BULL" and is_long) or (regime == "BEAR" and is_short)
+                regime_bonus = 20 if regime_aligned else 0
+                signal_bonus = 10 if t_signal in ("BUY", "SELL") else 0
+                conviction = int(min(100, base_pts + regime_bonus + signal_bonus))
 
                 targets = t.get("targets", {})
                 price = float(df.iloc[-1]["close"])
                 reasons = t.get("reasons", [])
-                fired_reason = f"[RECOVERED] Oracle {o_bias} {o_score:+d}/5 | {t_signal} {t_confidence}% | " + " | ".join(reasons[:2])
+                direction = "LONG" if is_long else "SHORT"
+                reg_tag = "trend" if regime_aligned else "counter"
+                fired_reason = f"[RECOVERED] ({reg_tag}) {t_signal} {t_confidence}% | " + " | ".join(reasons[:2])
 
                 row = dict(
                     symbol=symbol,
-                    direction="LONG" if is_long else "SHORT",
+                    direction=direction,
                     timeframe="4h",
                     entry=round(float(targets.get("entry", price)), 6),
                     tp=round(float(targets.get("tp", 0)), 6),
                     sl=round(float(targets.get("sl", 0)), 6),
                     conviction=conviction,
-                    oracle_signal=o_signal,
+                    oracle_signal="N/A",
                     titan_signal=t_signal,
-                    oracle_score=o_score,
+                    oracle_score=0,
                     titan_confidence=int(t_confidence),
-                    market_state="RECOVERED",
+                    market_state=regime,
                     fired_reason=fired_reason,
                     fired_at=close_ms,
                     source="live",
@@ -138,10 +141,10 @@ async def _recover_missed_scans(ctx, missed_closes: list):
                         recovered += 1
                         await log_activity("SIGNAL_RECOVERED",
                                            symbol=symbol,
-                                           direction="LONG" if is_long else "SHORT",
+                                           direction=direction,
                                            conviction=conviction,
                                            candle_close=close_dt.isoformat())
-                        logger.info(f"Recovery: {symbol} {'LONG' if is_long else 'SHORT'} signal recovered from {close_dt}")
+                        logger.info(f"Recovery: {symbol} {direction} signal recovered from {close_dt}")
 
             except Exception as e:
                 logger.warning(f"Recovery error for {symbol} at {close_dt}: {e}")
@@ -418,22 +421,13 @@ async def sync_market_snapshot(ctx):
 
 async def sync_analytics_cache(ctx):
     """
-    Pre-compute and cache analytics for common timeframes.
-    This makes initial page loads instant instead of waiting for live data.
+    Pre-compute and cache best-setups for the dashboard.
     Runs every 5 minutes, offset from snapshot job.
     """
     import time
-    from app.routes.analytics import (
-        get_oracle_screener,
-        get_contrarian_radar,
-        get_oracle_signal_summary,
-        get_best_setups,
-        get_titan_radar,
-    )
+    from app.routes.analytics import get_best_setups
 
     # Make get_provider() inside analytics functions use the effective provider.
-    # If the primary provider is in backoff, analytics would create a new OKX instance
-    # and hang for 15s on every fetch_all_candles call (~9 calls = 135s job time).
     effective = (
         "binance"
         if _active_provider_name != "binance" and time.time() < _provider_unavailable_until
@@ -442,30 +436,11 @@ async def sync_analytics_cache(ctx):
     os.environ["DATA_PROVIDER"] = effective
     logger.info(f"Job: Pre-warming Analytics Cache (provider={effective})...")
 
-    timeframes = ["1h", "4h", "1d"]
-    for tf in timeframes:
-        try:
-            await get_oracle_screener(limit=50, timeframe=tf)
-            await get_contrarian_radar(limit=50, timeframe=tf)
-            logger.info(f"Job: Analytics cache warmed for {tf}")
-        except Exception as e:
-            logger.warning(f"Cache warm failed for {tf}: {e}")
-
-    # Warm endpoints that don't vary by timeframe list but have expensive computation
-    try:
-        await get_oracle_signal_summary()
-    except Exception as e:
-        logger.warning(f"Cache warm failed for signal-summary: {e}")
-
     try:
         await get_best_setups(timeframe="4h", limit=50)
+        logger.info("Job: Analytics cache warmed (best-setups 4h)")
     except Exception as e:
         logger.warning(f"Cache warm failed for best-setups: {e}")
-
-    try:
-        await get_titan_radar(limit=50, timeframe="4h")
-    except Exception as e:
-        logger.warning(f"Cache warm failed for titan-radar: {e}")
 
     logger.info("Job: Analytics Cache Pre-warm Complete")
 
@@ -586,7 +561,7 @@ class WorkerSettings:
         cron(log_watchlist_setups, hour={0, 4, 8, 12, 16, 20}, minute={3}),  # Signal log at each 4H candle close (+3m for data)
         cron(log_best_setups, minute={3, 8, 13, 18, 23, 28, 33, 38, 43, 48, 53, 58}),  # Log scanner signals 1min after cache warm
         cron(resolve_signal_outcomes, minute={0, 30}),  # Resolve signal outcomes every 30min
-        cron(execute_signals, hour={0, 4, 8, 12, 16, 20}, minute={5}),  # Execute signals 2min after 4H candle scan
+        cron(execute_signals, minute={5, 15, 25, 35, 45, 55}),  # Execute signals every 10min (catches scanner + live)
         cron(manage_positions, minute={0, 5, 10, 15, 20, 25, 30, 35, 40, 45, 50, 55}),  # Check fills/TP/SL every 5min
         cron(sync_trading_balance, minute={1, 11, 21, 31, 41, 51}),  # Cache balance every 10min
     ]
