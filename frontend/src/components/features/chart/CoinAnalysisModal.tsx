@@ -4,8 +4,7 @@ import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
 import { X, Target, TrendingUp, TrendingDown, ShieldAlert, Zap, AlertTriangle, BarChart2, Activity } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { OracleStrategyResponse, TitanStrategyResponse } from "@/lib/api";
-import { useStrategyTitan } from "@/hooks/useStrategyTitan";
+import { TitanStrategyResponse } from "@/lib/api";
 import { useBacktestStats, useSignalLog } from "@/hooks/useAnalyticsData";
 import { Badge } from "@/components/ui/badge";
 
@@ -16,7 +15,8 @@ interface CoinAnalysisModalProps {
   onClose: () => void;
   symbol: string;
   timeframe: string;
-  oracle: OracleStrategyResponse;
+  titan: TitanStrategyResponse;
+  regime: string;
 }
 
 // ─── Derivation helpers (regime + Titan, not Oracle) ──────────────────────
@@ -326,8 +326,7 @@ function SignalTrackRecord({ symbol, currentPrice }: { symbol: string; currentPr
 
 // ─── Modal body ────────────────────────────────────────────────────────────
 
-function AnalysisBody({ oracle, titan, price, regime }: {
-  oracle: OracleStrategyResponse;
+function AnalysisBody({ titan, price, regime }: {
   titan: TitanStrategyResponse;
   price: number;
   regime: string;
@@ -516,56 +515,21 @@ function AnalysisBody({ oracle, titan, price, regime }: {
         </div>
       </div>
 
-      {/* ── Oracle Reference (display only) ─────────────────────────── */}
-      <div className="p-5 space-y-3 bg-muted/10">
-        <SectionTitle icon={<Zap size={13} />}>Oracle Reference (not a trade signal)</SectionTitle>
-
-        <div className="flex items-center gap-3 flex-wrap">
-          <Badge className={cn("text-xs font-bold px-2 py-0.5 border opacity-70", SignalBadgeClass(oracle.signal))}>
-            {oracle.signal.replace(/_/g, " ")}
-          </Badge>
-          <span className="text-xs text-muted-foreground opacity-70">
-            {oracle.bias} · Earnest {oracle.earnest.score}/4 · {oracle.state}
-          </span>
-        </div>
-
-        <div className="grid grid-cols-4 gap-1.5">
-          {Object.entries(oracle.earnest.voters).map(([voter, score]) => (
-            <div key={voter} className="flex items-center justify-between p-1.5 rounded bg-muted/20 opacity-60">
-              <span className="text-[9px] font-bold uppercase text-muted-foreground">{voter}</span>
-              <span className={cn("text-[9px] font-mono font-bold",
-                score > 0 ? "text-emerald-500" : score < 0 ? "text-red-500" : "text-muted-foreground"
-              )}>{score > 0 ? "+" : ""}{score}</span>
-            </div>
-          ))}
-        </div>
-
-        <p className="text-[10px] text-muted-foreground italic opacity-60">
-          Oracle signals are reference data only. Use Titan + regime for trading decisions.
-        </p>
-      </div>
-
       {/* ── Signal Track Record ───────────────────────────────────── */}
-      <SignalTrackRecord symbol={oracle.symbol} currentPrice={price} />
+      <SignalTrackRecord symbol={titan.symbol} currentPrice={price} />
     </div>
   );
 }
 
 // ─── Modal shell ───────────────────────────────────────────────────────────
 
-function CoinAnalysisModalComponent({ isOpen, onClose, symbol, timeframe, oracle }: CoinAnalysisModalProps) {
+function CoinAnalysisModalComponent({ isOpen, onClose, symbol, timeframe, titan, regime }: CoinAnalysisModalProps) {
   const [mounted, setMounted] = useState(false);
-  const [regime, setRegime] = useState("UNKNOWN");
-  const { data: titan, isLoading: titanLoading } = useStrategyTitan(symbol, "4h");
 
   useEffect(() => { setMounted(true); }, []);
 
   useEffect(() => {
     if (!isOpen) return;
-    fetch(`${API_URL}/api/strategy/regime`)
-      .then(r => r.ok ? r.json() : null)
-      .then(d => { if (d?.regime) setRegime(d.regime); })
-      .catch(() => {});
     const handleKey = (e: KeyboardEvent) => { if (e.key === "Escape") onClose(); };
     window.addEventListener("keydown", handleKey);
     return () => window.removeEventListener("keydown", handleKey);
@@ -574,7 +538,7 @@ function CoinAnalysisModalComponent({ isOpen, onClose, symbol, timeframe, oracle
   if (!mounted || !isOpen) return null;
 
   const base = symbol.replace("/USDT", "");
-  const price = oracle.price;
+  const price = titan.targets.entry;
 
   return createPortal(
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
@@ -598,20 +562,7 @@ function CoinAnalysisModalComponent({ isOpen, onClose, symbol, timeframe, oracle
         </div>
 
         <div className="overflow-y-auto flex-1 scrollbar-thin scrollbar-thumb-muted">
-          {titanLoading ? (
-            <div className="flex items-center justify-center py-16 text-sm text-muted-foreground">
-              <div className="flex flex-col items-center gap-3">
-                <div className="w-6 h-6 border-2 border-primary/30 border-t-primary rounded-full animate-spin" />
-                Loading Titan data...
-              </div>
-            </div>
-          ) : titan ? (
-            <AnalysisBody oracle={oracle} titan={titan} price={price} regime={regime} />
-          ) : (
-            <div className="flex items-center justify-center py-16 text-sm text-muted-foreground">
-              Failed to load Titan data.
-            </div>
-          )}
+          <AnalysisBody titan={titan} price={price} regime={regime} />
         </div>
       </div>
     </div>,

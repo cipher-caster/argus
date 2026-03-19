@@ -2,12 +2,13 @@
 
 import { CoinIcon } from "@/components/features/dashboard/CoinIcon";
 import { Skeleton } from "@/components/ui/skeleton";
+import { CoinAnalysisModal } from "@/components/features/chart/CoinAnalysisModal";
 import { getCoinName, useCoinMeta } from "@/hooks/useCoinMeta";
 import { formatChange, formatVolume } from "@/lib/formatters";
 import { cn } from "@/lib/utils";
 import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
-import { TrendingDown, TrendingUp, Zap } from "lucide-react";
+import { BarChart2, TrendingDown, TrendingUp, Zap } from "lucide-react";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
 
@@ -59,6 +60,7 @@ export function CoinDetailsPanel({ symbol, timeframe = "4h" }: CoinDetailsPanelP
   const { data: details, isLoading } = useCoinTicker(symbol);
   const { coinMeta } = useCoinMeta();
   const { data: titan, isLoading: titanLoading } = useTitanDirect(symbol, "4h");
+  const [isAnalysisOpen, setIsAnalysisOpen] = useState(false);
   const [regime, setRegime] = useState<{ regime: string; ema50: number; distance_pct: number } | null>(null);
 
   useEffect(() => {
@@ -197,11 +199,31 @@ export function CoinDetailsPanel({ symbol, timeframe = "4h" }: CoinDetailsPanelP
                 {titan.momentum.is_oversold && " · Oversold"}
               </div>
             )}
+
+            {/* Deep Analysis button */}
+            <button
+              onClick={() => setIsAnalysisOpen(true)}
+              className="w-full flex items-center justify-center gap-2 px-3 py-2 rounded-lg border border-border/60 bg-muted/30 hover:bg-muted/60 hover:border-border transition-colors text-[11px] font-bold text-muted-foreground hover:text-foreground"
+            >
+              <BarChart2 size={11} />
+              Deep Analysis
+            </button>
           </div>
         ) : (
           <p className="text-[11px] text-muted-foreground/50 text-center py-2">Signal data unavailable</p>
         )}
       </div>
+
+      {titan && (
+        <CoinAnalysisModal
+          isOpen={isAnalysisOpen}
+          onClose={() => setIsAnalysisOpen(false)}
+          symbol={symbol}
+          timeframe={timeframe}
+          titan={titan}
+          regime={regime?.regime ?? "UNKNOWN"}
+        />
+      )}
     </div>
   );
 }
