@@ -246,13 +246,15 @@ class TradeOrchestrator:
     # check_open_positions: OPEN → CLOSED (WIN/LOSS)
     # ------------------------------------------------------------------
     async def check_open_positions(self, config=None, prices=None) -> None:
+        """
+        Check TP/SL hits using candle high/low data (not just current price).
+        Walks candles from filled_at to determine which target was hit first.
+        """
         if config is None:
             config = await get_trading_config()
         if not config.get("enabled", False):
             return
 
-        if prices is None:
-            prices = await _get_prices()
         now_ms = int(time.time() * 1000)
 
         async with Database.get_session() as session:
@@ -261,26 +263,75 @@ class TradeOrchestrator:
             )
             open_positions = result.scalars().all()
 
+            if not open_positions:
+                return
+
+            # Fetch candles for each unique symbol
+            from app.routes.strategy import get_candles_df
+            candle_cache = {}
+            unique_symbols = {pos.symbol for pos in open_positions}
+            for sym in unique_symbols:
+                df = await get_candles_df(sym, timeframe="4h", limit=100)
+                if df is not None and not df.empty:
+                    candle_cache[sym] = df
+
             for pos in open_positions:
-                current_price = prices.get(pos.symbol)
-                if current_price is None or pos.actual_entry is None:
+                if pos.actual_entry is None:
+                    continue
+
+                df = candle_cache.get(pos.symbol)
+                if df is None or df.empty:
+                    continue
+
+                # Walk candles from fill time
+                filled_at = pos.filled_at or pos.created_at
+                candles_after = df[df["timestamp"] >= filled_at].sort_values("timestamp")
+
+                if candles_after.empty:
                     continue
 
                 outcome = None
-                if pos.direction == "LONG":
-                    if current_price >= pos.intended_tp:
-                        outcome = "WIN"
-                        exit_price = pos.intended_tp
-                    elif current_price <= pos.intended_sl:
-                        outcome = "LOSS"
-                        exit_price = pos.intended_sl
-                else:  # SHORT
-                    if current_price <= pos.intended_tp:
-                        outcome = "WIN"
-                        exit_price = pos.intended_tp
-                    elif current_price >= pos.intended_sl:
-                        outcome = "LOSS"
-                        exit_price = pos.intended_sl
+                exit_price = None
+
+                for _, candle in candles_after.iterrows():
+                    c_high = float(candle.get("high", 0))
+                    c_low = float(candle.get("low", 0))
+                    c_open = float(candle.get("open", 0))
+                    c_close = float(candle.get("close", 0))
+
+                    tp_hit = False
+                    sl_hit = False
+
+                    if pos.direction == "LONG":
+                        if c_high >= pos.intended_tp:
+                            tp_hit = True
+                        if c_low <= pos.intended_sl:
+                            sl_hit = True
+                    else:  # SHORT
+                        if c_low <= pos.intended_tp:
+                            tp_hit = True
+                        if c_high >= pos.intended_sl:
+                            sl_hit = True
+
+                    if tp_hit and sl_hit:
+                        # Both hit in same candle — use candle direction
+                        if pos.direction == "LONG":
+                            if c_close >= c_open:  # Bullish: SL hit first
+                                outcome, exit_price = "LOSS", pos.intended_sl
+                            else:
+                                outcome, exit_price = "WIN", pos.intended_tp
+                        else:
+                            if c_close <= c_open:  # Bearish: SL hit first
+                                outcome, exit_price = "LOSS", pos.intended_sl
+                            else:
+                                outcome, exit_price = "WIN", pos.intended_tp
+                    elif tp_hit:
+                        outcome, exit_price = "WIN", pos.intended_tp
+                    elif sl_hit:
+                        outcome, exit_price = "LOSS", pos.intended_sl
+
+                    if outcome:
+                        break
 
                 if outcome is None:
                     continue
@@ -291,7 +342,6 @@ class TradeOrchestrator:
                 else:
                     raw_pnl = (pos.actual_entry - exit_price) * pos.quantity
 
-                # Deduct simulated fees
                 fee = pos.quote_amount * FEE_PCT
                 pnl_usd = raw_pnl - fee
                 pnl_pct = (pnl_usd / pos.quote_amount * 100) if pos.quote_amount > 0 else 0.0
@@ -307,7 +357,6 @@ class TradeOrchestrator:
                 event_type = "TP_HIT" if outcome == "WIN" else "SL_HIT"
                 await _log_event(session, pos.id, event_type, {
                     "exit_price": exit_price,
-                    "current_price": current_price,
                     "pnl_usd": pos.pnl_usd,
                     "pnl_pct": pos.pnl_pct,
                 })

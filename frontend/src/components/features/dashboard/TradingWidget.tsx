@@ -2,8 +2,7 @@
 
 import { useTradingPortfolio, useTradingStats } from "@/hooks/useTradingData";
 import { cn } from "@/lib/utils";
-import { TrendingUp, TrendingDown, ChevronRight, DollarSign } from "lucide-react";
-import Link from "next/link";
+import { TrendingUp, TrendingDown, DollarSign } from "lucide-react";
 
 export function TradingWidget() {
   const { data: portfolio } = useTradingPortfolio();
@@ -27,12 +26,11 @@ export function TradingWidget() {
             portfolio.enabled ? "bg-emerald-500 animate-pulse" : "bg-muted-foreground"
           )} />
         </div>
-        <Link
-          href="/trading"
-          className="flex items-center gap-1 text-[10px] text-muted-foreground hover:text-foreground transition-colors font-bold"
-        >
-          Portfolio <ChevronRight size={10} />
-        </Link>
+        {portfolio.enabled ? (
+          <span className="text-[10px] font-bold text-emerald-500">ACTIVE</span>
+        ) : (
+          <span className="text-[10px] font-bold text-muted-foreground">PAUSED</span>
+        )}
       </div>
 
       <div className="px-4 py-3 flex items-center justify-between">
