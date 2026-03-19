@@ -10,6 +10,8 @@ from app.indicators.calculator import _mss_to_list, _sweep_to_list
 SYMBOL_OVERRIDES: Dict[str, Dict[str, float]] = {
     "BTCUSDT":  {"sl_mult": 1.75, "tp_mult": 4.0},
     "BTC/USDT": {"sl_mult": 1.75, "tp_mult": 4.0},
+    "ETHUSDT":  {"tp_mult": 4.0},
+    "ETH/USDT": {"tp_mult": 4.0},
 }
 
 

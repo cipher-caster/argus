@@ -285,6 +285,8 @@ The default SL=1.5, TP=adaptive on 4H already gives +0.240R EV — better than B
 
 The "best" configs (SL=2.0, MC=65) have only 6 trades — statistically unreliable. The default SL=1.5 adaptive with 43 trades is the most robust positive configuration.
 
+**Override decision:** ETH gets `tp_mult=4.0` (fixed, not adaptive). SL stays at default 1.5x. DB-verified data shows +0.494R EV with fixed TP=4.0 vs +0.167R with adaptive — 3x improvement, same max drawdown (6.0R).
+
 ### HODL vs Trading
 
 | Approach | Ann. Return | Max DD | Return/DD |
@@ -301,25 +303,25 @@ ETH lost 51.7% in this period ($4,487 → $2,166). HODL was brutal. Trading at 5
 | Metric | BTC | ETH |
 |--------|-----|-----|
 | Oracle works? | No (9-33% WR) | No, worse (7-21% WR) |
-| Titan default EV (4H) | +0.061R | +0.240R |
-| Needs param override? | Yes (wider SL/TP) | No (default works) |
-| Best timeframe | 4H only | 4H and 15m |
-| HODL return (this period) | -42.8% | -51.7% |
-| HODL max DD | 49.8% | 61.3% |
-| Trading risk-adjusted score | +3.49 | +4.54 |
-
-**ETH is easier to trade than BTC.** Default Titan parameters work well, 15m timeframe also has edge, and the risk-adjusted score is higher. ETH's more volatile swings create cleaner signal patterns.
+| Titan default EV (4H) | +0.140R | +0.167R |
+| Titan optimized EV (4H) | **+0.344R** (SL=1.75, TP=4.0) | **+0.494R** (SL=1.5, TP=4.0) |
+| Needs param override? | Yes (wider SL + TP) | Yes (fixed TP only) |
+| Best timeframe | 4H | 4H |
+| HODL return (this period) | -40.6% | -8.2% |
+| Trading risk-adjusted score | +2.04 | +2.21 |
 
 ### Per-Symbol Overrides
 
-BTC needs overrides. ETH does not. The `SYMBOL_OVERRIDES` dict only contains BTC:
+BTC needs wider SL+TP. ETH needs fixed TP (not adaptive). The `SYMBOL_OVERRIDES` dict:
 
 ```python
 SYMBOL_OVERRIDES = {
     "BTCUSDT":  {"sl_mult": 1.75, "tp_mult": 4.0},
     "BTC/USDT": {"sl_mult": 1.75, "tp_mult": 4.0},
+    "ETHUSDT":  {"tp_mult": 4.0},  # keeps default SL=1.5x, only TP fixed at 4.0x
+    "ETH/USDT": {"tp_mult": 4.0},
 }
-# ETH uses default: SL=1.5x ATR, TP=adaptive (2-3x based on ADX)
+# All other coins: SL=1.5x ATR, TP=adaptive (2-3x based on ADX)
 ```
 
 ### Analysis Script

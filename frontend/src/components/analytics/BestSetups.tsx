@@ -24,6 +24,8 @@ function SetupCard({ item, coinMeta }: { item: BestSetupItem; coinMeta: any }) {
   const tpPct = isLong ? pct(item.entry, item.tp) : pct(item.tp, item.entry);
   const slPct = isLong ? pct(item.entry, item.sl) : pct(item.sl, item.entry);
   const isElite = item.conviction >= 95;
+  const isCounterTrend = item.reason.includes("against");
+  const isWithTrend = item.reason.includes("with");
 
   return (
     <Link href={`/chart/${item.symbol.replace("/", "-")}`} className="block group">
@@ -59,6 +61,12 @@ function SetupCard({ item, coinMeta }: { item: BestSetupItem; coinMeta: any }) {
               {isLong ? <TrendingUp size={12} /> : <TrendingDown size={12} />}
               {item.direction}
             </span>
+            {isWithTrend && (
+              <span className="text-[8px] font-bold px-1.5 py-0.5 rounded bg-primary/15 text-primary uppercase tracking-wider">with trend</span>
+            )}
+            {isCounterTrend && (
+              <span className="text-[8px] font-bold px-1.5 py-0.5 rounded bg-yellow-500/15 text-yellow-600 dark:text-yellow-400 uppercase tracking-wider">counter</span>
+            )}
           </div>
         </div>
 
@@ -218,7 +226,7 @@ export function BestSetups({ timeframe = "4h" }: { timeframe?: string }) {
           <div className="text-4xl">🔍</div>
           <p className="font-black text-sm uppercase tracking-widest">No setups right now</p>
           <p className="text-xs text-muted-foreground max-w-xs">
-            Oracle and Titan don't agree on any high-conviction trade. Market may be ranging or both systems are waiting for better entries.
+            No high-conviction Titan signals matching the current regime. Market may be ranging or waiting for better entries.
           </p>
         </div>
       ) : (

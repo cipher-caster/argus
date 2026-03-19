@@ -2,6 +2,60 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.9.0] - 2026-03-19
+
+### Why: Oracle Removal + Regime Detection System
+
+**Decision:** Remove Oracle (Prophet v9.0) as a signal source from the UI. Replace with a regime detection system based on BTC weekly EMA50.
+
+**Evidence (backtested, see `docs/strategies/BACKTEST_RESULTS.md`):**
+
+| Strategy | BTC 4H EV | BTC 4H WR | ETH 4H EV | ETH 4H WR |
+|----------|-----------|-----------|-----------|-----------|
+| Oracle | -0.721R (15m), -0.357R (1h) | 9-21% | -0.357R to -0.786R | 7-21% |
+| Titan (default) | +0.140R | 48.9% | +0.167R | 50.0% |
+| Titan (optimized) | **+0.344R** | 40.9% | **+0.494R** | 40.7% |
+
+Oracle is **fundamentally broken** for trending assets:
+- BTC: 9-33% win rate across all timeframes. Earnest voter system generates too many false signals.
+- ETH: 7-21% win rate. Even worse than BTC.
+- Root cause: RSI stays overbought/oversold during strong trends, causing counter-trend entries.
+
+**Regime detection** (BTC weekly EMA50) is proven more valuable:
+- BULL regime (BTC > EMA50): HODL, long-only alts. Historical BULL periods: +274%, +33%, +5%.
+- BEAR regime (BTC < EMA50): Shorts or stablecoins. Historical BEAR periods: -48%, -22%.
+- Regime persistence: ~99.7% daily. Average BULL streak: weeks to months.
+- Switching between HODL (bull) and Titan shorts (bear) beats either approach alone.
+
+**Current regime:** BEAR (BTC weekly < EMA50 since Nov 2025).
+
+**References:**
+- `docs/strategies/BACKTEST_RESULTS.md` — full analysis with parameter sweeps
+- `backend/scripts/btc_eth_db_verify.py` — DB-verified backtest
+- `backend/scripts/regime_detector.py` — regime detection analysis
+
+### Changed
+
+- **Dashboard Status Bar**: Replace Oracle market state (STRONG BULL/BEAR/SLEEPING) with BTC weekly regime (BULL/BEAR) and anticipation (distance to EMA50 cross).
+- **Active Setups**: Remove Oracle dependency. Show Titan-only setups filtered by regime direction.
+- **Analytics Best Setups**: Remove Oracle confluence columns. Show Titan signals with regime alignment.
+
+### Added
+
+- **Regime API**: `GET /api/analysis/regime` — returns current BTC regime, EMA50 level, distance, anticipation message.
+- **RegimeCard component**: Shows regime, EMA50 level, distance %, and next cross target on dashboard.
+- **Regime Summary Modal**: Clickable dashboard status bar opens a full modal with:
+  - Plain-English explanation of current regime
+  - BTC price vs EMA50 with visual distance bar
+  - Watch point / anticipation level
+  - Market context (RSI, MCap, BTC Dom in 3-column grid)
+  - Action summary (what to do in this regime)
+
+### Kept (Not Removed)
+
+- Oracle code (`oracle.py`, Earnest voters, backtest) — preserved for future experiments. Not shown in UI.
+- Oracle Earnest score on chart sidebar `CoinDetailsPanel` — display-only, not used for entry signals.
+
 ## [0.8.2] - 2026-03-19
 
 ### Added
@@ -12,10 +66,9 @@ All notable changes to this project will be documented in this file.
   - Parameter sweep across 6 SL × 7 TP × 5 confidence thresholds on 4H (0.46yr data).
 - **ETH Multi-Timeframe Analysis**: Same analysis applied to ETH.
   - Oracle even worse on ETH than BTC (7-21% WR across all timeframes).
-  - Titan default settings (SL=1.5x, TP=adaptive) already work well for ETH: EV=+0.240R, 51.2% WR on 4H.
-  - ETH 15m timeframe is also profitable (50% WR, +0.191R EV) — unlike BTC where 15m was noise.
-  - ETH does not need per-symbol overrides. Default Titan parameters are optimal.
-  - HODL was -51.7% in this period; trading at 5x gave +113% with 25% max DD.
+  - Titan default settings (SL=1.5x, TP=adaptive) already work well for ETH: EV=+0.167R, 50% WR on 4H.
+  - Fixed TP=4.0x gives 3x better EV (+0.494R) with same max drawdown — ETH override added.
+  - ETH does need a per-symbol override: `tp_mult=4.0` (fixed, not adaptive). SL stays default 1.5x.
 - **Per-Symbol Risk Overrides**: `SYMBOL_OVERRIDES` dict in `titan.py` for coin-specific SL/TP multipliers. BTC defaults to SL=1.75x ATR, TP=4.0x ATR (R:R 2.29). Other coins unchanged (SL=1.5x, TP=adaptive).
 - **Analysis Scripts**: `btc_timeframe_analysis.py`, `btc_titan_deep_dive.py`, `btc_4h_sweep.py` in `backend/scripts/` for reproducing results.
 - **Strategy Documentation**: BTC analysis section added to `docs/strategies/BACKTEST_RESULTS.md`.

@@ -33,7 +33,7 @@ const MENU_ITEMS: { id: ChartType; label: string; icon: any }[] = [
 const CHART_INFO: Record<ChartType, { title: string; description: string }> = {
   "best-setups": {
     title: "Best Setups",
-    description: "Only shows coins where Oracle and Titan agree on direction with high conviction. Sorted by combined score. Max 10 results.",
+    description: "Titan signals filtered by market regime. In BULL: longs prioritized. In BEAR: shorts prioritized. Conviction based on Titan confidence + regime alignment.",
   },
   "contrarian-radar": {
     title: "Contrarian Radar",

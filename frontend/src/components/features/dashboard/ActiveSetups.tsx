@@ -23,6 +23,8 @@ function pct(from: number, to: number) {
 function SetupRow({ item, coinMeta }: { item: BestSetupItem; coinMeta: any }) {
   const isLong = item.direction === "LONG";
   const tpPct = isLong ? pct(item.entry, item.tp) : pct(item.tp, item.entry);
+  const isCounterTrend = item.reason.includes("against");
+  const isWithTrend = item.reason.includes("with");
 
   return (
     <Link href={`/chart/${item.symbol.replace("/", "-")}`} className="block group">
@@ -43,6 +45,12 @@ function SetupRow({ item, coinMeta }: { item: BestSetupItem; coinMeta: any }) {
               {isLong ? <TrendingUp size={8} /> : <TrendingDown size={8} />}
               {item.direction}
             </span>
+            {isWithTrend && (
+              <span className="text-[8px] font-bold px-1 py-0.5 rounded bg-primary/10 text-primary">TREND</span>
+            )}
+            {isCounterTrend && (
+              <span className="text-[8px] font-bold px-1 py-0.5 rounded bg-yellow-500/15 text-yellow-600 dark:text-yellow-400">COUNTER</span>
+            )}
           </div>
           <p className="text-[10px] text-muted-foreground truncate mt-0.5 max-w-[260px]">
             {item.reason.length > 65 ? item.reason.slice(0, 65) + "…" : item.reason}
@@ -91,7 +99,7 @@ export function ActiveSetups() {
                 <span className="text-xs font-black uppercase tracking-widest cursor-help">Active Setups</span>
               </TooltipTrigger>
               <TooltipContent side="bottom" className="max-w-[240px] text-xs">
-                Real-time opportunities — top Oracle + Titan confluence setups across the market right now
+                Titan signals filtered by market regime. BULL → longs prioritized. BEAR → shorts prioritized.
               </TooltipContent>
             </Tooltip>
           </TooltipProvider>
@@ -123,7 +131,7 @@ export function ActiveSetups() {
         ) : items.length === 0 ? (
           <div className="py-12 text-center px-4">
             <p className="text-sm font-black text-muted-foreground/50 uppercase tracking-widest">No setups right now</p>
-            <p className="text-[11px] text-muted-foreground/40 mt-1.5 max-w-[200px] mx-auto">Oracle + Titan aren't aligned on any coin at this timeframe</p>
+            <p className="text-[11px] text-muted-foreground/40 mt-1.5 max-w-[200px] mx-auto">No high-conviction Titan signals matching the current regime</p>
             <Link href="/analytics" className="inline-block mt-4 text-[11px] font-bold text-primary hover:text-primary/80 transition-colors">
               Check other timeframes →
             </Link>

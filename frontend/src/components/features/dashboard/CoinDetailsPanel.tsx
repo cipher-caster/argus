@@ -7,7 +7,7 @@ import { getCoinName, useCoinMeta } from "@/hooks/useCoinMeta";
 import { formatChange, formatVolume } from "@/lib/formatters";
 import { cn } from "@/lib/utils";
 import { keepPreviousData, useQuery } from "@tanstack/react-query";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { BarChart2, ShieldAlert, TrendingDown, TrendingUp, Zap } from "lucide-react";
 import { CoinAnalysisModal } from "@/components/features/chart/CoinAnalysisModal";
 
@@ -49,6 +49,11 @@ export function CoinDetailsPanel({ symbol, timeframe = "4h" }: CoinDetailsPanelP
   const { coinMeta } = useCoinMeta();
   const { data: oracle, isLoading: oracleLoading } = useStrategyOracle(symbol, timeframe, "1d");
   const [isAnalysisOpen, setIsAnalysisOpen] = useState(false);
+  const [regime, setRegime] = useState<{ regime: string; ema50: number; distance_pct: number } | null>(null);
+
+  useEffect(() => {
+    fetch(`${API_URL}/api/strategy/regime`).then(r => r.ok ? r.json() : null).then(setRegime).catch(() => {});
+  }, []);
 
   const coinName = getCoinName(symbol, coinMeta);
   const displayName = coinName !== symbol ? coinName : symbol.replace("/USDT", "");
@@ -145,9 +150,19 @@ export function CoinDetailsPanel({ symbol, timeframe = "4h" }: CoinDetailsPanelP
 
       {/* Oracle + Titan Signal */}
       <div className="border-t border-border/50 pt-4 space-y-3">
-        <div className="flex items-center gap-1.5 text-[10px] font-bold text-muted-foreground uppercase tracking-wider">
-          <Zap size={10} className="text-primary" />
-          Oracle Signal
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-1.5 text-[10px] font-bold text-muted-foreground uppercase tracking-wider">
+            <Zap size={10} className="text-primary" />
+            Analysis
+          </div>
+          {regime && (
+            <span className={cn(
+              "text-[9px] font-black px-1.5 py-0.5 rounded uppercase tracking-wider",
+              regime.regime === "BULL" ? "bg-green-500/15 text-green-600 dark:text-green-400" : "bg-red-500/15 text-red-600 dark:text-red-400"
+            )}>
+              {regime.regime}
+            </span>
+          )}
         </div>
 
         {oracleLoading && !oracle ? (
@@ -160,7 +175,7 @@ export function CoinDetailsPanel({ symbol, timeframe = "4h" }: CoinDetailsPanelP
             {/* Score + Bias */}
             <div className="flex items-center justify-between p-2.5 rounded-lg bg-muted/30 border border-border/50">
               <div>
-                <div className="text-[9px] font-bold text-muted-foreground uppercase tracking-widest mb-0.5">Earnest Score</div>
+                <div className="text-[9px] font-bold text-muted-foreground uppercase tracking-widest mb-0.5">Earnest Score <span className="opacity-50">(ref)</span></div>
                 <span className={cn("text-lg font-black font-mono", scoreColor)}>
                   {oracleScore !== null ? (oracleScore > 0 ? `+${oracleScore}` : oracleScore) : "—"}<span className="text-xs text-muted-foreground">/4</span>
                 </span>
