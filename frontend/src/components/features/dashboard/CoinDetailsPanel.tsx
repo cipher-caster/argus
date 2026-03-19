@@ -26,18 +26,18 @@ interface CoinTicker {
 }
 
 function useCoinTicker(symbol: string) {
-  return useQuery<CoinTicker>({
-    queryKey: ["ticker", symbol],
+  return useQuery<CoinTicker | null>({
+    queryKey: ["coin-ticker", symbol],
     queryFn: async () => {
-      const url = new URL("/api/market/ticker", API_URL);
-      url.searchParams.set("symbol", symbol);
-      const res = await fetch(url.toString());
-      if (!res.ok) throw new Error("Failed to fetch ticker");
-      return (await res.json()).data;
+      const res = await fetch(`${API_URL}/api/market/tickers`);
+      if (!res.ok) throw new Error("Failed to fetch tickers");
+      const data = await res.json();
+      return (data.tickers?.find((t: any) => t.symbol === symbol) ?? null);
     },
     refetchInterval: 30_000,
     staleTime: 25_000,
     placeholderData: keepPreviousData,
+    enabled: !!symbol,
   });
 }
 
