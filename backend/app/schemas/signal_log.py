@@ -33,7 +33,7 @@ class SignalLog(SQLModel, table=True):
     fired_at: int = Field(sa_type=BigInteger)  # Epoch milliseconds
 
     # Source
-    source: str = Field(default="live")        # "live" | "backtest"
+    source: str = Field(default="live", index=True)  # "live" | "backtest"
 
     # Outcome
     outcome: str = Field(default="OPEN")       # "OPEN" | "WIN" | "LOSS" | "REVIEW"

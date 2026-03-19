@@ -3,6 +3,7 @@ Strategy API Routes
 Endpoints for running technical strategies on market data
 """
 
+import asyncio
 import logging
 import time
 from fastapi import APIRouter, HTTPException, Query
@@ -14,7 +15,7 @@ logger = logging.getLogger(__name__)
 
 from app.strategies.oracle import OracleStrategy
 from app.strategies.titan import TitanStrategy
-from app.storage import Database
+from app.storage import Database, RedisClient
 from app.schemas.candle import Candle as DbCandle
 from app.providers import get_provider, DataProvider
 
@@ -143,23 +144,31 @@ async def get_oracle_strategy(
     Uses Prophet logic (Trend Following with Macro Context).
     """
     try:
-        # Fetch Data concurrently could be better, but sequential is safer for now
-        df_micro = await get_candles_df(symbol, micro_tf, limit=500)
-        df_macro = await get_candles_df(symbol, macro_tf, limit=200)
-        
+        cache_key = f"strategy:oracle:{symbol}:{micro_tf}:{macro_tf}"
+        cached = await RedisClient.get_json(cache_key)
+        if cached:
+            return cached
+
+        # Fetch data concurrently
+        df_micro, df_macro = await asyncio.gather(
+            get_candles_df(symbol, micro_tf, limit=500),
+            get_candles_df(symbol, macro_tf, limit=200),
+        )
+
         if df_micro.empty or df_macro.empty:
              raise HTTPException(status_code=404, detail=f"Insufficient data for {symbol}")
-             
+
         # Run Strategy
         result = oracle.analyze(df_micro, df_macro)
-        
+
         # Add metadata
         result['symbol'] = symbol
         result['micro_tf'] = micro_tf
         result['macro_tf'] = macro_tf
         result['price'] = df_micro.iloc[-1]['close']
         result['last_updated'] = int(time.time() * 1000)
-        
+
+        await RedisClient.set_json(cache_key, result, ttl=60)
         return result
         
     except HTTPException as he:
@@ -178,21 +187,27 @@ async def get_titan_strategy(
     Runs the Titan Unified Trading System on a symbol.
     """
     try:
+        cache_key = f"strategy:titan:{symbol}:{timeframe}"
+        cached = await RedisClient.get_json(cache_key)
+        if cached:
+            return cached
+
         # Fetch sufficient data for 200 EMA + lookback
         df = await get_candles_df(symbol, timeframe, limit=300)
-        
+
         if df.empty:
              raise HTTPException(status_code=404, detail=f"Insufficient data for {symbol}")
-             
+
         # Run Strategy
         result = titan.analyze(df)
-        
+
         # Add metadata
         result['symbol'] = symbol
         result['timeframe'] = timeframe
         result['price'] = df.iloc[-1]['close']
         result['last_updated'] = int(time.time() * 1000)
-        
+
+        await RedisClient.set_json(cache_key, result, ttl=60)
         return result
         
     except HTTPException as he:

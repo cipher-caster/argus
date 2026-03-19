@@ -30,28 +30,31 @@ async def test_get_oracle_strategy_success(async_client, mock_db_session):
     })
 
     # The route calls get_candles_df twice (micro and macro)
-    with patch("app.routes.strategy.get_candles_df", new_callable=AsyncMock, side_effect=[mock_df_micro, mock_df_macro]):
-        with patch("app.routes.strategy.oracle.analyze") as mock_analyze:
-            # Mock the oracle analysis response
-            mock_analyze.return_value = {"signal": "BUY", "confidence": "2/4"}
-            
-            response = await async_client.get("/api/strategy/oracle/BTCUSDT?micro_tf=1h&macro_tf=1d")
-            
-            assert response.status_code == 200
-            data = response.json()
-            assert data["signal"] == "BUY"
-            assert data["symbol"] == "BTCUSDT"
-            assert data["micro_tf"] == "1h"
-            assert data["price"] == 10.5
+    with patch("app.routes.strategy.RedisClient.get_json", new_callable=AsyncMock, return_value=None):
+        with patch("app.routes.strategy.RedisClient.set_json", new_callable=AsyncMock):
+            with patch("app.routes.strategy.get_candles_df", new_callable=AsyncMock, side_effect=[mock_df_micro, mock_df_macro]):
+                with patch("app.routes.strategy.oracle.analyze") as mock_analyze:
+                    # Mock the oracle analysis response
+                    mock_analyze.return_value = {"signal": "BUY", "confidence": "2/4"}
+
+                    response = await async_client.get("/api/strategy/oracle/BTCUSDT?micro_tf=1h&macro_tf=1d")
+
+                    assert response.status_code == 200
+                    data = response.json()
+                    assert data["signal"] == "BUY"
+                    assert data["symbol"] == "BTCUSDT"
+                    assert data["micro_tf"] == "1h"
+                    assert data["price"] == 10.5
 
 
 @pytest.mark.asyncio
 async def test_get_oracle_strategy_insufficient_data(async_client):
     """Test poor data returns 404."""
-    with patch("app.routes.strategy.get_candles_df", new_callable=AsyncMock, return_value=pd.DataFrame()):
-        response = await async_client.get("/api/strategy/oracle/BTCUSDT")
-        assert response.status_code == 404
-        assert "Insufficient data" in response.json()["detail"]
+    with patch("app.routes.strategy.RedisClient.get_json", new_callable=AsyncMock, return_value=None):
+        with patch("app.routes.strategy.get_candles_df", new_callable=AsyncMock, return_value=pd.DataFrame()):
+            response = await async_client.get("/api/strategy/oracle/BTCUSDT")
+            assert response.status_code == 404
+            assert "Insufficient data" in response.json()["detail"]
 
 
 @pytest.mark.asyncio
@@ -62,25 +65,28 @@ async def test_get_titan_strategy_success(async_client):
         "open": [10]*250, "high": [11]*250, "low": [9]*250, "close": [10.5]*250, "volume": [1000]*250
     })
 
-    with patch("app.routes.strategy.get_candles_df", new_callable=AsyncMock, return_value=mock_df):
-        with patch("app.routes.strategy.titan.analyze") as mock_analyze:
-            mock_analyze.return_value = {"signal": "BUY", "confidence": 80}
-            
-            response = await async_client.get("/api/strategy/titan/ETHUSDT?timeframe=4h")
-            
-            assert response.status_code == 200
-            data = response.json()
-            assert data["signal"] == "BUY"
-            assert data["symbol"] == "ETHUSDT"
-            assert data["timeframe"] == "4h"
-            assert data["price"] == 10.5
+    with patch("app.routes.strategy.RedisClient.get_json", new_callable=AsyncMock, return_value=None):
+        with patch("app.routes.strategy.RedisClient.set_json", new_callable=AsyncMock):
+            with patch("app.routes.strategy.get_candles_df", new_callable=AsyncMock, return_value=mock_df):
+                with patch("app.routes.strategy.titan.analyze") as mock_analyze:
+                    mock_analyze.return_value = {"signal": "BUY", "confidence": 80}
+
+                    response = await async_client.get("/api/strategy/titan/ETHUSDT?timeframe=4h")
+
+                    assert response.status_code == 200
+                    data = response.json()
+                    assert data["signal"] == "BUY"
+                    assert data["symbol"] == "ETHUSDT"
+                    assert data["timeframe"] == "4h"
+                    assert data["price"] == 10.5
 
 @pytest.mark.asyncio
 async def test_get_titan_strategy_insufficient_data(async_client):
     """Test titan route handles empty data."""
-    with patch("app.routes.strategy.get_candles_df", new_callable=AsyncMock, return_value=pd.DataFrame()):
-        response = await async_client.get("/api/strategy/titan/SOLUSDT")
-        assert response.status_code == 404
+    with patch("app.routes.strategy.RedisClient.get_json", new_callable=AsyncMock, return_value=None):
+        with patch("app.routes.strategy.get_candles_df", new_callable=AsyncMock, return_value=pd.DataFrame()):
+            response = await async_client.get("/api/strategy/titan/SOLUSDT")
+            assert response.status_code == 404
 
 
 @pytest.mark.asyncio

@@ -181,12 +181,14 @@ class TradeOrchestrator:
     # ------------------------------------------------------------------
     # check_pending_fills: PENDING → OPEN or CANCELLED
     # ------------------------------------------------------------------
-    async def check_pending_fills(self) -> None:
-        config = await get_trading_config()
+    async def check_pending_fills(self, config=None, prices=None) -> None:
+        if config is None:
+            config = await get_trading_config()
         if not config.get("enabled", False):
             return
 
-        prices = await _get_prices()
+        if prices is None:
+            prices = await _get_prices()
         expiry_ms = config.get("order_expiry_hours", 8) * 3_600_000
         now_ms = int(time.time() * 1000)
 
@@ -241,12 +243,14 @@ class TradeOrchestrator:
     # ------------------------------------------------------------------
     # check_open_positions: OPEN → CLOSED (WIN/LOSS)
     # ------------------------------------------------------------------
-    async def check_open_positions(self) -> None:
-        config = await get_trading_config()
+    async def check_open_positions(self, config=None, prices=None) -> None:
+        if config is None:
+            config = await get_trading_config()
         if not config.get("enabled", False):
             return
 
-        prices = await _get_prices()
+        if prices is None:
+            prices = await _get_prices()
         now_ms = int(time.time() * 1000)
 
         async with Database.get_session() as session:
@@ -317,8 +321,9 @@ class TradeOrchestrator:
     # ------------------------------------------------------------------
     # check_circuit_breaker: auto-disable trading on large drawdown
     # ------------------------------------------------------------------
-    async def check_circuit_breaker(self) -> None:
-        config = await get_trading_config()
+    async def check_circuit_breaker(self, config=None) -> None:
+        if config is None:
+            config = await get_trading_config()
         if not config.get("enabled", False):
             return
 

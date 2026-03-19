@@ -337,29 +337,36 @@ class MarketDataService:
             
         # Filter against active exchange symbols to ensure we only return tradeable assets
         from app.providers import get_provider
-        provider = get_provider()
         try:
-            active_symbols_info = await provider.get_symbols()
-            active_symbols = {s.symbol for s in active_symbols_info}
-            
+            symbols_cache_key = "exchange:active_symbols"
+            cached_symbols = await RedisClient.get_json(symbols_cache_key)
+            if cached_symbols:
+                active_symbols = set(cached_symbols)
+            else:
+                provider = get_provider()
+                try:
+                    active_symbols_info = await provider.get_symbols()
+                    active_symbols = {s.symbol for s in active_symbols_info}
+                    await RedisClient.set_json(symbols_cache_key, list(active_symbols), ttl=300)
+                finally:
+                    await provider.close()
+
             # Filter data
             filtered_data = [
-                item for item in data 
-                if item['symbol'] in active_symbols 
+                item for item in data
+                if item['symbol'] in active_symbols
                 and item['symbol'] not in BLACKLIST
-                and not item['symbol'].endswith("DOWN/USDT") # Filter leveraged tokens
+                and not item['symbol'].endswith("DOWN/USDT")  # Filter leveraged tokens
                 and not item['symbol'].endswith("UP/USDT")
             ]
-            
+
             # If filtration emptied the list (e.g. provider error), fallback to raw data
             # but ideally we want strict filtering.
             if filtered_data:
                 data = filtered_data
-                
+
         except Exception as e:
             # excessive logging might be noisy, but good for debugging
             pass
-        finally:
-            await provider.close()
             
         return [item['symbol'] for item in data[:limit]]

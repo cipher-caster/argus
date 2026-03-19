@@ -39,25 +39,24 @@ async def test_ohlcv_stale_data_triggers_binance_fetch():
     stale_candle = MockCandle(old_ts)
     mock_session = _make_mock_session([stale_candle])
 
+    mock_provider_instance = AsyncMock()
+    mock_provider_instance.get_ohlcv.return_value = []
+
     with patch("app.storage.Database.get_session") as mock_get_session:
         mock_get_session.return_value.__aenter__.return_value = mock_session
 
-        with patch("app.providers.binance_provider.BinanceProvider") as MockProvider:
-            mock_provider_instance = AsyncMock()
-            MockProvider.return_value = mock_provider_instance
-            mock_provider_instance.get_ohlcv.return_value = []
-
+        with patch("app.providers.get_provider", return_value=mock_provider_instance) as mock_get_provider:
             # The endpoint may raise because mock returns empty data — that's OK.
-            # We're testing that the provider was instantiated and called.
+            # We're testing that the provider was called when data is stale.
             try:
                 await get_ohlcv("BTC/USDT", timeframe="1h", limit=100, end_timestamp=None)
             except Exception:
                 pass  # Expected — incomplete mock chain
 
-            assert MockProvider.called, \
-                "BinanceProvider should be instantiated when data is stale"
+            assert mock_get_provider.called, \
+                "get_provider should be called when data is stale"
             assert mock_provider_instance.get_ohlcv.called, \
-                "BinanceProvider.get_ohlcv should be called when data is stale"
+                "provider.get_ohlcv should be called when data is stale"
 
 
 @pytest.mark.asyncio

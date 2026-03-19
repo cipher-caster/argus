@@ -475,7 +475,7 @@ from arq.connections import RedisSettings
 import os
 from urllib.parse import urlparse
 from app.jobs.signal_log import log_watchlist_setups, log_best_setups, resolve_signal_outcomes
-from app.trading.orchestrator import TradeOrchestrator, get_trading_config
+from app.trading.orchestrator import TradeOrchestrator, get_trading_config, _get_prices
 
 _trade_orchestrator = TradeOrchestrator()
 
@@ -526,11 +526,13 @@ async def manage_positions(ctx):
     if not config.get("enabled", False):
         return
 
+    prices = await _get_prices()
+
     logger.info("Job: manage_positions — checking active positions...")
     try:
-        await _trade_orchestrator.check_pending_fills()
-        await _trade_orchestrator.check_open_positions()
-        await _trade_orchestrator.check_circuit_breaker()
+        await _trade_orchestrator.check_pending_fills(config=config, prices=prices)
+        await _trade_orchestrator.check_open_positions(config=config, prices=prices)
+        await _trade_orchestrator.check_circuit_breaker(config=config)
     except Exception as e:
         logger.error(f"Job Failed: manage_positions: {e}", exc_info=True)
 

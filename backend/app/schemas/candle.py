@@ -1,5 +1,5 @@
 from sqlmodel import SQLModel, Field
-from sqlalchemy import BigInteger
+from sqlalchemy import BigInteger, Index
 from typing import Optional
 
 class Candle(SQLModel, table=True):
@@ -15,6 +15,10 @@ class Candle(SQLModel, table=True):
     low: float
     close: float
     volume: float
+
+    __table_args__ = (
+        Index("ix_candles_symbol_tf_ts", "symbol", "timeframe", "timestamp"),
+    )
 
     class Config:
         unique_together = ("symbol", "provider", "timeframe", "timestamp")

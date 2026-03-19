@@ -125,6 +125,9 @@ async def log_watchlist_setups(ctx):
     now_ms = int(time.time() * 1000)
     logged = 0
 
+    # Collect all qualified rows first
+    rows_to_insert = []
+
     for symbol in config["watchlist"]:
         try:
             # Fetch 4H candles
@@ -197,8 +200,17 @@ async def log_watchlist_setups(ctx):
                 outcome="OPEN",
             )
 
-            # DB-level dedup: unique constraint on (symbol, direction) WHERE outcome='OPEN'
-            async with Database.get_session() as session:
+            rows_to_insert.append(row)
+            logged += 1
+            logger.info(f"Signal log: {symbol} {row['direction']} conviction={conviction} state={market_state}")
+
+        except Exception as e:
+            logger.warning(f"log_watchlist_setups error for {symbol}: {e}")
+
+    # Batch insert all rows in one session
+    if rows_to_insert:
+        async with Database.get_session() as session:
+            for row in rows_to_insert:
                 stmt = (
                     pg_insert(SignalLog)
                     .values(**row)
@@ -208,13 +220,7 @@ async def log_watchlist_setups(ctx):
                     )
                 )
                 await session.execute(stmt)
-                await session.commit()
-
-            logged += 1
-            logger.info(f"Signal log: {symbol} {row['direction']} conviction={conviction} state={market_state}")
-
-        except Exception as e:
-            logger.warning(f"log_watchlist_setups error for {symbol}: {e}")
+            await session.commit()
 
     logger.info(f"Job: log_watchlist_setups complete — {logged} new signal(s) logged")
 
@@ -247,6 +253,9 @@ async def log_best_setups(ctx):
     market_state = await _get_market_state()
     now_ms = int(time.time() * 1000)
     logged = 0
+
+    # Collect all qualified rows first
+    rows_to_insert = []
 
     for item in items:
         try:
@@ -283,7 +292,16 @@ async def log_best_setups(ctx):
                 outcome="OPEN",
             )
 
-            async with Database.get_session() as session:
+            rows_to_insert.append(row)
+            logged += 1
+
+        except Exception as e:
+            logger.warning(f"log_best_setups error for {item.get('symbol', '?')}: {e}")
+
+    # Batch insert all rows in one session
+    if rows_to_insert:
+        async with Database.get_session() as session:
+            for row in rows_to_insert:
                 stmt = (
                     pg_insert(SignalLog)
                     .values(**row)
@@ -293,12 +311,7 @@ async def log_best_setups(ctx):
                     )
                 )
                 await session.execute(stmt)
-                await session.commit()
-
-            logged += 1
-
-        except Exception as e:
-            logger.warning(f"log_best_setups error for {item.get('symbol', '?')}: {e}")
+            await session.commit()
 
     if logged:
         logger.info(f"Job: log_best_setups — {logged} scanner signal(s) logged")
@@ -410,11 +423,19 @@ async def resolve_outcomes_historical(ctx):
         result = await session.execute(stmt)
         open_signals = result.scalars().all()
 
+        # Fetch candles once per unique symbol
+        unique_symbols = {sig.symbol for sig in open_signals}
+        candle_cache = {}
+        for sym in unique_symbols:
+            df = await get_candles_df(sym, timeframe="4h", limit=300)
+            if df is not None and not df.empty:
+                candle_cache[sym] = df
+
         for sig in open_signals:
             try:
-                # Fetch 4H candles for this symbol (timestamp column in ms)
-                df = await get_candles_df(sig.symbol, timeframe="4h", limit=300)
-                if df is None or df.empty:
+                # Use cached candle data for this symbol
+                df = candle_cache.get(sig.symbol)
+                if df is None:
                     continue
 
                 if "timestamp" not in df.columns:

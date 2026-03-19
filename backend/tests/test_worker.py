@@ -22,30 +22,38 @@ async def test_sync_market_summary_success(mock_ctx):
         "ETH/USDT": {"last": 3000.0, "percentage": -2.0, "quoteVolume": 500000.0, "high": 3100.0, "low": 2900.0},
         "DOGE/BTC": {"last": 0.00001, "percentage": 1.0, "quoteVolume": 100.0} # Should be ignored (not USDT)
     }
-    
-    with patch("app.worker.RedisClient.set_json", new_callable=AsyncMock) as mock_set_json:
-        await sync_market_summary(mock_ctx)
-        
-        # Should be called twice (once for summary, once for tickers)
-        assert mock_set_json.call_count == 2
-        
-        # Verify the tickers list cache
-        tickers_call_args = mock_set_json.call_args_list[1][0]
-        assert tickers_call_args[0] == "market:tickers"
-        tickers_data = tickers_call_args[1]
-        assert len(tickers_data) == 2 # Only USDT pairs
+
+    mock_provider = mock_ctx['provider']
+    mock_provider.name = "binance"
+
+    with patch("app.worker.get_active_provider", new_callable=AsyncMock, return_value=mock_provider):
+        with patch("app.worker.RedisClient.set_json", new_callable=AsyncMock) as mock_set_json:
+            with patch("app.worker.RedisClient.get_instance"):
+                await sync_market_summary(mock_ctx)
+
+            # Should be called twice (once for summary, once for tickers)
+            assert mock_set_json.call_count == 2
+
+            # Verify the tickers list cache
+            tickers_call_args = mock_set_json.call_args_list[1][0]
+            assert tickers_call_args[0] == "market:tickers"
+            tickers_data = tickers_call_args[1]
+            assert len(tickers_data) == 2 # Only USDT pairs
 
 
 @pytest.mark.asyncio
 async def test_sync_market_summary_handles_provider_error(mock_ctx):
     """Test that the job gracefully handles errors from the provider."""
-    mock_ctx['provider'].get_all_tickers.side_effect = Exception("Binance API down")
-    
+    mock_provider = AsyncMock()
+    mock_provider.name = "binance"
+    mock_provider.get_all_tickers.side_effect = Exception("Binance API down")
+
     # Should not raise an exception or crash the worker
-    with patch("app.worker.logger.error") as mock_logger:
-        await sync_market_summary(mock_ctx)
-        mock_logger.assert_called_once()
-        assert "Job Failed: sync_market_summary" in mock_logger.call_args[0][0]
+    with patch("app.worker.get_active_provider", new_callable=AsyncMock, return_value=mock_provider):
+        with patch("app.worker.logger.error") as mock_logger:
+            await sync_market_summary(mock_ctx)
+            mock_logger.assert_called_once()
+            assert "Job Failed: sync_market_summary" in mock_logger.call_args[0][0]
 
 
 @pytest.mark.asyncio

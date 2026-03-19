@@ -34,18 +34,18 @@ def make_row(**kwargs) -> pd.Series:
 # ---------------------------------------------------------------------------
 
 class TestEarnestVoters:
-    def test_all_bullish_gives_plus_four(self):
-        # RSI in (50,70): +1, BB pos > 0.1: +1, ADX > 20 & close > ema: +1, EMA close > ema: +1
-        row = make_row(rsi=60, close=108, bb_upper=110, bb_lower=90, bb_mid=100, adx=30, ema200=95)
+    def test_all_bullish_gives_plus_five(self):
+        # RSI in (50,70): +1, BB pos > 0.1: +1, ADX > 20 & close > ema: +1, EMA close > ema: +1, SMC FVG bullish: +1
+        row = make_row(rsi=60, close=108, bb_upper=110, bb_lower=90, bb_mid=100, adx=30, ema200=95, active_fvg_type='bullish')
         result = oracle._calculate_earnest_score(row)
-        assert result["score"] == 4
+        assert result["score"] == 5
         assert all(v == 1 for v in result["voters"].values())
 
-    def test_all_bearish_gives_minus_four(self):
-        # RSI in (30,50): -1, BB pos < -0.1: -1, ADX > 20 & close < ema: -1, EMA close < ema: -1
-        row = make_row(rsi=40, close=88, bb_upper=110, bb_lower=90, bb_mid=100, adx=30, ema200=95)
+    def test_all_bearish_gives_minus_five(self):
+        # RSI in (30,50): -1, BB pos < -0.1: -1, ADX > 20 & close < ema: -1, EMA close < ema: -1, SMC FVG bearish: -1
+        row = make_row(rsi=40, close=88, bb_upper=110, bb_lower=90, bb_mid=100, adx=30, ema200=95, active_fvg_type='bearish')
         result = oracle._calculate_earnest_score(row)
-        assert result["score"] == -4
+        assert result["score"] == -5
         assert all(v == -1 for v in result["voters"].values())
 
     def test_score_always_in_bounds(self):
@@ -54,7 +54,7 @@ class TestEarnestVoters:
             close = np.random.uniform(50, 150)
             row = make_row(rsi=rsi, close=close, adx=np.random.uniform(0, 50))
             result = oracle._calculate_earnest_score(row)
-            assert -4 <= result["score"] <= 4
+            assert -5 <= result["score"] <= 5
 
     def test_rsi_above_70_gives_zero(self):
         row = make_row(rsi=75, close=108, bb_upper=110, bb_lower=90, bb_mid=100, adx=30, ema200=95)
@@ -88,9 +88,9 @@ class TestEarnestVoters:
         voters = oracle._calculate_earnest_score(row)["voters"]
         assert voters["bb"] == 0
 
-    def test_voters_dict_has_four_keys(self):
+    def test_voters_dict_has_five_keys(self):
         result = oracle._calculate_earnest_score(make_row())
-        assert set(result["voters"].keys()) == {"rsi", "bb", "adx", "ema"}
+        assert set(result["voters"].keys()) == {"rsi", "bb", "adx", "ema", "smc_fvg"}
 
 
 # ---------------------------------------------------------------------------
@@ -144,7 +144,7 @@ class TestOracleAnalyze:
             df = make_ohlcv(300, trend=trend)
             result = oracle.analyze(df, df)
             if "error" not in result:
-                assert -4 <= result["earnest"]["score"] <= 4
+                assert -5 <= result["earnest"]["score"] <= 5
 
     def test_signal_is_valid_string(self):
         valid = {"STRONG_BUY", "BUY", "STRONG_SELL", "SELL", "NEUTRAL"}
@@ -180,8 +180,8 @@ class TestOracleAnalyze:
         df = make_ohlcv(300, trend="up")
         result = oracle.analyze(df, df)
         if "error" not in result:
-            # confidence is returned as "{n}/4"
+            # confidence is returned as "{n}/5"
             conf = result["confidence"]
             assert "/" in str(conf)
             n = int(str(conf).split("/")[0])
-            assert 0 <= n <= 4
+            assert 0 <= n <= 5

@@ -7,7 +7,7 @@ class Position(SQLModel, table=True):
     __tablename__ = "position"
 
     id: Optional[int] = Field(default=None, primary_key=True)
-    signal_log_id: Optional[int] = Field(default=None, foreign_key="signal_log.id")
+    signal_log_id: Optional[int] = Field(default=None, foreign_key="signal_log.id", index=True)
     symbol: str = Field(index=True)
     direction: str                               # "LONG" | "SHORT"
     status: str = Field(default="PENDING", index=True)  # PENDING | OPEN | CLOSED | CANCELLED

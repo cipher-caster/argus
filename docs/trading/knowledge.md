@@ -60,4 +60,42 @@ Updated: 2026-03-17
 
 ---
 
+### 2026-03-19 — sl_sweep (run 2, updated data)
+- **Run ID**: 019ae047-0d01-447a-88b6-0fc90ec2f9ff
+- **Coins**: BTC, ETH, BNB, TRX, XRP, FET, NEAR, ARB, ATOM, DOGE, APT
+- **Signals**: 493 (consistent across all SL values)
+- **Finding**: Results consistent with prior run. SL=1.0x still has highest EV (+0.230R) but 39.1% WR. SL=1.5x remains the production sweet spot at +0.182R EV and 48.9% WR.
+
+| SL   | WR    | Total R  | EV/trade |
+|------|-------|----------|----------|
+| 1.0x | 39.1% | +111.0R  | +0.230R  |
+| 1.25x| 44.9% | +103.2R  | +0.215R  |
+| 1.5x | 48.9% | +87.0R   | +0.182R  |
+| 1.75x| 52.0% | +73.1R   | +0.154R  |
+| 2.0x | 54.4% | +59.0R   | +0.124R  |
+| 2.5x | 58.9% | +41.8R   | +0.089R  |
+
+**Decision**: SL=1.5x confirmed again. No change.
+
+---
+
+### 2026-03-19 — confidence_sweep
+- **Run ID**: d8d0c01c-6360-43a5-8d00-2a0d11012e64
+- **Coins**: BTC, ETH, BNB, TRX, XRP, FET, NEAR, ARB, ATOM, DOGE, APT
+- **Finding**: Confidence threshold has NO effect between 50–60. All three produce identical results (494 signals, 48.8% WR, +86.0R, +0.179R EV). At conf=65 and above, zero signals generated — the filter is too aggressive and kills all trades.
+- **Conclusion**: The Oracle conviction score on this watchlist is effectively binary: most signals pass 50/55/60, and essentially none exceed 65. The current conf=65 production setting is silencing all signals on this expanded 11-coin watchlist.
+
+| Conf | Signals | WR    | Total R  | EV/trade |
+|------|---------|-------|----------|----------|
+| 50   | 494     | 48.8% | +86.0R   | +0.179R  |
+| 55   | 494     | 48.8% | +86.0R   | +0.179R  |
+| 60   | 494     | 48.8% | +86.0R   | +0.179R  |
+| 65   | 0       | N/A   | +0.0R    | N/A      |
+| 70   | 0       | N/A   | +0.0R    | N/A      |
+| 75   | 0       | N/A   | +0.0R    | N/A      |
+
+**Decision**: Lower min_conviction from 65 → 55 (or 60 as a safe middle ground). The current prod setting of 65 is a dead zone — it blocks all trades.
+
+---
+
 *Append new runs below this line.*
