@@ -2,22 +2,21 @@
 
 import { CoinIcon } from "@/components/features/dashboard/CoinIcon";
 import { Skeleton } from "@/components/ui/skeleton";
-import { useStrategyOracle } from "@/hooks/useStrategyOracle";
 import { getCoinName, useCoinMeta } from "@/hooks/useCoinMeta";
 import { formatChange, formatVolume } from "@/lib/formatters";
 import { cn } from "@/lib/utils";
 import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
-import { BarChart2, ShieldAlert, TrendingDown, TrendingUp, Zap } from "lucide-react";
-import { CoinAnalysisModal } from "@/components/features/chart/CoinAnalysisModal";
+import { TrendingDown, TrendingUp, Zap } from "lucide-react";
+
+const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
 
 interface CoinDetailsPanelProps {
   symbol: string;
   timeframe?: string;
 }
 
-interface TickerDetails {
-  symbol: string;
+interface CoinTicker {
   price: number;
   change_24h: number;
   volume_24h: number;
@@ -25,30 +24,41 @@ interface TickerDetails {
   low_24h: number;
 }
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
-
 function useCoinTicker(symbol: string) {
-  return useQuery({
-    queryKey: ["coin-ticker", symbol],
+  return useQuery<CoinTicker>({
+    queryKey: ["ticker", symbol],
     queryFn: async () => {
-      const res = await fetch(`${API_URL}/api/market/tickers`);
-      if (!res.ok) throw new Error("Failed to fetch tickers");
-      const data = await res.json();
-      return (data.tickers?.find((t: TickerDetails) => t.symbol === symbol) ?? null) as TickerDetails | null;
+      const url = new URL("/api/market/ticker", API_URL);
+      url.searchParams.set("symbol", symbol);
+      const res = await fetch(url.toString());
+      if (!res.ok) throw new Error("Failed to fetch ticker");
+      return (await res.json()).data;
     },
-    staleTime: 15_000,
-    refetchInterval: 15_000,
-    gcTime: 5 * 60_000,
+    refetchInterval: 30_000,
+    staleTime: 25_000,
     placeholderData: keepPreviousData,
-    enabled: !!symbol,
+  });
+}
+
+function useTitanDirect(symbol: string, timeframe: string) {
+  return useQuery<any>({
+    queryKey: ["titan-direct", symbol, timeframe],
+    queryFn: async () => {
+      const url = new URL(`/api/strategy/titan/${symbol}`, API_URL);
+      url.searchParams.set("timeframe", timeframe);
+      const res = await fetch(url.toString());
+      if (!res.ok) throw new Error("Failed to fetch Titan");
+      return res.json();
+    },
+    refetchInterval: 60_000,
+    staleTime: 50_000,
   });
 }
 
 export function CoinDetailsPanel({ symbol, timeframe = "4h" }: CoinDetailsPanelProps) {
   const { data: details, isLoading } = useCoinTicker(symbol);
   const { coinMeta } = useCoinMeta();
-  const { data: oracle, isLoading: oracleLoading } = useStrategyOracle(symbol, timeframe, "1d");
-  const [isAnalysisOpen, setIsAnalysisOpen] = useState(false);
+  const { data: titan, isLoading: titanLoading } = useTitanDirect(symbol, "4h");
   const [regime, setRegime] = useState<{ regime: string; ema50: number; distance_pct: number } | null>(null);
 
   useEffect(() => {
@@ -82,15 +92,8 @@ export function CoinDetailsPanel({ symbol, timeframe = "4h" }: CoinDetailsPanelP
   const priceRange = details.high_24h - details.low_24h;
   const currentPosition = priceRange > 0 ? ((details.price - details.low_24h) / priceRange) * 100 : 50;
 
-  const oracleScore = oracle?.earnest?.score ?? null;
-  const scoreColor =
-    oracleScore !== null && oracleScore >= 3 ? "text-green-600 dark:text-green-400" :
-    oracleScore !== null && oracleScore >= 1 ? "text-green-600/70 dark:text-green-500/70" :
-    oracleScore !== null && oracleScore <= -3 ? "text-red-600 dark:text-red-400" :
-    oracleScore !== null && oracleScore <= -1 ? "text-red-600/70 dark:text-red-500/70" :
-    "text-muted-foreground";
-
-  const titanSignal = oracle?.signal ?? null;
+  const titanSignal = titan?.signal ?? null;
+  const titanConfidence = titan?.confidence ?? 0;
   const titanColor =
     titanSignal?.includes("BUY") ? "text-green-700 dark:text-green-400 bg-green-500/10 border-green-500/20" :
     titanSignal?.includes("SELL") ? "text-red-700 dark:text-red-400 bg-red-500/10 border-red-500/20" :
@@ -148,7 +151,7 @@ export function CoinDetailsPanel({ symbol, timeframe = "4h" }: CoinDetailsPanelP
         </div>
       </div>
 
-      {/* Oracle + Titan Signal */}
+      {/* Titan Signal */}
       <div className="border-t border-border/50 pt-4 space-y-3">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-1.5 text-[10px] font-bold text-muted-foreground uppercase tracking-wider">
@@ -165,29 +168,13 @@ export function CoinDetailsPanel({ symbol, timeframe = "4h" }: CoinDetailsPanelP
           )}
         </div>
 
-        {oracleLoading && !oracle ? (
+        {titanLoading && !titan ? (
           <div className="space-y-2">
             <Skeleton className="w-full h-8 rounded-lg" />
             <Skeleton className="w-full h-8 rounded-lg" />
           </div>
-        ) : oracle ? (
+        ) : titan ? (
           <div className="space-y-2">
-            {/* Score + Bias */}
-            <div className="flex items-center justify-between p-2.5 rounded-lg bg-muted/30 border border-border/50">
-              <div>
-                <div className="text-[9px] font-bold text-muted-foreground uppercase tracking-widest mb-0.5">Earnest Score <span className="opacity-50">(ref)</span></div>
-                <span className={cn("text-lg font-black font-mono", scoreColor)}>
-                  {oracleScore !== null ? (oracleScore > 0 ? `+${oracleScore}` : oracleScore) : "—"}<span className="text-xs text-muted-foreground">/4</span>
-                </span>
-              </div>
-              <div className="text-right">
-                <div className="text-[9px] font-bold text-muted-foreground uppercase tracking-widest mb-0.5">Bias</div>
-                <span className={cn("text-sm font-black", oracle.bias === "BULLISH" ? "text-green-600 dark:text-green-400" : oracle.bias === "BEARISH" ? "text-red-600 dark:text-red-400" : "text-muted-foreground")}>
-                  {oracle.bias}
-                </span>
-              </div>
-            </div>
-
             {/* Titan Signal */}
             {titanSignal && (
               <div className={cn("flex items-center justify-between p-2.5 rounded-lg border", titanColor)}>
@@ -197,42 +184,24 @@ export function CoinDetailsPanel({ symbol, timeframe = "4h" }: CoinDetailsPanelP
                 </div>
                 <div className="text-right">
                   <div className="text-[9px] font-bold opacity-70 uppercase tracking-widest mb-0.5">Confidence</div>
-                  <span className="text-sm font-black font-mono">{oracle.confidence}</span>
+                  <span className="text-sm font-black font-mono">{titanConfidence}</span>
                 </div>
               </div>
             )}
 
-            {/* Advice */}
-            {oracle.advice && (
-              <div className="flex gap-2 p-2.5 rounded-lg bg-amber-500/5 border border-amber-500/20">
-                <ShieldAlert size={13} className="text-amber-500 shrink-0 mt-0.5" />
-                <p className="text-[10px] leading-relaxed text-amber-900 dark:text-amber-200/80 italic">{oracle.advice}</p>
+            {/* Momentum */}
+            {titan?.momentum && (
+              <div className="text-[10px] text-muted-foreground px-1">
+                Momentum: <span className="font-bold text-foreground">{titan.momentum.status}</span>
+                {titan.momentum.is_overbought && " · Overbought"}
+                {titan.momentum.is_oversold && " · Oversold"}
               </div>
             )}
-
-            {/* Deep Analysis button */}
-            <button
-              onClick={() => setIsAnalysisOpen(true)}
-              className="w-full flex items-center justify-center gap-2 px-3 py-2 rounded-lg border border-border/60 bg-muted/30 hover:bg-muted/60 hover:border-border transition-colors text-[11px] font-bold text-muted-foreground hover:text-foreground"
-            >
-              <BarChart2 size={11} />
-              Deep Analysis
-            </button>
           </div>
         ) : (
           <p className="text-[11px] text-muted-foreground/50 text-center py-2">Signal data unavailable</p>
         )}
       </div>
-
-      {oracle && (
-        <CoinAnalysisModal
-          isOpen={isAnalysisOpen}
-          onClose={() => setIsAnalysisOpen(false)}
-          symbol={symbol}
-          timeframe={timeframe}
-          oracle={oracle}
-        />
-      )}
     </div>
   );
 }
