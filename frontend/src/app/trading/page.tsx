@@ -5,6 +5,7 @@ import { PositionsTable } from "@/components/trading/PositionsTable";
 import { TradeHistory } from "@/components/trading/TradeHistory";
 import { TradingConfigPanel } from "@/components/trading/TradingConfig";
 import { EquityCurve } from "@/components/trading/EquityCurve";
+import { ActivityFeed } from "@/components/trading/ActivityFeed";
 import { useTradingStats } from "@/hooks/useTradingData";
 import { cn } from "@/lib/utils";
 import { TrendingUp, TrendingDown, BarChart3, Activity } from "lucide-react";
@@ -83,8 +84,11 @@ export default function TradingPage() {
             <EquityCurve />
             <TradeHistory />
           </div>
-          <div>
+          <div className="space-y-5">
             <TradingConfigPanel />
+            <div className="bg-secondary/30 rounded-2xl p-5 border border-border/50 backdrop-blur-sm">
+              <ActivityFeed />
+            </div>
           </div>
         </section>
 

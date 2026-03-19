@@ -1,6 +1,8 @@
 import asyncio
 import logging
 import os
+import time
+from datetime import datetime, timezone, timedelta
 from arq import cron
 from app.storage import RedisClient, Database
 from app.providers import get_provider
@@ -34,6 +36,123 @@ async def get_active_provider():
         logger.info(f"Worker provider set to {target}")
     return _active_provider
 
+async def _recover_missed_scans(ctx, missed_closes: list):
+    """Recover signals from missed 4H candle closes during downtime."""
+    from app.routes.strategy import get_candles_df, titan, oracle
+    from app.jobs.signal_log import _get_config, _get_oracle_score, _passes_market_gate
+    from app.schemas.activity_log import log_activity
+    from sqlalchemy.dialects.postgresql import insert as pg_insert
+    from app.schemas.signal_log import SignalLog
+
+    config = await _get_config()
+    recovered = 0
+
+    for close_dt in missed_closes:
+        close_ms = int(close_dt.timestamp() * 1000)
+
+        for symbol in config["watchlist"]:
+            try:
+                # Fetch 4H candles (historical data is available from Binance)
+                df = await get_candles_df(symbol, timeframe="4h", limit=300)
+                if df is None or df.empty:
+                    continue
+
+                # Run Titan analysis
+                t = titan.analyze(df)
+                if "error" in t:
+                    continue
+
+                t_signal = t.get("signal", "")
+                t_confidence = t.get("confidence", 0)
+
+                is_long = t_signal in ("BUY", "BUY_LIMIT")
+                is_short = t_signal in ("SELL", "SELL_LIMIT")
+                if not (is_long or is_short) or t_confidence < config["min_titan_confidence"]:
+                    continue
+
+                # Get Oracle score
+                o = await _get_oracle_score(symbol)
+                o_score = o.get("score", 0)
+                o_bias = o.get("bias", "NEUTRAL")
+                o_signal = o.get("signal", "NEUTRAL")
+
+                if is_long and o_score <= 0:
+                    continue
+                if is_short and o_score >= 0:
+                    continue
+
+                if config.get("macro_guard", True):
+                    if is_long and o_bias == "BEARISH":
+                        continue
+                    if is_short and o_bias == "BULLISH":
+                        continue
+
+                # Compute conviction
+                oracle_pts = (abs(o_score) / 5) * 40
+                titan_pts = (t_confidence / 100) * 40
+                bonus = 0
+                if t_signal in ("BUY", "SELL"):
+                    bonus += 10
+                if abs(o_score) >= 4:
+                    bonus += 10
+                conviction = int(min(100, oracle_pts + titan_pts + bonus))
+
+                targets = t.get("targets", {})
+                price = float(df.iloc[-1]["close"])
+                reasons = t.get("reasons", [])
+                fired_reason = f"[RECOVERED] Oracle {o_bias} {o_score:+d}/5 | {t_signal} {t_confidence}% | " + " | ".join(reasons[:2])
+
+                row = dict(
+                    symbol=symbol,
+                    direction="LONG" if is_long else "SHORT",
+                    timeframe="4h",
+                    entry=round(float(targets.get("entry", price)), 6),
+                    tp=round(float(targets.get("tp", 0)), 6),
+                    sl=round(float(targets.get("sl", 0)), 6),
+                    conviction=conviction,
+                    oracle_signal=o_signal,
+                    titan_signal=t_signal,
+                    oracle_score=o_score,
+                    titan_confidence=int(t_confidence),
+                    market_state="RECOVERED",
+                    fired_reason=fired_reason,
+                    fired_at=close_ms,
+                    source="live",
+                    outcome="OPEN",
+                )
+
+                async with Database.get_session() as session:
+                    stmt = (
+                        pg_insert(SignalLog)
+                        .values(**row)
+                        .on_conflict_do_nothing(
+                            index_elements=["symbol", "direction"],
+                            index_where=SignalLog.outcome == "OPEN",
+                        )
+                    )
+                    result = await session.execute(stmt)
+                    await session.commit()
+
+                    if result.rowcount > 0:
+                        recovered += 1
+                        await log_activity("SIGNAL_RECOVERED",
+                                           symbol=symbol,
+                                           direction="LONG" if is_long else "SHORT",
+                                           conviction=conviction,
+                                           candle_close=close_dt.isoformat())
+                        logger.info(f"Recovery: {symbol} {'LONG' if is_long else 'SHORT'} signal recovered from {close_dt}")
+
+            except Exception as e:
+                logger.warning(f"Recovery error for {symbol} at {close_dt}: {e}")
+
+    if recovered:
+        await log_activity("RECOVERY_SCAN", severity="INFO",
+                           signals_recovered=recovered,
+                           message=f"Recovered {recovered} signal(s) from {len(missed_closes)} missed candle close(s)")
+
+    logger.info(f"Startup: recovery complete — {recovered} signal(s) recovered")
+
+
 async def startup(ctx):
     """Initialize resources on worker startup"""
     global provider
@@ -59,10 +178,84 @@ async def startup(ctx):
     except Exception as e:
         logger.warning(f"Startup: position recovery failed (non-fatal): {e}")
 
+    # --- Startup Recovery ---
+    try:
+        r = RedisClient.get_instance()
+        last_heartbeat = await r.get("worker:heartbeat")
+
+        if last_heartbeat:
+            last_ms = int(last_heartbeat)
+            now_ms = int(time.time() * 1000)
+            gap_ms = now_ms - last_ms
+            gap_hours = gap_ms / (1000 * 60 * 60)
+
+            if gap_hours > 0.5:  # Only recover if gap > 30 minutes
+                logger.info(f"Startup: detected {gap_hours:.1f}h gap since last heartbeat")
+
+                # Log the gap
+                from app.schemas.activity_log import log_activity
+                await log_activity("HEARTBEAT_GAP", severity="WARN",
+                                   gap_hours=round(gap_hours, 1),
+                                   last_heartbeat_ms=last_ms)
+
+                # Calculate missed 4H candle closes (00, 04, 08, 12, 16, 20 UTC)
+                last_dt = datetime.fromtimestamp(last_ms / 1000, tz=timezone.utc)
+                now_dt = datetime.fromtimestamp(now_ms / 1000, tz=timezone.utc)
+
+                missed_closes = []
+                candle_hours = [0, 4, 8, 12, 16, 20]
+                check_dt = last_dt.replace(minute=0, second=0, microsecond=0)
+                while check_dt <= now_dt:
+                    if check_dt.hour in candle_hours and check_dt > last_dt:
+                        missed_closes.append(check_dt)
+                    check_dt = check_dt + timedelta(hours=1)
+
+                if missed_closes:
+                    logger.info(f"Startup: {len(missed_closes)} missed 4H candle close(s), recovering signals...")
+                    await log_activity("RECOVERY_SCAN",
+                                       missed_closes=len(missed_closes),
+                                       first_missed=missed_closes[0].isoformat(),
+                                       last_missed=missed_closes[-1].isoformat())
+
+                    # For each missed close, run signal scan with historical data
+                    await _recover_missed_scans(ctx, missed_closes)
+
+                    # Resolve any open signals using candle high/low (not just current price)
+                    from app.jobs.signal_log import resolve_outcomes_historical
+                    await resolve_outcomes_historical(ctx)
+                else:
+                    logger.info("Startup: no missed 4H candle closes")
+        else:
+            logger.info("Startup: no previous heartbeat found (first boot)")
+            from app.schemas.activity_log import log_activity
+            await log_activity("STARTUP", message="First boot — no recovery needed")
+
+        # Update heartbeat
+        await r.set("worker:heartbeat", str(int(time.time() * 1000)))
+
+    except Exception as e:
+        logger.warning(f"Startup: recovery failed (non-fatal): {e}")
+
+    # Execute any new signals (including recovered ones) into paper trades
+    try:
+        await execute_signals(ctx)
+        logger.info("Startup: signal execution complete")
+    except Exception as e:
+        logger.warning(f"Startup: signal execution failed (non-fatal): {e}")
+
+    from app.schemas.activity_log import log_activity
+    await log_activity("STARTUP", message="Worker started successfully")
+
+
 async def shutdown(ctx):
     """Cleanup on worker shutdown"""
     global provider
     logger.info("Worker shutting down...")
+    try:
+        from app.schemas.activity_log import log_activity
+        await log_activity("SHUTDOWN", message="Worker shutting down")
+    except Exception:
+        pass  # DB may already be closing
     if provider:
         await provider.close()
     await Database.close()
@@ -152,7 +345,11 @@ async def sync_market_summary(ctx):
         await RedisClient.set_json("market:tickers", [t.model_dump() for t in ticker_list], ttl=60)
         
         logger.info(f"Job: Market Summary Synced ({len(ticker_list)} tickers)")
-        
+
+        # Heartbeat: record last successful sync timestamp
+        r = RedisClient.get_instance()
+        await r.set("worker:heartbeat", str(int(time.time() * 1000)))
+
     except Exception as e:
         logger.error(f"Job Failed: sync_market_summary: {e}", exc_info=True)
 

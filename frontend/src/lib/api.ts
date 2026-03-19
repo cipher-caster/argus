@@ -629,6 +629,24 @@ export async function pauseTrading(): Promise<{ enabled: boolean; message: strin
   return response.json();
 }
 
+// --- Activity Log Types ---
+
+export interface ActivityLogItem {
+  id: number;
+  timestamp: number;
+  event_type: string;
+  severity: string;
+  details: string | null;
+}
+
+export async function fetchActivityLog(limit = 50, eventType?: string): Promise<{ data: ActivityLogItem[] }> {
+  const params = new URLSearchParams({ limit: String(limit) });
+  if (eventType) params.set("event_type", eventType);
+  const response = await fetch(`${API_URL}/api/system/activity-log?${params}`);
+  if (!response.ok) throw new Error(`Failed to fetch activity log: ${response.statusText}`);
+  return response.json();
+}
+
 // --- End Trading API ---
 
 export async function fetchOracleStrategy(symbol: string, micro_tf: string = "1h", macro_tf: string = "1d"): Promise<OracleStrategyResponse> {

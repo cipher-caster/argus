@@ -379,3 +379,149 @@ async def resolve_signal_outcomes(ctx):
             await session.commit()
 
     logger.info(f"Job: resolve_signal_outcomes complete — {resolved} signal(s) resolved")
+
+
+# ---------------------------------------------------------------------------
+# Job D: resolve_outcomes_historical
+# ---------------------------------------------------------------------------
+
+async def resolve_outcomes_historical(ctx):
+    """
+    Resolve OPEN signals using candle high/low data instead of current price.
+    Called during startup recovery to catch TP/SL hits that occurred during downtime.
+
+    For each OPEN signal:
+    1. Fetch 4H candles from fired_at to now
+    2. Walk candles chronologically
+    3. Check if candle high/low crossed TP or SL
+    4. If both hit in same candle, use candle direction to determine which hit first
+    """
+    from app.routes.strategy import get_candles_df
+
+    logger.info("Job: resolve_outcomes_historical — checking open signals with candle data...")
+
+    config = await _get_config()
+    now_ms = int(time.time() * 1000)
+    review_threshold_ms = config["review_days"] * 24 * 60 * 60 * 1000
+    resolved = 0
+
+    async with Database.get_session() as session:
+        stmt = select(SignalLog).where(SignalLog.outcome == "OPEN")
+        result = await session.execute(stmt)
+        open_signals = result.scalars().all()
+
+        for sig in open_signals:
+            try:
+                # Fetch 4H candles for this symbol (timestamp column in ms)
+                df = await get_candles_df(sig.symbol, timeframe="4h", limit=300)
+                if df is None or df.empty:
+                    continue
+
+                if "timestamp" not in df.columns:
+                    logger.warning(f"Historical resolve: no timestamp column for {sig.symbol}, skipping")
+                    continue
+
+                # Only look at candles at or after the signal fired, oldest first
+                candles_after = df[df["timestamp"] >= sig.fired_at].sort_values("timestamp")
+
+                if candles_after.empty:
+                    # No candles after signal fired — check review timeout
+                    if (now_ms - sig.fired_at) >= review_threshold_ms:
+                        sig.outcome = "REVIEW"
+                        sig.resolved_at = now_ms
+                        session.add(sig)
+                        resolved += 1
+                    continue
+
+                new_outcome = None
+                resolved_at_ms = None
+                resolved_price = None
+
+                for _, candle in candles_after.iterrows():
+                    c_high = float(candle.get("high", 0))
+                    c_low = float(candle.get("low", 0))
+                    c_open = float(candle.get("open", 0))
+                    c_close = float(candle.get("close", 0))
+                    c_time = int(candle.get("timestamp", 0))
+
+                    tp_hit = False
+                    sl_hit = False
+
+                    if sig.direction == "LONG":
+                        if sig.tp > 0 and c_high >= sig.tp:
+                            tp_hit = True
+                        if sig.sl > 0 and c_low <= sig.sl:
+                            sl_hit = True
+                    else:  # SHORT
+                        if sig.tp > 0 and c_low <= sig.tp:
+                            tp_hit = True
+                        if sig.sl > 0 and c_high >= sig.sl:
+                            sl_hit = True
+
+                    if tp_hit and sl_hit:
+                        # Both hit in same candle — use candle direction to infer order.
+                        # LONG: bullish candle (close >= open) → dipped to SL first, then rallied → LOSS
+                        #        bearish candle → rose to TP first, then dropped → WIN
+                        # SHORT: bearish candle (close <= open) → rallied to SL first, then dropped → LOSS
+                        #         bullish candle → fell to TP first, then rallied → WIN
+                        if sig.direction == "LONG":
+                            if c_close >= c_open:  # Bullish: SL hit first
+                                new_outcome = "LOSS"
+                                resolved_price = sig.sl
+                            else:  # Bearish: TP hit first
+                                new_outcome = "WIN"
+                                resolved_price = sig.tp
+                        else:  # SHORT
+                            if c_close <= c_open:  # Bearish: SL hit first
+                                new_outcome = "LOSS"
+                                resolved_price = sig.sl
+                            else:  # Bullish: TP hit first
+                                new_outcome = "WIN"
+                                resolved_price = sig.tp
+                    elif tp_hit:
+                        new_outcome = "WIN"
+                        resolved_price = sig.tp
+                    elif sl_hit:
+                        new_outcome = "LOSS"
+                        resolved_price = sig.sl
+
+                    if new_outcome:
+                        resolved_at_ms = c_time
+                        break
+
+                # If no TP/SL hit, check review timeout
+                if not new_outcome and (now_ms - sig.fired_at) >= review_threshold_ms:
+                    new_outcome = "REVIEW"
+                    resolved_at_ms = now_ms
+                    resolved_price = float(candles_after.iloc[-1]["close"])
+
+                if new_outcome:
+                    sig.outcome = new_outcome
+                    sig.resolved_at = resolved_at_ms
+                    sig.resolved_price = resolved_price
+                    session.add(sig)
+                    resolved += 1
+
+                    try:
+                        from app.schemas.activity_log import log_activity
+                        await log_activity("OUTCOME_RESOLVED",
+                                          symbol=sig.symbol,
+                                          direction=sig.direction,
+                                          outcome=new_outcome,
+                                          resolved_price=resolved_price,
+                                          method="historical_candle")
+                    except Exception:
+                        pass
+
+                    logger.info(
+                        f"Historical resolve: {sig.symbol} {sig.direction} → {new_outcome} "
+                        f"@ {resolved_price} (entry={sig.entry} tp={sig.tp} sl={sig.sl})"
+                    )
+
+            except Exception as e:
+                logger.warning(f"Historical resolve error for {sig.symbol}: {e}")
+
+        if resolved:
+            await session.commit()
+
+    logger.info(f"Job: resolve_outcomes_historical complete — {resolved} signal(s) resolved")
