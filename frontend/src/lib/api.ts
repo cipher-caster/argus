@@ -397,6 +397,7 @@ export interface SignalLogSummary {
 export interface SignalLogResponse {
   data: SignalLogItem[];
   summary: SignalLogSummary;
+  total: number;  // Total count for pagination
   last_updated: number;
 }
 
@@ -426,8 +427,8 @@ export async function updateSignalLogConfig(config: SignalLogConfig): Promise<Si
   return response.json();
 }
 
-export async function fetchSignalLog(symbol?: string, source?: string, limit: number = 100): Promise<SignalLogResponse> {
-  const params = new URLSearchParams({ limit: limit.toString() });
+export async function fetchSignalLog(symbol?: string, source?: string, limit: number = 50, offset: number = 0): Promise<SignalLogResponse> {
+  const params = new URLSearchParams({ limit: limit.toString(), offset: offset.toString() });
   if (symbol) params.append("symbol", symbol);
   if (source) params.append("source", source);
   const response = await fetch(`${API_URL}/api/analytics/signal-log?${params}`);
@@ -530,6 +531,7 @@ export interface PositionsResponse {
 
 export interface HistoryResponse {
   data: Position[];
+  total: number;  // Total count for pagination
   limit: number;
   offset: number;
 }
@@ -645,8 +647,8 @@ export interface ActivityLogItem {
   details: string | null;
 }
 
-export async function fetchActivityLog(limit = 50, eventType?: string): Promise<{ data: ActivityLogItem[] }> {
-  const params = new URLSearchParams({ limit: String(limit) });
+export async function fetchActivityLog(limit = 50, offset = 0, eventType?: string): Promise<{ data: ActivityLogItem[] }> {
+  const params = new URLSearchParams({ limit: String(limit), offset: String(offset) });
   if (eventType) params.set("event_type", eventType);
   const response = await fetch(`${API_URL}/api/system/activity-log?${params}`);
   if (!response.ok) throw new Error(`Failed to fetch activity log: ${response.statusText}`);

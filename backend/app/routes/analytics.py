@@ -506,48 +506,75 @@ async def update_signal_log_config(config: SignalLogConfig):
 
 
 @router.get("/signal-log", response_model=SignalLogResponse)
-async def get_signal_log(symbol: Optional[str] = None, source: Optional[str] = None, limit: int = 100):
+async def get_signal_log(symbol: Optional[str] = None, source: Optional[str] = None, limit: int = 50, offset: int = 0):
     """
     Returns logged swing signals for the watchlist (BTC/ETH/SOL/BNB).
     Each row captures what fired, when, and whether it resolved as WIN/LOSS/REVIEW/OPEN.
     Filter by source='live' or source='backtest'.
     """
-    from sqlalchemy import select as sa_select, desc
+    from sqlalchemy import select as sa_select, desc, func as sa_func, case as sa_case
     from app.schemas.signal_log import SignalLog
     from app.storage import Database
 
     async with Database.get_session() as session:
-        stmt = sa_select(SignalLog).order_by(desc(SignalLog.fired_at)).limit(limit)
+        # Base query with filters
+        base_where = []
         if symbol:
             sym_upper = symbol.upper() + "USDT" if not symbol.upper().endswith("USDT") else symbol.upper()
-            stmt = stmt.where(SignalLog.symbol == sym_upper)
+            base_where.append(SignalLog.symbol == sym_upper)
         if source:
-            stmt = stmt.where(SignalLog.source == source)
+            base_where.append(SignalLog.source == source)
         else:
-            # Default: exclude backtest from "All" to avoid inflating live/scanner stats
-            stmt = stmt.where(SignalLog.source != "backtest")
+            base_where.append(SignalLog.source != "backtest")
 
+        # Total count
+        count_stmt = sa_select(sa_func.count()).select_from(SignalLog)
+        for w in base_where:
+            count_stmt = count_stmt.where(w)
+        total_result = await session.execute(count_stmt)
+        total = total_result.scalar() or 0
+
+        # Summary stats (full dataset, not paginated)
+        summary_stmt = sa_select(
+            sa_func.count().label("total"),
+            sa_func.sum(sa_case((SignalLog.outcome == "WIN", 1), else_=0)).label("wins"),
+            sa_func.sum(sa_case((SignalLog.outcome == "LOSS", 1), else_=0)).label("losses"),
+            sa_func.sum(sa_case((SignalLog.outcome == "OPEN", 1), else_=0)).label("opens"),
+            sa_func.sum(sa_case((SignalLog.outcome == "REVIEW", 1), else_=0)).label("reviews"),
+            sa_func.sum(sa_case((SignalLog.outcome == "REJECTED", 1), else_=0)).label("rejected"),
+        ).select_from(SignalLog)
+        for w in base_where:
+            summary_stmt = summary_stmt.where(w)
+        summary_result = await session.execute(summary_stmt)
+        stats = summary_result.one()
+
+        wins = int(stats.wins or 0)
+        losses = int(stats.losses or 0)
+        closed = wins + losses
+
+        # Paginated data
+        stmt = sa_select(SignalLog).order_by(desc(SignalLog.fired_at)).limit(limit).offset(offset)
+        for w in base_where:
+            stmt = stmt.where(w)
         result = await session.execute(stmt)
         rows = result.scalars().all()
 
     items = [SignalLogItem(**row.__dict__) for row in rows]
 
-    wins = sum(1 for r in items if r.outcome == "WIN")
-    losses = sum(1 for r in items if r.outcome == "LOSS")
-    closed = wins + losses
     summary = SignalLogSummary(
-        total=len(items),
-        open=sum(1 for r in items if r.outcome == "OPEN"),
+        total=total,
+        open=int(stats.opens or 0),
         win=wins,
         loss=losses,
-        review=sum(1 for r in items if r.outcome == "REVIEW"),
-        rejected=sum(1 for r in items if r.outcome == "REJECTED"),
+        review=int(stats.reviews or 0),
+        rejected=int(stats.rejected or 0),
         win_rate=round(wins / closed * 100, 1) if closed > 0 else None,
     )
 
     return SignalLogResponse(
         data=items,
         summary=summary,
+        total=total,
         last_updated=int(time.time() * 1000),
     )
 

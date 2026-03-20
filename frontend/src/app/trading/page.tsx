@@ -8,7 +8,6 @@ import { EquityCurve } from "@/components/trading/EquityCurve";
 import { ActivityFeed } from "@/components/trading/ActivityFeed";
 import { useTradingStats } from "@/hooks/useTradingData";
 import { cn } from "@/lib/utils";
-import { TrendingUp, TrendingDown, BarChart3, Activity } from "lucide-react";
 
 function StatsStrip() {
   const { data: stats } = useTradingStats();
@@ -66,6 +65,14 @@ export default function TradingPage() {
   return (
     <div className="min-h-screen bg-background text-foreground">
       <main className="max-w-[1440px] mx-auto p-6 md:p-8 space-y-5">
+
+        {/* Header */}
+        <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 animate-in fade-in slide-in-from-top-2 duration-500">
+          <div className="space-y-1">
+            <h1 className="text-3xl font-black tracking-tight italic uppercase">Paper Trading</h1>
+            <p className="text-sm text-muted-foreground font-medium tracking-wide uppercase opacity-70">Live positions • Risk-managed • Paper only</p>
+          </div>
+        </div>
 
         {/* Portfolio summary */}
         <section className="animate-in fade-in slide-in-from-top-2 duration-500">

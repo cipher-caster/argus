@@ -148,8 +148,15 @@
 - [ ] Build signal→position analytics — join signal outcomes to actual position P&L for "did the signal win AND did we make money?"
 
 ### Phase 19: Analytics Page Redesign — Trading Performance Intelligence
-- [ ] Remove redundant "Backtest" tab — it's just SignalLog filtered to `source=backtest`, already covered by SignalLog's source filter ✓
+- [x] Remove redundant "Backtest" tab — it's just SignalLog filtered to `source=backtest`, already covered by SignalLog's source filter ✓
 - [ ] Persist signal-outcomes snapshots (daily) — current `GET /api/analytics/signal-outcomes` computes on-the-fly. Need a periodic job (cron/daily) that snapshots win rate by regime, conviction band stats, rejection counts to a DB table so we can track trends over time (e.g. "win rate by regime last week vs this week")
+
+### Phase 20: API Documentation & Swagger
+- [ ] Add FastAPI auto-generated Swagger/OpenAPI docs — already available at `/docs` but needs cleanup
+- [ ] Add response models (response_model) to all endpoints — many endpoints return raw dicts/JSON, should use Pydantic response models for type safety and documentation
+- [ ] Add docstrings to all route handlers — many are missing descriptions
+- [ ] Tag endpoints by domain (Trading, Analytics, Market, Strategy, System) for organized Swagger UI
+- [ ] Add example responses to schemas for Swagger "Try it out" feature
 - [ ] Redesign analytics page around trading performance (not signal browsing)
   - Win rate breakdown by strategy / coin / market condition
   - PnL curve and drawdown tracking over time

@@ -201,6 +201,15 @@ async def get_history(
     symbol: Optional[str] = Query(None),
 ):
     async with Database.get_session() as session:
+        # Total count
+        from sqlalchemy import func as sa_func
+        count_stmt = select(sa_func.count()).select_from(Position).where(Position.status == "CLOSED")
+        if symbol:
+            count_stmt = count_stmt.where(Position.symbol == symbol.upper())
+        total_result = await session.execute(count_stmt)
+        total = total_result.scalar() or 0
+
+        # Paginated data
         stmt = (
             select(Position)
             .where(Position.status == "CLOSED")
@@ -215,6 +224,7 @@ async def get_history(
 
     return {
         "data": [_serialize_position(p) for p in positions],
+        "total": total,
         "limit": limit,
         "offset": offset,
     }

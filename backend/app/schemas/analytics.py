@@ -135,4 +135,5 @@ class SignalLogSummary(BaseModel):
 class SignalLogResponse(BaseModel):
     data: List[SignalLogItem]
     summary: SignalLogSummary
+    total: int = 0  # Total count of matching signals (for pagination)
     last_updated: int = 0

@@ -3,7 +3,9 @@
 import { useTradeHistory } from "@/hooks/useTradingData";
 import { Position } from "@/lib/api";
 import { cn } from "@/lib/utils";
+import { ChevronRight } from "lucide-react";
 import Link from "next/link";
+import { useState } from "react";
 
 function formatPrice(p: number) {
   if (p >= 1000) return p.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -79,15 +81,19 @@ function HistoryRow({ pos }: { pos: Position }) {
 }
 
 export function TradeHistory() {
-  const { data, isLoading } = useTradeHistory(50);
+  const PAGE_SIZE = 50;
+  const [page, setPage] = useState(1);
+  const offset = (page - 1) * PAGE_SIZE;
+  const { data, isLoading } = useTradeHistory(PAGE_SIZE, offset);
   const trades = data?.data ?? [];
+  const totalPages = data ? Math.ceil(data.total / PAGE_SIZE) : 1;
 
   return (
     <div className="bg-card/60 backdrop-blur-md rounded-2xl border border-border/40 overflow-hidden">
       <div className="flex items-center justify-between px-4 py-3 border-b border-border/30">
         <h3 className="text-sm font-black tracking-tight">Trade History</h3>
-        {trades.length > 0 && (
-          <span className="text-[10px] text-muted-foreground">{trades.length} closed</span>
+        {data && data.total > 0 && (
+          <span className="text-[10px] text-muted-foreground">{data.total} closed</span>
         )}
       </div>
 
@@ -107,6 +113,39 @@ export function TradeHistory() {
             <span className="min-w-[40px] text-right">Held</span>
           </div>
           {trades.map(t => <HistoryRow key={t.id} pos={t} />)}
+
+          {totalPages > 1 && (
+            <div className="flex items-center justify-center gap-4 py-4 border-t border-border/30">
+              <div className="flex items-center gap-1 bg-muted/30 p-1 rounded-xl border border-border/50">
+                <button
+                  className="px-3 py-1.5 text-xs font-bold rounded-lg hover:bg-muted transition-all disabled:opacity-30 disabled:pointer-events-none"
+                  onClick={() => setPage(1)}
+                  disabled={page === 1}
+                >
+                  First
+                </button>
+                <button
+                  className="px-3 py-1.5 text-xs font-bold rounded-lg hover:bg-muted transition-all disabled:opacity-30 disabled:pointer-events-none flex items-center gap-1"
+                  onClick={() => setPage((p) => Math.max(1, p - 1))}
+                  disabled={page === 1}
+                >
+                  <ChevronRight size={12} className="rotate-180" /> Prev
+                </button>
+                <div className="px-4 text-xs font-bold border-x border-border/50">
+                  <span className="text-muted-foreground">Page </span>
+                  <span>{page}</span>
+                  <span className="text-muted-foreground"> / {totalPages}</span>
+                </div>
+                <button
+                  className="px-3 py-1.5 text-xs font-bold rounded-lg hover:bg-muted transition-all disabled:opacity-30 disabled:pointer-events-none flex items-center gap-1"
+                  onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+                  disabled={page >= totalPages}
+                >
+                  Next <ChevronRight size={12} />
+                </button>
+              </div>
+            </div>
+          )}
         </div>
       )}
     </div>

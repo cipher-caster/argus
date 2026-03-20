@@ -3,7 +3,6 @@
 import { CoinTable } from "@/components/features/dashboard/CoinTable";
 import { useCoins } from "@/hooks/useMarketOverview";
 import { ChevronLeft, ChevronRight } from "lucide-react";
-import Link from "next/link";
 import { useState } from "react";
 
 export default function MarketsPage() {
@@ -29,13 +28,10 @@ export default function MarketsPage() {
   return (
     <div className="min-h-screen bg-background text-foreground">
       <main className="max-w-[1440px] mx-auto p-6 md:p-8 space-y-6">
-        <div className="flex items-center justify-between">
+        <div className="flex items-center justify-between animate-in fade-in slide-in-from-top-2 duration-500">
           <div className="space-y-1">
-            <Link href="/" className="inline-flex items-center gap-1.5 text-xs font-bold text-muted-foreground hover:text-foreground transition-colors group mb-2">
-              <ChevronLeft size={14} className="group-hover:-translate-x-0.5 transition-transform" /> Dashboard
-            </Link>
-            <h1 className="text-2xl font-black tracking-tight">Markets</h1>
-            <p className="text-xs text-muted-foreground uppercase tracking-widest">All coins • Sorted by market cap</p>
+            <h1 className="text-3xl font-black tracking-tight italic uppercase">Markets</h1>
+            <p className="text-sm text-muted-foreground font-medium tracking-wide uppercase opacity-70">All coins • Sorted by market cap</p>
           </div>
         </div>
 

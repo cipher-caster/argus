@@ -43,10 +43,10 @@ export function usePositions(status?: string) {
   });
 }
 
-export function useTradeHistory(limit = 50) {
+export function useTradeHistory(limit = 50, offset = 0) {
   return useQuery({
-    queryKey: ["trading", "history", limit],
-    queryFn: () => fetchTradeHistory(limit),
+    queryKey: ["trading", "history", limit, offset],
+    queryFn: () => fetchTradeHistory(limit, offset),
     staleTime: STALE,
     refetchInterval: 60_000,
   });

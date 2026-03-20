@@ -256,17 +256,23 @@ function SettingsPanel({ config, onSave, isSaving, saved }: {
 }
 
 export function SignalLog() {
+  const PAGE_SIZE = 50;
   const [activeSymbol, setActiveSymbol] = useState("All");
   const [activeSource, setActiveSource] = useState("All");
+  const [page, setPage] = useState(1);
   const [showSettings, setShowSettings] = useState(false);
   const [saved, setSaved] = useState(false);
   const { data: config } = useSignalLogConfig();
   const updateConfig = useUpdateSignalLogConfig();
+  const offset = (page - 1) * PAGE_SIZE;
   const { data, isLoading, isError, refetch, isFetching } = useSignalLog(
     activeSymbol === "All" ? undefined : activeSymbol,
     activeSource === "All" ? undefined : activeSource.toLowerCase(),
-    100
+    PAGE_SIZE,
+    offset
   );
+
+  const totalPages = data ? Math.ceil(data.total / PAGE_SIZE) : 1;
 
   const handleSave = (draft: SignalLogConfig) => {
     updateConfig.mutate(draft, {
@@ -287,7 +293,7 @@ export function SignalLog() {
           <div className="relative">
             <select
               value={activeSymbol}
-              onChange={(e) => setActiveSymbol(e.target.value)}
+              onChange={(e) => { setActiveSymbol(e.target.value); setPage(1); }}
               className="appearance-none bg-secondary/40 border border-border/50 rounded-lg px-3 py-1.5 pr-7 text-[11px] font-black uppercase tracking-wider cursor-pointer hover:bg-secondary/70 transition-all focus:outline-none focus:ring-1 focus:ring-primary"
             >
               {SYMBOLS.map((sym) => (
@@ -300,7 +306,7 @@ export function SignalLog() {
           {SOURCES.map((src) => (
             <button
               key={src}
-              onClick={() => setActiveSource(src)}
+              onClick={() => { setActiveSource(src); setPage(1); }}
               className={cn(
                 "px-3 py-1.5 rounded-lg text-[11px] font-black uppercase tracking-wider transition-all",
                 activeSource === src
@@ -406,6 +412,40 @@ export function SignalLog() {
               ))}
             </tbody>
           </table>
+        </div>
+      )}
+
+      {/* Pagination */}
+      {totalPages > 1 && (
+        <div className="flex items-center justify-center gap-4 pt-2">
+          <div className="flex items-center gap-1 bg-muted/30 p-1 rounded-xl border border-border/50">
+            <button
+              className="px-3 py-1.5 text-xs font-bold rounded-lg hover:bg-muted transition-all disabled:opacity-30 disabled:pointer-events-none"
+              onClick={() => setPage(1)}
+              disabled={page === 1}
+            >
+              First
+            </button>
+            <button
+              className="px-3 py-1.5 text-xs font-bold rounded-lg hover:bg-muted transition-all disabled:opacity-30 disabled:pointer-events-none flex items-center gap-1"
+              onClick={() => setPage((p) => Math.max(1, p - 1))}
+              disabled={page === 1}
+            >
+              <ChevronDown size={12} className="rotate-90" /> Prev
+            </button>
+            <div className="px-4 text-xs font-bold border-x border-border/50">
+              <span className="text-muted-foreground">Page </span>
+              <span>{page}</span>
+              <span className="text-muted-foreground"> / {totalPages}</span>
+            </div>
+            <button
+              className="px-3 py-1.5 text-xs font-bold rounded-lg hover:bg-muted transition-all disabled:opacity-30 disabled:pointer-events-none flex items-center gap-1"
+              onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+              disabled={page >= totalPages}
+            >
+              Next <ChevronDown size={12} className="-rotate-90" />
+            </button>
+          </div>
         </div>
       )}
     </div>
