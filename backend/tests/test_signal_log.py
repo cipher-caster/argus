@@ -308,7 +308,7 @@ class TestLogBestSetups:
     @patch("app.jobs.signal_log._get_config", new_callable=AsyncMock)
     @patch("app.jobs.signal_log.RedisClient")
     async def test_skips_low_conviction(self, mock_redis, mock_cfg, mock_ms, mock_db):
-        """Conviction < 60 → filtered out."""
+        """Conviction < 60 → logged as REJECTED instead of OPEN."""
         mock_redis.get_json = AsyncMock(return_value={
             "data": [{"symbol": "BTCUSDT", "direction": "LONG", "conviction": 50,
                        "oracle_score": 3, "titan_signal": "BUY",
@@ -321,7 +321,8 @@ class TestLogBestSetups:
 
         from app.jobs.signal_log import log_best_setups
         await log_best_setups(self._make_ctx())
-        mock_db.get_session.assert_not_called()
+        # Now low conviction signals ARE inserted (as REJECTED), so DB is called
+        mock_db.get_session.assert_called()
 
     @pytest.mark.asyncio
     @patch("app.jobs.signal_log.Database")

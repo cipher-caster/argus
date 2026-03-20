@@ -10,10 +10,11 @@ const SYMBOLS = ["All", "BTC", "ETH", "BNB", "TRX", "XRP", "FET", "NEAR", "ARB",
 const SOURCES = ["All", "Live", "Scanner", "Backtest"];
 
 const OUTCOME_CONFIG = {
-  WIN:    { label: "WIN",    emoji: "✅", cls: "text-emerald-500 dark:text-emerald-400 bg-emerald-500/10" },
-  LOSS:   { label: "LOSS",   emoji: "❌", cls: "text-red-500 dark:text-red-400 bg-red-500/10" },
-  REVIEW: { label: "REVIEW", emoji: "👀", cls: "text-amber-500 dark:text-amber-400 bg-amber-500/10" },
-  OPEN:   { label: "OPEN",   emoji: "🔄", cls: "text-sky-500 dark:text-sky-400 bg-sky-500/10" },
+  WIN:      { label: "WIN",      emoji: "✅", cls: "text-emerald-500 dark:text-emerald-400 bg-emerald-500/10" },
+  LOSS:     { label: "LOSS",     emoji: "❌", cls: "text-red-500 dark:text-red-400 bg-red-500/10" },
+  REVIEW:   { label: "REVIEW",   emoji: "👀", cls: "text-amber-500 dark:text-amber-400 bg-amber-500/10" },
+  OPEN:     { label: "OPEN",     emoji: "🔄", cls: "text-sky-500 dark:text-sky-400 bg-sky-500/10" },
+  REJECTED: { label: "REJECTED", emoji: "🚫", cls: "text-zinc-500 dark:text-zinc-400 bg-zinc-500/10" },
 } as const;
 
 function formatPrice(p: number) {
@@ -348,12 +349,13 @@ export function SignalLog() {
 
       {/* Summary bar */}
       {summary && (
-        <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
+        <div className="grid grid-cols-2 sm:grid-cols-6 gap-3">
           {[
             { label: "Total", value: summary.total, cls: "text-foreground" },
             { label: "Open", value: summary.open, cls: "text-sky-500 dark:text-sky-400" },
             { label: "Win", value: summary.win, cls: "text-emerald-500 dark:text-emerald-400" },
             { label: "Loss", value: summary.loss, cls: "text-red-500 dark:text-red-400" },
+            { label: "Rejected", value: summary.rejected ?? 0, cls: "text-zinc-500 dark:text-zinc-400" },
             {
               label: "Win Rate",
               value: summary.win_rate !== null ? `${summary.win_rate}%` : "—",

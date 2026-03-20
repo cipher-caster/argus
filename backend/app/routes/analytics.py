@@ -523,6 +523,9 @@ async def get_signal_log(symbol: Optional[str] = None, source: Optional[str] = N
             stmt = stmt.where(SignalLog.symbol == sym_upper)
         if source:
             stmt = stmt.where(SignalLog.source == source)
+        else:
+            # Default: exclude backtest from "All" to avoid inflating live/scanner stats
+            stmt = stmt.where(SignalLog.source != "backtest")
 
         result = await session.execute(stmt)
         rows = result.scalars().all()
@@ -538,6 +541,7 @@ async def get_signal_log(symbol: Optional[str] = None, source: Optional[str] = N
         win=wins,
         loss=losses,
         review=sum(1 for r in items if r.outcome == "REVIEW"),
+        rejected=sum(1 for r in items if r.outcome == "REJECTED"),
         win_rate=round(wins / closed * 100, 1) if closed > 0 else None,
     )
 
@@ -546,3 +550,121 @@ async def get_signal_log(symbol: Optional[str] = None, source: Optional[str] = N
         summary=summary,
         last_updated=int(time.time() * 1000),
     )
+
+
+@router.get("/signal-outcomes")
+async def get_signal_outcomes():
+    """
+    Signal→Position analytics: join signal_log with positions to show
+    which signals were traded and their actual PnL.
+
+    Returns:
+        - per-symbol breakdown of signal wins vs position PnL
+        - rejection analysis (why signals were rejected)
+        - regime correlation (did regime changes affect outcomes?)
+    """
+    from sqlalchemy import select as sa_select, desc, func
+    from app.schemas.signal_log import SignalLog
+    from app.schemas.trading import Position
+    from app.storage import Database
+
+    async with Database.get_session() as session:
+        # All resolved signals
+        signals_result = await session.execute(
+            sa_select(SignalLog).where(SignalLog.outcome.in_(["WIN", "LOSS", "REVIEW"]))
+            .order_by(desc(SignalLog.fired_at))
+        )
+        signals = signals_result.scalars().all()
+
+        # All rejected signals
+        rejected_result = await session.execute(
+            sa_select(SignalLog).where(SignalLog.outcome == "REJECTED")
+        )
+        rejected = rejected_result.scalars().all()
+
+        # All closed positions with their signal_log_id
+        positions_result = await session.execute(
+            sa_select(Position).where(Position.status == "CLOSED")
+        )
+        positions = positions_result.scalars().all()
+
+    # Index positions by signal_log_id
+    pos_by_signal = {p.signal_log_id: p for p in positions if p.signal_log_id}
+
+    # Per-signal outcome analysis
+    signal_outcomes = []
+    for sig in signals:
+        pos = pos_by_signal.get(sig.id)
+        signal_outcomes.append({
+            "symbol": sig.symbol,
+            "direction": sig.direction,
+            "signal_outcome": sig.outcome,
+            "conviction": sig.conviction,
+            "market_state": sig.market_state,
+            "regime_at_resolution": sig.regime_at_resolution,
+            "time_to_resolution_ms": sig.time_to_resolution_ms,
+            "fired_at": sig.fired_at,
+            # Position info (if traded)
+            "was_traded": pos is not None,
+            "pnl_usd": pos.pnl_usd if pos else None,
+            "pnl_pct": pos.pnl_pct if pos else None,
+            "position_outcome": pos.outcome if pos else None,
+            "quote_amount": pos.quote_amount if pos else None,
+        })
+
+    # Rejection analysis
+    rejection_counts = {}
+    for sig in rejected:
+        reason = sig.rejection_reason or "unknown"
+        rejection_counts[reason] = rejection_counts.get(reason, 0) + 1
+
+    # Regime correlation
+    regime_wins = {}
+    regime_total = {}
+    for sig in signals:
+        regime = sig.regime_at_resolution or sig.market_state
+        if regime:
+            regime_total[regime] = regime_total.get(regime, 0) + 1
+            if sig.outcome == "WIN":
+                regime_wins[regime] = regime_wins.get(regime, 0) + 1
+
+    regime_stats = {
+        regime: {
+            "total": total,
+            "wins": regime_wins.get(regime, 0),
+            "win_rate": round(regime_wins.get(regime, 0) / total * 100, 1) if total > 0 else None,
+        }
+        for regime, total in regime_total.items()
+    }
+
+    # Conviction band analysis
+    conviction_bands = {"60-69": [], "70-79": [], "80-89": [], "90-100": []}
+    for sig in signals:
+        if sig.conviction >= 90:
+            conviction_bands["90-100"].append(sig)
+        elif sig.conviction >= 80:
+            conviction_bands["80-89"].append(sig)
+        elif sig.conviction >= 70:
+            conviction_bands["70-79"].append(sig)
+        elif sig.conviction >= 60:
+            conviction_bands["60-69"].append(sig)
+
+    conviction_stats = {}
+    for band, sigs in conviction_bands.items():
+        wins = sum(1 for s in sigs if s.outcome == "WIN")
+        total = len(sigs)
+        conviction_stats[band] = {
+            "total": total,
+            "wins": wins,
+            "win_rate": round(wins / total * 100, 1) if total > 0 else None,
+        }
+
+    return {
+        "signal_outcomes": signal_outcomes,
+        "rejection_analysis": {
+            "total_rejected": len(rejected),
+            "by_reason": rejection_counts,
+        },
+        "regime_correlation": regime_stats,
+        "conviction_analysis": conviction_stats,
+    }

@@ -243,23 +243,46 @@ async def log_best_setups(ctx):
     config = await _get_config()
     now_ms = int(time.time() * 1000)
     logged = 0
+    rejected = 0
 
     # Collect all qualified rows first
     rows_to_insert = []
 
     for item in items:
         try:
-            conviction = item.get("conviction", 0)
-            if conviction < 60:
-                continue
-
             symbol = item.get("symbol", "").replace("/", "")
             direction = item.get("direction", "")
             if not symbol or not direction:
                 continue
 
+            conviction = item.get("conviction", 0)
             t_signal = item.get("titan_signal", "")
             reason = item.get("reason", "")
+
+            # Log rejected signals for learning
+            if conviction < 60:
+                rows_to_insert.append(dict(
+                    symbol=symbol,
+                    direction=direction,
+                    timeframe="4h",
+                    entry=round(float(item.get("entry", 0)), 6),
+                    tp=round(float(item.get("tp", 0)), 6),
+                    sl=round(float(item.get("sl", 0)), 6),
+                    conviction=conviction,
+                    oracle_signal="N/A",
+                    titan_signal=t_signal,
+                    oracle_score=0,
+                    titan_confidence=0,
+                    market_state="scanner",
+                    fired_reason=reason,
+                    fired_at=now_ms,
+                    source="scanner",
+                    outcome="REJECTED",
+                    rejection_reason="low_conviction",
+                    resolved_at=now_ms,
+                ))
+                rejected += 1
+                continue
 
             row = dict(
                 symbol=symbol,
@@ -302,7 +325,7 @@ async def log_best_setups(ctx):
             await session.commit()
 
     if logged:
-        logger.info(f"Job: log_best_setups — {logged} scanner signal(s) logged")
+        logger.info(f"Job: log_best_setups — {logged} logged, {rejected} rejected (low_conviction)")
 
 
 # ---------------------------------------------------------------------------
@@ -349,8 +372,9 @@ async def resolve_outcomes_historical(ctx):
         result = await session.execute(stmt)
         open_signals = result.scalars().all()
 
-        # Fetch candles once per unique symbol
+        # Fetch candles once per unique symbol (always include BTC for resolution context)
         unique_symbols = {sig.symbol for sig in open_signals}
+        unique_symbols.add("BTCUSDT")
         candle_cache = {}
         for sym in unique_symbols:
             df = await get_candles_df(sym, timeframe="4h", limit=300)
@@ -369,7 +393,8 @@ async def resolve_outcomes_historical(ctx):
                     continue
 
                 # Only look at candles at or after the signal fired, oldest first
-                candles_after = df[df["timestamp"] >= sig.fired_at].sort_values("timestamp")
+                fired_ts = pd.Timestamp(sig.fired_at, unit="ms")
+                candles_after = df[df["timestamp"] >= fired_ts].sort_values("timestamp")
 
                 if candles_after.empty:
                     # No candles after signal fired — check review timeout
@@ -389,7 +414,8 @@ async def resolve_outcomes_historical(ctx):
                     c_low = float(candle.get("low", 0))
                     c_open = float(candle.get("open", 0))
                     c_close = float(candle.get("close", 0))
-                    c_time = int(candle.get("timestamp", 0))
+                    c_ts = candle.get("timestamp", 0)
+                    c_time = int(c_ts.timestamp() * 1000) if hasattr(c_ts, "timestamp") else int(c_ts)
 
                     tp_hit = False
                     sl_hit = False
@@ -446,6 +472,17 @@ async def resolve_outcomes_historical(ctx):
                     sig.outcome = new_outcome
                     sig.resolved_at = resolved_at_ms
                     sig.resolved_price = resolved_price
+                    sig.regime_at_resolution = await _get_market_state()
+                    sig.time_to_resolution_ms = resolved_at_ms - sig.fired_at
+
+                    # BTC price at resolution (from cached BTC candles)
+                    btc_df = candle_cache.get("BTCUSDT")
+                    if btc_df is not None and not btc_df.empty:
+                        resolved_ts = pd.Timestamp(resolved_at_ms, unit="ms")
+                        btc_at = btc_df[btc_df["timestamp"] <= resolved_ts]
+                        if not btc_at.empty:
+                            sig.btc_price_at_resolution = round(float(btc_at.iloc[-1]["close"]), 2)
+
                     session.add(sig)
                     resolved += 1
 
@@ -456,13 +493,16 @@ async def resolve_outcomes_historical(ctx):
                                           direction=sig.direction,
                                           outcome=new_outcome,
                                           resolved_price=resolved_price,
+                                          regime_at_resolution=sig.regime_at_resolution,
+                                          time_to_resolution_ms=sig.time_to_resolution_ms,
                                           method="historical_candle")
                     except Exception:
                         pass
 
                     logger.info(
                         f"Historical resolve: {sig.symbol} {sig.direction} → {new_outcome} "
-                        f"@ {resolved_price} (entry={sig.entry} tp={sig.tp} sl={sig.sl})"
+                        f"@ {resolved_price} regime={sig.regime_at_resolution} "
+                        f"ttf={sig.time_to_resolution_ms}ms"
                     )
 
             except Exception as e:

@@ -2,6 +2,31 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.9.1] - 2026-03-20 — Signal Resolution Fix & System Audit
+
+### Fixed
+
+- **`resolve_outcomes_historical` datetime comparison bug** — `strategy.py:130` converts timestamps to `datetime64`, but the resolution job compared against raw epoch ms integers. Fixed by wrapping `sig.fired_at` with `pd.Timestamp(sig.fired_at, unit="ms")` and converting datetime64 candle timestamps back to epoch ms. Previously stuck signals (ETCUSDT, UUSDT) now resolve correctly.
+
+### Audit (2026-03-20)
+
+Full system audit of Analytics, Trading, and Market pages:
+
+- **Analytics page**: 10/10 endpoints working, 33/33 tests passing, types clean
+- **Trading page**: 11/11 endpoints working, 66/66 tests passing, types clean
+- **Market page**: 10/10 endpoints working, 10/10 tests passing, types clean
+- **Signal log**: 100% win rate on resolved signals (4W/1L), 75% overall
+- **Trading**: $963.68 balance (3.6% drawdown), 1 open position (ASTERUSDT SHORT)
+
+### Known Data Model Gaps
+
+- Signal log captures market state at fire time but not at resolution time — can't correlate regime changes to outcomes
+- No `regime_at_resolution` or `btc_price_at_resolution` fields
+- Rejected signals (low conviction, exposure cap, volatility gate) are logged to stdout but not persisted — can't analyze rejection patterns
+- Signal log and positions are disconnected — no analytics query joins signal outcomes to actual position P&L
+- Trade events only log TP_HIT/SL_HIT — missing FILLED, PENDING, RISK_REJECTED events
+- Backtest tab in analytics is redundant with SignalLog's "Backtest" source filter
+
 ## [0.9.0] - 2026-03-19 — Regime Detection & Oracle Deprecation
 
 ### Added

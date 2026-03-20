@@ -130,7 +130,12 @@ class TradeOrchestrator:
 
             if not approved:
                 logger.info(f"Orchestrator: rejected {signal.symbol} {signal.direction} — {reason}")
-                # Log rejection event (no position_id yet — use signal id in details)
+                # Mark signal_log as REJECTED for learning
+                now_ms = int(time.time() * 1000)
+                signal.outcome = "REJECTED"
+                signal.rejection_reason = reason
+                signal.resolved_at = now_ms
+                session.add(signal)
                 await notifier.notify_risk_rejected(signal.symbol, signal.direction, reason)
                 return None
 
@@ -352,6 +357,10 @@ class TradeOrchestrator:
                 pos.pnl_usd = round(pnl_usd, 4)
                 pos.pnl_pct = round(pnl_pct, 2)
                 pos.closed_at = now_ms
+                # Capture market state at close for learning
+                summary = await RedisClient.get_json("analytics:signal-summary")
+                if summary:
+                    pos.market_state_at_close = summary.get("market_state", "")
                 session.add(pos)
 
                 event_type = "TP_HIT" if outcome == "WIN" else "SL_HIT"

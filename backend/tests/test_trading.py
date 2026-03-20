@@ -649,6 +649,7 @@ class TestCandleWalkResolution:
             patch("app.trading.orchestrator.Database.get_session", return_value=mock_session),
             patch("app.routes.strategy.get_candles_df", new_callable=AsyncMock, return_value=candles),
             patch("app.trading.orchestrator.notifier.notify_position_closed", new_callable=AsyncMock),
+            patch("app.trading.orchestrator.RedisClient.get_json", new_callable=AsyncMock, return_value={"market_state": "TRENDING"}),
         ):
             await orch.check_open_positions(config=config)
 
@@ -682,6 +683,7 @@ class TestCandleWalkResolution:
             patch("app.trading.orchestrator.Database.get_session", return_value=mock_session),
             patch("app.routes.strategy.get_candles_df", new_callable=AsyncMock, return_value=candles),
             patch("app.trading.orchestrator.notifier.notify_position_closed", new_callable=AsyncMock),
+            patch("app.trading.orchestrator.RedisClient.get_json", new_callable=AsyncMock, return_value={"market_state": "TRENDING"}),
         ):
             await orch.check_open_positions(config=config)
 
@@ -715,6 +717,7 @@ class TestCandleWalkResolution:
             patch("app.trading.orchestrator.Database.get_session", return_value=mock_session),
             patch("app.routes.strategy.get_candles_df", new_callable=AsyncMock, return_value=candles),
             patch("app.trading.orchestrator.notifier.notify_position_closed", new_callable=AsyncMock),
+            patch("app.trading.orchestrator.RedisClient.get_json", new_callable=AsyncMock, return_value={"market_state": "TRENDING"}),
         ):
             await orch.check_open_positions(config=config)
 
@@ -749,6 +752,7 @@ class TestCandleWalkResolution:
             patch("app.trading.orchestrator.Database.get_session", return_value=mock_session),
             patch("app.routes.strategy.get_candles_df", new_callable=AsyncMock, return_value=candles),
             patch("app.trading.orchestrator.notifier.notify_position_closed", new_callable=AsyncMock),
+            patch("app.trading.orchestrator.RedisClient.get_json", new_callable=AsyncMock, return_value={"market_state": "TRENDING"}),
         ):
             await orch.check_open_positions(config=config)
 
@@ -782,6 +786,7 @@ class TestCandleWalkResolution:
             patch("app.trading.orchestrator.Database.get_session", return_value=mock_session),
             patch("app.routes.strategy.get_candles_df", new_callable=AsyncMock, return_value=candles),
             patch("app.trading.orchestrator.notifier.notify_position_closed", new_callable=AsyncMock),
+            patch("app.trading.orchestrator.RedisClient.get_json", new_callable=AsyncMock, return_value={"market_state": "TRENDING"}),
         ):
             await orch.check_open_positions(config=config)
 

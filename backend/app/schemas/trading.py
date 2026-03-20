@@ -31,7 +31,8 @@ class Position(SQLModel, table=True):
 
     # Context
     conviction: int
-    market_state: str
+    market_state: str           # Market state at open
+    market_state_at_close: Optional[str] = Field(default=None)  # Market state at close
     fired_reason: str
 
     # Timing

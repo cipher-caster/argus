@@ -33,12 +33,20 @@ class SignalLog(SQLModel, table=True):
     fired_at: int = Field(sa_type=BigInteger)  # Epoch milliseconds
 
     # Source
-    source: str = Field(default="live", index=True)  # "live" | "backtest"
+    source: str = Field(default="live", index=True)  # "live" | "backtest" | "scanner"
 
     # Outcome
-    outcome: str = Field(default="OPEN")       # "OPEN" | "WIN" | "LOSS" | "REVIEW"
+    outcome: str = Field(default="OPEN")       # "OPEN" | "WIN" | "LOSS" | "REVIEW" | "REJECTED"
     resolved_at: Optional[int] = Field(default=None, sa_type=BigInteger)
     resolved_price: Optional[float] = Field(default=None)
+
+    # Resolution-time context (populated when outcome != OPEN)
+    regime_at_resolution: Optional[str] = Field(default=None)    # Market state when resolved
+    btc_price_at_resolution: Optional[float] = Field(default=None) # BTC price when resolved
+    time_to_resolution_ms: Optional[int] = Field(default=None, sa_type=BigInteger)  # resolved_at - fired_at
+
+    # Rejection tracking (populated when outcome = REJECTED)
+    rejection_reason: Optional[str] = Field(default=None)  # e.g. "low_conviction", "exposure_cap", "stablecoin_vol_gate"
 
     __table_args__ = (
         # Partial unique index: only one OPEN signal per symbol+direction at a time

@@ -374,9 +374,14 @@ export interface SignalLogItem {
   fired_reason: string;
   fired_at: number;
   source: "live" | "scanner" | "backtest";
-  outcome: "OPEN" | "WIN" | "LOSS" | "REVIEW";
+  outcome: "OPEN" | "WIN" | "LOSS" | "REVIEW" | "REJECTED";
   resolved_at: number | null;
   resolved_price: number | null;
+  // Resolution-time context (v0.9.1)
+  regime_at_resolution: string | null;
+  btc_price_at_resolution: number | null;
+  time_to_resolution_ms: number | null;
+  rejection_reason: string | null;
 }
 
 export interface SignalLogSummary {
@@ -385,6 +390,7 @@ export interface SignalLogSummary {
   win: number;
   loss: number;
   review: number;
+  rejected: number | null;
   win_rate: number | null;
 }
 

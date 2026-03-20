@@ -126,7 +126,7 @@ From signal_log.data:
 If any OPEN signals exist for this coin:
   Active: {direction} | Entry {entry} | TP {tp} (+X%) | SL {sl} (-X%) | Conviction {conviction}/100 | Fired {time since fired_at}
 If recent closed signals (WIN/LOSS):
-  Recent: {direction} {outcome} | Entry {entry} → Resolved @ {resolved_price} | {time since fired_at}
+  Recent: {direction} {outcome} | Entry {entry} → Resolved @ {resolved_price} | Regime at resolution: {regime_at_resolution} | Time to resolve: {time_to_resolution_ms/3600000:.1f}h
   Track Record: {summary.win_rate}% WR ({summary.win}W / {summary.loss}L)
 If no signals: "No signal log entries for {BASE} yet"
 

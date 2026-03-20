@@ -1,7 +1,7 @@
 "use client";
 
 import { cn } from "@/lib/utils";
-import { BarChart3, History, Info, Sparkles } from "lucide-react";
+import { History, Info, Sparkles } from "lucide-react";
 import dynamic from "next/dynamic";
 import { useState } from "react";
 
@@ -13,16 +13,11 @@ const SignalLog = dynamic(() => import("@/components/analytics").then((mod) => (
   loading: () => <div className="h-[400px] flex items-center justify-center text-muted-foreground">Loading Signal Log…</div>,
 });
 
-const BacktestPerformance = dynamic(() => import("@/components/analytics/BacktestPerformance").then((m) => ({ default: m.BacktestPerformance })), {
-  loading: () => <div className="h-[400px] flex items-center justify-center text-muted-foreground">Loading Backtest Performance…</div>,
-});
-
-type ChartType = "best-setups" | "signal-log" | "backtest";
+type ChartType = "best-setups" | "signal-log";
 
 const MENU_ITEMS: { id: ChartType; label: string; icon: any }[] = [
   { id: "best-setups", label: "Best Setups", icon: Sparkles },
   { id: "signal-log", label: "Signal Log", icon: History },
-  { id: "backtest", label: "Backtest", icon: BarChart3 },
 ];
 
 const CHART_INFO: Record<ChartType, { title: string; description: string }> = {
@@ -32,11 +27,7 @@ const CHART_INFO: Record<ChartType, { title: string; description: string }> = {
   },
   "signal-log": {
     title: "Signal Log",
-    description: "Track record for all logged signals across 3 sources: Live (4H candle close), Scanner (best-setups snapshots), Backtest (historical replay). Each resolves as WIN, LOSS, or REVIEW (7d). Shows fired and resolved timestamps for verification.",
-  },
-  "backtest": {
-    title: "Backtest",
-    description: "Historical backtest results across all tracked coins. Win rates, R-profit, and per-coin breakdown from 1 year of 4H data.",
+    description: "Track record for all logged signals across 3 sources: Live (4H candle close), Scanner (best-setups snapshots), Backtest (historical replay). Each resolves as WIN, LOSS, REVIEW (7d), or REJECTED. Shows fired/resolved timestamps, regime changes, and BTC price at resolution.",
   },
 };
 
@@ -119,7 +110,6 @@ export default function AnalyticsPage() {
           <div className="p-6 md:p-8">
             {activeTab === "best-setups" && <BestSetups timeframe={timeframe} />}
             {activeTab === "signal-log" && <SignalLog />}
-            {activeTab === "backtest" && <BacktestPerformance />}
           </div>
         </div>
       </div>

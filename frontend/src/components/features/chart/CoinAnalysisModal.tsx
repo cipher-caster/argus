@@ -193,6 +193,7 @@ const OUTCOME_STYLE = {
   LOSS: "text-red-500 bg-red-500/10",
   REVIEW: "text-amber-500 bg-amber-500/10",
   OPEN: "text-sky-500 bg-sky-500/10",
+  REJECTED: "text-zinc-500 bg-zinc-500/10",
 } as const;
 
 function SignalTrackRecord({ symbol, currentPrice }: { symbol: string; currentPrice: number }) {

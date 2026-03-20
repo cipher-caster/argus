@@ -113,10 +113,15 @@ class SignalLogItem(BaseModel):
     market_state: str
     fired_reason: str
     fired_at: int           # epoch ms
-    source: str = "live"   # "live" | "backtest"
-    outcome: str            # OPEN | WIN | LOSS | REVIEW
+    source: str = "live"   # "live" | "backtest" | "scanner"
+    outcome: str            # OPEN | WIN | LOSS | REVIEW | REJECTED
     resolved_at: Optional[int] = None
     resolved_price: Optional[float] = None
+    # Resolution-time context (v0.9.1)
+    regime_at_resolution: Optional[str] = None
+    btc_price_at_resolution: Optional[float] = None
+    time_to_resolution_ms: Optional[int] = None
+    rejection_reason: Optional[str] = None
 
 class SignalLogSummary(BaseModel):
     total: int
@@ -124,6 +129,7 @@ class SignalLogSummary(BaseModel):
     win: int
     loss: int
     review: int
+    rejected: Optional[int] = None
     win_rate: Optional[float] = None   # WIN / (WIN + LOSS), None if no closed trades
 
 class SignalLogResponse(BaseModel):

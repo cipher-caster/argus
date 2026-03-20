@@ -12,41 +12,59 @@ This document provides context for continuing development on Argus.
 - **Frontend**: Next.js 14 App Router, TanStack Query v5, Zustand, Tailwind CSS + Shadcn UI
 - **Data**: Binance via CCXT, CoinGecko for metadata
 
-## Current State (v0.6.1)
+## Current State (v0.9.1)
 
 ### What's Working
 
 - **`/` Dashboard**:
-  - `DashboardStatusBar` — Oracle market state, bull/bear %, top signals, Avg RSI, Market Cap, BTC Dominance
-  - `ActiveSetups` — top 5 Best Setups (Oracle + Titan aligned, 4H)
+  - `DashboardStatusBar` — BTC regime (BEAR/BULL), bull/bear %, top signals, Avg RSI, Market Cap, BTC Dominance
+  - `BestSetups` — high-conviction Titan signals with regime filtering
   - `BTCCard` — BTC price, 24h change, 7d sparkline, high/low
-  - `DashboardWatchlist` — starred coins with live prices and Oracle score badge
+  - `DashboardWatchlist` — starred coins with live prices and Titan signal badge
   - `TopMovers` — gainers and losers compact chip rows
 
-- **`/markets` page**: Full 50-coin CoinTable with sort, pagination, Oracle score badge
+- **`/markets` page**: Full 388-coin CoinTable with sort, pagination, search, sparklines
+
+- **`/markets/[type]` page**: Category views (gainers, losers, volume) with sort defaults
 
 - **`/chart/[symbol]` Chart page**:
   - TradingView Lightweight Charts candlestick chart
   - Timeframes: 1m, 5m, 15m, 1h, 4h, 12h, 1d, 1w
   - Indicators: EMA, SMA, BBands (overlay), RSI, MACD, OBV (separate panes)
   - Watchlist with search and drag-drop reordering
-  - `CoinDetailsPanel`: Oracle Earnest Score, macro Bias, Titan signal + advice
+  - `CoinDetailsPanel`: regime, Titan signal + advice
+  - `CoinSignalIntel`: backtest stats + open signals per coin
+  - `CoinAnalysisModal`: deep analysis with signal track record
 
 - **`/analytics` page** (5 tabs):
-  - Oracle Screener (Earnest score, bias, state per coin)
-  - Titan Signals (Titan radar scanner)
-  - Titan Scanner (full Titan analysis table)
-  - Contrarian Radar (ATR mean reversion)
-  - Relative Strength (vs BTC benchmark)
-  - Best Setups (Oracle + Titan high-conviction filter with win rate + MTF confluence)
+  - Best Setups (Titan regime-filtered, conviction + win rate + MTF confluence)
+  - Screener (Oracle Earnest score, bias, state per coin)
+  - Signal Log (live/scanner/backtest source filter, per-signal outcome tracking)
+  - Backtest Performance (per-coin win rate / R-multiples)
+  - Titan Radar (current Titan signals)
 
-- **Strategies**:
-  - Oracle Prophet v9.0 (Earnest Brain -4/+4 + Daily macro filter)
-  - Titan Unified System (trend + momentum, BUY/SELL/WAIT signals)
-  - Live backtesting (2:1 RR, win rate displayed on Best Setups cards)
-  - Eliz+Mayne MTF confluence (4H/1D/12H/1W Titan confirmation)
+- **`/trading` page**:
+  - Portfolio summary (balance, PnL, unrealized, exposure)
+  - Active positions table with live PnL
+  - Trade history with outcome badges
+  - Equity curve chart
+  - Risk settings panel (position size, max DD, conviction threshold)
+  - Activity feed (system events)
 
-- **Test Suite**: 119 backend pytest tests across oracle, titan, analytics, market, worker, screener
+- **Paper Trading Engine**:
+  - Signal → Position lifecycle (PENDING → OPEN → CLOSED)
+  - Risk manager (drawdown, conviction, correlated, min order size)
+  - Position sizing (2% risk per trade, 2:1 RR)
+  - TP/SL hit detection via candle walk
+  - Manual close and close-all
+
+- **Signal Pipeline**:
+  - Worker scans watchlist at 4H candle close with regime-based filtering
+  - Scanner logs best setups from Titan radar
+  - Outcome resolution via candle walk (WIN/LOSS/REVIEW)
+  - Signal log config (watchlist, confidence threshold, market gates)
+
+- **Test Suite**: 229 backend pytest tests across all modules
 
 ## How to Run
 
@@ -66,16 +84,25 @@ Database: `postgresql://argus:argus_password@localhost:5433/argus_db`
 | File | Purpose |
 |---|---|
 | `main.py` | FastAPI app entry, router setup |
-| `routes/analytics.py` | All analytics endpoints |
-| `routes/strategy.py` | Oracle + Titan strategy endpoints |
+| `routes/analytics.py` | Analytics endpoints (screener, signal-log, best-setups, titan-radar) |
+| `routes/strategy.py` | Oracle + Titan strategy endpoints, candle data |
+| `routes/trading.py` | Trading API (portfolio, positions, history, config, close) |
+| `routes/market.py` | Market data (ohlcv, tickers, coins, summary) |
+| `routes/indicators.py` | Indicator calculation + dashboard |
+| `routes/system.py` | Activity log |
+| `jobs/signal_log.py` | Worker: signal logging + outcome resolution |
 | `strategies/oracle.py` | Oracle Prophet v9.0 |
 | `strategies/titan.py` | Titan Unified System |
+| `trading/orchestrator.py` | Trade lifecycle (signal → position → close) |
+| `trading/risk_manager.py` | Risk gates (drawdown, conviction, correlated) |
+| `trading/portfolio.py` | Balance tracking, equity curve, stats |
+| `trading/backtest.py` | Backtest engine |
 | `indicators/screener.py` | Oracle screener batch runner |
-| `indicators/mean_reversion.py` | Contrarian Radar logic |
-| `indicators/relative_strength.py` | Relative Strength vs BTC |
 | `services/market_data.py` | Cache-aware data fetching |
 | `providers/binance_provider.py` | CCXT Binance wrapper |
-| `schemas/analytics.py` | Pydantic models for all analytics |
+| `schemas/signal_log.py` | SignalLog SQLModel |
+| `schemas/trading.py` | Position + TradeEvent SQLModels |
+| `schemas/analytics.py` | Pydantic response models |
 | `exceptions.py` | Custom exception hierarchy |
 
 ### Frontend (`/frontend/src/`)
@@ -84,14 +111,19 @@ Database: `postgresql://argus:argus_password@localhost:5433/argus_db`
 |---|---|
 | `app/page.tsx` | Dashboard |
 | `app/markets/page.tsx` | Full coin table |
+| `app/markets/[type]/page.tsx` | Category pages (gainers/losers/volume) |
 | `app/chart/[symbol]/page.tsx` | Chart view |
 | `app/analytics/page.tsx` | Analytics tabs |
-| `components/features/dashboard/` | Dashboard components |
-| `components/analytics/BestSetups.tsx` | Best Setups cards |
-| `components/analytics/OracleScreener.tsx` | Screener table |
-| `hooks/useAnalyticsData.ts` | TanStack Query analytics hooks |
-| `lib/api.ts` | All API types + fetch functions |
-| `stores/` | Zustand stores (theme, indicators, watchlist, chart) |
+| `app/trading/page.tsx` | Trading dashboard |
+| `components/trading/` | Portfolio, Positions, History, EquityCurve, Config, ActivityFeed |
+| `components/analytics/` | BestSetups, SignalLog, BacktestPerformance |
+| `components/features/dashboard/` | Dashboard widgets |
+| `hooks/useAnalyticsData.ts` | Analytics API hooks |
+| `hooks/useTradingData.ts` | Trading API hooks |
+| `hooks/useMarketOverview.ts` | Market data hooks |
+| `lib/api.ts` | API types + fetch functions |
+| `lib/marketApi.ts` | Market-specific API functions |
+| `stores/` | Zustand stores |
 
 ## Development Guidelines
 
@@ -105,7 +137,7 @@ Database: `postgresql://argus:argus_password@localhost:5433/argus_db`
 
 ```bash
 # Backend
-docker compose exec backend pytest -v
+docker compose exec -e PYTHONPATH=/app backend pytest -v
 
 # Type check frontend
 cd frontend && npx tsc --noEmit

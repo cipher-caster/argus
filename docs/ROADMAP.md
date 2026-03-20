@@ -139,18 +139,26 @@
 - [ ] Phase B: E2E data rendering, trading page, error resilience (~18 tests)
 - [ ] Phase C: API contract snapshot tests (~6 tests)
 
-### Phase 18: Analytics Page Redesign — Trading Performance Intelligence
-- [ ] Audit trade logs (Position/TradeEvent) for missing context (market condition, conviction, signal scores at entry, which risk gates passed/failed)
-- [ ] Enrich trade logging with entry-time context so we can learn *why* trades won or lost
+### Phase 18: Data Model for Learning from Trades
+- [ ] Add `regime_at_resolution` + `btc_price_at_resolution` to SignalLog schema — capture market context when a signal resolves, not just when it fires
+- [ ] Log rejected signals — persist to signal_log with `outcome: "REJECTED"` and `rejection_reason` field (low_conviction, exposure_cap, stablecoin_vol_gate, etc.)
+- [ ] Add `market_state_at_close` to Position schema — regime may change between open and close
+- [ ] Expand TradeEvent types — add FILLED, PENDING, RISK_REJECTED alongside existing TP_HIT/SL_HIT
+- [ ] Add `time_to_resolution_ms` to SignalLog — fast resolution = strong signal, useful for learning
+- [ ] Build signal→position analytics — join signal outcomes to actual position P&L for "did the signal win AND did we make money?"
+
+### Phase 19: Analytics Page Redesign — Trading Performance Intelligence
+- [ ] Remove redundant "Backtest" tab — it's just SignalLog filtered to `source=backtest`, already covered by SignalLog's source filter ✓
+- [ ] Persist signal-outcomes snapshots (daily) — current `GET /api/analytics/signal-outcomes` computes on-the-fly. Need a periodic job (cron/daily) that snapshots win rate by regime, conviction band stats, rejection counts to a DB table so we can track trends over time (e.g. "win rate by regime last week vs this week")
 - [ ] Redesign analytics page around trading performance (not signal browsing)
   - Win rate breakdown by strategy / coin / market condition
   - PnL curve and drawdown tracking over time
   - Risk gate audit: which gates are firing, are they helping or blocking good trades?
-  - Signal quality trends over time
-- [ ] Evaluate current panels: keep Signal Log + Backtest Performance (Contrarian Radar already removed in v0.9.0)
+  - Signal quality trends over time (conviction vs outcome correlation)
+  - Rejected signal analysis — how many, why, did any go on to win?
 - [ ] Dashboard for user (mjm) to observe AI trader performance at a glance
 
-**Goal:** The analytics page should serve two audiences — Claude as the AI trader (feedback loop to improve), and the user as the observer (visibility into how trading is going). Current page is designed for a human browsing signals, which is no longer the primary use case.
+**Goal:** The analytics page should serve two audiences — Claude as the AI trader (feedback loop to improve), and the user as the observer (visibility into how trading is going). Current page is designed for a human browsing signals, which is no longer the primary use case. The data model needs to capture resolution-time context so we can actually learn what works.
 
 ### Phase 19: Advanced Features
 - [ ] Price alerts / push notifications

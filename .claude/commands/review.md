@@ -72,10 +72,13 @@ Check signal flow end-to-end. Deploy an agent to run these:
 | Backtest signals | {N} | {OK / note} |
 | Live signals (OPEN) | {N} | {OK if >0, WARN if 0} |
 | Scanner signals (OPEN) | {N} | {OK if >0, WARN if 0} |
+| Rejected signals | {N} | {OK — learning data} |
 | Resolved (W/L/R) | {W}/{L}/{R} | WR: {X}% |
 | Paper positions | {N open} / {N pending} | {OK / WARN} |
 | Closed trades | {N} | WR: {X}% |
 | Optimization experiments | {N} | Last: {date} |
+
+**Resolution context captured:** regime_at_resolution, btc_price_at_resolution, time_to_resolution_ms — check a sample of resolved signals to verify these are populated.
 
 **Pipeline verdict:** {HEALTHY / PARTIAL / BROKEN — one sentence}
 ```
