@@ -64,7 +64,7 @@ This document provides context for continuing development on Argus.
   - Outcome resolution via candle walk (WIN/LOSS/REVIEW)
   - Signal log config (watchlist, confidence threshold, market gates)
 
-- **Test Suite**: 229 backend pytest tests across all modules
+- **Test Suite**: 254 backend pytest tests across all modules
 
 ## How to Run
 

@@ -197,12 +197,107 @@ def resolve_outcome(
             sl_hit = h >= sl
             tp_hit = l <= tp
 
+        if sl_hit and tp_hit:
+            return "LOSS", float(sl), int(candle["ts_ms"])
         if sl_hit:
             return "LOSS", float(sl), int(candle["ts_ms"])
         if tp_hit:
             return "WIN", float(tp), int(candle["ts_ms"])
 
     return "REVIEW", None, None
+
+
+async def resolve_outcome_with_tiebreaker(
+    df_4h: pd.DataFrame,
+    entry_idx: int,
+    direction: str,
+    tp: float,
+    sl: float,
+    symbol: str,
+    max_hold: int = 42,
+) -> tuple:
+    """
+    Like resolve_outcome but uses 5min candles to break same-candle TP+SL ties.
+    Falls back to conservative LOSS if 5min data is unavailable.
+    Returns (outcome, resolved_price, resolved_ts_ms).
+    """
+    for j in range(entry_idx + 1, min(entry_idx + 1 + max_hold, len(df_4h))):
+        candle = df_4h.iloc[j]
+        h, l = candle["high"], candle["low"]
+        c_ts_ms = int(candle["ts_ms"])
+
+        if direction == "LONG":
+            sl_hit = l <= sl
+            tp_hit = h >= tp
+        else:
+            sl_hit = h >= sl
+            tp_hit = l <= tp
+
+        if sl_hit and tp_hit:
+            # Both hit in same 4H candle — fetch 5min to determine order
+            tiebreak = await _tiebreaker_5m_from_db(
+                symbol, direction, tp, sl, c_ts_ms,
+            )
+            return tiebreak["outcome"], tiebreak["resolved_price"], tiebreak["resolved_at_ms"]
+
+        if sl_hit:
+            return "LOSS", float(sl), c_ts_ms
+        if tp_hit:
+            return "WIN", float(tp), c_ts_ms
+
+    return "REVIEW", None, None
+
+
+async def _tiebreaker_5m_from_db(
+    symbol: str,
+    direction: str,
+    tp: float,
+    sl: float,
+    candle_open_ms: int,
+) -> dict:
+    """
+    Load 5min candles from DB for the given 4H window and walk them
+    to determine which level (TP or SL) was hit first.
+    Falls back to LOSS (conservative) if 5min data is unavailable.
+    """
+    candle_close_ms = candle_open_ms + 4 * 60 * 60 * 1000
+
+    try:
+        df_5m = await load_candles(symbol, "5m")
+        if df_5m.empty:
+            return {"outcome": "LOSS", "resolved_price": sl, "resolved_at_ms": candle_open_ms}
+
+        start_ts = pd.Timestamp(candle_open_ms, unit="ms", tz="UTC")
+        end_ts = pd.Timestamp(candle_close_ms, unit="ms", tz="UTC")
+        mask = (df_5m["timestamp"] >= start_ts) & (df_5m["timestamp"] <= end_ts)
+        candles_5m = df_5m[mask].sort_values("timestamp")
+
+        if candles_5m.empty:
+            return {"outcome": "LOSS", "resolved_price": sl, "resolved_at_ms": candle_open_ms}
+
+        for _, c in candles_5m.iterrows():
+            c_high = float(c["high"])
+            c_low = float(c["low"])
+            c_time = int(c["ts_ms"])
+
+            if direction == "LONG":
+                sl_first = c_low <= sl
+                tp_first = c_high >= tp
+            else:
+                sl_first = c_high >= sl
+                tp_first = c_low <= tp
+
+            if sl_first and tp_first:
+                continue  # ambiguous in same 5m candle — check next
+            if sl_first:
+                return {"outcome": "LOSS", "resolved_price": sl, "resolved_at_ms": c_time}
+            if tp_first:
+                return {"outcome": "WIN", "resolved_price": tp, "resolved_at_ms": c_time}
+
+    except Exception:
+        pass
+
+    return {"outcome": "LOSS", "resolved_price": sl, "resolved_at_ms": candle_open_ms}
 
 
 def derive_market_state(row: pd.Series) -> str:
@@ -363,8 +458,8 @@ async def backtest_symbol(
         conviction = int(min(100, oracle_pts + titan_pts + bonus))
 
         # --- Resolve outcome ---
-        outcome, resolved_price, resolved_ts_ms = resolve_outcome(
-            df_4h, i, direction, tp, sl, config.max_hold_candles
+        outcome, resolved_price, resolved_ts_ms = await resolve_outcome_with_tiebreaker(
+            df_4h, i, direction, tp, sl, symbol, config.max_hold_candles,
         )
 
         db_symbol = symbol.replace("/", "")

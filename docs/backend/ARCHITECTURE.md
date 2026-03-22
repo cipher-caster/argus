@@ -94,7 +94,7 @@ All background jobs are registered with the arq worker (`backend/app/worker.py`)
 | `sync_analytics_cache` | Every 5min (offset +2min) | Pre-warm `best-setups` cache so dashboard loads instantly. |
 | `log_watchlist_setups` | 4H candle closes +3min (00:03, 04:03, …, 20:03 UTC) | Run Titan on watchlist (BTC/ETH/BNB), filter by regime (BULL→LONG, BEAR→SHORT), log to `signal_log` table with `source='live'`. Deduplicates via partial unique index. |
 | `log_best_setups` | Every 5min (+3min offset) | Read cached best-setups, persist qualifying signals (conviction >= 60) as `source='scanner'`. Cheap Redis read + batch insert. |
-| `resolve_signal_outcomes` | Every 30min | Walk 4H candles from `fired_at` to resolve OPEN signals as WIN/LOSS/REVIEW. Uses candle high/low for TP/SL ordering. |
+| `resolve_signal_outcomes` | Every 30min | Walk 4H candles from `fired_at` to resolve OPEN signals as WIN/LOSS/REVIEW. Uses candle high/low for TP/SL ordering. When both hit in same 4H candle, fetches 5min candles to determine exact ordering. |
 | `execute_signals` | Every 10min | Pick up unprocessed OPEN signals (live + scanner) and create PENDING paper trade positions via TradeOrchestrator. |
 | `manage_positions` | Every 5min | Check pending fills (price reached entry?), check TP/SL hits via candle walk, run circuit breaker. |
 | `sync_trading_balance` | Every 10min | Cache portfolio balance in Redis for quick API access. |
@@ -143,18 +143,19 @@ PENDING  →  OPEN  →  CLOSED
 
 ## Testing Strategy
 
-**216 backend tests** (pytest) organized by module:
+**254 backend tests** (pytest) organized by module:
 
 | Test File | Tests | Coverage |
 |-----------|-------|----------|
 | `test_oracle.py` | 30 | Oracle voters, signal synthesis, analyze integration |
 | `test_titan.py` | 20 | Titan trend/momentum signals, indicator edge cases |
-| `test_signal_log.py` | 28 | Market gate, config, Redis helpers, watchlist/scanner insert, outcome resolution |
+| `test_signal_log.py` | 37 | Market gate, config, Redis helpers, watchlist/scanner insert, outcome resolution, 5min tiebreaker |
+| `test_backtest_tiebreaker.py` | 11 | 5min candle tiebreaker (DB-backed), async resolver with tiebreaker, sync backward compat |
 | `test_trading.py` | 42 | RiskManager gates, position sizing, PnL math, orchestrator cycle |
 | `test_trading_routes.py` | 18 | All 9 trading API endpoints (portfolio, positions, history, config, close, pause, stats) |
 | `test_indicator_routes.py` | 10 | Indicator list/calculate, market dashboard, activity log |
 | `test_analytics_*.py` | 30+ | Screener, analytics expansion, best setups |
-| Others | 38+ | Market, worker, error handling, mean reversion, calculator |
+| Others | 56+ | Market, worker, error handling, mean reversion, calculator, API edge cases |
 
 - **E2E (Playwright)**: Verifies that the Frontend correctly displays data fed by the Worker.
 - **Unit Tests**: Pure function tests (market gate, conviction math) + mocked integration tests (DB sessions, Redis cache).

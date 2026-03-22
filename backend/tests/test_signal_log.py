@@ -545,3 +545,293 @@ class TestResolveOutcomesPositionBridge:
 
         assert sig.outcome == "WIN"
         assert sig.resolved_price == sig.tp
+
+
+# ---------------------------------------------------------------------------
+# TestTiebreaker5m — 5min candle tiebreaker for same-candle TP+SL hits
+# ---------------------------------------------------------------------------
+
+class TestTiebreaker5m:
+    """Tests for _resolve_tiebreaker_5m — determines TP/SL ordering via 5min candles."""
+
+    def _make_5m_df(self, candle_open_ms, rows):
+        """
+        Build a 5min candle DataFrame.
+        rows: list of (offset_ms, high, low) relative to candle_open_ms
+        """
+        import pandas as pd
+        data = []
+        for offset_ms, high, low in rows:
+            ts_ms = candle_open_ms + offset_ms
+            data.append({
+                "timestamp": pd.Timestamp(ts_ms, unit="ms"),
+                "open": 0, "high": high, "low": low, "close": 0, "volume": 0,
+            })
+        return pd.DataFrame(data)
+
+    @pytest.mark.asyncio
+    @patch("app.routes.strategy.get_candles_df", new_callable=AsyncMock)
+    async def test_tp_hit_first_returns_win(self, mock_candles):
+        """5min candles show TP hit before SL → WIN at TP price."""
+        from app.jobs.signal_log import _resolve_tiebreaker_5m
+
+        candle_open_ms = 1700000000000
+        # LONG signal: tp=110, sl=90
+        # First 5m: high=105, low=95 (neither hit)
+        # Second 5m: high=112 (TP hit!), low=98
+        mock_candles.return_value = self._make_5m_df(candle_open_ms, [
+            (0, 105.0, 95.0),
+            (300000, 112.0, 98.0),
+            (600000, 108.0, 88.0),  # SL hit after TP
+        ])
+
+        result = await _resolve_tiebreaker_5m(
+            "BTCUSDT", "LONG", 110.0, 90.0, candle_open_ms, MagicMock(),
+        )
+        assert result["outcome"] == "WIN"
+        assert result["resolved_price"] == 110.0
+        assert result["resolved_at_ms"] == candle_open_ms + 300000
+
+    @pytest.mark.asyncio
+    @patch("app.routes.strategy.get_candles_df", new_callable=AsyncMock)
+    async def test_sl_hit_first_returns_loss(self, mock_candles):
+        """5min candles show SL hit before TP → LOSS at SL price."""
+        from app.jobs.signal_log import _resolve_tiebreaker_5m
+
+        candle_open_ms = 1700000000000
+        # LONG signal: tp=110, sl=90
+        # First 5m: high=105, low=88 (SL hit!)
+        mock_candles.return_value = self._make_5m_df(candle_open_ms, [
+            (0, 105.0, 88.0),
+            (300000, 112.0, 85.0),
+        ])
+
+        result = await _resolve_tiebreaker_5m(
+            "BTCUSDT", "LONG", 110.0, 90.0, candle_open_ms, MagicMock(),
+        )
+        assert result["outcome"] == "LOSS"
+        assert result["resolved_price"] == 90.0
+        assert result["resolved_at_ms"] == candle_open_ms
+
+    @pytest.mark.asyncio
+    @patch("app.routes.strategy.get_candles_df", new_callable=AsyncMock)
+    async def test_short_tp_hit_first_returns_win(self, mock_candles):
+        """SHORT: 5min candles show TP hit before SL → WIN."""
+        from app.jobs.signal_log import _resolve_tiebreaker_5m
+
+        candle_open_ms = 1700000000000
+        # SHORT signal: tp=90, sl=110
+        # First 5m: low=88 (TP hit for SHORT), high=105
+        mock_candles.return_value = self._make_5m_df(candle_open_ms, [
+            (0, 105.0, 88.0),
+            (300000, 112.0, 85.0),
+        ])
+
+        result = await _resolve_tiebreaker_5m(
+            "BTCUSDT", "SHORT", 90.0, 110.0, candle_open_ms, MagicMock(),
+        )
+        assert result["outcome"] == "WIN"
+        assert result["resolved_price"] == 90.0
+
+    @pytest.mark.asyncio
+    @patch("app.routes.strategy.get_candles_df", new_callable=AsyncMock)
+    async def test_short_sl_hit_first_returns_loss(self, mock_candles):
+        """SHORT: 5min candles show SL hit before TP → LOSS."""
+        from app.jobs.signal_log import _resolve_tiebreaker_5m
+
+        candle_open_ms = 1700000000000
+        # SHORT signal: tp=90, sl=110
+        # First 5m: high=112 (SL hit for SHORT), low=100
+        mock_candles.return_value = self._make_5m_df(candle_open_ms, [
+            (0, 112.0, 100.0),
+            (300000, 108.0, 88.0),
+        ])
+
+        result = await _resolve_tiebreaker_5m(
+            "BTCUSDT", "SHORT", 90.0, 110.0, candle_open_ms, MagicMock(),
+        )
+        assert result["outcome"] == "LOSS"
+        assert result["resolved_price"] == 110.0
+
+    @pytest.mark.asyncio
+    @patch("app.routes.strategy.get_candles_df", new_callable=AsyncMock)
+    async def test_no_5m_data_falls_back_to_loss(self, mock_candles):
+        """No 5min candles available → conservative LOSS fallback."""
+        from app.jobs.signal_log import _resolve_tiebreaker_5m
+
+        import pandas as pd
+        mock_candles.return_value = pd.DataFrame()
+
+        result = await _resolve_tiebreaker_5m(
+            "BTCUSDT", "LONG", 110.0, 90.0, 1700000000000, MagicMock(),
+        )
+        assert result["outcome"] == "LOSS"
+        assert result["resolved_price"] == 90.0
+
+    @pytest.mark.asyncio
+    @patch("app.routes.strategy.get_candles_df", new_callable=AsyncMock)
+    async def test_fetch_error_falls_back_to_loss(self, mock_candles):
+        """5min fetch throws exception → conservative LOSS fallback."""
+        from app.jobs.signal_log import _resolve_tiebreaker_5m
+
+        mock_candles.side_effect = Exception("API error")
+
+        result = await _resolve_tiebreaker_5m(
+            "BTCUSDT", "LONG", 110.0, 90.0, 1700000000000, MagicMock(),
+        )
+        assert result["outcome"] == "LOSS"
+        assert result["resolved_price"] == 90.0
+
+    @pytest.mark.asyncio
+    @patch("app.routes.strategy.get_candles_df", new_callable=AsyncMock)
+    async def test_both_hit_same_5m_candle_continues(self, mock_candles):
+        """If both hit in same 5m candle, keep walking — next candle resolves."""
+        from app.jobs.signal_log import _resolve_tiebreaker_5m
+
+        candle_open_ms = 1700000000000
+        # First 5m: both hit (skip), second 5m: only TP hit
+        mock_candles.return_value = self._make_5m_df(candle_open_ms, [
+            (0, 112.0, 88.0),       # both hit — ambiguous, skip
+            (300000, 112.0, 95.0),  # TP hit, SL not hit
+        ])
+
+        result = await _resolve_tiebreaker_5m(
+            "BTCUSDT", "LONG", 110.0, 90.0, candle_open_ms, MagicMock(),
+        )
+        assert result["outcome"] == "WIN"
+        assert result["resolved_at_ms"] == candle_open_ms + 300000
+
+
+# ---------------------------------------------------------------------------
+# TestResolveOutcomesTiebreaker — integration: 4H resolution uses tiebreaker
+# ---------------------------------------------------------------------------
+
+class TestResolveOutcomesTiebreaker:
+    """Integration tests: resolve_outcomes_historical calls tiebreaker on same-candle TP+SL."""
+
+    def _make_signal(self, **overrides):
+        sig = MagicMock()
+        sig.id = 200
+        sig.symbol = "ETHUSDT"
+        sig.direction = "LONG"
+        sig.fired_at = 1700000000000
+        sig.entry = 3000.0
+        sig.tp = 3200.0
+        sig.sl = 2800.0
+        sig.outcome = "OPEN"
+        sig.resolved_at = None
+        sig.resolved_price = None
+        sig.regime_at_resolution = None
+        sig.btc_price_at_resolution = None
+        sig.time_to_resolution_ms = None
+        for k, v in overrides.items():
+            setattr(sig, k, v)
+        return sig
+
+    def _candle_df_both_hit(self, fired_at_ms):
+        """4H candles where both TP and SL are hit in the same candle."""
+        import pandas as pd
+        return pd.DataFrame({
+            "timestamp": pd.to_datetime([fired_at_ms, fired_at_ms + 14400000], unit="ms"),
+            "open": [3000.0, 3100.0],
+            "high": [3100.0, 3250.0],   # high >= tp (3200)
+            "low": [2900.0, 2750.0],    # low <= sl (2800)
+            "close": [3100.0, 3050.0],
+            "volume": [100.0, 100.0],
+        })
+
+    def _make_5m_df_tiebreak(self, candle_open_ms):
+        """5min candles where TP is hit before SL within the 4H window."""
+        import pandas as pd
+        return pd.DataFrame({
+            "timestamp": pd.to_datetime([
+                candle_open_ms,
+                candle_open_ms + 300000,
+                candle_open_ms + 600000,
+            ], unit="ms"),
+            "open": [3100.0, 3150.0, 3210.0],
+            "high": [3120.0, 3180.0, 3220.0],   # 3rd: high=3220 >= tp=3200
+            "low": [3050.0, 3100.0, 3150.0],    # never hits sl=2800
+            "close": [3150.0, 3180.0, 3210.0],
+            "volume": [10.0, 10.0, 10.0],
+        })
+
+    @pytest.mark.asyncio
+    @patch("app.providers.get_provider")
+    @patch("app.jobs.signal_log._get_market_state", new_callable=AsyncMock, return_value="BULL")
+    @patch("app.jobs.signal_log._get_config", new_callable=AsyncMock)
+    @patch("app.jobs.signal_log.Database")
+    async def test_same_candle_tp_sl_uses_tiebreaker(self, mock_db, mock_cfg, mock_ms, mock_provider):
+        """When both TP+SL hit in same 4H candle, tiebreaker determines outcome."""
+        mock_cfg.return_value = {"review_days": 7}
+        mock_provider.return_value = AsyncMock()
+
+        sig = self._make_signal()
+        candle_open_ms = sig.fired_at + 14400000  # second candle
+
+        mock_session = AsyncMock()
+        sig_result = MagicMock()
+        sig_result.scalars.return_value.all.return_value = [sig]
+        no_pos_result = MagicMock()
+        no_pos_result.scalars.return_value.first.return_value = None
+
+        mock_session.execute = AsyncMock(side_effect=[sig_result, no_pos_result])
+        mock_db.get_session.return_value.__aenter__ = AsyncMock(return_value=mock_session)
+        mock_db.get_session.return_value.__aexit__ = AsyncMock(return_value=False)
+
+        candle_df = self._candle_df_both_hit(sig.fired_at)
+        tiebreak_df = self._make_5m_df_tiebreak(candle_open_ms)
+
+        async def mock_get_candles(symbol, timeframe, limit=500, provider=None):
+            if timeframe == "5m":
+                return tiebreak_df
+            return candle_df
+
+        with patch("app.routes.strategy.get_candles_df", side_effect=mock_get_candles), \
+             patch("app.schemas.activity_log.log_activity", new_callable=AsyncMock):
+
+            from app.jobs.signal_log import resolve_outcomes_historical
+            await resolve_outcomes_historical({})
+
+        # Tiebreaker determined TP hit first → WIN
+        assert sig.outcome == "WIN"
+        assert sig.resolved_price == sig.tp
+
+    @pytest.mark.asyncio
+    @patch("app.providers.get_provider")
+    @patch("app.jobs.signal_log._get_market_state", new_callable=AsyncMock, return_value="BULL")
+    @patch("app.jobs.signal_log._get_config", new_callable=AsyncMock)
+    @patch("app.jobs.signal_log.Database")
+    async def test_tiebreaker_no_5m_data_resolves_as_loss(self, mock_db, mock_cfg, mock_ms, mock_provider):
+        """When 5min data unavailable, same-candle TP+SL falls back to conservative LOSS."""
+        mock_cfg.return_value = {"review_days": 7}
+        mock_provider.return_value = AsyncMock()
+
+        sig = self._make_signal()
+
+        mock_session = AsyncMock()
+        sig_result = MagicMock()
+        sig_result.scalars.return_value.all.return_value = [sig]
+        no_pos_result = MagicMock()
+        no_pos_result.scalars.return_value.first.return_value = None
+
+        mock_session.execute = AsyncMock(side_effect=[sig_result, no_pos_result])
+        mock_db.get_session.return_value.__aenter__ = AsyncMock(return_value=mock_session)
+        mock_db.get_session.return_value.__aexit__ = AsyncMock(return_value=False)
+
+        candle_df = self._candle_df_both_hit(sig.fired_at)
+
+        async def mock_get_candles(symbol, timeframe, limit=500, provider=None):
+            import pandas as pd
+            if timeframe == "5m":
+                return pd.DataFrame()
+            return candle_df
+
+        with patch("app.routes.strategy.get_candles_df", side_effect=mock_get_candles), \
+             patch("app.schemas.activity_log.log_activity", new_callable=AsyncMock):
+
+            from app.jobs.signal_log import resolve_outcomes_historical
+            await resolve_outcomes_historical({})
+
+        assert sig.outcome == "LOSS"
+        assert sig.resolved_price == sig.sl

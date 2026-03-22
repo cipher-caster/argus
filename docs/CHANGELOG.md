@@ -2,6 +2,29 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.9.3] - 2026-03-22 — 5min Candle Tiebreaker for Signal Resolution
+
+### Fixed
+
+- **Same-candle TP+SL resolution accuracy** — when both TP and SL are hit within the same 4H candle, the old logic used a candle-direction heuristic (bullish/bearish close) to guess which was hit first. This was unreliable and inconsistent with the backtest engine (which assumed conservative LOSS). Now both live resolution and backtest fetch **5min candles** for the 4H window and walk them chronologically to determine the exact TP/SL ordering.
+- **Live vs backtest consistency** — the live resolver and backtest engine previously used different tiebreaker logic (heuristic vs conservative). Both now use the same 5min candle walk approach, eliminating discrepancies between backtest results and live signal outcomes.
+- **`resolved_at` precision** — when a tiebreaker resolves the signal, `resolved_at` is now set to the actual 5min candle timestamp where the level was hit, not the parent 4H candle open time.
+
+### Added
+
+- `_resolve_tiebreaker_5m()` in `signal_log.py` — fetches 5min candles via `get_candles_df` for the 4H window, walks them to find which level hit first. Falls back to conservative LOSS if 5min data is unavailable.
+- `resolve_outcome_with_tiebreaker()` + `_tiebreaker_5m_from_db()` in `backtest_engine.py` — async tiebreaker that loads 5min candles from DB. Falls back to conservative LOSS if data unavailable.
+- Original sync `resolve_outcome()` preserved for backward compatibility.
+
+### Tests
+
+- 18 new tests (254 total):
+  - `TestTiebreaker5m` (7): TP-first, SL-first, LONG/SHORT directions, no-data fallback, error fallback, both-hit-same-5m-candle skip
+  - `TestResolveOutcomesTiebreaker` (2): end-to-end resolution with tiebreaker, no-data fallback
+  - `TestTiebreaker5mFromDb` (5): DB-backed tiebreaker scenarios
+  - `TestResolveOutcomeWithTiebreaker` (4): normal SL/TP, same-candle tiebreaker, REVIEW
+  - `TestResolveOutcomeSync` (2): backward compat
+
 ## [0.9.2] - 2026-03-22 — Provider Reuse, Signal-Position Bridge & Fill Rate Fix
 
 ### Fixed

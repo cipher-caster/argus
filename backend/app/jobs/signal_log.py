@@ -86,6 +86,66 @@ async def _get_oracle_score(symbol: str) -> dict:
     return {}
 
 
+async def _resolve_tiebreaker_5m(
+    symbol: str,
+    direction: str,
+    tp: float,
+    sl: float,
+    candle_open_ms: int,
+    provider,
+) -> dict:
+    """
+    When both TP and SL are hit in the same 4H candle, fetch 5min candles
+    for that 4H window and walk them to determine which level was hit first.
+
+    Returns dict with outcome, resolved_price, and resolved_at_ms.
+    Falls back to LOSS (conservative) if 5min data is unavailable.
+    """
+    from app.routes.strategy import get_candles_df
+
+    candle_close_ms = candle_open_ms + 4 * 60 * 60 * 1000  # 4H window
+
+    try:
+        df_5m = await get_candles_df(symbol, timeframe="5m", limit=48, provider=provider)
+        if df_5m is None or df_5m.empty:
+            return {"outcome": "LOSS", "resolved_price": sl, "resolved_at_ms": candle_open_ms}
+
+        # Filter to candles within the 4H window
+        start_ts = pd.Timestamp(candle_open_ms, unit="ms")
+        end_ts = pd.Timestamp(candle_close_ms, unit="ms")
+        mask = (df_5m["timestamp"] >= start_ts) & (df_5m["timestamp"] <= end_ts)
+        candles_5m = df_5m[mask].sort_values("timestamp")
+
+        if candles_5m.empty:
+            return {"outcome": "LOSS", "resolved_price": sl, "resolved_at_ms": candle_open_ms}
+
+        for _, c in candles_5m.iterrows():
+            c_high = float(c.get("high", 0))
+            c_low = float(c.get("low", 0))
+            c_ts = c.get("timestamp", 0)
+            c_time = int(c_ts.timestamp() * 1000) if hasattr(c_ts, "timestamp") else int(c_ts)
+
+            if direction == "LONG":
+                sl_first = c_low <= sl
+                tp_first = c_high >= tp
+            else:
+                sl_first = c_high >= sl
+                tp_first = c_low <= tp
+
+            if sl_first and tp_first:
+                continue  # ambiguous in same 5m candle — check next
+            if sl_first:
+                return {"outcome": "LOSS", "resolved_price": sl, "resolved_at_ms": c_time}
+            if tp_first:
+                return {"outcome": "WIN", "resolved_price": tp, "resolved_at_ms": c_time}
+
+    except Exception as e:
+        logger.warning(f"Tiebreaker 5m fetch failed for {symbol}: {e}")
+
+    # Conservative fallback
+    return {"outcome": "LOSS", "resolved_price": sl, "resolved_at_ms": candle_open_ms}
+
+
 def _passes_market_gate(regime: str, config: dict) -> bool:
     """Return True only when market conditions are tradeable.
     Uses BTC weekly EMA50 regime instead of Oracle signals.
@@ -424,25 +484,15 @@ async def resolve_outcomes_historical(ctx):
                             sl_hit = True
 
                     if tp_hit and sl_hit:
-                        # Both hit in same candle — use candle direction to infer order.
-                        # LONG: bullish candle (close >= open) → dipped to SL first, then rallied → LOSS
-                        #        bearish candle → rose to TP first, then dropped → WIN
-                        # SHORT: bearish candle (close <= open) → rallied to SL first, then dropped → LOSS
-                        #         bullish candle → fell to TP first, then rallied → WIN
-                        if sig.direction == "LONG":
-                            if c_close >= c_open:  # Bullish: SL hit first
-                                new_outcome = "LOSS"
-                                resolved_price = sig.sl
-                            else:  # Bearish: TP hit first
-                                new_outcome = "WIN"
-                                resolved_price = sig.tp
-                        else:  # SHORT
-                            if c_close <= c_open:  # Bearish: SL hit first
-                                new_outcome = "LOSS"
-                                resolved_price = sig.sl
-                            else:  # Bullish: TP hit first
-                                new_outcome = "WIN"
-                                resolved_price = sig.tp
+                        # Both hit in same 4H candle — fetch 5min candles
+                        # to determine which level was actually hit first.
+                        tiebreak = await _resolve_tiebreaker_5m(
+                            sig.symbol, sig.direction, sig.tp, sig.sl,
+                            c_time, shared_provider,
+                        )
+                        new_outcome = tiebreak["outcome"]
+                        resolved_price = tiebreak["resolved_price"]
+                        c_time = tiebreak.get("resolved_at_ms", c_time)
                     elif tp_hit:
                         new_outcome = "WIN"
                         resolved_price = sig.tp
