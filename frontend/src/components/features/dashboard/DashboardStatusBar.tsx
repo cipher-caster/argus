@@ -137,7 +137,7 @@ function RegimeModal({ regime, indicators, onClose }: { regime: RegimeData | nul
                       )}>{s.direction}</span>
                     </div>
                     <div className="text-right">
-                      <p className="text-xs font-mono font-bold">${formatPrice(s.entry)}</p>
+                      <p className="text-xs font-mono font-medium">${formatPrice(s.entry)}</p>
                       <p className="text-[10px] text-muted-foreground">conviction {s.conviction}%</p>
                     </div>
                   </div>
@@ -160,7 +160,7 @@ function RegimeModal({ regime, indicators, onClose }: { regime: RegimeData | nul
                       <span className="ml-2 text-[9px] font-bold px-1.5 py-0.5 rounded bg-yellow-500/15 text-yellow-600 dark:text-yellow-400">{s.direction}</span>
                     </div>
                     <div className="text-right">
-                      <p className="text-xs font-mono font-bold">${formatPrice(s.entry)}</p>
+                      <p className="text-xs font-mono font-medium">${formatPrice(s.entry)}</p>
                       <p className="text-[10px] text-muted-foreground">conviction {s.conviction}%</p>
                     </div>
                   </div>
@@ -215,11 +215,11 @@ function RegimeModal({ regime, indicators, onClose }: { regime: RegimeData | nul
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <p className="text-[10px] text-muted-foreground uppercase font-bold">BTC Price</p>
-                <p className="text-xl font-black font-mono">${formatPrice(regime.btc_price)}</p>
+                <p className="text-xl font-medium font-mono">${formatPrice(regime.btc_price)}</p>
               </div>
               <div>
                 <p className="text-[10px] text-muted-foreground uppercase font-bold">EMA50 (Weekly)</p>
-                <p className="text-xl font-black font-mono">${formatPrice(regime.ema50)}</p>
+                <p className="text-xl font-medium font-mono">${formatPrice(regime.ema50)}</p>
               </div>
             </div>
             <div className="space-y-1">
@@ -254,7 +254,7 @@ function RegimeModal({ regime, indicators, onClose }: { regime: RegimeData | nul
               {rsi !== undefined && (
                 <div className="text-center">
                   <p className="text-[10px] text-muted-foreground uppercase font-bold">RSI</p>
-                  <p className={cn("text-lg font-black font-mono",
+                  <p className={cn("text-lg font-medium font-mono",
                     rsi > 70 ? "text-red-500" : rsi < 30 ? "text-green-500" : "text-foreground"
                   )}>{rsi.toFixed(0)}</p>
                   <p className="text-[9px] text-muted-foreground">{rsi > 70 ? "Overbought" : rsi < 30 ? "Oversold" : "Neutral"}</p>
@@ -263,14 +263,14 @@ function RegimeModal({ regime, indicators, onClose }: { regime: RegimeData | nul
               {cap !== undefined && (
                 <div className="text-center">
                   <p className="text-[10px] text-muted-foreground uppercase font-bold">MCap</p>
-                  <p className="text-lg font-black font-mono">{formatVolume(cap)}</p>
+                  <p className="text-lg font-medium font-mono">{formatVolume(cap)}</p>
                   <p className="text-[9px] text-muted-foreground">{indicators?.total_market_cap?.regime ?? "—"}</p>
                 </div>
               )}
               {dom !== undefined && (
                 <div className="text-center">
                   <p className="text-[10px] text-muted-foreground uppercase font-bold">BTC Dom</p>
-                  <p className="text-lg font-black font-mono">{dom.toFixed(1)}%</p>
+                  <p className="text-lg font-medium font-mono">{dom.toFixed(1)}%</p>
                   <p className="text-[9px] text-muted-foreground">{dom > 55 ? "Heavy" : dom < 45 ? "Alt Season" : "Balanced"}</p>
                 </div>
               )}

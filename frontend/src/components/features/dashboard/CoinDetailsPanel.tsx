@@ -99,7 +99,7 @@ export function CoinDetailsPanel({ symbol, timeframe = "4h" }: CoinDetailsPanelP
         ].map((stat) => (
           <div key={stat.label} className="flex justify-between items-center py-0.5">
             <span className="text-[12px] text-muted-foreground">{stat.label}</span>
-            <span className="text-[12px] font-bold text-foreground font-mono">{stat.value}</span>
+            <span className="text-[12px] font-medium text-foreground font-mono">{stat.value}</span>
           </div>
         ))}
       </div>
@@ -113,7 +113,7 @@ export function CoinDetailsPanel({ symbol, timeframe = "4h" }: CoinDetailsPanelP
             style={{ left: `${Math.min(100, Math.max(0, currentPosition))}%` }}
           />
         </div>
-        <div className="flex justify-between text-[10px] font-bold text-muted-foreground font-mono">
+        <div className="flex justify-between text-[10px] font-medium text-muted-foreground font-mono">
           <span>${low24h.toLocaleString(undefined, { maximumFractionDigits: 2 })}</span>
           <span>${high24h.toLocaleString(undefined, { maximumFractionDigits: 2 })}</span>
         </div>
@@ -152,7 +152,7 @@ export function CoinDetailsPanel({ symbol, timeframe = "4h" }: CoinDetailsPanelP
                 </div>
                 <div className="text-right">
                   <div className="text-[9px] font-bold opacity-70 uppercase tracking-widest mb-0.5">Confidence</div>
-                  <span className="text-sm font-black font-mono">{titanConfidence}</span>
+                  <span className="text-sm font-medium font-mono">{titanConfidence}</span>
                 </div>
               </div>
             )}

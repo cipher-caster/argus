@@ -27,7 +27,7 @@ function MoverChip({ coin, type, coinMeta }: { coin: CoinInfo; type: "gain" | "l
         <div className="text-xs font-bold leading-none">{coin.symbol.split("/")[0]}</div>
         <div className="text-[10px] text-muted-foreground font-mono leading-none mt-0.5">${formatPrice(coin.price)}</div>
       </div>
-      <span className={cn("text-xs font-black font-mono", isGain ? "text-success" : "text-danger")}>
+      <span className={cn("text-xs font-medium font-mono", isGain ? "text-success" : "text-danger")}>
         {formatChange(coin.change_24h)}
       </span>
     </Link>

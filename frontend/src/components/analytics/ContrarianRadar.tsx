@@ -73,7 +73,7 @@ export function ContrarianRadar({ timeframe = "1h", limit = 50 }: { timeframe?: 
                 </div>
               </Link>
               <div className="text-right">
-                <div className="text-sm font-mono font-bold text-purple-500">{item.extension_atr.toFixed(1)}x ATR</div>
+                <div className="text-sm font-mono font-medium text-purple-500">{item.extension_atr.toFixed(1)}x ATR</div>
                 <div className="text-[10px] text-muted-foreground uppercase font-extrabold">Deviation</div>
               </div>
             </div>

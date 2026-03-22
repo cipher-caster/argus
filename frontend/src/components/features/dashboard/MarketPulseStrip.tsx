@@ -17,7 +17,7 @@ function PulseStat({ label, value, status, statusColor }: PulseStatProps) {
     <div className="flex flex-col gap-0.5">
       <div className="text-[9px] font-bold uppercase tracking-widest text-muted-foreground">{label}</div>
       <div className="flex items-baseline gap-1.5">
-        <span className="text-sm font-black font-mono">{value}</span>
+        <span className="text-sm font-medium font-mono">{value}</span>
         <span className={cn("text-[9px] font-bold uppercase tracking-wide", statusColor)}>{status}</span>
       </div>
     </div>

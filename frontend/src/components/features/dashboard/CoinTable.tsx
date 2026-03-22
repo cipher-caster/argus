@@ -62,7 +62,7 @@ function CoinTableComponent({ coins, isLoading, sortBy, sortOrder, onSort }: Coi
         <thead className="bg-muted/50">
           <tr>
             <th className="w-8 pl-4 pr-0 py-3"></th>
-            <th className="w-10 px-4 py-3 text-[11px] font-bold text-muted-foreground uppercase tracking-wider text-center font-mono">#</th>
+            <th className="w-10 px-4 py-3 text-[11px] font-medium text-muted-foreground uppercase tracking-wider text-center font-mono">#</th>
             <th className="px-4 py-3 text-[11px] font-bold text-muted-foreground uppercase tracking-wider text-left cursor-pointer select-none hover:text-foreground transition-colors" onClick={() => onSort("symbol")}>
               <div className="flex items-center">
                 Symbol <SortIcon field="symbol" />
@@ -186,7 +186,7 @@ function CoinTableComponent({ coins, isLoading, sortBy, sortOrder, onSort }: Coi
                     <span className={cn("text-[13px] font-mono", (coin.change_7d ?? 0) >= 0 ? "text-success" : "text-danger")}>{formatChange(coin.change_7d)}</span>
                   </td>
                   <td className="px-4 py-4 text-right font-mono text-[13px] text-foreground tracking-tight">{coin.volume_24h ? "$" + Math.round(coin.volume_24h).toLocaleString() : "—"}</td>
-                  <td className="px-4 py-4 text-right font-mono font-bold text-[13px] text-foreground tracking-tight">{coin.market_cap ? "$" + Math.round(coin.market_cap).toLocaleString() : "—"}</td>
+                  <td className="px-4 py-4 text-right font-mono font-medium text-[13px] text-foreground tracking-tight">{coin.market_cap ? "$" + Math.round(coin.market_cap).toLocaleString() : "—"}</td>
                   <td className="px-4 py-4 text-center">
                     <div className="inline-block">
                       <Sparkline data={coin.sparkline_in_7d && coin.sparkline_in_7d.length > 0 ? coin.sparkline_in_7d : generateDeterministicSparkline(coin.symbol, coin.price, coin.change_24h || 0)} width={80} height={24} />

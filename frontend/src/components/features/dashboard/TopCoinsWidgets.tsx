@@ -38,7 +38,7 @@ function TopCoinsWidgetsComponent({ gainers, losers, volume, isLoading }: TopCoi
                   <span className="text-[13px] font-medium text-muted-foreground">${formatPrice(coin.price)}</span>
                 </div>
               </div>
-              <div className={cn("text-[14px] font-bold font-mono tracking-tight", type === "gain" ? "text-success" : type === "loss" ? "text-danger" : "text-foreground")}>
+              <div className={cn("text-[14px] font-medium font-mono tracking-tight", type === "gain" ? "text-success" : type === "loss" ? "text-danger" : "text-foreground")}>
                 {type === "vol" ? formatVolume(coin.volume_24h) : formatChange(coin.change_24h)}
               </div>
             </Link>

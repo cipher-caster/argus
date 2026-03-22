@@ -68,7 +68,7 @@ function PositionRow({ pos, onClose, onClick }: { pos: Position; onClose: (id: n
       {/* PnL */}
       {hasPnl && (
         <span className={cn(
-          "text-[11px] font-black font-mono min-w-[50px] text-right",
+          "text-[11px] font-medium font-mono min-w-[50px] text-right",
           (pos.unrealized_pnl_pct ?? 0) >= 0 ? "text-emerald-500" : "text-red-500"
         )}>
           {(pos.unrealized_pnl_pct ?? 0) >= 0 ? "+" : ""}{pos.unrealized_pnl_pct?.toFixed(1)}%

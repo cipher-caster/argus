@@ -47,7 +47,7 @@ function Label({ children }: { children: React.ReactNode }) {
 }
 
 function Value({ children, className }: { children: React.ReactNode; className?: string }) {
-  return <span className={cn("text-xs font-mono font-bold", className)}>{children}</span>;
+  return <span className={cn("text-xs font-mono font-medium", className)}>{children}</span>;
 }
 
 function SectionHeader({ icon: Icon, title }: { icon: React.ElementType; title: string }) {
@@ -205,14 +205,14 @@ export function TradeDetailModal({ isOpen, onClose, position }: TradeDetailModal
                     <div>
                       <Label>Realized PnL</Label>
                       <div className={cn(
-                        "text-lg font-black font-mono",
+                        "text-lg font-medium font-mono",
                         pos.pnl_usd >= 0 ? "text-emerald-500" : "text-red-500"
                       )}>
                         {pos.pnl_usd >= 0 ? "+" : ""}{pos.pnl_usd.toFixed(2)} USDT
                       </div>
                     </div>
                     <div className={cn(
-                      "text-xl font-black font-mono",
+                      "text-xl font-medium font-mono",
                       pos.pnl_pct >= 0 ? "text-emerald-500" : "text-red-500"
                     )}>
                       {pos.pnl_pct >= 0 ? "+" : ""}{pos.pnl_pct.toFixed(2)}%
@@ -228,14 +228,14 @@ export function TradeDetailModal({ isOpen, onClose, position }: TradeDetailModal
                     <div>
                       <Label>Unrealized PnL</Label>
                       <div className={cn(
-                        "text-lg font-black font-mono",
+                        "text-lg font-medium font-mono",
                         pos.unrealized_pnl_usd >= 0 ? "text-emerald-500" : "text-red-500"
                       )}>
                         {pos.unrealized_pnl_usd >= 0 ? "+" : ""}{pos.unrealized_pnl_usd.toFixed(2)} USDT
                       </div>
                     </div>
                     <div className={cn(
-                      "text-xl font-black font-mono",
+                      "text-xl font-medium font-mono",
                       pos.unrealized_pnl_pct >= 0 ? "text-emerald-500" : "text-red-500"
                     )}>
                       {pos.unrealized_pnl_pct >= 0 ? "+" : ""}{pos.unrealized_pnl_pct.toFixed(2)}%

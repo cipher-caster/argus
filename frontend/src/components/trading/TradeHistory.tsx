@@ -62,7 +62,7 @@ function HistoryRow({ pos, onClick }: { pos: Position; onClick: () => void }) {
 
       {/* PnL */}
       <span className={cn(
-        "text-[12px] font-black font-mono min-w-[70px] text-right",
+        "text-[12px] font-medium font-mono min-w-[70px] text-right",
         isWin && "text-emerald-500",
         isLoss && "text-red-500",
         isExpired && "text-muted-foreground",

@@ -90,18 +90,18 @@ function SetupCard({ item, coinMeta }: { item: BestSetupItem; coinMeta: any }) {
         <div className="grid grid-cols-3 gap-3 text-center">
           <div className="bg-muted/20 rounded-xl p-2.5">
             <p className="text-[9px] font-black uppercase tracking-widest text-muted-foreground mb-1">Entry</p>
-            <p className="text-xs font-bold font-mono">${formatPriceCompact(item.entry)}</p>
+            <p className="text-xs font-medium font-mono">${formatPriceCompact(item.entry)}</p>
           </div>
           <div className="bg-green-500/10 rounded-xl p-2.5">
             <p className="text-[9px] font-black uppercase tracking-widest text-green-500/70 mb-1">TP</p>
-            <p className="text-xs font-bold font-mono text-green-400">
+            <p className="text-xs font-medium font-mono text-green-400">
               ${formatPriceCompact(item.tp)}
               <span className="block text-[9px] text-green-500/60">+{tpPct}%</span>
             </p>
           </div>
           <div className="bg-red-500/10 rounded-xl p-2.5">
             <p className="text-[9px] font-black uppercase tracking-widest text-red-500/70 mb-1">SL</p>
-            <p className="text-xs font-bold font-mono text-red-400">
+            <p className="text-xs font-medium font-mono text-red-400">
               ${formatPriceCompact(item.sl)}
               <span className="block text-[9px] text-red-500/60">{slPct}%</span>
             </p>

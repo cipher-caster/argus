@@ -73,7 +73,7 @@ function StatCard({ label, value, valueClass }: { label: string; value: string; 
   return (
     <div className="bg-muted/30 border border-border/50 rounded-lg p-2">
       <div className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground mb-0.5">{label}</div>
-      <div className={cn("text-xs font-mono font-bold", valueClass ?? "text-foreground")}>{value}</div>
+      <div className={cn("text-xs font-mono font-medium", valueClass ?? "text-foreground")}>{value}</div>
     </div>
   );
 }
@@ -113,7 +113,7 @@ function DetailBody({ signal }: { signal: SignalLogItem }) {
         <div className="flex items-center gap-3">
           <div className="bg-muted/30 border border-border/50 rounded-lg px-3 py-1.5">
             <span className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground mr-2">R:R</span>
-            <span className={cn("text-xs font-mono font-bold", parseFloat(rr) >= 1.5 ? "text-emerald-600 dark:text-emerald-400" : "text-amber-600 dark:text-amber-400")}>
+            <span className={cn("text-xs font-mono font-medium", parseFloat(rr) >= 1.5 ? "text-emerald-600 dark:text-emerald-400" : "text-amber-600 dark:text-amber-400")}>
               {rr}:1
             </span>
           </div>
@@ -121,7 +121,7 @@ function DetailBody({ signal }: { signal: SignalLogItem }) {
           {signal.resolved_price !== null && (
             <div className="bg-muted/30 border border-border/50 rounded-lg px-3 py-1.5">
               <span className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground mr-2">Resolved @</span>
-              <span className="text-xs font-mono font-bold text-foreground">${formatPrice(signal.resolved_price)}</span>
+              <span className="text-xs font-mono font-medium text-foreground">${formatPrice(signal.resolved_price)}</span>
             </div>
           )}
         </div>
@@ -146,12 +146,12 @@ function DetailBody({ signal }: { signal: SignalLogItem }) {
           <div className="flex items-center gap-3">
             <span className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground w-28 shrink-0">Titan Confidence</span>
             <ProgressBar value={signal.titan_confidence} max={100} color={signal.titan_confidence >= 60 ? "bg-emerald-500" : signal.titan_confidence >= 40 ? "bg-amber-500" : "bg-red-500"} />
-            <span className="text-xs font-mono font-bold text-foreground w-10 text-right">{signal.titan_confidence}%</span>
+            <span className="text-xs font-mono font-medium text-foreground w-10 text-right">{signal.titan_confidence}%</span>
           </div>
           <div className="flex items-center gap-3">
             <span className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground w-28 shrink-0">Conviction</span>
             <ProgressBar value={signal.conviction} max={100} color={signal.conviction >= 60 ? "bg-emerald-500" : signal.conviction >= 40 ? "bg-amber-500" : "bg-red-500"} />
-            <span className="text-xs font-mono font-bold text-foreground w-10 text-right">{signal.conviction}</span>
+            <span className="text-xs font-mono font-medium text-foreground w-10 text-right">{signal.conviction}</span>
           </div>
         </div>
 

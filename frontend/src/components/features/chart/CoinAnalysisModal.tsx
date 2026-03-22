@@ -380,7 +380,7 @@ function AnalysisBody({ titan, price, regime }: {
           ].map(({ label, value }) => (
             <div key={label} className="flex flex-col p-2 rounded-lg bg-muted/30 border border-border/50">
               <span className="text-[9px] font-bold uppercase text-muted-foreground mb-0.5">{label}</span>
-              <span className="text-xs font-mono font-bold text-foreground">{value}</span>
+              <span className="text-xs font-mono font-medium text-foreground">{value}</span>
             </div>
           ))}
         </div>
@@ -393,7 +393,7 @@ function AnalysisBody({ titan, price, regime }: {
           ].map(({ label, value, color }) => (
             <div key={label} className="flex flex-col items-center p-2.5 rounded-lg bg-muted/30 border border-border/50 text-center">
               <span className="text-[9px] font-bold uppercase text-muted-foreground mb-0.5">{label}</span>
-              <span className={cn("text-xs font-mono font-bold", color)}>{value}</span>
+              <span className={cn("text-xs font-mono font-medium", color)}>{value}</span>
             </div>
           ))}
         </div>
@@ -428,20 +428,20 @@ function AnalysisBody({ titan, price, regime }: {
               <tbody className="divide-y divide-border/30">
                 <tr>
                   <td className="py-1.5 pr-3 font-bold text-foreground">Entry</td>
-                  <td className="py-1.5 pr-3 text-right font-mono font-bold text-foreground">${fmt(setup.entry)}</td>
+                  <td className="py-1.5 pr-3 text-right font-mono font-medium text-foreground">${fmt(setup.entry)}</td>
                   <td className="py-1.5 text-right text-muted-foreground">{setup.entryNote}</td>
                 </tr>
                 {setup.tp1 !== undefined && (
                   <tr>
                     <td className="py-1.5 pr-3 font-bold text-emerald-600 dark:text-emerald-400">TP</td>
-                    <td className="py-1.5 pr-3 text-right font-mono font-bold text-emerald-600 dark:text-emerald-400">${fmt(setup.tp1)}</td>
+                    <td className="py-1.5 pr-3 text-right font-mono font-medium text-emerald-600 dark:text-emerald-400">${fmt(setup.tp1)}</td>
                     <td className="py-1.5 text-right text-muted-foreground">+{(((setup.tp1 - setup.entry) / setup.entry) * 100).toFixed(1)}% from entry</td>
                   </tr>
                 )}
                 {setup.sl !== undefined && (
                   <tr>
                     <td className="py-1.5 pr-3 font-bold text-rose-600 dark:text-rose-400">Cut Loss</td>
-                    <td className="py-1.5 pr-3 text-right font-mono font-bold text-rose-600 dark:text-rose-400">${fmt(setup.sl)}</td>
+                    <td className="py-1.5 pr-3 text-right font-mono font-medium text-rose-600 dark:text-rose-400">${fmt(setup.sl)}</td>
                     <td className="py-1.5 text-right text-muted-foreground">{(((setup.entry - setup.sl) / setup.entry) * 100).toFixed(1)}% below entry</td>
                   </tr>
                 )}
@@ -478,7 +478,7 @@ function AnalysisBody({ titan, price, regime }: {
               <div key={r.label} className="p-2 rounded bg-rose-500/5 border border-rose-500/20">
                 <div className="flex justify-between items-baseline">
                   <span className="text-[10px] font-bold text-rose-700 dark:text-rose-400">{r.label}</span>
-                  <span className="font-mono text-xs font-bold text-foreground">${fmt(r.price)}</span>
+                  <span className="font-mono text-xs font-medium text-foreground">${fmt(r.price)}</span>
                 </div>
                 <p className="text-[9px] text-muted-foreground mt-0.5">{r.note}</p>
               </div>
@@ -491,7 +491,7 @@ function AnalysisBody({ titan, price, regime }: {
               <div key={s.label} className="p-2 rounded bg-emerald-500/5 border border-emerald-500/20">
                 <div className="flex justify-between items-baseline">
                   <span className="text-[10px] font-bold text-emerald-700 dark:text-emerald-400">{s.label}</span>
-                  <span className="font-mono text-xs font-bold text-foreground">${fmt(s.price)}</span>
+                  <span className="font-mono text-xs font-medium text-foreground">${fmt(s.price)}</span>
                 </div>
                 <p className="text-[9px] text-muted-foreground mt-0.5">{s.note}</p>
               </div>
@@ -507,8 +507,8 @@ function AnalysisBody({ titan, price, regime }: {
             </span>
             <span className="text-muted-foreground">
               {isLong
-                ? <>Below <span className="font-mono font-bold text-foreground">${fmt(titan.indicators.supertrend)}</span> (SuperTrend)</>
-                : <>Above <span className="font-mono font-bold text-foreground">${fmt(titan.targets.sl)}</span> (stop loss)</>
+                ? <>Below <span className="font-mono font-medium text-foreground">${fmt(titan.indicators.supertrend)}</span> (SuperTrend)</>
+                : <>Above <span className="font-mono font-medium text-foreground">${fmt(titan.targets.sl)}</span> (stop loss)</>
               }
             </span>
           </div>

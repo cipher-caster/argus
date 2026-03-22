@@ -49,12 +49,12 @@ export function BTCCard() {
             <Bitcoin size={11} className="text-[#f59e0b]" />
             BTC / USDT
           </div>
-          <span className={cn("text-[11px] font-black font-mono", isUp ? "text-success" : "text-danger")}>
+          <span className={cn("text-[11px] font-medium font-mono", isUp ? "text-success" : "text-danger")}>
             {formatChange(change)}
           </span>
         </div>
 
-        <div className="text-2xl font-black font-mono tracking-tight group-hover:text-primary transition-colors">
+        <div className="text-2xl font-medium font-mono tracking-tight group-hover:text-primary transition-colors">
           ${price > 0 ? formatPrice(price) : "—"}
         </div>
 

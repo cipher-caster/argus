@@ -61,12 +61,12 @@ function SetupRow({ item, coinMeta }: { item: BestSetupItem; coinMeta: any }) {
         </div>
 
         <div className="text-right shrink-0 mr-3">
-          <div className="text-xs font-mono font-bold">${formatPrice(item.entry)}</div>
+          <div className="text-xs font-mono font-medium">${formatPrice(item.entry)}</div>
           <div className="flex gap-2 mt-0.5">
-            <span className="text-[9px] font-bold font-mono text-green-600 dark:text-green-400">
+            <span className="text-[9px] font-medium font-mono text-green-600 dark:text-green-400">
               TP ${formatPrice(item.tp)}
             </span>
-            <span className="text-[9px] font-bold font-mono text-red-600 dark:text-red-400">
+            <span className="text-[9px] font-medium font-mono text-red-600 dark:text-red-400">
               SL ${formatPrice(item.sl)}
             </span>
           </div>

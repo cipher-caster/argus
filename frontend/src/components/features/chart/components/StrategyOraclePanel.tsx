@@ -67,18 +67,18 @@ export function StrategyOraclePanel({ symbol, timeframe }: StrategyOraclePanelPr
           <div className="grid grid-cols-3 gap-2">
             <div className="flex flex-col items-center p-2 rounded bg-muted/30 border border-border/50">
               <span className="text-[10px] text-muted-foreground uppercase font-bold">Win Rate</span>
-              <span className={cn("text-sm font-mono font-bold", data.performance.win_rate >= 50 ? "text-emerald-600" : "text-rose-500")}>{data.performance.win_rate}%</span>
+              <span className={cn("text-sm font-mono font-medium", data.performance.win_rate >= 50 ? "text-emerald-600" : "text-rose-500")}>{data.performance.win_rate}%</span>
             </div>
             <div className="flex flex-col items-center p-2 rounded bg-muted/30 border border-border/50">
               <span className="text-[10px] text-muted-foreground uppercase font-bold">Net PnL</span>
-              <span className={cn("text-sm font-mono font-bold", data.performance.net_profit >= 0 ? "text-emerald-600" : "text-rose-500")}>
+              <span className={cn("text-sm font-mono font-medium", data.performance.net_profit >= 0 ? "text-emerald-600" : "text-rose-500")}>
                 {data.performance.net_profit > 0 ? "+" : ""}
                 {data.performance.net_profit}%
               </span>
             </div>
             <div className="flex flex-col items-center p-2 rounded bg-muted/30 border border-border/50">
               <span className="text-[10px] text-muted-foreground uppercase font-bold">Trades</span>
-              <span className="text-sm font-mono font-bold text-foreground">{data.performance.total_trades}</span>
+              <span className="text-sm font-mono font-medium text-foreground">{data.performance.total_trades}</span>
             </div>
           </div>
         )}
@@ -91,7 +91,7 @@ export function StrategyOraclePanel({ symbol, timeframe }: StrategyOraclePanelPr
           </div>
           <div className="flex items-center justify-between mt-2">
             <span className="text-xs text-muted-foreground dark:text-muted-foreground uppercase tracking-tighter font-bold">Confidence</span>
-            <span className="text-sm font-mono font-bold text-foreground">{data.confidence}</span>
+            <span className="text-sm font-mono font-medium text-foreground">{data.confidence}</span>
           </div>
         </div>
 
@@ -134,11 +134,11 @@ export function StrategyOraclePanel({ symbol, timeframe }: StrategyOraclePanelPr
             </div>
             <div className="flex justify-between items-center text-xs">
               <span className="text-emerald-700 dark:text-emerald-400 font-medium">Target 1</span>
-              <span className="font-mono font-bold text-foreground">{data.targets.tp1.toLocaleString()}</span>
+              <span className="font-mono font-medium text-foreground">{data.targets.tp1.toLocaleString()}</span>
             </div>
             <div className="flex justify-between items-center text-xs">
               <span className="text-rose-700 dark:text-rose-400 font-medium">Stop Loss</span>
-              <span className="font-mono font-bold text-foreground">{data.targets.sl.toLocaleString()}</span>
+              <span className="font-mono font-medium text-foreground">{data.targets.sl.toLocaleString()}</span>
             </div>
           </div>
         )}
@@ -150,7 +150,7 @@ export function StrategyOraclePanel({ symbol, timeframe }: StrategyOraclePanelPr
           <div className={cn("w-1.5 h-1.5 rounded-full animate-pulse", data.volatility === "DANGER" ? "bg-rose-600 dark:bg-rose-500" : "bg-emerald-600 dark:bg-emerald-500")} />
           <span className="text-[10px] font-bold text-muted-foreground uppercase">{data.volatility} VOL</span>
         </div>
-        <span className="text-[10px] text-muted-foreground font-bold font-mono uppercase">{data.state}</span>
+        <span className="text-[10px] text-muted-foreground font-medium font-mono uppercase">{data.state}</span>
       </div>
     </Card>
   );
