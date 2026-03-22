@@ -56,6 +56,11 @@ function SignalRow({ item, onClick }: { item: SignalLogItem; onClick: () => void
         )}>
           {item.direction}
         </span>
+        {item.source === "backtest" && item.provider && (
+          <span className="ml-1 text-[10px] font-bold px-1.5 py-0.5 rounded bg-zinc-500/10 text-zinc-500">
+            {item.provider}
+          </span>
+        )}
       </td>
       <td className="py-3 px-4 font-mono text-muted-foreground">${formatPrice(item.entry)}</td>
       <td className="py-3 px-4 font-mono text-emerald-600 dark:text-emerald-400">

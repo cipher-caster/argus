@@ -114,6 +114,7 @@ class SignalLogItem(BaseModel):
     fired_reason: str
     fired_at: int           # epoch ms
     source: str = "live"   # "live" | "backtest" | "scanner"
+    provider: str = "binance"  # "binance" | "okx"
     outcome: str            # OPEN | WIN | LOSS | REVIEW | REJECTED
     resolved_at: Optional[int] = None
     resolved_price: Optional[float] = None

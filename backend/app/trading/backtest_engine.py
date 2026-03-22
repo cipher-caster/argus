@@ -386,6 +386,7 @@ async def backtest_symbol(
             fired_reason=fired_reason,
             fired_at=int(row["ts_ms"]),
             source="backtest",
+            provider=config.provider,
             outcome=outcome,
             resolved_at=resolved_ts_ms,
             resolved_price=resolved_price,

@@ -374,6 +374,7 @@ export interface SignalLogItem {
   fired_reason: string;
   fired_at: number;
   source: "live" | "scanner" | "backtest";
+  provider: "binance" | "okx";
   outcome: "OPEN" | "WIN" | "LOSS" | "REVIEW" | "REJECTED";
   resolved_at: number | null;
   resolved_price: number | null;
@@ -427,10 +428,11 @@ export async function updateSignalLogConfig(config: SignalLogConfig): Promise<Si
   return response.json();
 }
 
-export async function fetchSignalLog(symbol?: string, source?: string, limit: number = 50, offset: number = 0): Promise<SignalLogResponse> {
+export async function fetchSignalLog(symbol?: string, source?: string, limit: number = 50, offset: number = 0, provider?: string): Promise<SignalLogResponse> {
   const params = new URLSearchParams({ limit: limit.toString(), offset: offset.toString() });
   if (symbol) params.append("symbol", symbol);
   if (source) params.append("source", source);
+  if (provider) params.append("provider", provider);
   const response = await fetch(`${API_URL}/api/analytics/signal-log?${params}`);
   if (!response.ok) throw new Error(`Failed to fetch signal log: ${response.statusText}`);
   return response.json();

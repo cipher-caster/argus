@@ -506,11 +506,11 @@ async def update_signal_log_config(config: SignalLogConfig):
 
 
 @router.get("/signal-log", response_model=SignalLogResponse)
-async def get_signal_log(symbol: Optional[str] = None, source: Optional[str] = None, limit: int = 50, offset: int = 0):
+async def get_signal_log(symbol: Optional[str] = None, source: Optional[str] = None, provider: Optional[str] = None, limit: int = 50, offset: int = 0):
     """
     Returns logged swing signals for the watchlist (BTC/ETH/SOL/BNB).
     Each row captures what fired, when, and whether it resolved as WIN/LOSS/REVIEW/OPEN.
-    Filter by source='live' or source='backtest'.
+    Filter by source='live' or source='backtest'. Filter by provider='binance' or 'okx'.
     """
     from sqlalchemy import select as sa_select, desc, func as sa_func, case as sa_case
     from app.schemas.signal_log import SignalLog
@@ -526,6 +526,8 @@ async def get_signal_log(symbol: Optional[str] = None, source: Optional[str] = N
             base_where.append(SignalLog.source == source)
         else:
             base_where.append(SignalLog.source != "backtest")
+        if provider:
+            base_where.append(SignalLog.provider == provider)
 
         # Total count
         count_stmt = sa_select(sa_func.count()).select_from(SignalLog)
