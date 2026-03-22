@@ -167,7 +167,51 @@
 
 **Goal:** The analytics page should serve two audiences — Claude as the AI trader (feedback loop to improve), and the user as the observer (visibility into how trading is going). Current page is designed for a human browsing signals, which is no longer the primary use case. The data model needs to capture resolution-time context so we can actually learn what works.
 
-### Phase 21: Advanced Features
+### Phase 21: OKX Provider Migration Analysis
+- [ ] Backtest all signals on OKX historical data — compare WR/Rprofit vs Binance baseline
+- [ ] Document OKX order limits, margin rules, fee structure vs Binance
+- [ ] Paper trade with OKX provider for 1–2 weeks, compare fills/outcomes to Binance
+- [ ] Risk assessment: position management, risk gates, orchestrator behavior on OKX
+- [ ] Migration strategy: cutover plan (keep Binance positions? Route new signals to OKX? Full switch?)
+- [ ] Success criteria: OKX backtest WR ≥95% Binance, fill rate/latency ±10%, zero orchestrator failures
+
+**Rationale:** OKX provider exists for backtesting. Before switching live trading from Binance, analyze impact on signal outcomes, risk management, and position resolution. Need comprehensive comparison of both platforms.
+
+**Dependencies:** Phase C test completion, paper trading engine stable on Binance (v0.9.2)
+
+### Phase 22: OKX Backtesting UI Integration, Configuration & Strategy
+
+#### Phase 22A: UI Integration & Infrastructure
+- [x] OKXProvider fully integrated & merged to master ✓
+- [x] `okx_backtest.py` script available for backfill + backtest ✓
+- [x] OKX_BACKTEST_REPORT with 8.3mo historical data ✓
+- [ ] Backtest UI: add provider selector (Binance vs OKX)
+- [ ] Analytics endpoint: `GET /api/analytics/provider-comparison` — show signal WR by exchange
+- [ ] Dashboard widget: provider-specific coin recommendations (ETH, FET, ATOM for OKX)
+- [ ] Paper trading: add `TRADING_PROVIDER` config (default: binance, option: okx)
+- [ ] Periodic OKX data backfill schedule (daily updates)
+
+#### Phase 22C: OKX Config Analysis & Optimization (After 22A)
+- [ ] Analyze OKX_BACKTEST_REPORT: coin divergence (FET/ATOM OKX winners vs Binance)
+- [ ] Watchlist recommendation: OKX-specific coins vs current Binance 11-coin list
+- [ ] Parameter optimization sweep on OKX data (conviction, SL/TP multipliers)
+- [ ] Per-symbol overrides for OKX (FET, ATOM, STRK specific tuning)
+- [ ] Risk assessment: OKX liquidity, fees, execution reliability vs Binance
+- [ ] Strategic recommendation: Single provider (OKX), Dual (Binance+OKX), or Selective split
+- [ ] Deliverable: `docs/OKX_CONFIG_OPTIMIZATION.md` with analysis + go/no-go recommendation
+
+**Why 22C:** OKX infrastructure is live but unconfigured. Before enabling OKX trading or running Phase 21 migration analysis, need strategic decision: which coins, what config, which provider(s)?
+
+**Status:** Infrastructure live on master — UI + strategic analysis in progress
+
+**Key Findings:**
+- OKX watchlist: ETH (68% WR), FET (61%), ATOM (58%) — strong relative to Binance
+- Exchange-specific winners: FET & ATOM lose on Binance but win on OKX
+- Recommended OKX coins: ETH, FET, ATOM, STRK, BTC, XRP, POL, NEAR, DOGE
+
+**Dependencies:** Phase 21 migration analysis + risk assessment
+
+### Phase 23: Advanced Features
 - [ ] Price alerts / push notifications
 - [ ] WebSocket push for live ticker updates
 - [ ] Multi-strategy support (compare Oracle vs Titan vs custom)

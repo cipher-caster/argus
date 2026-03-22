@@ -1,0 +1,18 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(docker:*)",
+      "Bash(docker-compose:*)",
+      "Bash(pytest:*)",
+      "Bash(git:*)",
+      "Read",
+      "Write(.claude)",
+      "Edit"
+    ]
+  },
+  "env": {
+    "PYTEST_TIMEOUT": "300",
+    "COMPOSE_PROJECT_NAME": "argus",
+    "TEST_ENV": "docker"
+  }
+}
