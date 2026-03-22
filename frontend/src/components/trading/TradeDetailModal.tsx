@@ -252,7 +252,7 @@ export function TradeDetailModal({ isOpen, onClose, position }: TradeDetailModal
             <div className="grid grid-cols-3 gap-2">
               <InfoCard>
                 <Label>Quantity</Label>
-                <div><Value>{pos.quantity}</Value></div>
+                <div><Value>{Number(pos.quantity.toFixed(8))}</Value></div>
               </InfoCard>
               <InfoCard>
                 <Label>Quote Amount</Label>

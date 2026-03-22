@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import Link from "next/link";
 import { useSignalLog, useSignalLogConfig, useUpdateSignalLogConfig } from "@/hooks/useAnalyticsData";
 import { SignalLogItem, SignalLogConfig } from "@/lib/api";
 import { formatPriceCompact, formatDateTime } from "@/lib/formatters";
@@ -34,9 +35,13 @@ function SignalRow({ item, onClick }: { item: SignalLogItem; onClick: () => void
   return (
     <tr className="border-b border-border/30 hover:bg-secondary/20 transition-colors text-[12px] cursor-pointer" onClick={onClick}>
       <td className="py-3 px-4 font-black tracking-tight">
-        <span className={cn("font-bold", isLong ? "text-emerald-500 dark:text-emerald-400" : "text-red-500 dark:text-red-400")}>
+        <Link
+          href={`/chart/${base}-USDT`}
+          onClick={(e) => e.stopPropagation()}
+          className={cn("font-bold hover:underline", isLong ? "text-emerald-500 dark:text-emerald-400" : "text-red-500 dark:text-red-400")}
+        >
           {base}
-        </span>
+        </Link>
         <span className={cn(
           "ml-2 text-[10px] font-black px-1.5 py-0.5 rounded",
           isLong ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400" : "bg-red-500/10 text-red-600 dark:text-red-400"
