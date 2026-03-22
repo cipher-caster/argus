@@ -1,3 +1,5 @@
+"use client";
+
 import { DashboardIndicators, fetchDashboardIndicators, IndicatorValue, MarketCapStats } from "@/lib/indicatorApi";
 import { useQuery } from "@tanstack/react-query";
 

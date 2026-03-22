@@ -1,3 +1,5 @@
+"use client";
+
 import { useEffect, useState } from "react";
 
 export interface CoinMeta {
@@ -28,7 +30,6 @@ export async function loadCoinMeta(): Promise<Map<string, CoinMeta>> {
   try {
     const res = await fetch("/data/coins/coins.json");
     if (!res.ok) {
-      console.warn("Failed to load coin metadata:", res.status);
       return new Map();
     }
 
@@ -44,10 +45,8 @@ export async function loadCoinMeta(): Promise<Map<string, CoinMeta>> {
     }
 
     coinMetaCache = map;
-    console.log(`Loaded ${data.count} coin metadata entries (updated: ${data.updated_at})`);
     return map;
-  } catch (e) {
-    console.warn("Failed to parse coin metadata:", e);
+  } catch {
     return new Map();
   }
 }

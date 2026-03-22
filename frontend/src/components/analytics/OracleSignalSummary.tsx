@@ -1,6 +1,6 @@
 "use client";
 
-import { MarketSentimentBar } from "@/components/MarketSentimentBar";
+import { MarketSentimentBar } from "./MarketSentimentBar";
 import { useOracleSignalSummary } from "@/hooks/useAnalyticsData";
 
 export function OracleSignalSummary() {

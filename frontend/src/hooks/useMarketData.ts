@@ -4,8 +4,33 @@
  * React Query hooks for market data
  */
 
-import { fetchOHLCV, fetchProviderInfo, fetchSymbols, fetchTicker } from "@/lib/api";
-import { useInfiniteQuery, useQuery } from "@tanstack/react-query";
+import { fetchOHLCV, fetchProviderInfo, fetchSymbols, fetchTicker, setProvider } from "@/lib/api";
+import { useInfiniteQuery, useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+
+/**
+ * Hook for fetching current exchange provider info
+ */
+export function useProviderInfo() {
+  return useQuery({
+    queryKey: ["providerInfo"] as const,
+    queryFn: fetchProviderInfo,
+    staleTime: Infinity, // Provider rarely changes without user action
+  });
+}
+
+/**
+ * Hook to update the exchange provider
+ */
+export function useSetProvider() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: setProvider,
+    onSuccess: () => {
+      // Invalidate provider info and everything dependent on the exchange
+      qc.invalidateQueries();
+    },
+  });
+}
 
 /**
  * Hook for fetching OHLCV candlestick data with infinite scrolling

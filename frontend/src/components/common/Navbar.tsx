@@ -1,7 +1,7 @@
 "use client";
 
 import { ArgusLogo } from "@/components/common/ArgusLogo";
-import { fetchProviderInfo, setProvider } from "@/lib/api";
+import { useProviderInfo, useSetProvider } from "@/hooks/useMarketData";
 import { BarChart2, ChevronDown, Globe, LineChart, Search, TrendingUp } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
@@ -59,16 +59,12 @@ const PROVIDERS = ["binance", "okx"] as const;
 export function Navbar() {
   const pathname = usePathname();
   const [search, setSearch] = useState("");
-  const [provider, setProviderState] = useState<string | null>(null);
+  const { data: providerInfo } = useProviderInfo();
+  const provider = providerInfo?.provider || null;
+  const setProviderMutation = useSetProvider();
+  
   const [providerOpen, setProviderOpen] = useState(false);
-  const [switching, setSwitching] = useState(false);
   const providerRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    fetchProviderInfo()
-      .then((info) => setProviderState(info.provider))
-      .catch(() => {});
-  }, []);
 
   useEffect(() => {
     function handleClickOutside(e: MouseEvent) {
@@ -80,18 +76,10 @@ export function Navbar() {
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
-  async function handleProviderSwitch(name: string) {
-    if (name === provider || switching) return;
-    setSwitching(true);
+  function handleProviderSwitch(name: string) {
+    if (name === provider || setProviderMutation.isPending) return;
     setProviderOpen(false);
-    try {
-      const res = await setProvider(name);
-      setProviderState(res.provider);
-    } catch {
-      // silently revert — provider badge stays unchanged
-    } finally {
-      setSwitching(false);
-    }
+    setProviderMutation.mutate(name);
   }
 
   const handleSearch = (e: React.FormEvent) => {
@@ -156,10 +144,10 @@ export function Navbar() {
             <div className="relative" ref={providerRef}>
               <button
                 onClick={() => setProviderOpen((o) => !o)}
-                disabled={switching}
+                disabled={setProviderMutation.isPending}
                 className="flex items-center gap-1 text-[11px] font-semibold uppercase tracking-wider px-2 py-0.5 rounded-md bg-muted text-muted-foreground border border-border hover:border-primary hover:text-foreground transition-colors disabled:opacity-50"
               >
-                {switching ? "..." : provider}
+                {setProviderMutation.isPending ? "..." : provider}
                 <ChevronDown size={10} className={cn("transition-transform duration-150", providerOpen && "rotate-180")} />
               </button>
               {providerOpen && (

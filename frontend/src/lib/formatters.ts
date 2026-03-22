@@ -60,3 +60,28 @@ export function formatNumber(val: number | null | undefined, decimals: number = 
   if (val === null || val === undefined) return "—";
   return val.toFixed(decimals);
 }
+
+/**
+ * Format price for compact/table display.
+ * - >= 1000: 2 decimals, comma separated
+ * - >= 1: 4 decimals
+ * - < 1: 6 decimals
+ */
+export function formatPriceCompact(price: number): string {
+  if (price >= 1000) return price.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  if (price >= 1) return price.toFixed(4);
+  return price.toFixed(6);
+}
+
+/**
+ * Format a unix-ms timestamp as "Mon DD, YYYY HH:MM"
+ */
+export function formatDateTime(ms: number): string {
+  const d = new Date(ms);
+  const mon = d.toLocaleString("en-US", { month: "short" });
+  const day = d.getDate();
+  const yr = d.getFullYear();
+  const hh = d.getHours().toString().padStart(2, "0");
+  const mm = d.getMinutes().toString().padStart(2, "0");
+  return `${mon} ${day}, ${yr} ${hh}:${mm}`;
+}

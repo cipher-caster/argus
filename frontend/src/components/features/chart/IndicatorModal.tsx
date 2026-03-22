@@ -23,6 +23,7 @@ function IndicatorModalComponent({ isOpen, onClose, editingIndicator }: Indicato
   const availableIndicators = useIndicatorStore((s) => s.availableIndicators);
   const addIndicator = useIndicatorStore((s) => s.addIndicator);
   const updateIndicator = useIndicatorStore((s) => s.updateIndicator);
+  const colorIndex = useIndicatorStore((s) => s.colorIndex);
 
   const [selectedType, setSelectedType] = useState<string>("ema");
   const [params, setParams] = useState<Record<string, number>>({});
@@ -43,7 +44,7 @@ function IndicatorModalComponent({ isOpen, onClose, editingIndicator }: Indicato
         setSelectedColor(editingIndicator.color);
       } else {
         setSelectedType("ema");
-        setSelectedColor(getNextColor());
+        setSelectedColor(getNextColor(colorIndex));
         const def = availableIndicators.find((i) => i.name === "ema");
         if (def) {
           const defaultParams: Record<string, number> = {};

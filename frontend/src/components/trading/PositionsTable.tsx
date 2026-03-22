@@ -3,16 +3,13 @@
 import { useActivePositions, useClosePosition } from "@/hooks/useTradingData";
 import { Position } from "@/lib/api";
 import { cn } from "@/lib/utils";
+import { formatPriceCompact } from "@/lib/formatters";
 import { X } from "lucide-react";
 import Link from "next/link";
 import { useState } from "react";
 import { TradeDetailModal } from "./TradeDetailModal";
 
-function formatPrice(p: number) {
-  if (p >= 1000) return p.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-  if (p >= 1) return p.toFixed(4);
-  return p.toFixed(6);
-}
+// formatPriceCompact imported from @/lib/formatters
 
 function timeAgo(ms: number) {
   const diff = Date.now() - ms;
@@ -57,15 +54,15 @@ function PositionRow({ pos, onClose, onClick }: { pos: Position; onClose: (id: n
 
       {/* Entry / TP / SL */}
       <div className="flex items-center gap-2.5 text-[11px] font-mono flex-1">
-        <span className="text-muted-foreground">${formatPrice(entry)}</span>
+        <span className="text-muted-foreground">${formatPriceCompact(entry)}</span>
         {pos.current_price && (
           <>
             <span className="text-muted-foreground/40">→</span>
-            <span className="text-foreground">${formatPrice(pos.current_price)}</span>
+            <span className="text-foreground">${formatPriceCompact(pos.current_price)}</span>
           </>
         )}
-        <span className="text-emerald-500/70">${formatPrice(pos.intended_tp)}</span>
-        <span className="text-red-500/70">${formatPrice(pos.intended_sl)}</span>
+        <span className="text-emerald-500/70">${formatPriceCompact(pos.intended_tp)}</span>
+        <span className="text-red-500/70">${formatPriceCompact(pos.intended_sl)}</span>
       </div>
 
       {/* PnL */}

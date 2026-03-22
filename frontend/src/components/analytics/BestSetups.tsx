@@ -5,6 +5,7 @@ import { Badge } from "@/components/ui/badge";
 import { useBestSetups } from "@/hooks/useAnalyticsData";
 import { useCoinMeta } from "@/hooks/useCoinMeta";
 import { BestSetupItem } from "@/lib/api";
+import { formatPriceCompact } from "@/lib/formatters";
 import { cn } from "@/lib/utils";
 import { RefreshCw, TrendingDown, TrendingUp } from "lucide-react";
 import Link from "next/link";
@@ -13,11 +14,7 @@ function pct(from: number, to: number) {
   return (((to - from) / from) * 100).toFixed(1);
 }
 
-function formatPrice(price: number) {
-  if (price >= 1000) return price.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-  if (price >= 1) return price.toFixed(4);
-  return price.toFixed(6);
-}
+// formatPriceCompact imported from @/lib/formatters
 
 function SetupCard({ item, coinMeta }: { item: BestSetupItem; coinMeta: any }) {
   const isLong = item.direction === "LONG";
@@ -48,7 +45,7 @@ function SetupCard({ item, coinMeta }: { item: BestSetupItem; coinMeta: any }) {
                   </Badge>
                 )}
               </div>
-              <p className="text-xs text-muted-foreground font-mono">${formatPrice(item.entry)}</p>
+              <p className="text-xs text-muted-foreground font-mono">${formatPriceCompact(item.entry)}</p>
             </div>
           </div>
           <div className="flex items-center gap-2">
@@ -93,19 +90,19 @@ function SetupCard({ item, coinMeta }: { item: BestSetupItem; coinMeta: any }) {
         <div className="grid grid-cols-3 gap-3 text-center">
           <div className="bg-muted/20 rounded-xl p-2.5">
             <p className="text-[9px] font-black uppercase tracking-widest text-muted-foreground mb-1">Entry</p>
-            <p className="text-xs font-bold font-mono">${formatPrice(item.entry)}</p>
+            <p className="text-xs font-bold font-mono">${formatPriceCompact(item.entry)}</p>
           </div>
           <div className="bg-green-500/10 rounded-xl p-2.5">
             <p className="text-[9px] font-black uppercase tracking-widest text-green-500/70 mb-1">TP</p>
             <p className="text-xs font-bold font-mono text-green-400">
-              ${formatPrice(item.tp)}
+              ${formatPriceCompact(item.tp)}
               <span className="block text-[9px] text-green-500/60">+{tpPct}%</span>
             </p>
           </div>
           <div className="bg-red-500/10 rounded-xl p-2.5">
             <p className="text-[9px] font-black uppercase tracking-widest text-red-500/70 mb-1">SL</p>
             <p className="text-xs font-bold font-mono text-red-400">
-              ${formatPrice(item.sl)}
+              ${formatPriceCompact(item.sl)}
               <span className="block text-[9px] text-red-500/60">{slPct}%</span>
             </p>
           </div>

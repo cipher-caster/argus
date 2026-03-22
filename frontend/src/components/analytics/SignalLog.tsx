@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import { useSignalLog, useSignalLogConfig, useUpdateSignalLogConfig } from "@/hooks/useAnalyticsData";
 import { SignalLogItem, SignalLogConfig } from "@/lib/api";
+import { formatPriceCompact, formatDateTime } from "@/lib/formatters";
 import { cn } from "@/lib/utils";
 import { RefreshCw, Settings2, Save, Check, ChevronDown } from "lucide-react";
 import { SignalDetailModal } from "./SignalDetailModal";
@@ -18,21 +19,7 @@ const OUTCOME_CONFIG = {
   REJECTED: { label: "REJECTED", emoji: "🚫", cls: "text-zinc-500 dark:text-zinc-400 bg-zinc-500/10" },
 } as const;
 
-function formatPrice(p: number) {
-  if (p >= 1000) return p.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-  if (p >= 1) return p.toFixed(4);
-  return p.toFixed(6);
-}
-
-function formatDateTime(ms: number) {
-  const d = new Date(ms);
-  const mon = d.toLocaleString("en-US", { month: "short" });
-  const day = d.getDate();
-  const yr = d.getFullYear();
-  const hh = d.getHours().toString().padStart(2, "0");
-  const mm = d.getMinutes().toString().padStart(2, "0");
-  return `${mon} ${day}, ${yr} ${hh}:${mm}`;
-}
+// formatPriceCompact and formatDateTime imported from @/lib/formatters
 
 function pct(from: number, to: number, dir: "LONG" | "SHORT") {
   const raw = dir === "LONG" ? ((to - from) / from) * 100 : ((from - to) / from) * 100;
@@ -62,13 +49,13 @@ function SignalRow({ item, onClick }: { item: SignalLogItem; onClick: () => void
           </span>
         )}
       </td>
-      <td className="py-3 px-4 font-mono text-muted-foreground">${formatPrice(item.entry)}</td>
+      <td className="py-3 px-4 font-mono text-muted-foreground">${formatPriceCompact(item.entry)}</td>
       <td className="py-3 px-4 font-mono text-emerald-600 dark:text-emerald-400">
-        ${formatPrice(item.tp)}
+        ${formatPriceCompact(item.tp)}
         <span className="ml-1 text-[10px] opacity-60">{pct(item.entry, item.tp, item.direction)}</span>
       </td>
       <td className="py-3 px-4 font-mono text-red-600 dark:text-red-400">
-        ${formatPrice(item.sl)}
+        ${formatPriceCompact(item.sl)}
         <span className="ml-1 text-[10px] opacity-60">{pct(item.entry, item.sl, item.direction)}</span>
       </td>
       <td className="py-3 px-4">
@@ -90,7 +77,7 @@ function SignalRow({ item, onClick }: { item: SignalLogItem; onClick: () => void
         </span>
         {item.resolved_price && (
           <span className="ml-1 text-[10px] text-muted-foreground font-mono">
-            @ ${formatPrice(item.resolved_price)}
+            @ ${formatPriceCompact(item.resolved_price)}
           </span>
         )}
       </td>

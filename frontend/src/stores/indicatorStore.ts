@@ -1,8 +1,7 @@
-/**
- * Zustand store for managing active indicators
- */
-
 import { create } from "zustand";
+import { IndicatorDefinition } from "@/lib/indicatorApi";
+
+export type { IndicatorDefinition };
 
 export interface IndicatorConfig {
   id: string;
@@ -14,23 +13,10 @@ export interface IndicatorConfig {
   visible: boolean;
 }
 
-export interface IndicatorDefinition {
-  name: string;
-  display_name: string;
-  type: "overlay" | "pane";
-  params: Array<{
-    name: string;
-    type: string;
-    default: number;
-    min: number;
-    max: number;
-  }>;
-  description: string;
-}
-
 interface IndicatorStore {
   indicators: IndicatorConfig[];
   availableIndicators: IndicatorDefinition[];
+  colorIndex: number;
 
   // Actions
   addIndicator: (type: string, params?: Record<string, number>, color?: string) => void;
@@ -53,16 +39,14 @@ export const INDICATOR_COLORS = [
   "#84cc16", // Lime
 ];
 
-let colorIndex = 0;
-export const getNextColor = () => {
-  const color = INDICATOR_COLORS[colorIndex % INDICATOR_COLORS.length];
-  colorIndex++;
-  return color;
+export const getNextColor = (index: number) => {
+  return INDICATOR_COLORS[index % INDICATOR_COLORS.length];
 };
 
 export const useIndicatorStore = create<IndicatorStore>((set, get) => ({
   indicators: [],
   availableIndicators: [],
+  colorIndex: 0,
 
   addIndicator: (type: string, params?: Record<string, number>, color?: string) => {
     const available = get().availableIndicators.find((i) => i.name === type);
@@ -80,11 +64,11 @@ export const useIndicatorStore = create<IndicatorStore>((set, get) => ({
       displayName: `${available.display_name}(${Object.values(defaultParams).join(",")})`,
       indicatorType: available.type,
       params: defaultParams,
-      color: color || getNextColor(),
+      color: color || getNextColor(get().colorIndex),
       visible: true,
     };
 
-    set((state) => ({ indicators: [...state.indicators, newIndicator] }));
+    set((state) => ({ indicators: [...state.indicators, newIndicator], colorIndex: state.colorIndex + 1 }));
   },
 
   removeIndicator: (id: string) => {
