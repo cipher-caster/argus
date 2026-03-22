@@ -7,12 +7,14 @@
 
 ## How to Execute This Skill
 
+> **⚠️ Implementation Guide** — These test files do not exist yet. This skill guides you through writing and running them. Implement the tests first, then use the commands below to verify.
+
 Phase A tests prevent silent regressions in the core trading engine:
 - **A1:** Backtest engine unit tests (WIN/LOSS/REVIEW outcomes, conviction filter, stats)
 - **A2:** Historical outcome resolution (candle-walk TP/SL edge cases, no-data fallback)
 - **A3:** TradeAnalyzer integration (conviction bucketing, coin stats, streak analysis)
 
-Run these commands sequentially:
+Implement and run these sequentially:
 
 1. **A1: Backtest Engine Tests**
    ```bash

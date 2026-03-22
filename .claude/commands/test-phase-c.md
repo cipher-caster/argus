@@ -7,6 +7,8 @@
 
 ## How to Execute This Skill
 
+> **⚠️ Implementation Guide** — These test files do not exist yet. This skill guides you through writing and running them. Implement the tests first, then use the commands below to verify.
+
 Phase C tests close the feedback loop: connect signal outcomes to actual position P&L, capture regime state at resolution, deduplicate redundant analytics.
 
 ### C1: Trading Analytics Integration

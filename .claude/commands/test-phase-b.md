@@ -7,12 +7,14 @@
 
 ## How to Execute This Skill
 
+> **⚠️ Implementation Guide** — These test files do not exist yet. This skill guides you through writing and running them. Implement the tests first, then use the commands below to verify.
+
 Phase B tests catch integration breaks where API data fails to render or trading page state diverges from backend.
 
 - **B1:** Data rendering smoke tests (dashboard, analytics tabs, BTC card, signal intel)
 - **B2:** Trading page tests (config loading, position updates, P&L display)
 
-Run these commands sequentially from `frontend/` directory:
+Implement and run these sequentially from `frontend/` directory:
 
 1. **B1: Data Rendering Smoke Tests**
    ```bash
