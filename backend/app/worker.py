@@ -564,7 +564,8 @@ class WorkerSettings:
         cron(sync_market_snapshot, minute={0, 5, 10, 15, 20, 25, 30, 35, 40, 45, 50, 55}),  # Snapshot (CoinGecko) every 5m
         cron(sync_analytics_cache, minute={2, 7, 12, 17, 22, 27, 32, 37, 42, 47, 52, 57}),  # Analytics every 5m (offset)
         cron(log_watchlist_setups, hour={0, 4, 8, 12, 16, 20}, minute={3}),  # Signal log at each 4H candle close (+3m for data)
-        cron(log_best_setups, minute={3, 8, 13, 18, 23, 28, 33, 38, 43, 48, 53, 58}),  # Log scanner signals 1min after cache warm
+        # log_best_setups disabled — scanner signals duplicated watchlist data with more noise
+        # cron(log_best_setups, minute={3, 8, 13, 18, 23, 28, 33, 38, 43, 48, 53, 58}),
         cron(resolve_signal_outcomes, minute={0, 30}),  # Resolve signal outcomes every 30min
         cron(execute_signals, minute={5, 15, 25, 35, 45, 55}),  # Execute signals every 10min (catches scanner + live)
         cron(manage_positions, minute={0, 5, 10, 15, 20, 25, 30, 35, 40, 45, 50, 55}),  # Check fills/TP/SL every 5min

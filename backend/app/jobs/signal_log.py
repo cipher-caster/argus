@@ -18,6 +18,7 @@ from sqlalchemy.dialects.postgresql import insert as pg_insert
 
 from app.storage import RedisClient, Database
 from app.schemas.signal_log import SignalLog
+from app.schemas.trading import Position, TradeEvent
 
 logger = logging.getLogger(__name__)
 
@@ -265,28 +266,7 @@ async def log_best_setups(ctx):
             t_signal = item.get("titan_signal", "")
             reason = item.get("reason", "")
 
-            # Log rejected signals for learning
             if conviction < 60:
-                rows_to_insert.append(dict(
-                    symbol=symbol,
-                    direction=direction,
-                    timeframe="4h",
-                    entry=round(float(item.get("entry", 0)), 6),
-                    tp=round(float(item.get("tp", 0)), 6),
-                    sl=round(float(item.get("sl", 0)), 6),
-                    conviction=conviction,
-                    oracle_signal="N/A",
-                    titan_signal=t_signal,
-                    oracle_score=0,
-                    titan_confidence=0,
-                    market_state="scanner",
-                    fired_reason=reason,
-                    fired_at=now_ms,
-                    source="scanner",
-                    outcome="REJECTED",
-                    rejection_reason="low_conviction",
-                    resolved_at=now_ms,
-                ))
                 rejected += 1
                 continue
 
@@ -497,6 +477,63 @@ async def resolve_outcomes_historical(ctx):
 
                     session.add(sig)
                     resolved += 1
+
+                    # Bridge: close linked position if one exists
+                    try:
+                        pos_result = await session.execute(
+                            select(Position).where(
+                                Position.signal_log_id == sig.id,
+                                Position.status.in_(["PENDING", "OPEN"]),
+                            )
+                        )
+                        linked_pos = pos_result.scalars().first()
+                        if linked_pos:
+                            if linked_pos.status == "PENDING":
+                                linked_pos.status = "CANCELLED"
+                                linked_pos.outcome = "EXPIRED"
+                            else:
+                                # OPEN position — close with PnL
+                                FEE_PCT = 0.001
+                                entry = linked_pos.actual_entry or linked_pos.intended_entry
+                                if linked_pos.direction == "LONG":
+                                    raw_pnl = (resolved_price - entry) * linked_pos.quantity
+                                else:
+                                    raw_pnl = (entry - resolved_price) * linked_pos.quantity
+                                fee = linked_pos.quote_amount * FEE_PCT
+                                pnl_usd = raw_pnl - fee
+                                pnl_pct = (pnl_usd / linked_pos.quote_amount * 100) if linked_pos.quote_amount > 0 else 0.0
+                                linked_pos.status = "CLOSED"
+                                linked_pos.outcome = new_outcome
+                                linked_pos.actual_exit = resolved_price
+                                linked_pos.pnl_usd = round(pnl_usd, 4)
+                                linked_pos.pnl_pct = round(pnl_pct, 2)
+                                linked_pos.market_state_at_close = sig.regime_at_resolution or ""
+
+                            linked_pos.closed_at = resolved_at_ms
+                            session.add(linked_pos)
+
+                            # Log trade event so it shows in trade history
+                            import json as _json
+                            event_type = "TP_HIT" if new_outcome == "WIN" else "SL_HIT"
+                            event = TradeEvent(
+                                position_id=linked_pos.id,
+                                event_type=event_type,
+                                details=_json.dumps({
+                                    "exit_price": resolved_price,
+                                    "pnl_usd": linked_pos.pnl_usd,
+                                    "pnl_pct": linked_pos.pnl_pct,
+                                    "source": "signal_resolution",
+                                }),
+                                timestamp=resolved_at_ms,
+                            )
+                            session.add(event)
+                            logger.info(
+                                f"Historical resolve: closed position #{linked_pos.id} "
+                                f"{linked_pos.symbol} {linked_pos.direction} → {new_outcome} "
+                                f"pnl=${linked_pos.pnl_usd}"
+                            )
+                    except Exception as pos_err:
+                        logger.warning(f"Historical resolve: position bridge error for {sig.symbol}: {pos_err}")
 
                     try:
                         from app.schemas.activity_log import log_activity

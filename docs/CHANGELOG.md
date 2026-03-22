@@ -2,13 +2,22 @@
 
 All notable changes to this project will be documented in this file.
 
-## [0.9.2] - 2026-03-22 — Provider Reuse & Worker Stability
+## [0.9.2] - 2026-03-22 — Provider Reuse, Signal-Position Bridge & Fill Rate Fix
 
 ### Fixed
 
 - **Worker Binance API rate limiting** — `log_watchlist_setups`, `resolve_outcomes_historical`, and `_recover_missed_scans` were creating a new BinanceProvider per symbol, each hitting `exchangeInfo`. Now share one provider per job run, eliminating 10+ redundant API calls per cycle.
 - **Unclosed aiohttp sessions** — shared providers are properly closed via `try/finally`, preventing session leaks that caused `asyncio:Unclosed client session` errors.
+- **Signal resolution → position bridge** — when `resolve_outcomes_historical` resolves a signal WIN/LOSS, it now closes the linked position (with PnL calculation and TradeEvent), so resolved trades appear in trade history instead of only in system activity.
 - **Server-side pagination** — signal log and trade history endpoints now support pagination (`2292176`).
+- **Paper trading fill rate (17% → expected ~80%)** — three root causes addressed:
+  - `min_conviction` lowered 60 → 50: all live watchlist signals (conviction 56) were being blocked by risk manager, resulting in zero positions from the best-performing signal source (4W/1L track record).
+  - `order_expiry_hours` extended 8 → 24: SELL_LIMIT entries are set above current price (at EMA20/SuperTrend); 8 hours wasn't enough for price to retrace. 24 hours gives a full daily cycle.
+  - Market-order instant fill for BUY/SELL signals: high-conviction market signals (conviction 80) now create OPEN positions immediately at current price instead of waiting as PENDING limit orders that may never fill.
+
+### Changed
+
+- **Stopped persisting rejected scanner signals** — `log_best_setups` no longer inserts REJECTED rows for low-conviction scanner signals. These had zero learning value (no outcome tracking, hardcoded rejection reason). Rejection counts still logged to worker stdout. Cleaned up 139 existing rejected rows.
 
 ### Docs
 

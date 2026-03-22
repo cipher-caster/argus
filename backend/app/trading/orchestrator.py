@@ -12,6 +12,7 @@ import logging
 import time
 from typing import Optional
 
+import pandas as pd
 from sqlalchemy import select
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 
@@ -37,9 +38,9 @@ DEFAULT_TRADING_CONFIG = {
     "max_correlated_positions": 2,
     "max_drawdown_pct": 15.0,
     "max_leverage": 3.0,
-    "min_conviction": 60,
+    "min_conviction": 50,
     "max_total_exposure_pct": 300.0,
-    "order_expiry_hours": 8,
+    "order_expiry_hours": 24,
     "correlation_groups": {
         "btc_correlated": [
             "BTCUSDT", "ETHUSDT", "BNBUSDT",
@@ -142,14 +143,24 @@ class TradeOrchestrator:
             quantity, quote_amount, risk_amount = sizing
             now_ms = int(time.time() * 1000)
 
+            # Market signals (BUY/SELL) fill immediately at current price;
+            # Limit signals (BUY_LIMIT/SELL_LIMIT) stay PENDING.
+            is_market = getattr(signal, "titan_signal", "") in ("BUY", "SELL")
+
+            if is_market:
+                prices = await _get_prices()
+                current_price = prices.get(signal.symbol)
+
             position = Position(
                 signal_log_id=signal.id,
                 symbol=signal.symbol,
                 direction=signal.direction,
-                status="PENDING",
+                status="OPEN" if is_market and current_price else "PENDING",
                 intended_entry=signal.entry,
                 intended_tp=signal.tp,
                 intended_sl=signal.sl,
+                actual_entry=current_price if is_market and current_price else None,
+                filled_at=now_ms if is_market and current_price else None,
                 quantity=quantity,
                 quote_amount=quote_amount,
                 risk_amount=risk_amount,
@@ -162,14 +173,17 @@ class TradeOrchestrator:
 
             try:
                 await session.flush()  # get position.id
-                await _log_event(session, position.id, "CREATED", {
+                event_type = "FILLED" if position.status == "OPEN" else "CREATED"
+                await _log_event(session, position.id, event_type, {
                     "balance": balance,
                     "entry": signal.entry,
+                    "actual_entry": position.actual_entry,
                     "tp": signal.tp,
                     "sl": signal.sl,
                     "quantity": quantity,
                     "quote_amount": quote_amount,
                     "risk_amount": risk_amount,
+                    "market_fill": is_market,
                 })
                 await session.commit()
                 await session.refresh(position)
@@ -178,11 +192,19 @@ class TradeOrchestrator:
                 logger.warning(f"Orchestrator: position insert failed for {signal.symbol} — {e}")
                 return None
 
-        logger.info(
-            f"Orchestrator: position CREATED {signal.symbol} {signal.direction} "
-            f"entry={signal.entry} qty={quantity:.6f} quote=${quote_amount:.2f}"
-        )
+        if position.status == "OPEN":
+            logger.info(
+                f"Orchestrator: position FILLED (market) {signal.symbol} {signal.direction} "
+                f"@ {position.actual_entry} qty={quantity:.6f} quote=${quote_amount:.2f}"
+            )
+        else:
+            logger.info(
+                f"Orchestrator: position CREATED {signal.symbol} {signal.direction} "
+                f"entry={signal.entry} qty={quantity:.6f} quote=${quote_amount:.2f}"
+            )
         await notifier.notify_position_created(position)
+        if position.status == "OPEN":
+            await notifier.notify_position_filled(position)
         return position
 
     # ------------------------------------------------------------------
@@ -290,7 +312,8 @@ class TradeOrchestrator:
 
                 # Walk candles from fill time
                 filled_at = pos.filled_at or pos.created_at
-                candles_after = df[df["timestamp"] >= filled_at].sort_values("timestamp")
+                filled_at_ts = pd.Timestamp(filled_at, unit="ms")
+                candles_after = df[df["timestamp"] >= filled_at_ts].sort_values("timestamp")
 
                 if candles_after.empty:
                     continue

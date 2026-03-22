@@ -131,6 +131,13 @@ class TestRiskManagerConviction:
         assert ok is False
         assert "Low conviction" in reason
 
+    def test_live_signal_conviction_56_passes_default(self):
+        """Live watchlist signals fire at conviction 56 — default min should allow them."""
+        rm = RiskManager()
+        from app.trading.orchestrator import DEFAULT_TRADING_CONFIG
+        ok, _ = rm.check_conviction(56, DEFAULT_TRADING_CONFIG)
+        assert ok is True
+
 
 class TestRiskManagerMinOrderSize:
 
@@ -402,12 +409,30 @@ class TestPnLMath:
 
 
 # ---------------------------------------------------------------------------
+# Default config sanity checks
+# ---------------------------------------------------------------------------
+
+class TestDefaultConfig:
+
+    def test_min_conviction_allows_live_signals(self):
+        """Default min_conviction=50 lets live watchlist signals (conviction 56) through."""
+        from app.trading.orchestrator import DEFAULT_TRADING_CONFIG
+        assert DEFAULT_TRADING_CONFIG["min_conviction"] == 50
+
+    def test_order_expiry_24_hours(self):
+        """Order expiry should be 24h to give LIMIT orders a full daily cycle."""
+        from app.trading.orchestrator import DEFAULT_TRADING_CONFIG
+        assert DEFAULT_TRADING_CONFIG["order_expiry_hours"] == 24
+
+
+# ---------------------------------------------------------------------------
 # Integration: full signal → position simulation cycle (mocked DB/Redis)
 # ---------------------------------------------------------------------------
 
 class TestOrchestratorCycle:
 
-    def _make_signal(self, symbol="BTCUSDT", direction="LONG", conviction=75):
+    def _make_signal(self, symbol="BTCUSDT", direction="LONG", conviction=75,
+                     titan_signal="BUY_LIMIT"):
         sig = MagicMock()
         sig.id = 1
         sig.symbol = symbol
@@ -418,6 +443,7 @@ class TestOrchestratorCycle:
         sig.conviction = conviction
         sig.market_state = "TRENDING"
         sig.fired_reason = "Test signal"
+        sig.titan_signal = titan_signal
         return sig
 
     @pytest.mark.asyncio
@@ -510,6 +536,120 @@ class TestOrchestratorCycle:
             signal = self._make_signal()
             result = await orchestrator.process_signal(signal)
             assert result is None
+
+    @pytest.mark.asyncio
+    async def test_market_signal_creates_open_position(self):
+        """BUY/SELL (market) signals should create OPEN position immediately, not PENDING."""
+        from app.trading.orchestrator import TradeOrchestrator
+
+        orchestrator = TradeOrchestrator()
+        config = make_config(enabled=True, initial_capital=100.0)
+
+        mock_session = AsyncMock()
+        no_result = MagicMock()
+        no_result.scalars.return_value.first.return_value = None
+        no_result.scalars.return_value.all.return_value = []
+        mock_session.execute = AsyncMock(return_value=no_result)
+        mock_session.flush = AsyncMock()
+        mock_session.commit = AsyncMock()
+        mock_session.refresh = AsyncMock()
+
+        added_objects = []
+        orig_add = mock_session.add
+        def capture_add(obj):
+            added_objects.append(obj)
+            return orig_add(obj)
+        mock_session.add = capture_add
+
+        db_ctx = MagicMock()
+        db_ctx.__aenter__ = AsyncMock(return_value=mock_session)
+        db_ctx.__aexit__ = AsyncMock(return_value=None)
+
+        portfolio_session = AsyncMock()
+        portfolio_result = MagicMock()
+        portfolio_result.scalar.return_value = 0.0
+        portfolio_session.execute = AsyncMock(return_value=portfolio_result)
+        p_ctx = MagicMock()
+        p_ctx.__aenter__ = AsyncMock(return_value=portfolio_session)
+        p_ctx.__aexit__ = AsyncMock(return_value=None)
+
+        with (
+            patch("app.trading.orchestrator.get_trading_config", new_callable=AsyncMock, return_value=config),
+            patch("app.trading.orchestrator.Database") as mock_db,
+            patch("app.trading.orchestrator.notifier.notify_position_created", new_callable=AsyncMock),
+            patch("app.trading.orchestrator.notifier.notify_position_filled", new_callable=AsyncMock),
+            patch("app.trading.orchestrator._get_prices", new_callable=AsyncMock, return_value={"BTCUSDT": 50500.0}),
+            patch("app.trading.portfolio.Database") as mock_pdb,
+        ):
+            mock_db.get_session.return_value = db_ctx
+            mock_pdb.get_session.return_value = p_ctx
+
+            signal = self._make_signal(direction="SHORT", titan_signal="SELL", conviction=78)
+            result = await orchestrator.process_signal(signal)
+
+            from app.schemas.trading import Position
+            positions = [o for o in added_objects if isinstance(o, Position)]
+            assert len(positions) >= 1, "Expected a Position to be created"
+            pos = positions[0]
+            assert pos.status == "OPEN"
+            assert pos.actual_entry == 50500.0
+            assert pos.filled_at is not None
+
+    @pytest.mark.asyncio
+    async def test_limit_signal_creates_pending_position(self):
+        """SELL_LIMIT/BUY_LIMIT signals should create PENDING position (existing behavior)."""
+        from app.trading.orchestrator import TradeOrchestrator
+
+        orchestrator = TradeOrchestrator()
+        config = make_config(enabled=True, initial_capital=100.0, min_conviction=50)
+
+        mock_session = AsyncMock()
+        no_result = MagicMock()
+        no_result.scalars.return_value.first.return_value = None
+        no_result.scalars.return_value.all.return_value = []
+        mock_session.execute = AsyncMock(return_value=no_result)
+        mock_session.flush = AsyncMock()
+        mock_session.commit = AsyncMock()
+        mock_session.refresh = AsyncMock()
+
+        added_objects = []
+        orig_add = mock_session.add
+        def capture_add(obj):
+            added_objects.append(obj)
+            return orig_add(obj)
+        mock_session.add = capture_add
+
+        db_ctx = MagicMock()
+        db_ctx.__aenter__ = AsyncMock(return_value=mock_session)
+        db_ctx.__aexit__ = AsyncMock(return_value=None)
+
+        portfolio_session = AsyncMock()
+        portfolio_result = MagicMock()
+        portfolio_result.scalar.return_value = 0.0
+        portfolio_session.execute = AsyncMock(return_value=portfolio_result)
+        p_ctx = MagicMock()
+        p_ctx.__aenter__ = AsyncMock(return_value=portfolio_session)
+        p_ctx.__aexit__ = AsyncMock(return_value=None)
+
+        with (
+            patch("app.trading.orchestrator.get_trading_config", new_callable=AsyncMock, return_value=config),
+            patch("app.trading.orchestrator.Database") as mock_db,
+            patch("app.trading.orchestrator.notifier.notify_position_created", new_callable=AsyncMock),
+            patch("app.trading.portfolio.Database") as mock_pdb,
+        ):
+            mock_db.get_session.return_value = db_ctx
+            mock_pdb.get_session.return_value = p_ctx
+
+            signal = self._make_signal(direction="SHORT", titan_signal="SELL_LIMIT", conviction=56)
+            result = await orchestrator.process_signal(signal)
+
+            from app.schemas.trading import Position
+            positions = [o for o in added_objects if isinstance(o, Position)]
+            assert len(positions) >= 1, "Expected a Position to be created"
+            pos = positions[0]
+            assert pos.status == "PENDING"
+            assert pos.actual_entry is None
+            assert pos.filled_at is None
 
     @pytest.mark.asyncio
     async def test_fill_logic_long(self):
@@ -607,7 +747,7 @@ def _make_position(symbol="BTCUSDT", direction="LONG", entry=50000.0,
     pos.intended_sl = sl
     pos.quantity = qty
     pos.quote_amount = quote
-    pos.filled_at = 1000
+    pos.filled_at = 1000  # epoch ms — orchestrator converts via pd.Timestamp()
     pos.created_at = 1000
     pos.status = "OPEN"
     pos.outcome = None
@@ -616,8 +756,11 @@ def _make_position(symbol="BTCUSDT", direction="LONG", entry=50000.0,
 
 
 def _make_candles(rows):
-    """rows: list of (timestamp, open, high, low, close)"""
-    return pd.DataFrame(rows, columns=["timestamp", "open", "high", "low", "close"])
+    """rows: list of (timestamp_ms, open, high, low, close).
+    Timestamps are converted to datetime64 to match get_candles_df output."""
+    df = pd.DataFrame(rows, columns=["timestamp", "open", "high", "low", "close"])
+    df["timestamp"] = pd.to_datetime(df["timestamp"], unit="ms")
+    return df
 
 
 class TestCandleWalkResolution:

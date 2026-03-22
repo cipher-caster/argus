@@ -308,7 +308,7 @@ class TestLogBestSetups:
     @patch("app.jobs.signal_log._get_config", new_callable=AsyncMock)
     @patch("app.jobs.signal_log.RedisClient")
     async def test_skips_low_conviction(self, mock_redis, mock_cfg, mock_ms, mock_db):
-        """Conviction < 60 → logged as REJECTED instead of OPEN."""
+        """Conviction < 60 → skipped entirely (not persisted)."""
         mock_redis.get_json = AsyncMock(return_value={
             "data": [{"symbol": "BTCUSDT", "direction": "LONG", "conviction": 50,
                        "oracle_score": 3, "titan_signal": "BUY",
@@ -321,8 +321,8 @@ class TestLogBestSetups:
 
         from app.jobs.signal_log import log_best_setups
         await log_best_setups(self._make_ctx())
-        # Now low conviction signals ARE inserted (as REJECTED), so DB is called
-        mock_db.get_session.assert_called()
+        # Low conviction signals are no longer persisted — DB should not be called
+        mock_db.get_session.assert_not_called()
 
     @pytest.mark.asyncio
     @patch("app.jobs.signal_log.Database")
@@ -371,3 +371,177 @@ class TestResolveOutcomes:
         ctx = self._make_ctx()
         await resolve_signal_outcomes(ctx)
         mock_historical.assert_awaited_once_with(ctx)
+
+
+# ---------------------------------------------------------------------------
+# TestResolveOutcomesPositionBridge
+# ---------------------------------------------------------------------------
+
+class TestResolveOutcomesPositionBridge:
+    """Tests that signal resolution closes linked positions."""
+
+    def _make_signal(self, **overrides):
+        sig = MagicMock()
+        sig.id = 100
+        sig.symbol = "BTCUSDT"
+        sig.direction = "SHORT"
+        sig.fired_at = 1700000000000
+        sig.entry = 70000.0
+        sig.tp = 66000.0
+        sig.sl = 73000.0
+        sig.outcome = "OPEN"
+        sig.resolved_at = None
+        sig.resolved_price = None
+        sig.regime_at_resolution = None
+        sig.btc_price_at_resolution = None
+        sig.time_to_resolution_ms = None
+        for k, v in overrides.items():
+            setattr(sig, k, v)
+        return sig
+
+    def _make_position(self, **overrides):
+        pos = MagicMock()
+        pos.id = 42
+        pos.signal_log_id = 100
+        pos.symbol = "BTCUSDT"
+        pos.direction = "SHORT"
+        pos.status = "OPEN"
+        pos.actual_entry = 70000.0
+        pos.intended_entry = 70000.0
+        pos.intended_tp = 66000.0
+        pos.intended_sl = 73000.0
+        pos.quantity = 0.01
+        pos.quote_amount = 700.0
+        pos.pnl_usd = None
+        pos.pnl_pct = None
+        pos.outcome = None
+        pos.closed_at = None
+        pos.market_state_at_close = None
+        for k, v in overrides.items():
+            setattr(pos, k, v)
+        return pos
+
+    def _candle_df(self, fired_at_ms):
+        """Create candles that trigger a SHORT TP hit (low <= tp)."""
+        import pandas as pd
+        return pd.DataFrame({
+            "timestamp": pd.to_datetime([fired_at_ms, fired_at_ms + 14400000], unit="ms"),
+            "open": [70000.0, 68000.0],
+            "high": [70500.0, 68500.0],
+            "low": [69000.0, 65000.0],   # low=65000 < tp=66000 → TP hit
+            "close": [68000.0, 66000.0],
+            "volume": [100.0, 100.0],
+        })
+
+    @pytest.mark.asyncio
+    @patch("app.providers.get_provider")
+    @patch("app.jobs.signal_log._get_market_state", new_callable=AsyncMock, return_value="BEAR")
+    @patch("app.jobs.signal_log._get_config", new_callable=AsyncMock)
+    @patch("app.jobs.signal_log.Database")
+    async def test_resolves_signal_and_closes_open_position(self, mock_db, mock_cfg, mock_ms, mock_provider):
+        """When a signal resolves WIN, the linked OPEN position should close with PnL."""
+        mock_cfg.return_value = {"review_days": 7}
+        mock_provider.return_value = AsyncMock()
+
+        sig = self._make_signal()
+        pos = self._make_position()
+
+        # Mock session: first execute returns open signals, second returns position
+        mock_session = AsyncMock()
+        sig_result = MagicMock()
+        sig_result.scalars.return_value.all.return_value = [sig]
+        pos_result = MagicMock()
+        pos_result.scalars.return_value.first.return_value = pos
+
+        mock_session.execute = AsyncMock(side_effect=[sig_result, pos_result])
+        mock_db.get_session.return_value.__aenter__ = AsyncMock(return_value=mock_session)
+        mock_db.get_session.return_value.__aexit__ = AsyncMock(return_value=False)
+
+        import pandas as pd
+        candle_df = self._candle_df(sig.fired_at)
+
+        with patch("app.routes.strategy.get_candles_df", new_callable=AsyncMock, return_value=candle_df), \
+             patch("app.schemas.activity_log.log_activity", new_callable=AsyncMock):
+
+            from app.jobs.signal_log import resolve_outcomes_historical
+            await resolve_outcomes_historical({})
+
+        # Signal should be resolved as WIN
+        assert sig.outcome == "WIN"
+        assert sig.resolved_price == sig.tp
+
+        # Position should be CLOSED with PnL
+        assert pos.status == "CLOSED"
+        assert pos.outcome == "WIN"
+        assert pos.actual_exit == sig.tp
+        assert pos.pnl_usd is not None
+        assert pos.pnl_usd > 0  # SHORT won, so PnL should be positive
+
+    @pytest.mark.asyncio
+    @patch("app.providers.get_provider")
+    @patch("app.jobs.signal_log._get_market_state", new_callable=AsyncMock, return_value="BEAR")
+    @patch("app.jobs.signal_log._get_config", new_callable=AsyncMock)
+    @patch("app.jobs.signal_log.Database")
+    async def test_cancels_pending_position_on_resolve(self, mock_db, mock_cfg, mock_ms, mock_provider):
+        """When a signal resolves, a linked PENDING position should be cancelled."""
+        mock_cfg.return_value = {"review_days": 7}
+        mock_provider.return_value = AsyncMock()
+
+        sig = self._make_signal()
+        pos = self._make_position(status="PENDING", actual_entry=None)
+
+        mock_session = AsyncMock()
+        sig_result = MagicMock()
+        sig_result.scalars.return_value.all.return_value = [sig]
+        pos_result = MagicMock()
+        pos_result.scalars.return_value.first.return_value = pos
+
+        mock_session.execute = AsyncMock(side_effect=[sig_result, pos_result])
+        mock_db.get_session.return_value.__aenter__ = AsyncMock(return_value=mock_session)
+        mock_db.get_session.return_value.__aexit__ = AsyncMock(return_value=False)
+
+        import pandas as pd
+        candle_df = self._candle_df(sig.fired_at)
+
+        with patch("app.routes.strategy.get_candles_df", new_callable=AsyncMock, return_value=candle_df), \
+             patch("app.schemas.activity_log.log_activity", new_callable=AsyncMock):
+
+            from app.jobs.signal_log import resolve_outcomes_historical
+            await resolve_outcomes_historical({})
+
+        assert pos.status == "CANCELLED"
+        assert pos.outcome == "EXPIRED"
+
+    @pytest.mark.asyncio
+    @patch("app.providers.get_provider")
+    @patch("app.jobs.signal_log._get_market_state", new_callable=AsyncMock, return_value="BEAR")
+    @patch("app.jobs.signal_log._get_config", new_callable=AsyncMock)
+    @patch("app.jobs.signal_log.Database")
+    async def test_resolves_signal_without_position(self, mock_db, mock_cfg, mock_ms, mock_provider):
+        """Signal resolves normally even when no linked position exists."""
+        mock_cfg.return_value = {"review_days": 7}
+        mock_provider.return_value = AsyncMock()
+
+        sig = self._make_signal()
+
+        mock_session = AsyncMock()
+        sig_result = MagicMock()
+        sig_result.scalars.return_value.all.return_value = [sig]
+        no_pos_result = MagicMock()
+        no_pos_result.scalars.return_value.first.return_value = None
+
+        mock_session.execute = AsyncMock(side_effect=[sig_result, no_pos_result])
+        mock_db.get_session.return_value.__aenter__ = AsyncMock(return_value=mock_session)
+        mock_db.get_session.return_value.__aexit__ = AsyncMock(return_value=False)
+
+        import pandas as pd
+        candle_df = self._candle_df(sig.fired_at)
+
+        with patch("app.routes.strategy.get_candles_df", new_callable=AsyncMock, return_value=candle_df), \
+             patch("app.schemas.activity_log.log_activity", new_callable=AsyncMock):
+
+            from app.jobs.signal_log import resolve_outcomes_historical
+            await resolve_outcomes_historical({})
+
+        assert sig.outcome == "WIN"
+        assert sig.resolved_price == sig.tp
