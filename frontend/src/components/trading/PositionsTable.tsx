@@ -5,6 +5,8 @@ import { Position } from "@/lib/api";
 import { cn } from "@/lib/utils";
 import { X } from "lucide-react";
 import Link from "next/link";
+import { useState } from "react";
+import { TradeDetailModal } from "./TradeDetailModal";
 
 function formatPrice(p: number) {
   if (p >= 1000) return p.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -33,14 +35,14 @@ function StatusBadge({ status }: { status: Position["status"] }) {
   );
 }
 
-function PositionRow({ pos, onClose }: { pos: Position; onClose: (id: number) => void }) {
+function PositionRow({ pos, onClose, onClick }: { pos: Position; onClose: (id: number) => void; onClick: () => void }) {
   const base = pos.symbol.replace("USDT", "");
   const isLong = pos.direction === "LONG";
   const entry = pos.actual_entry ?? pos.intended_entry;
   const hasPnl = pos.unrealized_pnl_pct !== undefined;
 
   return (
-    <div className="flex items-center gap-3 py-2.5 px-4 border-b border-border/20 last:border-0 hover:bg-secondary/20 transition-colors">
+    <div className="flex items-center gap-3 py-2.5 px-4 border-b border-border/20 last:border-0 hover:bg-secondary/20 transition-colors cursor-pointer" onClick={onClick}>
       {/* Symbol + direction */}
       <div className="flex items-center gap-1.5 min-w-[70px]">
         <Link href={`/chart/${base}-USDT`} className="font-black text-[13px] hover:underline">{base}</Link>
@@ -84,7 +86,7 @@ function PositionRow({ pos, onClose }: { pos: Position; onClose: (id: number) =>
 
       {/* Close button */}
       <button
-        onClick={() => onClose(pos.id)}
+        onClick={(e) => { e.stopPropagation(); onClose(pos.id); }}
         className="p-1 rounded hover:bg-red-500/10 text-muted-foreground hover:text-red-500 transition-colors"
         title="Close position"
       >
@@ -97,6 +99,7 @@ function PositionRow({ pos, onClose }: { pos: Position; onClose: (id: number) =>
 export function PositionsTable() {
   const { data, isLoading } = useActivePositions();
   const closePos = useClosePosition();
+  const [selectedPosition, setSelectedPosition] = useState<Position | null>(null);
 
   const positions = data?.data ?? [];
 
@@ -133,10 +136,17 @@ export function PositionsTable() {
               key={p.id}
               pos={p}
               onClose={(id) => closePos.mutate(id)}
+              onClick={() => setSelectedPosition(p)}
             />
           ))}
         </div>
       )}
+
+      <TradeDetailModal
+        isOpen={selectedPosition !== null}
+        onClose={() => setSelectedPosition(null)}
+        position={selectedPosition}
+      />
     </div>
   );
 }

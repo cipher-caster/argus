@@ -57,7 +57,7 @@ function CoinTableComponent({ coins, isLoading, sortBy, sortOrder, onSort }: Coi
   if (!mounted) return <div className="bg-secondary border border-border rounded-xl h-[400px]"></div>;
 
   return (
-    <div className="bg-secondary border border-border rounded-xl overflow-x-auto shadow-sm">
+    <div className="bg-card/60 backdrop-blur-md border border-border/40 rounded-xl overflow-x-auto">
       <table className="w-full border-collapse min-w-[1000px]">
         <thead className="bg-muted/50">
           <tr>

@@ -5,6 +5,7 @@ import { useSignalLog, useSignalLogConfig, useUpdateSignalLogConfig } from "@/ho
 import { SignalLogItem, SignalLogConfig } from "@/lib/api";
 import { cn } from "@/lib/utils";
 import { RefreshCw, Settings2, Save, Check, ChevronDown } from "lucide-react";
+import { SignalDetailModal } from "./SignalDetailModal";
 
 const SYMBOLS = ["All", "BTC", "ETH", "BNB", "TRX", "XRP", "FET", "NEAR", "ARB", "ATOM", "DOGE", "APT"];
 const SOURCES = ["All", "Live", "Scanner", "Backtest"];
@@ -38,13 +39,13 @@ function pct(from: number, to: number, dir: "LONG" | "SHORT") {
   return (raw >= 0 ? "+" : "") + raw.toFixed(1) + "%";
 }
 
-function SignalRow({ item }: { item: SignalLogItem }) {
+function SignalRow({ item, onClick }: { item: SignalLogItem; onClick: () => void }) {
   const cfg = OUTCOME_CONFIG[item.outcome] ?? OUTCOME_CONFIG.OPEN;
   const isLong = item.direction === "LONG";
   const base = item.symbol.replace("USDT", "");
 
   return (
-    <tr className="border-b border-border/30 hover:bg-secondary/20 transition-colors text-[12px]">
+    <tr className="border-b border-border/30 hover:bg-secondary/20 transition-colors text-[12px] cursor-pointer" onClick={onClick}>
       <td className="py-3 px-4 font-black tracking-tight">
         <span className={cn("font-bold", isLong ? "text-emerald-500 dark:text-emerald-400" : "text-red-500 dark:text-red-400")}>
           {base}
@@ -262,6 +263,7 @@ export function SignalLog() {
   const [page, setPage] = useState(1);
   const [showSettings, setShowSettings] = useState(false);
   const [saved, setSaved] = useState(false);
+  const [selectedSignal, setSelectedSignal] = useState<SignalLogItem | null>(null);
   const { data: config } = useSignalLogConfig();
   const updateConfig = useUpdateSignalLogConfig();
   const offset = (page - 1) * PAGE_SIZE;
@@ -408,7 +410,7 @@ export function SignalLog() {
             </thead>
             <tbody>
               {data.data.map((item) => (
-                <SignalRow key={item.id} item={item} />
+                <SignalRow key={item.id} item={item} onClick={() => setSelectedSignal(item)} />
               ))}
             </tbody>
           </table>
@@ -448,6 +450,13 @@ export function SignalLog() {
           </div>
         </div>
       )}
+
+      {/* Signal detail modal */}
+      <SignalDetailModal
+        isOpen={selectedSignal !== null}
+        onClose={() => setSelectedSignal(null)}
+        signal={selectedSignal}
+      />
     </div>
   );
 }

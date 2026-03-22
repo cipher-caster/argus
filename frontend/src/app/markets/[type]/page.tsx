@@ -74,7 +74,7 @@ export default function MarketCategoryPage() {
           </div>
         </div>
 
-        <section className="bg-secondary/30 rounded-2xl overflow-hidden border border-border/50">
+        <section className="rounded-2xl overflow-hidden">
           <CoinTable coins={coinsData?.coins || []} isLoading={isLoading} sortBy={sortBy} sortOrder={sortOrder} onSort={handleSort} />
 
           {/* Pagination */}

@@ -6,6 +6,7 @@ import { cn } from "@/lib/utils";
 import { ChevronRight } from "lucide-react";
 import Link from "next/link";
 import { useState } from "react";
+import { TradeDetailModal } from "./TradeDetailModal";
 
 function formatPrice(p: number) {
   if (p >= 1000) return p.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -23,7 +24,7 @@ function duration(from: number | null, to: number | null): string {
   return "< 1h";
 }
 
-function HistoryRow({ pos }: { pos: Position }) {
+function HistoryRow({ pos, onClick }: { pos: Position; onClick: () => void }) {
   const base = pos.symbol.replace("USDT", "");
   const isWin = pos.outcome === "WIN";
   const isLoss = pos.outcome === "LOSS";
@@ -32,7 +33,7 @@ function HistoryRow({ pos }: { pos: Position }) {
   const exit = pos.actual_exit ?? 0;
 
   return (
-    <div className="flex items-center gap-3 py-2.5 px-4 border-b border-border/20 last:border-0 hover:bg-secondary/20 transition-colors">
+    <div className="flex items-center gap-3 py-2.5 px-4 border-b border-border/20 last:border-0 hover:bg-secondary/20 transition-colors cursor-pointer" onClick={onClick}>
       {/* Outcome badge */}
       <span className={cn(
         "text-[9px] font-black px-1.5 py-0.5 rounded uppercase w-10 text-center",
@@ -83,6 +84,7 @@ function HistoryRow({ pos }: { pos: Position }) {
 export function TradeHistory() {
   const PAGE_SIZE = 50;
   const [page, setPage] = useState(1);
+  const [selectedPosition, setSelectedPosition] = useState<Position | null>(null);
   const offset = (page - 1) * PAGE_SIZE;
   const { data, isLoading } = useTradeHistory(PAGE_SIZE, offset);
   const trades = data?.data ?? [];
@@ -112,7 +114,7 @@ export function TradeHistory() {
             <span className="min-w-[70px] text-right">PnL</span>
             <span className="min-w-[40px] text-right">Held</span>
           </div>
-          {trades.map(t => <HistoryRow key={t.id} pos={t} />)}
+          {trades.map(t => <HistoryRow key={t.id} pos={t} onClick={() => setSelectedPosition(t)} />)}
 
           {totalPages > 1 && (
             <div className="flex items-center justify-center gap-4 py-4 border-t border-border/30">
@@ -148,6 +150,12 @@ export function TradeHistory() {
           )}
         </div>
       )}
+
+      <TradeDetailModal
+        isOpen={selectedPosition !== null}
+        onClose={() => setSelectedPosition(null)}
+        position={selectedPosition}
+      />
     </div>
   );
 }
