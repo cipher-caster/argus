@@ -6,6 +6,7 @@ from multiple sources (Database, Redis cache, external providers like Binance).
 """
 
 import logging
+import os
 from typing import List, Dict, Any, Optional, Tuple
 from sqlmodel import select
 
@@ -51,11 +52,14 @@ class MarketDataService:
         """
         from app.providers import get_provider
 
+        active_provider = os.getenv("DATA_PROVIDER", "binance").lower()
+
         async with Database.get_session() as session:
-            # Base query
+            # Base query — filter by active provider to avoid duplicate timestamps
             query = select(DbCandle).where(
                 DbCandle.symbol == symbol,
-                DbCandle.timeframe == timeframe
+                DbCandle.timeframe == timeframe,
+                DbCandle.provider == active_provider,
             )
             
             # Apply pagination (historical data)  

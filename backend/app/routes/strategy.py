@@ -5,6 +5,7 @@ Endpoints for running technical strategies on market data
 
 import asyncio
 import logging
+import os
 import time
 from fastapi import APIRouter, HTTPException, Query
 from typing import Dict, Any, Optional
@@ -30,11 +31,13 @@ async def get_candles_df(symbol: str, timeframe: str, limit: int = 500, provider
     Helper to get candles as DataFrame.
     Fetches from DB first, then falls back to Binance if insufficient.
     """
-    # 1. Try DB
+    # 1. Try DB (filter by active provider to avoid duplicate timestamps)
+    active_provider = os.getenv("DATA_PROVIDER", "binance").lower() if provider is None else provider.name
     async with Database.get_session() as session:
         statement = select(DbCandle).where(
             DbCandle.symbol == symbol,
-            DbCandle.timeframe == timeframe
+            DbCandle.timeframe == timeframe,
+            DbCandle.provider == active_provider,
         ).order_by(DbCandle.timestamp.desc()).limit(limit)
         
         results = await session.execute(statement)

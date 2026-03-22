@@ -3,6 +3,7 @@ Indicator API Routes
 Endpoints for listing and calculating technical indicators
 """
 import logging
+import os
 from fastapi import APIRouter, HTTPException
 from typing import List, Dict, Any
 from pydantic import BaseModel
@@ -83,9 +84,11 @@ async def calculate_indicators(request: CalculateRequest):
         from sqlmodel import select
         
         async with Database.get_session() as session:
+            active_provider = os.getenv("DATA_PROVIDER", "binance").lower()
             query = select(DbCandle).where(
                 DbCandle.symbol == request.symbol,
-                DbCandle.timeframe == request.timeframe
+                DbCandle.timeframe == request.timeframe,
+                DbCandle.provider == active_provider,
             ).order_by(DbCandle.timestamp.desc()).limit(request.limit)
             
             results = await session.execute(query)
@@ -178,9 +181,11 @@ async def get_market_dashboard_indicators():
     try:
         # Fetch BTC/USDT daily candles for volatility + ADX calculation
         async with Database.get_session() as session:
+            active_provider = os.getenv("DATA_PROVIDER", "binance").lower()
             query = select(DbCandle).where(
                 DbCandle.symbol == "BTC/USDT",
-                DbCandle.timeframe == "1d"
+                DbCandle.timeframe == "1d",
+                DbCandle.provider == active_provider,
             ).order_by(DbCandle.timestamp.desc()).limit(30)
             
             db_result = await session.execute(query)
