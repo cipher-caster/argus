@@ -12,7 +12,7 @@ This document provides context for continuing development on Argus.
 - **Frontend**: Next.js 14 App Router, TanStack Query v5, Zustand, Tailwind CSS + Shadcn UI
 - **Data**: Binance via CCXT, CoinGecko for metadata
 
-## Current State (v0.9.1)
+## Current State (v0.9.3)
 
 ### What's Working
 
@@ -36,12 +36,9 @@ This document provides context for continuing development on Argus.
   - `CoinSignalIntel`: backtest stats + open signals per coin
   - `CoinAnalysisModal`: deep analysis with signal track record
 
-- **`/analytics` page** (5 tabs):
+- **`/analytics` page** (2 tabs):
   - Best Setups (Titan regime-filtered, conviction + win rate + MTF confluence)
-  - Screener (Oracle Earnest score, bias, state per coin)
   - Signal Log (live/scanner/backtest source filter, per-signal outcome tracking)
-  - Backtest Performance (per-coin win rate / R-multiples)
-  - Titan Radar (current Titan signals)
 
 - **`/trading` page**:
   - Portfolio summary (balance, PnL, unrealized, exposure)

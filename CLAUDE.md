@@ -94,7 +94,7 @@ Detailed architecture and implementation docs live in `docs/`:
 - `docs/backend/ARCHITECTURE.md` — Backend system design
 - `docs/frontend/ARCHITECTURE.md` — Frontend patterns
 - `docs/backend/ERROR_HANDLING.md` — Exception hierarchy details
-- `docs/CHANGELOG.md` — Version history (current: v0.9.0)
+- `docs/CHANGELOG.md` — Version history (current: v0.9.3)
 - `docs/ROADMAP.md` — Planned features
 
 ## AI Slash Commands

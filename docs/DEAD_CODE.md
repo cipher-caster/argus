@@ -1,18 +1,17 @@
 # Dead Code & Technical Debt
 
-Last updated: 2026-03-19
+Last updated: 2026-03-22
 
 ## Oracle (Prophet v9.0) — Removed from UI, Code Preserved
 
 Oracle is no longer used as a signal source in the UI. See `docs/CHANGELOG.md` v0.9.0 for the reasoning (negative EV on BTC/ETH).
 
-### Still Used (Chart Page)
+### Still Used (Backend Only)
 
 | Code | Location | Used By |
 |------|----------|---------|
-| `GET /api/strategy/oracle/{symbol}` | `backend/app/routes/strategy.py` | Frontend chart page sidebar (`CoinDetailsPanel`), analysis modal (`CoinAnalysisModal`), chart markers (`OracleMarkers`) |
-| `OracleStrategy` class | `backend/app/strategies/oracle.py` | Strategy route, signal_log job (for screener pre-warming) |
-| `useStrategyOracle` hook | `frontend/src/hooks/useStrategyOracle.ts` | Chart page components |
+| `GET /api/strategy/oracle/{symbol}` | `backend/app/routes/strategy.py` | Slash command `/read` (legacy fallback), signal_log screener warming |
+| `OracleStrategy` class | `backend/app/strategies/oracle.py` | Strategy route, signal_log job |
 
 ### Dead Code (Can Be Removed)
 
@@ -24,6 +23,9 @@ Oracle is no longer used as a signal source in the UI. See `docs/CHANGELOG.md` v
 | `frontend/src/components/OracleSignalSummary.tsx` | 30 | Not imported anywhere |
 | `frontend/src/components/MarketSentimentBar.tsx` | 166 | Only consumer is dead `OracleSignalSummary` |
 | `frontend/src/hooks/useAnalyticsData.ts` | hooks:33-42,56-65 | `useOracleScreener`, `useOracleSignalSummary` — unused |
+| `frontend/src/hooks/useStrategyOracle.ts` | ~80 | No longer imported by any live component (`CoinDetailsPanel` and `CoinAnalysisModal` use `useStrategyTitan`) |
+| `frontend/src/components/features/chart/components/StrategyOraclePanel.tsx` | ~200 | No longer rendered by any live component |
+| `frontend/src/components/features/chart/components/OracleMarkers.tsx` | ~100 | No longer rendered by any live component |
 | `frontend/src/lib/api.ts` | fn:198-201,216-219 | `fetchOracleScreener`, `fetchOracleSignalSummary` — unused |
 | `frontend/src/lib/api.ts` | types:119-161 | `ScreenerItem`, `ScreenerResponse`, `OracleSignalSummaryResponse` — unused |
 
@@ -78,12 +80,9 @@ One-off scripts from the BTC/ETH analysis. Not part of the core system.
 - ~~Dashboard: "Active Setups" vs Analytics: "Best Setups"~~ → Both now say "Best Setups"
 - ~~"Oracle Signal" header on chart sidebar~~ → Now "Analysis"
 
+## Cleanup Candidates
 
-## Removed from Chart Page (Oracle components, 2026-03-19)
-
-| Component | File | Status |
-|-----------|------|--------|
-| StrategyOraclePanel | `frontend/src/components/features/chart/components/StrategyOraclePanel.tsx` | File exists, no longer rendered |
-| OracleMarkers | `frontend/src/components/features/chart/components/OracleMarkers.tsx` | File exists, no longer rendered |
-| useStrategyOracle hook | `frontend/src/hooks/useStrategyOracle.ts` | File exists, no longer imported by any UI component |
-| CoinAnalysisModal.backup.tsx | `frontend/src/components/features/chart/` | Backup of old Oracle-driven modal. Can be deleted.
+| File | Reason |
+|------|--------|
+| `CoinAnalysisModal.backup.tsx` | Backup of old Oracle-driven modal. Can be deleted. |
+| `frontend/src/components/features/dashboard/MarketPulseStrip.tsx` | Dashboard v1 component, replaced by `DashboardStatusBar`. Not imported.

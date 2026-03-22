@@ -356,7 +356,7 @@ async def get_ohlcv(request: OHLCVRequest):
 
 ## 🧪 Testing
 
-**Backend** (216 tests):
+**Backend** (254 tests):
 
 ```bash
 # Run all tests
@@ -370,7 +370,8 @@ docker compose exec backend pytest --cov=app tests/
 ```
 
 Key test files:
-- `test_signal_log.py` — Signal pipeline: market gate, config, Redis helpers, insert/resolve (28 tests)
+- `test_signal_log.py` — Signal pipeline: market gate, config, Redis helpers, insert/resolve, 5min tiebreaker (37 tests)
+- `test_backtest_tiebreaker.py` — 5min candle tiebreaker for same-candle TP+SL (11 tests)
 - `test_trading.py` — Risk manager, position sizing, PnL math, orchestrator cycle (42 tests)
 - `test_trading_routes.py` — All 9 trading API endpoints (18 tests)
 - `test_indicator_routes.py` — Indicator + system route endpoints (10 tests)

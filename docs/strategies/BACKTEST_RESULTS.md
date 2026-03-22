@@ -104,7 +104,7 @@ No LONG when macro bias is BEARISH. No SHORT when macro is BULLISH. NEUTRAL macr
 1. **Titan confidence always 60%** — only BUY_LIMIT/SELL_LIMIT signals fire. High-conviction signals (80%+) require rare SMC conditions (MSS + sweep) or RSI dip (< 45 for BUY, > 55 for SELL) that don't coincide with the Oracle gate
 2. **All signals are low conviction (< 70)** — the conviction scoring never exceeds ~64 because Titan maxes at 60% confidence
 3. **SMC look-ahead** — MSS, sweeps, and FVGs are pre-computed on the full dataset. Primary indicators (EMA, RSI, MACD, SuperTrend, ADX, BB) are strictly backward-looking
-4. **Same-candle TP+SL** — resolved as LOSS (conservative assumption)
+4. **Same-candle TP+SL** — resolved via 5min candle walk (v0.9.3). Falls back to conservative LOSS if 5min data unavailable.
 5. **BTC has no SHORT signals** — Oracle+Titan rarely agree on bearish direction for BTC during the test period (primarily bull/range market)
 6. **Statistical significance** — BNB has only 12 signals, ETH has 15. Need 3-6 months more live data
 
