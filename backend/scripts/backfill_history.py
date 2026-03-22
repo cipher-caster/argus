@@ -2,6 +2,11 @@
 """
 Historical Data Backfill Script
 Fetches and stores historical OHLCV data for popular trading pairs.
+
+Usage:
+    docker compose exec backend python scripts/backfill_history.py
+    docker compose exec backend python scripts/backfill_history.py --provider=okx
+    docker compose exec backend python scripts/backfill_history.py --symbols=BTC/USDT,ETH/USDT
 """
 
 import asyncio
@@ -12,17 +17,32 @@ import os
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from app.storage import Database
-from app.providers import get_provider
+from app.providers import get_provider, BinanceProvider, OKXProvider
 from app.schemas.candle import Candle
 
-# Configuration
-SYMBOLS = [
-    "BTC/USDT",
-    "ETH/USDT", 
-    "SOL/USDT",
-    "BNB/USDT",
-    "ZEC/USDT",
-]
+# ---------------------------------------------------------------------------
+# CLI parsing
+# ---------------------------------------------------------------------------
+
+def _get_flag(prefix, default=None):
+    for arg in sys.argv:
+        if arg.startswith(prefix):
+            return arg.split("=", 1)[1]
+    return default
+
+
+PROVIDER_NAME = (_get_flag("--provider=") or os.getenv("DATA_PROVIDER", "binance")).lower()
+CUSTOM_SYMBOLS = _get_flag("--symbols=")
+if CUSTOM_SYMBOLS:
+    SYMBOLS = [s.strip() for s in CUSTOM_SYMBOLS.split(",") if s.strip()]
+else:
+    SYMBOLS = [
+        "BTC/USDT",
+        "ETH/USDT",
+        "SOL/USDT",
+        "BNB/USDT",
+        "ZEC/USDT",
+    ]
 
 TIMEFRAMES = [
     "15m",
@@ -37,13 +57,13 @@ LIMIT = 1000  # Max candles per request
 
 async def backfill_candles(provider, symbol: str, timeframe: str):
     """Fetch and store candles for a single symbol/timeframe combination."""
-    print(f"  📊 Fetching {symbol} {timeframe}...", end=" ", flush=True)
+    print(f"  Fetching {symbol} {timeframe}...", end=" ", flush=True)
     
     try:
         candles_data = await provider.get_ohlcv(symbol, timeframe=timeframe, limit=LIMIT)
         
         if not candles_data:
-            print("❌ No data returned")
+            print("No data returned")
             return 0
         
         async with Database.get_session() as session:
@@ -51,7 +71,7 @@ async def backfill_candles(provider, symbol: str, timeframe: str):
             for c in candles_data:
                 candle_db = Candle(
                     symbol=symbol,
-                    provider="binance",
+                    provider=provider.name,
                     timeframe=timeframe,
                     timestamp=c.timestamp,
                     open=c.open,
@@ -65,17 +85,17 @@ async def backfill_candles(provider, symbol: str, timeframe: str):
             
             await session.commit()
         
-        print(f"✅ {count} candles saved")
+        print(f"{count} candles saved")
         return count
         
     except Exception as e:
-        print(f"❌ Error: {e}")
+        print(f"Error: {e}")
         return 0
 
 async def main():
     print("=" * 60)
-    print("🚀 Argus Historical Data Backfill")
-    print("=" * 60)
+    print("Argus Historical Data Backfill")
+    print(f"Provider: {PROVIDER_NAME}")
     print(f"Symbols: {', '.join(SYMBOLS)}")
     print(f"Timeframes: {', '.join(TIMEFRAMES)}")
     print(f"Max candles per pair: {LIMIT}")
@@ -84,7 +104,11 @@ async def main():
     # Initialize
     Database.init()
     await Database.create_tables()
-    provider = get_provider()
+
+    if PROVIDER_NAME == "okx":
+        provider = OKXProvider()
+    else:
+        provider = BinanceProvider()
     
     total_candles = 0
     total_pairs = len(SYMBOLS) * len(TIMEFRAMES)
@@ -92,7 +116,7 @@ async def main():
     
     try:
         for symbol in SYMBOLS:
-            print(f"\n📈 Processing {symbol}...")
+            print(f"\nProcessing {symbol}...")
             
             for timeframe in TIMEFRAMES:
                 current += 1
@@ -109,7 +133,8 @@ async def main():
         await Database.close()
     
     print("\n" + "=" * 60)
-    print(f"✅ Backfill Complete!")
+    print(f"Backfill Complete!")
+    print(f"   Provider: {PROVIDER_NAME}")
     print(f"   Total candles stored: {total_candles:,}")
     print("=" * 60)
 
