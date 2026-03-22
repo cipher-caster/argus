@@ -112,6 +112,7 @@ export function ChartPanes({ indicatorConfigs, indicatorResults }: ChartPanesPro
     paneRefs.current.forEach((el) => resizeObserver.observe(el));
 
     return () => resizeObserver.disconnect();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [indicatorConfigs, theme, currentTheme, mainChart]);
 
   // Update Data

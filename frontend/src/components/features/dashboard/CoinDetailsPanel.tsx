@@ -6,66 +6,30 @@ import { CoinAnalysisModal } from "@/components/features/chart/CoinAnalysisModal
 import { getCoinName, useCoinMeta } from "@/hooks/useCoinMeta";
 import { formatChange, formatVolume } from "@/lib/formatters";
 import { cn } from "@/lib/utils";
-import { keepPreviousData, useQuery } from "@tanstack/react-query";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { BarChart2, TrendingDown, TrendingUp, Zap } from "lucide-react";
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+import { useTickers } from "@/hooks/useMarketData";
+import { useRegime } from "@/hooks/useAnalyticsData";
+import { useStrategyTitan } from "@/hooks/useStrategyTitan";
 
 interface CoinDetailsPanelProps {
   symbol: string;
   timeframe?: string;
 }
 
-interface CoinTicker {
-  price: number;
-  change_24h: number;
-  volume_24h: number;
-  high_24h: number;
-  low_24h: number;
-}
-
-function useCoinTicker(symbol: string) {
-  return useQuery<CoinTicker | null>({
-    queryKey: ["coin-ticker", symbol],
-    queryFn: async () => {
-      const res = await fetch(`${API_URL}/api/market/tickers`);
-      if (!res.ok) throw new Error("Failed to fetch tickers");
-      const data = await res.json();
-      return (data.tickers?.find((t: any) => t.symbol === symbol) ?? null);
-    },
-    refetchInterval: 30_000,
-    staleTime: 25_000,
-    placeholderData: keepPreviousData,
-    enabled: !!symbol,
-  });
-}
-
-function useTitanDirect(symbol: string, timeframe: string) {
-  return useQuery<any>({
-    queryKey: ["titan-direct", symbol, timeframe],
-    queryFn: async () => {
-      const url = new URL(`/api/strategy/titan/${symbol}`, API_URL);
-      url.searchParams.set("timeframe", timeframe);
-      const res = await fetch(url.toString());
-      if (!res.ok) throw new Error("Failed to fetch Titan");
-      return res.json();
-    },
-    refetchInterval: 60_000,
-    staleTime: 50_000,
-  });
-}
-
 export function CoinDetailsPanel({ symbol, timeframe = "4h" }: CoinDetailsPanelProps) {
-  const { data: details, isLoading } = useCoinTicker(symbol);
-  const { coinMeta } = useCoinMeta();
-  const { data: titan, isLoading: titanLoading } = useTitanDirect(symbol, "4h");
-  const [isAnalysisOpen, setIsAnalysisOpen] = useState(false);
-  const [regime, setRegime] = useState<{ regime: string; ema50: number; distance_pct: number } | null>(null);
+  const { data: tickersResponse, isLoading } = useTickers();
+  const details = tickersResponse?.tickers?.find(t => t.symbol === symbol);
 
-  useEffect(() => {
-    fetch(`${API_URL}/api/strategy/regime`).then(r => r.ok ? r.json() : null).then(setRegime).catch(() => {});
-  }, []);
+  const { coinMeta } = useCoinMeta();
+  const { data: titan, isLoading: titanLoading } = useStrategyTitan(symbol, timeframe);
+  const { data: regimeData } = useRegime(timeframe);
+  const [isAnalysisOpen, setIsAnalysisOpen] = useState(false);
+
+  const regime = regimeData ? { regime: regimeData.regime, ema50: regimeData.ema50, distance_pct: regimeData.distance_pct } : null; // Adjusted regime format
+
+  // Regime fetching handles via hook now
 
   const coinName = getCoinName(symbol, coinMeta);
   const displayName = coinName !== symbol ? coinName : symbol.replace("/USDT", "");
@@ -91,8 +55,10 @@ export function CoinDetailsPanel({ symbol, timeframe = "4h" }: CoinDetailsPanelP
   if (!details) return null;
 
   const isPositive = (details.change_24h || 0) >= 0;
-  const priceRange = details.high_24h - details.low_24h;
-  const currentPosition = priceRange > 0 ? ((details.price - details.low_24h) / priceRange) * 100 : 50;
+  const high24h = details.high_24h ?? 0;
+  const low24h = details.low_24h ?? 0;
+  const priceRange = high24h - low24h;
+  const currentPosition = priceRange > 0 ? ((details.price - low24h) / priceRange) * 100 : 50;
 
   const titanSignal = titan?.signal ?? null;
   const titanConfidence = titan?.confidence ?? 0;
@@ -128,8 +94,8 @@ export function CoinDetailsPanel({ symbol, timeframe = "4h" }: CoinDetailsPanelP
         <div className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider mb-1">24H Stats</div>
         {[
           { label: "Volume", value: formatVolume(details.volume_24h) },
-          { label: "High", value: `$${details.high_24h?.toLocaleString(undefined, { maximumFractionDigits: 6 })}` },
-          { label: "Low", value: `$${details.low_24h?.toLocaleString(undefined, { maximumFractionDigits: 6 })}` },
+          { label: "High", value: `$${high24h.toLocaleString(undefined, { maximumFractionDigits: 6 })}` },
+          { label: "Low", value: `$${low24h.toLocaleString(undefined, { maximumFractionDigits: 6 })}` },
         ].map((stat) => (
           <div key={stat.label} className="flex justify-between items-center py-0.5">
             <span className="text-[12px] text-muted-foreground">{stat.label}</span>
@@ -148,8 +114,8 @@ export function CoinDetailsPanel({ symbol, timeframe = "4h" }: CoinDetailsPanelP
           />
         </div>
         <div className="flex justify-between text-[10px] font-bold text-muted-foreground font-mono">
-          <span>${details.low_24h?.toLocaleString(undefined, { maximumFractionDigits: 2 })}</span>
-          <span>${details.high_24h?.toLocaleString(undefined, { maximumFractionDigits: 2 })}</span>
+          <span>${low24h.toLocaleString(undefined, { maximumFractionDigits: 2 })}</span>
+          <span>${high24h.toLocaleString(undefined, { maximumFractionDigits: 2 })}</span>
         </div>
       </div>
 

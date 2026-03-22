@@ -8,7 +8,6 @@ import { TitanStrategyResponse } from "@/lib/api";
 import { useBacktestStats, useSignalLog } from "@/hooks/useAnalyticsData";
 import { Badge } from "@/components/ui/badge";
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
 
 interface CoinAnalysisModalProps {
   isOpen: boolean;

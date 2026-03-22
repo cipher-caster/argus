@@ -5,7 +5,7 @@
  * Optimized with stale-while-revalidate for better UX
  */
 
-import { fetchAnalyticsSymbols, fetchBacktestStats, fetchBestSetups, fetchMeanReversion, fetchOracleScreener, fetchOracleSignalSummary, fetchSignalLog, fetchSignalLogConfig, fetchTitanRadar, updateSignalLogConfig, SignalLogConfig } from "@/lib/api";
+import { fetchAnalyticsSymbols, fetchBacktestStats, fetchBestSetups, fetchMeanReversion, fetchOracleScreener, fetchOracleSignalSummary, fetchSignalLog, fetchSignalLogConfig, fetchTitanRadar, updateSignalLogConfig, fetchRegime, SignalLogConfig } from "@/lib/api";
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 /**
@@ -109,5 +109,16 @@ export function useUpdateSignalLogConfig() {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["signal-log-config"] });
     },
+  });
+}
+
+/**
+ * Hook for fetching current market regime
+ */
+export function useRegime(timeframe: string = "4h") {
+  return useQuery({
+    queryKey: ["regime", timeframe],
+    queryFn: () => fetchRegime(timeframe),
+    staleTime: 5 * 60 * 1000,
   });
 }

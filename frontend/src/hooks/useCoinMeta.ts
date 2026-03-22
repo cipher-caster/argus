@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useQuery } from "@tanstack/react-query";
 
 export interface CoinMeta {
   id: string;
@@ -15,17 +15,7 @@ export interface CoinMetaData {
   coins: CoinMeta[];
 }
 
-// Cache for coin metadata lookup
-let coinMetaCache: Map<string, CoinMeta> | null = null;
-
-/**
- * Load coin metadata from local JSON file
- * Returns a Map keyed by symbol (uppercase) for fast lookup
- */
 export async function loadCoinMeta(): Promise<Map<string, CoinMeta>> {
-  if (coinMetaCache) {
-    return coinMetaCache;
-  }
 
   try {
     const res = await fetch("/data/coins/coins.json");
@@ -44,7 +34,6 @@ export async function loadCoinMeta(): Promise<Map<string, CoinMeta>> {
       map.set(`${coin.symbol.toUpperCase()}/USDT`, coin);
     }
 
-    coinMetaCache = map;
     return map;
   } catch {
     return new Map();
@@ -55,16 +44,13 @@ export async function loadCoinMeta(): Promise<Map<string, CoinMeta>> {
  * Hook to get coin metadata lookup
  */
 export function useCoinMeta() {
-  const [coinMeta, setCoinMeta] = useState<Map<string, CoinMeta>>(new Map());
-  const [isLoading, setIsLoading] = useState(true);
+  const { data, isLoading } = useQuery({
+    queryKey: ["coinMeta"],
+    queryFn: loadCoinMeta,
+    staleTime: Infinity, // Metadata rarely changes
+  });
 
-  useEffect(() => {
-    loadCoinMeta()
-      .then(setCoinMeta)
-      .finally(() => setIsLoading(false));
-  }, []);
-
-  return { coinMeta, isLoading };
+  return { coinMeta: data || new Map<string, CoinMeta>(), isLoading };
 }
 
 /**

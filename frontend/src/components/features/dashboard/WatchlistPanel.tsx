@@ -8,20 +8,16 @@ import { arrayMove, SortableContext, sortableKeyboardCoordinates, useSortable, v
 import { CSS } from "@dnd-kit/utilities";
 import { Check, GripVertical, Plus, Search, Star, X } from "lucide-react";
 import Link from "next/link";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, useMemo } from "react";
 
 interface WatchlistPanelProps {
   currentSymbol?: string;
 }
 
-interface TickerData {
-  symbol: string;
-  price: number;
-  change_24h: number;
-}
-
 import { CoinIcon } from "@/components/features/dashboard/CoinIcon";
 import { CoinMeta, useCoinMeta } from "@/hooks/useCoinMeta";
+import { useTickers } from "@/hooks/useMarketData";
+import { TickerData } from "@/lib/marketApi";
 import { formatChange, formatPrice } from "@/lib/formatters";
 import { cn } from "@/lib/utils";
 
@@ -91,13 +87,22 @@ export function WatchlistPanel({ currentSymbol }: WatchlistPanelProps) {
   const { items, removeSymbol, addSymbol, hasSymbol, setItems } = useWatchlistStore();
   const [searchOpen, setSearchOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
-  const [tickerData, setTickerData] = useState<Record<string, TickerData>>({});
-  const [allTickers, setAllTickers] = useState<TickerData[]>([]);
   const [isMounted, setIsMounted] = useState(false);
   const searchRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
   const { coinMeta } = useCoinMeta();
+  const { data: tickersResponse } = useTickers();
+  
+  const tickers = tickersResponse?.tickers;
+  const allTickers = useMemo(() => tickers || [], [tickers]);
+  const tickerData = useMemo(() => {
+    const map: Record<string, TickerData> = {};
+    for (const t of allTickers) {
+      map[t.symbol] = t;
+    }
+    return map;
+  }, [allTickers]);
 
   useEffect(() => {
     setIsMounted(true);
@@ -114,31 +119,6 @@ export function WatchlistPanel({ currentSymbol }: WatchlistPanelProps) {
       coordinateGetter: sortableKeyboardCoordinates,
     }),
   );
-
-  // Fetch live prices for watchlist items
-  useEffect(() => {
-    const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
-    async function fetchPrices() {
-      try {
-        const res = await fetch(`${apiUrl}/api/market/tickers`);
-        if (!res.ok) return;
-        const data = await res.json();
-        const priceMap: Record<string, TickerData> = {};
-        const tickers: TickerData[] = [];
-        data.tickers?.forEach((t: TickerData) => {
-          priceMap[t.symbol] = t;
-          tickers.push(t);
-        });
-        setTickerData(priceMap);
-        setAllTickers(tickers);
-      } catch (e) {
-        console.error("Failed to fetch tickers", e);
-      }
-    }
-    fetchPrices();
-    const interval = setInterval(fetchPrices, 10000);
-    return () => clearInterval(interval);
-  }, []);
 
   // Close search on click outside
   useEffect(() => {

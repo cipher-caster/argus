@@ -2,7 +2,7 @@
  * API functions for market overview
  */
 
-import { API_URL } from "./apiClient";
+import { API_URL, apiFetch } from "./apiClient";
 
 export interface CoinInfo {
   rank: number;
@@ -35,17 +35,35 @@ export interface MarketSummary {
   top_volume: CoinInfo[];
 }
 
+export interface TickerData {
+  symbol: string;
+  price: number;
+  change_24h: number;
+  volume_24h: number;
+  high_24h?: number;
+  low_24h?: number;
+  market_cap?: number;
+  rank?: number;
+  sparkline_in_7d?: number[];
+}
+
+export interface TickersResponse {
+  tickers: TickerData[];
+  last_updated: number;
+}
+
 /**
  * Fetch market summary stats
  */
 export async function fetchMarketSummary(): Promise<MarketSummary> {
-  const response = await fetch(`${API_URL}/api/market/summary`);
+  return apiFetch<MarketSummary>(`${API_URL}/api/market/summary`);
+}
 
-  if (!response.ok) {
-    throw new Error(`Failed to fetch market summary: ${response.statusText}`);
-  }
-
-  return response.json();
+/**
+ * Fetch all basic tickers
+ */
+export async function fetchTickers(): Promise<TickersResponse> {
+  return apiFetch<TickersResponse>(`${API_URL}/api/market/tickers`);
 }
 
 /**

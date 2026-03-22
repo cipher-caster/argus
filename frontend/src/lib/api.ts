@@ -2,7 +2,7 @@
  * API client for fetching market data
  */
 
-import { API_URL } from "./apiClient";
+import { API_URL, apiFetch } from "./apiClient";
 
 export interface Candle {
   timestamp: number;
@@ -263,6 +263,24 @@ export async function fetchTitanRadar(limit: number = 50, timeframe: string = "4
   const response = await fetch(`${API_URL}/api/analytics/titan-radar?limit=${limit}&timeframe=${timeframe}`);
   if (!response.ok) throw new Error("Failed to fetch titan radar");
   return response.json();
+}
+
+export interface RegimeData {
+  regime: string;
+  btc_price: number;
+  ema50: number;
+  distance_pct: number;
+  ema50_slope: string;
+  approaching_cross: boolean;
+  anticipation: string;
+  weekly_candle_ts?: number;
+}
+
+/**
+ * Fetch market regime classification
+ */
+export async function fetchRegime(timeframe: string = "4h"): Promise<RegimeData> {
+  return apiFetch<RegimeData>(`${API_URL}/api/strategy/regime?timeframe=${timeframe}`);
 }
 
 // --- Strategy Types ---

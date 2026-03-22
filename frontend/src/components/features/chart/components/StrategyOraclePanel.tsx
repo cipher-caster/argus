@@ -121,7 +121,7 @@ export function StrategyOraclePanel({ symbol, timeframe }: StrategyOraclePanelPr
         <div className="p-3 rounded-lg border bg-amber-500/10 dark:bg-amber-500/5 border-amber-500/30 dark:border-amber-500/20">
           <div className="flex gap-2">
             <ShieldAlert className="w-4 h-4 shrink-0 text-amber-600 dark:text-amber-500" />
-            <p className="text-[11px] leading-relaxed font-bold italic text-amber-900 dark:text-amber-200/90">"{data.advice}"</p>
+            <p className="text-[11px] leading-relaxed font-bold italic text-amber-900 dark:text-amber-200/90">&ldquo;{data.advice}&rdquo;</p>
           </div>
         </div>
 

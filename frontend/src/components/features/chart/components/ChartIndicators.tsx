@@ -71,16 +71,17 @@ export function ChartIndicators({ indicatorResults, indicatorConfigs }: ChartInd
       overlaySeriesRef.current.set(`${result.name}-${resultIndex}`, seriesList);
     });
 
+    // Capture ref for cleanup to avoid stale-ref warning
+    const overlay = overlaySeriesRef.current;
     return () => {
-      // Cleanup on unmount/update
-      overlaySeriesRef.current.forEach((seriesList) => {
+      overlay.forEach((seriesList) => {
         seriesList.forEach((series) => {
           try {
             chart.removeSeries(series);
           } catch (e) {}
         });
       });
-      overlaySeriesRef.current.clear();
+      overlay.clear();
     };
   }, [chart, indicatorResults, indicatorConfigs]);
 

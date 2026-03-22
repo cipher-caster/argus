@@ -5,34 +5,15 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { generateDeterministicSparkline } from "@/lib/chartUtils";
 import { formatChange, formatPrice } from "@/lib/formatters";
 import { cn } from "@/lib/utils";
-import { keepPreviousData, useQuery } from "@tanstack/react-query";
+import { useTickers } from "@/hooks/useMarketData";
 import { Bitcoin } from "lucide-react";
 import Link from "next/link";
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
-
-// Reuses the same cache key as DashboardWatchlist — no duplicate fetch
-function useBTCTicker() {
-  return useQuery({
-    queryKey: ["market-tickers"],
-    queryFn: async () => {
-      const res = await fetch(`${API_URL}/api/market/tickers`);
-      if (!res.ok) throw new Error("Failed to fetch tickers");
-      const data = await res.json();
-      const map: Record<string, { price: number; change_24h: number }> = {};
-      data.tickers?.forEach((t: any) => { map[t.symbol] = t; });
-      return map;
-    },
-    staleTime: 15_000,
-    refetchInterval: 30_000,
-    gcTime: 5 * 60_000,
-    placeholderData: keepPreviousData,
-  });
-}
-
 export function BTCCard() {
-  const { data: tickers, isLoading } = useBTCTicker();
-  const btc = tickers?.["BTC/USDT"] as any;
+  const { data: tickersResponse, isLoading } = useTickers();
+  
+  // Find BTC ticker instead of casting map index to any
+  const btc = tickersResponse?.tickers?.find(t => t.symbol === "BTC/USDT");
 
   if (isLoading && !btc) {
     return (
@@ -54,8 +35,10 @@ export function BTCCard() {
   const low = btc?.low_24h ?? 0;
   const isUp = change >= 0;
 
-  const sparkline = btc?.sparkline_in_7d?.length > 0
-    ? btc.sparkline_in_7d
+  // BTCCard relies on sparkline_in_7d if present, else generates one
+  const sparkData = btc?.sparkline_in_7d;
+  const sparkline = sparkData && sparkData.length > 0
+    ? sparkData
     : generateDeterministicSparkline("BTC/USDT", price, change);
 
   return (

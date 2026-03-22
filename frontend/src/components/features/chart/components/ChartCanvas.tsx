@@ -183,6 +183,7 @@ export function ChartCanvas({ children, className }: ChartCanvasProps) {
       // Actually, if we just cleanup contextChart.remove(), the reference in Provider becomes stale?
       // We should setChart(null).
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [width, height, theme, currentTheme, chartColors]);
 
   // Cleanup on unmount
@@ -194,6 +195,7 @@ export function ChartCanvas({ children, className }: ChartCanvasProps) {
         setMainSeries(null);
       }
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []); // Run on mount/unmount only
 
   return (

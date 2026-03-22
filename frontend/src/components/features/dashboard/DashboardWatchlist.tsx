@@ -6,37 +6,20 @@ import { useCoinMeta } from "@/hooks/useCoinMeta";
 import { formatChange, formatPrice } from "@/lib/formatters";
 import { cn } from "@/lib/utils";
 import { useWatchlistStore } from "@/stores/watchlistStore";
-import { keepPreviousData, useQuery } from "@tanstack/react-query";
+import { useTickers } from "@/hooks/useMarketData";
 import { Plus, Star } from "lucide-react";
 import Link from "next/link";
-
-const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
-
-function useWatchlistTickers() {
-  return useQuery({
-    queryKey: ["market-tickers"],
-    queryFn: async () => {
-      const res = await fetch(`${API_URL}/api/market/tickers`);
-      if (!res.ok) throw new Error("Failed to fetch tickers");
-      const data = await res.json();
-      const map: Record<string, { price: number; change_24h: number }> = {};
-      data.tickers?.forEach((t: any) => {
-        map[t.symbol] = { price: t.price, change_24h: t.change_24h };
-      });
-      return map;
-    },
-    staleTime: 15_000,
-    refetchInterval: 30_000,
-    gcTime: 5 * 60_000,
-    placeholderData: keepPreviousData,
-  });
-}
-
 
 export function DashboardWatchlist() {
   const { items } = useWatchlistStore();
   const { coinMeta } = useCoinMeta();
-  const { data: tickers, isLoading: tickersLoading } = useWatchlistTickers();
+  const { data: tickersResponse, isLoading: tickersLoading } = useTickers();
+  
+  // Create quick lookup map
+  const tickers = tickersResponse?.tickers?.reduce((acc, t) => {
+    acc[t.symbol] = t;
+    return acc;
+  }, {} as Record<string, { price: number; change_24h: number }>) || {};
 
   return (
     <div className="bg-secondary/30 border border-border/50 rounded-2xl overflow-hidden h-full">

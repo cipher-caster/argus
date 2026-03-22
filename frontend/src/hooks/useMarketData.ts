@@ -5,7 +5,8 @@
  */
 
 import { fetchOHLCV, fetchProviderInfo, fetchSymbols, fetchTicker, setProvider } from "@/lib/api";
-import { useInfiniteQuery, useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { fetchTickers } from "@/lib/marketApi";
+import { keepPreviousData, useInfiniteQuery, useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 
 /**
  * Hook for fetching current exchange provider info
@@ -59,6 +60,20 @@ export function useOHLCV(symbol: string, timeframe: string = "1h", limit: number
     refetchInterval: 15000, // Refresh every 15 seconds to stay in sync with ticker
     staleTime: 10000,
     enabled: !!symbol,
+  });
+}
+
+/**
+ * Hook for fetching all basic tickers
+ */
+export function useTickers() {
+  return useQuery({
+    queryKey: ["tickers"],
+    queryFn: fetchTickers,
+    refetchInterval: 30_000, // Refetch every 30s — dashboard tickers
+    staleTime: 15_000,
+    gcTime: 5 * 60_000,
+    placeholderData: keepPreviousData,
   });
 }
 

@@ -1,37 +1,21 @@
 "use client";
 
 import { useMarketIndicators } from "@/hooks/useMarketIndicators";
+import { useRegime, useBestSetups } from "@/hooks/useAnalyticsData";
+import { BestSetupItem, RegimeData } from "@/lib/api";
 import { formatVolume } from "@/lib/formatters";
 import { cn } from "@/lib/utils";
 import { useQueryClient } from "@tanstack/react-query";
 import { RefreshCcw, TrendingDown, TrendingUp, X, Target, Clock } from "lucide-react";
-import { useEffect, useState } from "react";
-
-const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
-
-interface RegimeData {
-  regime: string;
-  btc_price: number;
-  ema50: number;
-  distance_pct: number;
-  ema50_slope: string;
-  approaching_cross: boolean;
-  anticipation: string;
-}
+import { useState } from "react";
 
 function Divider() {
   return <div className="h-4 w-px bg-border/50 shrink-0" />;
 }
 
 function RegimeModal({ regime, indicators, onClose }: { regime: RegimeData | null; indicators: any; onClose: () => void }) {
-  const [setups, setSetups] = useState<any[]>([]);
-
-  useEffect(() => {
-    fetch(`${API_URL}/api/analytics/best-setups?timeframe=4h&limit=20`)
-      .then(r => r.ok ? r.json() : { data: [] })
-      .then(d => setSetups(d.data ?? []))
-      .catch(() => {});
-  }, []);
+  const { data: setupsData } = useBestSetups("4h", 20);
+  const setups = setupsData?.data || [];
 
   if (!regime) return null;
 
@@ -96,7 +80,7 @@ function RegimeModal({ regime, indicators, onClose }: { regime: RegimeData | nul
             {isBear ? (
               <div className="space-y-2 text-sm">
                 <p>BTC at <strong>${formatPrice(regime.btc_price)}</strong> is <strong className="text-red-500">{Math.abs(regime.distance_pct)}% below</strong> the bull line at <strong>${formatPrice(regime.ema50)}</strong>.</p>
-                <p>Trend is down. <strong>Short setups only</strong> right now. Don't buy spot and hold — you're fighting the trend.</p>
+                <p>Trend is down. <strong>Short setups only</strong> right now. Don&apos;t buy spot and hold — you&apos;re fighting the trend.</p>
               </div>
             ) : (
               <div className="space-y-2 text-sm">
@@ -144,7 +128,7 @@ function RegimeModal({ regime, indicators, onClose }: { regime: RegimeData | nul
                 Best {isBear ? "Short" : "Long"} Setups Right Now
               </h3>
               <div className="space-y-2">
-                {alignedSetups.map((s: any) => (
+                {alignedSetups.map((s: BestSetupItem) => (
                   <div key={s.symbol} className="flex items-center justify-between p-2.5 rounded-lg bg-background border border-border/50">
                     <div>
                       <span className="font-black text-sm">{s.symbol.replace("/USDT", "")}</span>
@@ -169,7 +153,7 @@ function RegimeModal({ regime, indicators, onClose }: { regime: RegimeData | nul
                 Counter-Trend (Higher Risk)
               </h3>
               <div className="space-y-2">
-                {counterSetups.map((s: any) => (
+                {counterSetups.map((s: BestSetupItem) => (
                   <div key={s.symbol} className="flex items-center justify-between p-2.5 rounded-lg bg-background border border-border/50 opacity-70">
                     <div>
                       <span className="font-black text-sm">{s.symbol.replace("/USDT", "")}</span>
@@ -193,7 +177,7 @@ function RegimeModal({ regime, indicators, onClose }: { regime: RegimeData | nul
               <div className="space-y-3">
                 <div className="p-3 rounded-lg bg-red-500/5 border border-red-500/15">
                   <p className="text-xs font-black text-red-500 uppercase tracking-wider mb-1.5">Spot Buying</p>
-                  <p className="text-sm">Don't. BTC is below EMA50 — spot longs are fighting the trend. Wait for bull cross.</p>
+                  <p className="text-sm">Don&apos;t. BTC is below EMA50 — spot longs are fighting the trend. Wait for bull cross.</p>
                 </div>
                 <div className="p-3 rounded-lg bg-background border border-border/50">
                   <p className="text-xs font-black text-foreground uppercase tracking-wider mb-1.5">Limit Shorts</p>
@@ -301,29 +285,18 @@ function RegimeModal({ regime, indicators, onClose }: { regime: RegimeData | nul
 export function DashboardStatusBar() {
   const queryClient = useQueryClient();
   const { data: indicators, refetch: refetchIndicators } = useMarketIndicators();
-  const [regime, setRegime] = useState<RegimeData | null>(null);
-  const [loading, setLoading] = useState(true);
+  const { data: regime, isLoading: loading, refetch: refetchRegime } = useRegime("4h");
+  
   const [modalOpen, setModalOpen] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
-
-  const fetchRegime = async () => {
-    try {
-      const res = await fetch(`${API_URL}/api/strategy/regime`);
-      if (res.ok) setRegime(await res.json());
-    } catch {} finally {
-      setLoading(false);
-    }
-  };
-
-  useEffect(() => { fetchRegime(); }, []);
 
   const handleRefresh = async () => {
     setRefreshing(true);
     await Promise.all([
-      fetchRegime(),
+      refetchRegime(),
       refetchIndicators(),
       queryClient.invalidateQueries({ queryKey: ["best-setups"] }),
-      queryClient.invalidateQueries({ queryKey: ["market-tickers"] }),
+      queryClient.invalidateQueries({ queryKey: ["tickers"] }),
     ]);
     setRefreshing(false);
   };
@@ -421,7 +394,7 @@ export function DashboardStatusBar() {
         </button>
       </div>
 
-      {modalOpen && <RegimeModal regime={regime} indicators={indicators} onClose={() => setModalOpen(false)} />}
+      {modalOpen && <RegimeModal regime={regime ?? null} indicators={indicators} onClose={() => setModalOpen(false)} />}
     </>
   );
 }

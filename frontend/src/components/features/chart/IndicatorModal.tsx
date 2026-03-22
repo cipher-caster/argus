@@ -55,7 +55,7 @@ function IndicatorModalComponent({ isOpen, onClose, editingIndicator }: Indicato
         }
       }
     }
-  }, [isOpen, editingIndicator, availableIndicators]);
+  }, [isOpen, editingIndicator, availableIndicators, colorIndex]);
 
   // Update params when indicator type changes
   useEffect(() => {
