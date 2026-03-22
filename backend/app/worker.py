@@ -45,109 +45,114 @@ async def _recover_missed_scans(ctx, missed_closes: list):
     from sqlalchemy import text
     from sqlalchemy.dialects.postgresql import insert as pg_insert
     from app.schemas.signal_log import SignalLog
-    import re
 
     config = await _get_config()
     recovered = 0
 
-    # Detect regime once (BTC weekly EMA50)
-    regime = "UNKNOWN"
+    # Share one provider across all fetches to avoid repeated exchangeInfo calls
+    shared_provider = get_provider()
+
     try:
-        import pandas_ta
-        btc_df = await get_candles_df("BTC/USDT", timeframe="1w", limit=60)
-        if btc_df is not None and not btc_df.empty and "close" in btc_df.columns:
-            ema50 = pandas_ta.ema(btc_df["close"], length=50)
-            if ema50 is not None and not ema50.empty:
-                last_ema = ema50.iloc[-1]
-                last_close = float(btc_df.iloc[-1]["close"])
-                if not (last_ema != last_ema):  # NaN check
-                    regime = "BULL" if last_close > float(last_ema) else "BEAR"
-    except Exception as e:
-        logger.warning(f"Recovery: regime detection failed: {e}")
+        # Detect regime once (BTC weekly EMA50)
+        regime = "UNKNOWN"
+        try:
+            import pandas_ta
+            btc_df = await get_candles_df("BTC/USDT", timeframe="1w", limit=60, provider=shared_provider)
+            if btc_df is not None and not btc_df.empty and "close" in btc_df.columns:
+                ema50 = pandas_ta.ema(btc_df["close"], length=50)
+                if ema50 is not None and not ema50.empty:
+                    last_ema = ema50.iloc[-1]
+                    last_close = float(btc_df.iloc[-1]["close"])
+                    if not (last_ema != last_ema):  # NaN check
+                        regime = "BULL" if last_close > float(last_ema) else "BEAR"
+        except Exception as e:
+            logger.warning(f"Recovery: regime detection failed: {e}")
 
-    for close_dt in missed_closes:
-        close_ms = int(close_dt.timestamp() * 1000)
+        for close_dt in missed_closes:
+            close_ms = int(close_dt.timestamp() * 1000)
 
-        for symbol in config["watchlist"]:
-            try:
-                df = await get_candles_df(symbol, timeframe="4h", limit=300)
-                if df is None or df.empty:
-                    continue
+            for symbol in config["watchlist"]:
+                try:
+                    df = await get_candles_df(symbol, timeframe="4h", limit=300, provider=shared_provider)
+                    if df is None or df.empty:
+                        continue
 
-                t = titan.analyze(df, symbol=symbol)
-                if "error" in t:
-                    continue
+                    t = titan.analyze(df, symbol=symbol)
+                    if "error" in t:
+                        continue
 
-                t_signal = t.get("signal", "")
-                t_confidence = t.get("confidence", 0)
+                    t_signal = t.get("signal", "")
+                    t_confidence = t.get("confidence", 0)
 
-                is_long = t_signal in ("BUY", "BUY_LIMIT")
-                is_short = t_signal in ("SELL", "SELL_LIMIT")
-                if not (is_long or is_short) or t_confidence < config["min_titan_confidence"]:
-                    continue
+                    is_long = t_signal in ("BUY", "BUY_LIMIT")
+                    is_short = t_signal in ("SELL", "SELL_LIMIT")
+                    if not (is_long or is_short) or t_confidence < config["min_titan_confidence"]:
+                        continue
 
-                # Regime-based direction filtering
-                if regime == "BEAR" and is_long:
-                    continue
-                if regime == "BULL" and is_short:
-                    continue
+                    # Regime-based direction filtering
+                    if regime == "BEAR" and is_long:
+                        continue
+                    if regime == "BULL" and is_short:
+                        continue
 
-                # Conviction: 60% Titan + 20% regime bonus + 10% signal type
-                base_pts = (t_confidence / 100) * 60
-                regime_aligned = (regime == "BULL" and is_long) or (regime == "BEAR" and is_short)
-                regime_bonus = 20 if regime_aligned else 0
-                signal_bonus = 10 if t_signal in ("BUY", "SELL") else 0
-                conviction = int(min(100, base_pts + regime_bonus + signal_bonus))
+                    # Conviction: 60% Titan + 20% regime bonus + 10% signal type
+                    base_pts = (t_confidence / 100) * 60
+                    regime_aligned = (regime == "BULL" and is_long) or (regime == "BEAR" and is_short)
+                    regime_bonus = 20 if regime_aligned else 0
+                    signal_bonus = 10 if t_signal in ("BUY", "SELL") else 0
+                    conviction = int(min(100, base_pts + regime_bonus + signal_bonus))
 
-                targets = t.get("targets", {})
-                price = float(df.iloc[-1]["close"])
-                reasons = t.get("reasons", [])
-                direction = "LONG" if is_long else "SHORT"
-                reg_tag = "trend" if regime_aligned else "counter"
-                fired_reason = f"[RECOVERED] ({reg_tag}) {t_signal} {t_confidence}% | " + " | ".join(reasons[:2])
+                    targets = t.get("targets", {})
+                    price = float(df.iloc[-1]["close"])
+                    reasons = t.get("reasons", [])
+                    direction = "LONG" if is_long else "SHORT"
+                    reg_tag = "trend" if regime_aligned else "counter"
+                    fired_reason = f"[RECOVERED] ({reg_tag}) {t_signal} {t_confidence}% | " + " | ".join(reasons[:2])
 
-                row = dict(
-                    symbol=symbol,
-                    direction=direction,
-                    timeframe="4h",
-                    entry=round(float(targets.get("entry", price)), 6),
-                    tp=round(float(targets.get("tp", 0)), 6),
-                    sl=round(float(targets.get("sl", 0)), 6),
-                    conviction=conviction,
-                    oracle_signal="N/A",
-                    titan_signal=t_signal,
-                    oracle_score=0,
-                    titan_confidence=int(t_confidence),
-                    market_state=regime,
-                    fired_reason=fired_reason,
-                    fired_at=close_ms,
-                    source="live",
-                    outcome="OPEN",
-                )
-
-                async with Database.get_session() as session:
-                    stmt = (
-                        pg_insert(SignalLog)
-                        .values(**row)
-                        .on_conflict_do_nothing(
-                            index_elements=["symbol", "direction"],
-                            index_where=text("outcome = 'OPEN'"),
-                        )
+                    row = dict(
+                        symbol=symbol,
+                        direction=direction,
+                        timeframe="4h",
+                        entry=round(float(targets.get("entry", price)), 6),
+                        tp=round(float(targets.get("tp", 0)), 6),
+                        sl=round(float(targets.get("sl", 0)), 6),
+                        conviction=conviction,
+                        oracle_signal="N/A",
+                        titan_signal=t_signal,
+                        oracle_score=0,
+                        titan_confidence=int(t_confidence),
+                        market_state=regime,
+                        fired_reason=fired_reason,
+                        fired_at=close_ms,
+                        source="live",
+                        outcome="OPEN",
                     )
-                    result = await session.execute(stmt)
-                    await session.commit()
 
-                    if result.rowcount > 0:
-                        recovered += 1
-                        await log_activity("SIGNAL_RECOVERED",
-                                           symbol=symbol,
-                                           direction=direction,
-                                           conviction=conviction,
-                                           candle_close=close_dt.isoformat())
-                        logger.info(f"Recovery: {symbol} {direction} signal recovered from {close_dt}")
+                    async with Database.get_session() as session:
+                        stmt = (
+                            pg_insert(SignalLog)
+                            .values(**row)
+                            .on_conflict_do_nothing(
+                                index_elements=["symbol", "direction"],
+                                index_where=text("outcome = 'OPEN'"),
+                            )
+                        )
+                        result = await session.execute(stmt)
+                        await session.commit()
 
-            except Exception as e:
-                logger.warning(f"Recovery error for {symbol} at {close_dt}: {e}")
+                        if result.rowcount > 0:
+                            recovered += 1
+                            await log_activity("SIGNAL_RECOVERED",
+                                               symbol=symbol,
+                                               direction=direction,
+                                               conviction=conviction,
+                                               candle_close=close_dt.isoformat())
+                            logger.info(f"Recovery: {symbol} {direction} signal recovered from {close_dt}")
+
+                except Exception as e:
+                    logger.warning(f"Recovery error for {symbol} at {close_dt}: {e}")
+    finally:
+        await shared_provider.close()
 
     if recovered:
         await log_activity("RECOVERY_SCAN", severity="INFO",

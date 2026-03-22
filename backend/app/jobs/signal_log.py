@@ -109,6 +109,7 @@ async def log_watchlist_setups(ctx):
     Direction is filtered by regime: BULL → longs, BEAR → shorts
     """
     from app.routes.strategy import get_candles_df, titan
+    from app.providers import get_provider
 
     logger.info("Job: log_watchlist_setups — checking watchlist...")
 
@@ -133,70 +134,75 @@ async def log_watchlist_setups(ctx):
     # Collect all qualified rows first
     rows_to_insert = []
 
-    for symbol in config["watchlist"]:
-        try:
-            # Fetch 4H candles
-            df = await get_candles_df(symbol, timeframe="4h", limit=300)
-            if df is None or df.empty:
-                continue
+    # Share one provider across all symbol fetches to avoid repeated exchangeInfo calls
+    shared_provider = get_provider()
+    try:
+        for symbol in config["watchlist"]:
+            try:
+                # Fetch 4H candles
+                df = await get_candles_df(symbol, timeframe="4h", limit=300, provider=shared_provider)
+                if df is None or df.empty:
+                    continue
 
-            # Run Titan (pass symbol for per-symbol risk overrides)
-            t = titan.analyze(df, symbol=symbol)
-            if "error" in t:
-                continue
+                # Run Titan (pass symbol for per-symbol risk overrides)
+                t = titan.analyze(df, symbol=symbol)
+                if "error" in t:
+                    continue
 
-            t_signal = t.get("signal", "")
-            t_confidence = t.get("confidence", 0)
+                t_signal = t.get("signal", "")
+                t_confidence = t.get("confidence", 0)
 
-            is_long = t_signal in ("BUY", "BUY_LIMIT")
-            is_short = t_signal in ("SELL", "SELL_LIMIT")
-            if not (is_long or is_short) or t_confidence < config["min_titan_confidence"]:
-                continue
+                is_long = t_signal in ("BUY", "BUY_LIMIT")
+                is_short = t_signal in ("SELL", "SELL_LIMIT")
+                if not (is_long or is_short) or t_confidence < config["min_titan_confidence"]:
+                    continue
 
-            # Regime-based direction filter: BEAR → shorts only, BULL → longs only
-            regime_aligned = (regime == "BULL" and is_long) or (regime == "BEAR" and is_short)
-            if regime != "UNKNOWN" and not regime_aligned:
-                logger.info(f"Signal log: SKIP {symbol} {t_signal} — counter-trend ({regime} regime)")
-                continue
+                # Regime-based direction filter: BEAR → shorts only, BULL → longs only
+                regime_aligned = (regime == "BULL" and is_long) or (regime == "BEAR" and is_short)
+                if regime != "UNKNOWN" and not regime_aligned:
+                    logger.info(f"Signal log: SKIP {symbol} {t_signal} — counter-trend ({regime} regime)")
+                    continue
 
-            # Compute conviction (regime-based, not Oracle-based)
-            base_pts = (t_confidence / 100) * 60
-            regime_bonus = 20 if regime_aligned else 0
-            signal_bonus = 10 if t_signal in ("BUY", "SELL") else 0  # non-limit
-            conviction = int(min(100, base_pts + regime_bonus + signal_bonus))
+                # Compute conviction (regime-based, not Oracle-based)
+                base_pts = (t_confidence / 100) * 60
+                regime_bonus = 20 if regime_aligned else 0
+                signal_bonus = 10 if t_signal in ("BUY", "SELL") else 0  # non-limit
+                conviction = int(min(100, base_pts + regime_bonus + signal_bonus))
 
-            # Regime tag for reason
-            reg_tag = "trend" if regime_aligned else "counter"
-            reasons = t.get("reasons", [])
-            fired_reason = f"({reg_tag}) {t_signal} {t_confidence}% | " + " | ".join(reasons[:2])
+                # Regime tag for reason
+                reg_tag = "trend" if regime_aligned else "counter"
+                reasons = t.get("reasons", [])
+                fired_reason = f"({reg_tag}) {t_signal} {t_confidence}% | " + " | ".join(reasons[:2])
 
-            targets = t.get("targets", {})
-            price = float(df.iloc[-1]["close"])
+                targets = t.get("targets", {})
+                price = float(df.iloc[-1]["close"])
 
-            row = dict(
-                symbol=symbol,
-                direction="LONG" if is_long else "SHORT",
-                timeframe="4h",
-                entry=round(float(targets.get("entry", price)), 6),
-                tp=round(float(targets.get("tp", 0)), 6),
-                sl=round(float(targets.get("sl", 0)), 6),
-                conviction=conviction,
-                oracle_signal="N/A",
-                titan_signal=t_signal,
-                oracle_score=0,
-                titan_confidence=int(t_confidence),
-                market_state=regime,
-                fired_reason=fired_reason,
-                fired_at=now_ms,
-                outcome="OPEN",
-            )
+                row = dict(
+                    symbol=symbol,
+                    direction="LONG" if is_long else "SHORT",
+                    timeframe="4h",
+                    entry=round(float(targets.get("entry", price)), 6),
+                    tp=round(float(targets.get("tp", 0)), 6),
+                    sl=round(float(targets.get("sl", 0)), 6),
+                    conviction=conviction,
+                    oracle_signal="N/A",
+                    titan_signal=t_signal,
+                    oracle_score=0,
+                    titan_confidence=int(t_confidence),
+                    market_state=regime,
+                    fired_reason=fired_reason,
+                    fired_at=now_ms,
+                    outcome="OPEN",
+                )
 
-            rows_to_insert.append(row)
-            logged += 1
-            logger.info(f"Signal log: {symbol} {row['direction']} conviction={conviction} regime={regime}")
+                rows_to_insert.append(row)
+                logged += 1
+                logger.info(f"Signal log: {symbol} {row['direction']} conviction={conviction} regime={regime}")
 
-        except Exception as e:
-            logger.warning(f"log_watchlist_setups error for {symbol}: {e}")
+            except Exception as e:
+                logger.warning(f"log_watchlist_setups error for {symbol}: {e}")
+    finally:
+        await shared_provider.close()
 
     # Batch insert all rows in one session
     if rows_to_insert:
@@ -359,6 +365,7 @@ async def resolve_outcomes_historical(ctx):
     4. If both hit in same candle, use candle direction to determine which hit first
     """
     from app.routes.strategy import get_candles_df
+    from app.providers import get_provider
 
     logger.info("Job: resolve_outcomes_historical — checking open signals with candle data...")
 
@@ -373,13 +380,18 @@ async def resolve_outcomes_historical(ctx):
         open_signals = result.scalars().all()
 
         # Fetch candles once per unique symbol (always include BTC for resolution context)
+        # Share one provider to avoid repeated exchangeInfo calls
         unique_symbols = {sig.symbol for sig in open_signals}
         unique_symbols.add("BTCUSDT")
         candle_cache = {}
-        for sym in unique_symbols:
-            df = await get_candles_df(sym, timeframe="4h", limit=300)
-            if df is not None and not df.empty:
-                candle_cache[sym] = df
+        shared_provider = get_provider()
+        try:
+            for sym in unique_symbols:
+                df = await get_candles_df(sym, timeframe="4h", limit=300, provider=shared_provider)
+                if df is not None and not df.empty:
+                    candle_cache[sym] = df
+        finally:
+            await shared_provider.close()
 
         for sig in open_signals:
             try:

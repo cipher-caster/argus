@@ -167,7 +167,7 @@
 
 **Goal:** The analytics page should serve two audiences — Claude as the AI trader (feedback loop to improve), and the user as the observer (visibility into how trading is going). Current page is designed for a human browsing signals, which is no longer the primary use case. The data model needs to capture resolution-time context so we can actually learn what works.
 
-### Phase 19: Advanced Features
+### Phase 21: Advanced Features
 - [ ] Price alerts / push notifications
 - [ ] WebSocket push for live ticker updates
 - [ ] Multi-strategy support (compare Oracle vs Titan vs custom)

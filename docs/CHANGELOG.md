@@ -2,6 +2,18 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.9.2] - 2026-03-22 — Provider Reuse & Worker Stability
+
+### Fixed
+
+- **Worker Binance API rate limiting** — `log_watchlist_setups`, `resolve_outcomes_historical`, and `_recover_missed_scans` were creating a new BinanceProvider per symbol, each hitting `exchangeInfo`. Now share one provider per job run, eliminating 10+ redundant API calls per cycle.
+- **Unclosed aiohttp sessions** — shared providers are properly closed via `try/finally`, preventing session leaks that caused `asyncio:Unclosed client session` errors.
+- **Server-side pagination** — signal log and trade history endpoints now support pagination (`2292176`).
+
+### Docs
+
+- Fixed duplicate "Phase 19" heading in ROADMAP.md (renamed second to Phase 21)
+
 ## [0.9.1] - 2026-03-20 — Signal Resolution Fix & System Audit
 
 ### Fixed
