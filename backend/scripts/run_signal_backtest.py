@@ -8,8 +8,10 @@ Writes results to signal_log (source='backtest') and prints observations.
 Usage (inside Docker):
     docker compose exec backend python scripts/run_signal_backtest.py
     docker compose exec backend python scripts/run_signal_backtest.py --symbols=TAO,LINK --dry-run --fix-optimal
+    docker compose exec backend python scripts/run_signal_backtest.py --provider=okx --symbols=BTC,ETH
 
 Flags:
+    --provider=X    Data source: 'binance' (default) or 'okx'
     --symbols=X,Y   Comma-separated coins to test (default: all watchlist coins)
     --dry-run       Print signals without writing to DB
     --clear         Delete existing backtest rows before running
@@ -67,6 +69,13 @@ def _parse_symbols() -> list[str]:
     return list(DEFAULT_COINS)
 
 
+def _parse_provider() -> str:
+    for arg in sys.argv:
+        if arg.startswith("--provider="):
+            return arg.split("=")[1].strip().lower()
+    return os.getenv("DATA_PROVIDER", "binance").lower()
+
+
 DRY_RUN = "--dry-run" in sys.argv
 CLEAR_EXISTING = "--clear" in sys.argv
 
@@ -75,6 +84,7 @@ FIX_ALL = "--fix-all" in sys.argv
 
 config = BacktestConfig(
     symbols=_parse_symbols(),
+    provider=_parse_provider(),
     sl_mult=_parse_flag("--sl-mult=", 1.5),
     tp_mult=_parse_flag("--tp-mult=", 0.0),
     tp_adaptive=(
@@ -173,7 +183,7 @@ def print_observations(all_signals: list, cfg: BacktestConfig):
 
 async def main():
     print("=" * 70)
-    print(f"Argus Signal Backtest — {', '.join(config.symbols)} (4H)")
+    print(f"Argus Signal Backtest — {', '.join(config.symbols)} (4H) [{config.provider}]")
     print(f"Config: {config.name}")
     print(f"Mode: {'DRY RUN' if DRY_RUN else 'WRITE TO DB'}")
     print("=" * 70)
@@ -190,7 +200,7 @@ async def main():
         print("  Done.")
 
     print("\nLoading candle data...")
-    data = await load_and_prepare_data(config.symbols)
+    data = await load_and_prepare_data(config.symbols, provider=config.provider)
 
     all_signals = []
     for coin in config.symbols:

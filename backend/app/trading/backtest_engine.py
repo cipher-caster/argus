@@ -45,6 +45,7 @@ DEFAULT_COINS = ["BTC", "ETH", "BNB", "TRX", "XRP", "FET", "NEAR", "ARB", "ATOM"
 @dataclass
 class BacktestConfig:
     symbols: list[str] = field(default_factory=lambda: list(DEFAULT_COINS))
+    provider: str = "binance"    # which exchange's candle data to use
     sl_mult: float = 1.5
     tp_mult: float = 0.0         # 0 = use adaptive logic
     tp_adaptive: bool = True
@@ -74,12 +75,16 @@ class BacktestConfig:
 # Data loading
 # ---------------------------------------------------------------------------
 
-async def load_candles(symbol: str, timeframe: str) -> pd.DataFrame:
-    """Load candles from DB and return as DataFrame."""
+async def load_candles(symbol: str, timeframe: str, provider: str = "binance") -> pd.DataFrame:
+    """Load candles from DB (filtered by provider) and return as DataFrame."""
     async with Database.get_session() as session:
         stmt = (
             select(DbCandle)
-            .where(DbCandle.symbol == symbol, DbCandle.timeframe == timeframe)
+            .where(
+                DbCandle.symbol == symbol,
+                DbCandle.timeframe == timeframe,
+                DbCandle.provider == provider,
+            )
             .order_by(DbCandle.timestamp)
         )
         result = await session.execute(stmt)
@@ -97,7 +102,7 @@ async def load_candles(symbol: str, timeframe: str) -> pd.DataFrame:
     return df
 
 
-async def load_and_prepare_data(symbols: list[str]) -> dict:
+async def load_and_prepare_data(symbols: list[str], provider: str = "binance") -> dict:
     """
     Load all candle data and pre-compute BTC indicators in one shot.
     Returns a bundle dict:
@@ -115,8 +120,8 @@ async def load_and_prepare_data(symbols: list[str]) -> dict:
     inside coin_data["BTC"] to avoid duplication.
     """
     print("Loading BTC candles...")
-    btc_4h = await load_candles("BTC/USDT", "4h")
-    btc_1d = await load_candles("BTC/USDT", "1d")
+    btc_4h = await load_candles("BTC/USDT", "4h", provider)
+    btc_1d = await load_candles("BTC/USDT", "1d", provider)
 
     if btc_4h.empty or len(btc_4h) < WARMUP + 10:
         raise ValueError(f"Not enough BTC 4H data (have {len(btc_4h)}, need >{WARMUP})")
@@ -135,8 +140,8 @@ async def load_and_prepare_data(symbols: list[str]) -> dict:
             continue
         sym_4h = f"{coin}/USDT"
         sym_1d = f"{coin}/USDT"
-        df_4h = await load_candles(sym_4h, "4h")
-        df_1d = await load_candles(sym_1d, "1d")
+        df_4h = await load_candles(sym_4h, "4h", provider)
+        df_1d = await load_candles(sym_1d, "1d", provider)
         print(f"  {coin}: {len(df_4h)} × 4H, {len(df_1d)} × 1D")
         coin_data[coin] = {"4h": df_4h, "1d": df_1d}
 
