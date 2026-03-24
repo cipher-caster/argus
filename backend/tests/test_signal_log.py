@@ -835,3 +835,92 @@ class TestResolveOutcomesTiebreaker:
 
         assert sig.outcome == "LOSS"
         assert sig.resolved_price == sig.sl
+
+
+# ---------------------------------------------------------------------------
+# A2: TestHistoricalResolution — resolve_outcome candle-walk edge cases
+# Tests the pure candle-walk logic in backtest_engine.resolve_outcome directly,
+# covering TP/SL hit order, same-candle tiebreak, and REVIEW on no data.
+# ---------------------------------------------------------------------------
+
+class TestHistoricalResolution:
+    """Unit tests for resolve_outcome() candle-walk logic (no DB, no mocks)."""
+
+    def _make_df(self, rows: list[dict]) -> "pd.DataFrame":
+        import pandas as pd
+        base_ms = 1_704_067_200_000
+        data = []
+        for i, r in enumerate(rows):
+            data.append({
+                "timestamp": pd.Timestamp(base_ms + i * 14_400_000, unit="ms", tz="UTC"),
+                "open": 100.0,
+                "high": r["high"],
+                "low": r["low"],
+                "close": 100.0,
+                "volume": 1000.0,
+                "ts_ms": base_ms + i * 14_400_000,
+            })
+        return pd.DataFrame(data)
+
+    def test_historical_long_tp_hit(self):
+        """LONG: candle high reaches TP → WIN."""
+        from app.trading.backtest_engine import resolve_outcome
+        df = self._make_df([
+            {"high": 104.0, "low": 98.0},   # entry candle (not scanned)
+            {"high": 115.0, "low": 101.0},  # TP=110 hit
+        ])
+        outcome, price, ts = resolve_outcome(df, 0, "LONG", tp=110.0, sl=95.0)
+        assert outcome == "WIN"
+        assert price == 110.0
+
+    def test_historical_long_sl_hit(self):
+        """LONG: candle low drops to SL → LOSS."""
+        from app.trading.backtest_engine import resolve_outcome
+        df = self._make_df([
+            {"high": 104.0, "low": 98.0},
+            {"high": 103.0, "low": 92.0},  # SL=95 hit
+        ])
+        outcome, price, ts = resolve_outcome(df, 0, "LONG", tp=110.0, sl=95.0)
+        assert outcome == "LOSS"
+        assert price == 95.0
+
+    def test_historical_short_tp_hit(self):
+        """SHORT: candle low drops to TP → WIN."""
+        from app.trading.backtest_engine import resolve_outcome
+        df = self._make_df([
+            {"high": 102.0, "low": 96.0},
+            {"high": 99.0, "low": 87.0},   # TP=90 hit (low <= tp)
+        ])
+        outcome, price, ts = resolve_outcome(df, 0, "SHORT", tp=90.0, sl=108.0)
+        assert outcome == "WIN"
+        assert price == 90.0
+
+    def test_historical_both_hit_bullish_candle(self):
+        """Same candle crosses both TP and SL → conservative LOSS."""
+        from app.trading.backtest_engine import resolve_outcome
+        df = self._make_df([
+            {"high": 104.0, "low": 98.0},
+            {"high": 120.0, "low": 85.0},  # Both TP=110 and SL=92 crossed
+        ])
+        outcome, price, ts = resolve_outcome(df, 0, "LONG", tp=110.0, sl=92.0)
+        assert outcome == "LOSS"
+        assert price == 92.0
+
+    def test_historical_review_no_candles(self):
+        """Only the entry candle exists — no future candles → REVIEW."""
+        from app.trading.backtest_engine import resolve_outcome
+        df = self._make_df([{"high": 102.0, "low": 98.0}])
+        outcome, price, ts = resolve_outcome(df, 0, "LONG", tp=110.0, sl=90.0)
+        assert outcome == "REVIEW"
+        assert price is None
+        assert ts is None
+
+    def test_historical_review_max_hold_exceeded(self):
+        """max_hold candles pass without hitting TP or SL → REVIEW."""
+        from app.trading.backtest_engine import resolve_outcome
+        # Flat candles — price never moves enough
+        df = self._make_df([{"high": 101.5, "low": 98.5}] * 15)
+        outcome, price, ts = resolve_outcome(
+            df, 0, "LONG", tp=110.0, sl=90.0, max_hold=5
+        )
+        assert outcome == "REVIEW"

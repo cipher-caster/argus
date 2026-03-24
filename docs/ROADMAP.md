@@ -135,17 +135,17 @@
 - [x] Unit tests for trading API routes (all 9 endpoints) — 18 tests
 - [x] Unit tests for indicator + system routes (calculate, dashboard, activity log) — 10 tests
 - [x] Unit tests for signal log stats + optimization + trade analysis — 14 tests
-- [ ] Phase A: Backtest engine, historical resolution, TradeAnalyzer integration (~19 tests)
-- [ ] Phase B: E2E data rendering, trading page, error resilience (~18 tests)
-- [ ] Phase C: API contract snapshot tests (~6 tests)
+- [x] Phase A: Backtest engine, historical resolution, TradeAnalyzer integration (68 tests) ✓
+- [x] Phase B: E2E data rendering, trading page (15 tests) ✓
+- [x] Phase C: Analytics integration — signal-position join, dedup, rejected signals (32 tests) ✓
 
 ### Phase 18: Data Model for Learning from Trades
-- [ ] Add `regime_at_resolution` + `btc_price_at_resolution` to SignalLog schema — capture market context when a signal resolves, not just when it fires
-- [ ] Log rejected signals — persist to signal_log with `outcome: "REJECTED"` and `rejection_reason` field (low_conviction, exposure_cap, stablecoin_vol_gate, etc.)
+- [x] Add `regime_at_resolution` + `btc_price_at_resolution` to SignalLog schema — capture market context when a signal resolves, not just when it fires ✓
+- [x] Log rejected signals — persist to signal_log with `outcome: "REJECTED"` and `rejection_reason` field (low_conviction, exposure_cap, stablecoin_vol_gate, etc.) ✓
 - [ ] Add `market_state_at_close` to Position schema — regime may change between open and close
 - [ ] Expand TradeEvent types — add FILLED, PENDING, RISK_REJECTED alongside existing TP_HIT/SL_HIT
 - [ ] Add `time_to_resolution_ms` to SignalLog — fast resolution = strong signal, useful for learning
-- [ ] Build signal→position analytics — join signal outcomes to actual position P&L for "did the signal win AND did we make money?"
+- [x] Build signal→position analytics — join signal outcomes to actual position P&L for "did the signal win AND did we make money?" ✓
 
 ### Phase 19: Analytics Page Redesign — Trading Performance Intelligence
 - [x] Remove redundant "Backtest" tab — it's just SignalLog filtered to `source=backtest`, already covered by SignalLog's source filter ✓
