@@ -327,3 +327,20 @@ If `long_term_mode = true`, add a 5th sentence summarizing the HODL verdict and 
 - If any endpoint returns a non-200 status or times out, note it in the report as "Unavailable" and continue with available data.
 - If the backend is not running (connection refused), report: "Argus backend is offline. Start it with `docker-compose up -d`."
 - If the coin is not found in `/api/market/coins`, skip that section and note it.
+
+---
+
+## Logging
+
+After displaying the report to the user, always save it to `docs/market-reports/` using the Write tool.
+
+**File naming:**
+- Market report: `docs/market-reports/YYYY-MM-DD-market.md`
+- Coin report: `docs/market-reports/YYYY-MM-DD-{BASE}.md` (e.g., `2026-03-24-BTC.md`)
+- If the file already exists, append to it — do not create a new file.
+
+**File content:**
+- First run of the day: write the full report with a `# Argus ...` H1 heading.
+- Subsequent runs (file exists): append a `---` divider followed by `## HH:MM` timestamp heading, then the report body (skip the H1, start from Market Pulse / Price section).
+
+Do not announce the logging step — just do it silently after displaying the report.
