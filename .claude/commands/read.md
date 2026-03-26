@@ -16,7 +16,7 @@ Parse `$ARGUMENTS`:
 - If empty or equals `market` → run **Market Report** (section A)
 - Otherwise → extract coin ticker (e.g., `BTC`, `SOL`, `ETH`) and optional timeframe → run **Coin Report** (section B)
 
-The Argus backend runs at **http://localhost:8000**. Use `WebFetch` to call every endpoint below.
+The Argus backend runs at **http://localhost:8000**. Use `Bash` with `curl -s` to call every endpoint — **do not use `WebFetch`** for localhost URLs, as it upgrades HTTP to HTTPS and will fail.
 
 Symbols are always in `BASE/USDT` format (e.g., `BTC/USDT`). When used in a URL path, encode the slash: `BTC%2FUSDT`.
 
@@ -24,13 +24,14 @@ Symbols are always in `BASE/USDT` format (e.g., `BTC/USDT`). When used in a URL 
 
 ## Section A — Market Report
 
-Fetch all of these in parallel using multiple `WebFetch` calls:
+Fetch all of these in parallel using multiple `Bash` calls with `curl -s`:
 
 1. `GET http://localhost:8000/api/market/summary`
 2. `GET http://localhost:8000/api/strategy/regime`
 3. `GET http://localhost:8000/api/analytics/best-setups?timeframe=4h&limit=10`
 4. `GET http://localhost:8000/api/indicators/market/dashboard`
 5. `GET http://localhost:8000/api/analytics/signal-log?source=live&limit=20`
+6. `GET http://localhost:8000/api/analytics/signal-log?source=counter&limit=5`
 
 ### Output format
 
@@ -57,6 +58,7 @@ If none: "No active signals — waiting for next 4H candle setup"
 If any, list each:
   {symbol} {direction} | Entry {entry} | TP {tp} (+X%) | SL {sl} (-X%) | Conviction {conviction}/100 | Age {time since fired_at}
 Then show summary: Win Rate {summary.win_rate}% ({summary.win} W / {summary.loss} L) or "No closed trades yet" if win_rate is null
+Counter-regime tracking: {count of source=counter OPEN signals from fetch #6} setups observed (not traded)
 
 ### Top Movers (24H)
 From market/summary:

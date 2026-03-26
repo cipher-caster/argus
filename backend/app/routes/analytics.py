@@ -239,7 +239,7 @@ async def get_best_setups(timeframe: str = "4h", limit: int = 50):
             if not (is_long or is_short) or t_confidence < 55:
                 continue
 
-            # Regime alignment boosts conviction
+            # Regime alignment boosts conviction (counter-regime signals still shown in UI)
             regime_aligned = (regime == "BULL" and is_long) or (regime == "BEAR" and is_short)
 
             # Conviction: base from Titan confidence, bonus for regime alignment

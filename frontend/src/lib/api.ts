@@ -391,7 +391,7 @@ export interface SignalLogItem {
   market_state: string;
   fired_reason: string;
   fired_at: number;
-  source: "live" | "scanner" | "backtest";
+  source: "live" | "scanner" | "backtest" | "counter";
   provider: "binance" | "okx";
   outcome: "OPEN" | "WIN" | "LOSS" | "REVIEW" | "REJECTED";
   resolved_at: number | null;

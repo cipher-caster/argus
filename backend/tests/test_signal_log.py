@@ -308,9 +308,9 @@ class TestLogBestSetups:
     @patch("app.jobs.signal_log._get_config", new_callable=AsyncMock)
     @patch("app.jobs.signal_log.RedisClient")
     async def test_skips_low_conviction(self, mock_redis, mock_cfg, mock_ms, mock_db):
-        """Conviction < 60 → skipped entirely (not persisted)."""
+        """Conviction < 50 → skipped entirely (not persisted)."""
         mock_redis.get_json = AsyncMock(return_value={
-            "data": [{"symbol": "BTCUSDT", "direction": "LONG", "conviction": 50,
+            "data": [{"symbol": "BTCUSDT", "direction": "LONG", "conviction": 49,
                        "oracle_score": 3, "titan_signal": "BUY",
                        "entry": 100, "tp": 110, "sl": 95, "reason": "test"}]
         })
@@ -329,12 +329,39 @@ class TestLogBestSetups:
     @patch("app.jobs.signal_log._get_market_state", new_callable=AsyncMock, return_value="TRENDING")
     @patch("app.jobs.signal_log._get_config", new_callable=AsyncMock)
     @patch("app.jobs.signal_log.RedisClient")
+    async def test_skips_counter_regime(self, mock_redis, mock_cfg, mock_ms, mock_db):
+        """Counter-regime signals (reason starts with '(counter)') → logged with source='counter'."""
+        mock_redis.get_json = AsyncMock(return_value={
+            "data": [{"symbol": "XLMUSDT", "direction": "LONG", "conviction": 75,
+                       "oracle_score": 4, "titan_signal": "BUY",
+                       "entry": 0.30, "tp": 0.35, "sl": 0.27, "reason": "(counter) BUY_LIMIT"}]
+        })
+        mock_cfg.return_value = {"watchlist": [], "min_titan_confidence": 55,
+                                 "review_days": 7, "block_sleeping": True,
+                                 "block_volatile": True, "macro_guard": True,
+                                 "block_btc_sell": True}
+
+        mock_session = AsyncMock()
+        mock_db.get_session.return_value.__aenter__ = AsyncMock(return_value=mock_session)
+        mock_db.get_session.return_value.__aexit__ = AsyncMock(return_value=False)
+
+        from app.jobs.signal_log import log_best_setups
+        await log_best_setups(self._make_ctx())
+        mock_db.get_session.assert_called_once()
+        mock_session.execute.assert_awaited()
+        mock_session.commit.assert_awaited_once()
+
+    @pytest.mark.asyncio
+    @patch("app.jobs.signal_log.Database")
+    @patch("app.jobs.signal_log._get_market_state", new_callable=AsyncMock, return_value="TRENDING")
+    @patch("app.jobs.signal_log._get_config", new_callable=AsyncMock)
+    @patch("app.jobs.signal_log.RedisClient")
     async def test_inserts_scanner_signal(self, mock_redis, mock_cfg, mock_ms, mock_db):
         """Valid scanner signal → source='scanner', correct fields."""
         mock_redis.get_json = AsyncMock(return_value={
             "data": [{"symbol": "BTC/USDT", "direction": "LONG", "conviction": 75,
                        "oracle_score": 4, "titan_signal": "BUY",
-                       "entry": 50000, "tp": 55000, "sl": 48000, "reason": "strong setup"}]
+                       "entry": 50000, "tp": 55000, "sl": 48000, "reason": "(trend) BUY"}]
         })
         mock_cfg.return_value = {"watchlist": [], "min_titan_confidence": 55,
                                  "review_days": 7, "block_sleeping": True,

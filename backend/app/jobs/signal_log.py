@@ -326,7 +326,7 @@ async def log_best_setups(ctx):
             t_signal = item.get("titan_signal", "")
             reason = item.get("reason", "")
 
-            if conviction < 60:
+            if conviction < 50:
                 rejected += 1
                 continue
 
@@ -345,7 +345,7 @@ async def log_best_setups(ctx):
                 market_state="scanner",
                 fired_reason=item.get("reason", ""),
                 fired_at=now_ms,
-                source="scanner",
+                source="counter" if reason.startswith("(counter)") else "scanner",
                 outcome="OPEN",
             )
 

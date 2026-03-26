@@ -2,6 +2,20 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.9.4] - 2026-03-26 — Counter-Regime Signal Tracking
+
+### Added
+
+- **Counter-regime signal tracking** — scanner job now logs regime-misaligned signals to `signal_log` with `source='counter'` (conviction ≥ 50). These are tracked for performance observation only; they are never paper traded. `execute_signals` filters on `source IN ('live', 'scanner')`, so counter signals are completely safe from execution.
+- **Signal Log UI: "Counter" tab** — new source filter tab in the Signal Log analytics panel to browse counter-regime setups and observe their outcomes over time.
+
+### Changed
+
+- **Best Setups: regime filter removed from UI** — the Best Setups component now displays all signals regardless of regime alignment (both regime-aligned and counter-regime setups). Regime filtering is enforced at the scanner job logging layer, not the UI.
+- **Scanner conviction threshold: 60 → 50** — `log_best_setups` job now logs signals with conviction ≥ 50 (down from 60), aligning with the SELL_LIMIT signal scoring range observed in BEAR regime. Both `source='scanner'` and `source='counter'` signals are logged at this threshold.
+
+---
+
 ## [0.9.3] - 2026-03-22 — 5min Candle Tiebreaker for Signal Resolution
 
 ### Fixed

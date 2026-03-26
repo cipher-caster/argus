@@ -10,7 +10,7 @@ import { RefreshCw, Settings2, Save, Check, ChevronDown } from "lucide-react";
 import { SignalDetailModal } from "./SignalDetailModal";
 
 const SYMBOLS = ["All", "BTC", "ETH", "BNB", "TRX", "XRP", "FET", "NEAR", "ARB", "ATOM", "DOGE", "APT"];
-const SOURCES = ["All", "Live", "Scanner", "Backtest"];
+const SOURCES = ["All", "Live", "Scanner", "Backtest", "Counter"];
 
 const OUTCOME_CONFIG = {
   WIN:      { label: "WIN",      emoji: "✅", cls: "text-emerald-500 dark:text-emerald-400 bg-emerald-500/10" },
@@ -106,6 +106,8 @@ function SignalRow({ item, onClick }: { item: SignalLogItem; onClick: () => void
               ? "bg-amber-500/10 text-amber-600 dark:text-amber-400"
               : item.source === "scanner"
               ? "bg-violet-500/10 text-violet-600 dark:text-violet-400"
+              : item.source === "counter"
+              ? "bg-zinc-500/10 text-zinc-500 dark:text-zinc-400"
               : "bg-sky-500/10 text-sky-600 dark:text-sky-400"
           )}>
             {item.source}
@@ -254,7 +256,8 @@ function SettingsPanel({ config, onSave, isSaving, saved }: {
 }
 
 export function SignalLog() {
-  const PAGE_SIZE = 50;
+  const DEFAULT_PAGE_SIZE = 50;
+  const COUNTER_PAGE_SIZE = 20;
   const [activeSymbol, setActiveSymbol] = useState("All");
   const [activeSource, setActiveSource] = useState("All");
   const [page, setPage] = useState(1);
@@ -263,6 +266,8 @@ export function SignalLog() {
   const [selectedSignal, setSelectedSignal] = useState<SignalLogItem | null>(null);
   const { data: config } = useSignalLogConfig();
   const updateConfig = useUpdateSignalLogConfig();
+  const isCounter = activeSource === "Counter";
+  const PAGE_SIZE = isCounter ? COUNTER_PAGE_SIZE : DEFAULT_PAGE_SIZE;
   const offset = (page - 1) * PAGE_SIZE;
   const { data, isLoading, isError, refetch, isFetching } = useSignalLog(
     activeSymbol === "All" ? undefined : activeSymbol,
@@ -312,6 +317,7 @@ export function SignalLog() {
                   ? src === "Backtest" ? "bg-amber-500/20 text-amber-600 dark:text-amber-400 border border-amber-500/40"
                     : src === "Scanner" ? "bg-violet-500/20 text-violet-600 dark:text-violet-400 border border-violet-500/40"
                     : src === "Live" ? "bg-sky-500/20 text-sky-600 dark:text-sky-400 border border-sky-500/40"
+                    : src === "Counter" ? "bg-zinc-500/20 text-zinc-600 dark:text-zinc-400 border border-zinc-500/40"
                     : "bg-primary text-primary-foreground shadow-md"
                   : "bg-secondary/40 text-muted-foreground hover:text-foreground hover:bg-secondary/70"
               )}
@@ -350,6 +356,15 @@ export function SignalLog() {
           isSaving={updateConfig.isPending}
           saved={saved}
         />
+      )}
+
+      {/* Counter tab description banner */}
+      {isCounter && (
+        <div className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-zinc-500/10 border border-zinc-500/20 text-[11px] text-zinc-500 dark:text-zinc-400 font-medium">
+          <span className="font-black uppercase tracking-wider text-zinc-600 dark:text-zinc-300">Counter-regime</span>
+          <span className="text-zinc-400 dark:text-zinc-500">—</span>
+          <span>Setups tracked for observation only — not traded.</span>
+        </div>
       )}
 
       {/* Summary bar */}
