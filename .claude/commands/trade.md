@@ -16,8 +16,8 @@ Format the output as follows:
 ### Config
 - **Status:** {Enabled ✅ / Paused ⏸}
 - Initial Capital: ${initial_capital} | Max Positions: {max_concurrent_positions}
-- Risk Per Trade: {max_position_size_pct}% | Min Conviction: {min_conviction}
-- Order Expiry: {order_expiry_hours}h | Max Drawdown: {max_drawdown_pct}%
+- Position Size: {max_position_size_pct}% of balance (notional) | Min Conviction: {min_conviction}
+- Entry Tolerance: ±{entry_tolerance_pct}% | Order Expiry: {order_expiry_hours}h | Max Drawdown: {max_drawdown_pct}%
 
 ---
 

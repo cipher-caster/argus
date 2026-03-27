@@ -2,6 +2,23 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.9.5] - 2026-03-27 — Market-Fill Entry + Position Sizing Fix
+
+### Fixed
+
+- **Market-fill all positions immediately** — all signals now fill at current market price on entry; `intended_entry` is preserved for reference. Previously, all Titan signals were `SELL_LIMIT`/`BUY_LIMIT` and stayed PENDING indefinitely waiting for price to retrace to the intended level, which rarely happened.
+- **Position sizing** — `max_position_size_pct` now correctly caps the **notional** position size (balance × pct). Previously it was used as a risk-per-trade amount, generating oversized positions (e.g. 3× balance per position on tight stops).
+
+### Added
+
+- **Entry tolerance gate** — new `entry_tolerance_pct` config param (default 1%). Signals are skipped if the current price has drifted more than this % past the intended entry in the trade direction. Prevents taking trades where the R:R is already degraded (e.g. shorting after price has already dropped 2% below the intended entry level). Logged as a risk rejection with drift % reason.
+
+### Changed
+
+- `DEFAULT_TRADING_CONFIG` gains `entry_tolerance_pct: 1.0`
+
+---
+
 ## [0.9.4] - 2026-03-26 — Counter-Regime Signal Tracking
 
 ### Added
