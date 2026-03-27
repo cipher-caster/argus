@@ -3,9 +3,12 @@ Binance Data Provider
 Uses CCXT library for market data fetching
 """
 
+import logging
 import ccxt.async_support as ccxt
 from typing import List, Optional
 from .data_provider import DataProvider, Candle, SymbolInfo
+
+logger = logging.getLogger(__name__)
 
 
 class BinanceProvider(DataProvider):
@@ -86,7 +89,8 @@ class BinanceProvider(DataProvider):
         try:
             ticker = await self._exchange.fetch_ticker(symbol)
             return ticker.get('last')
-        except Exception:
+        except Exception as e:
+            logger.warning(f"get_ticker_price failed for {symbol}: {e}", exc_info=True)
             return None
     
     async def get_all_tickers(self) -> dict:
@@ -96,7 +100,8 @@ class BinanceProvider(DataProvider):
         try:
             # Returns dict of {symbol: ticker_dict}
             return await self._exchange.fetch_tickers()
-        except Exception:
+        except Exception as e:
+            logger.warning(f"get_all_tickers failed: {e}", exc_info=True)
             return {}
     
     async def close(self):

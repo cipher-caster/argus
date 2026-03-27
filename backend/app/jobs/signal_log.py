@@ -585,8 +585,8 @@ async def resolve_outcomes_historical(ctx):
                                           regime_at_resolution=sig.regime_at_resolution,
                                           time_to_resolution_ms=sig.time_to_resolution_ms,
                                           method="historical_candle")
-                    except Exception:
-                        pass
+                    except Exception as act_err:
+                        logger.warning(f"Historical resolve: activity log failed for {sig.symbol}: {act_err}")
 
                     logger.info(
                         f"Historical resolve: {sig.symbol} {sig.direction} → {new_outcome} "

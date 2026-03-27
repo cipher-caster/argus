@@ -19,7 +19,7 @@ function pct(from: number, to: number) {
 function SetupCard({ item, coinMeta }: { item: BestSetupItem; coinMeta: any }) {
   const isLong = item.direction === "LONG";
   const tpPct = isLong ? pct(item.entry, item.tp) : pct(item.tp, item.entry);
-  const slPct = isLong ? pct(item.entry, item.sl) : pct(item.sl, item.entry);
+  const slPct = isLong ? pct(item.entry, item.sl) : `-${pct(item.sl, item.entry)}`;
   const isElite = item.conviction >= 95;
   const isCounterTrend = item.reason.startsWith("(counter)");
   const isWithTrend = item.reason.startsWith("(trend)");

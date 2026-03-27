@@ -295,7 +295,7 @@ export function DashboardStatusBar() {
     await Promise.all([
       refetchRegime(),
       refetchIndicators(),
-      queryClient.invalidateQueries({ queryKey: ["best-setups"] }),
+      queryClient.invalidateQueries({ queryKey: ["analytics", "best-setups"] }),
       queryClient.invalidateQueries({ queryKey: ["tickers"] }),
     ]);
     setRefreshing(false);
