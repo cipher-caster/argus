@@ -6,10 +6,11 @@
 ---
 
 ## Current Best Config
-Updated: 2026-03-17
-- SL: 1.5x ATR | TP: adaptive 2.0/3.0 | Min Titan: 55% | Min Conviction: 65
+Updated: 2026-03-27
+- SL: 1.5x ATR | TP: adaptive 2.0/3.0 | Min Titan: 55% | Min Conviction: 50
 - Gates: BLOCK_SLEEPING=T, BLOCK_VOLATILE=T, MACRO_GUARD=T, BLOCK_BTC_SELL=T
 - Expected: 48.3% WR, +16.7R, ~0.18R EV/trade on 95 signals (BTC+ETH+BNB)
+- **Note**: Min Conviction was previously 65, which was found to be a dead zone in confidence_sweep experiments — conf=65 produces 0 signals on the expanded 11-coin watchlist. Lowered to 50 for live production.
 
 ---
 

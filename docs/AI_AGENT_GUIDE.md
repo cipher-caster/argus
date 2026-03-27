@@ -1,6 +1,6 @@
 # Argus Codebase Guide for AI Agents
 
-**Last Updated**: 2026-03-19
+**Last Updated:** 2026-03-27
 **Purpose**: Help AI agents quickly understand the Argus cryptocurrency analytics platform
 
 ---
@@ -46,7 +46,7 @@ argus/
 │   │   ├── jobs/         # Background worker jobs
 │   │   │   └── signal_log.py     # Signal scanning & outcome resolution
 │   │   ├── schemas/      # Pydantic models
-│   │   ├── storage/      # Database & Redis clients
+│   │   ├── storage.py    # Database & Redis connection pooling
 │   │   └── exceptions.py # Custom exception hierarchy
 │   ├── scripts/
 │   │   └── optimize_trading.py   # CLI optimization runner
@@ -119,9 +119,8 @@ PostgreSQL (historical) ← Routes/Services → Frontend
    - Background worker jobs beyond cache sync
    - `signal_log.py`: Scans watchlist at 4H candle close, logs signals to DB, resolves outcomes every 30 min
 
-8. **Storage** (`app/storage/`):
-   - `database.py`: PostgreSQL with sqlmodel
-   - `redis_client.py`: Redis for caching
+8. **Storage** (`app/storage.py`):
+   - PostgreSQL and Redis connection pooling (single file)
 
 ### Frontend Architecture
 
@@ -356,7 +355,7 @@ async def get_ohlcv(request: OHLCVRequest):
 
 ## 🧪 Testing
 
-**Backend** (254 tests):
+**Backend** (254+ tests — Phase A/B/C added 115 more tests in commit 94c32be):
 
 ```bash
 # Run all tests
@@ -391,7 +390,27 @@ npm run build
 
 ---
 
-## 📊 Recent Improvements (2026-03-19)
+## 📊 Recent Improvements (2026-03-27)
+
+### v0.9.4 — Counter-Regime Signal Tracking (2026-03-27)
+- Added `counter` signal source for tracking shorts-in-uptrend / longs-in-downtrend
+- New "Counter" tab in Signal Log UI
+- Scanner conviction threshold lowered from 60 → 50
+- `log_best_setups` cron re-enabled and persisting to DB
+
+### v0.9.3 — Candle-Walk Tiebreaker (2026-03-25)
+- 5-minute tiebreaker logic for same-candle TP+SL hits during outcome resolution
+- Market report logging added to `/read` command
+
+### v0.9.2 — Provider Reuse & Fill Rate Fix (prior)
+- OKX provider reuse for backtest (no extra API calls)
+- Signal-to-position bridge (execute_signals now creates paper positions from open signals)
+- Fill rate improved from 17% → 80% by fixing regime filter blocking all signals
+- Min conviction lowered from 65 → 50 in live config
+
+### v0.9.1 — Signal Resolution Bug Fix (prior)
+- Fixed datetime comparison bug in signal resolution that was blocking all outcome resolution
+- Rejected signals now persisted to DB with `rejection_reason`
 
 ### v0.9.0 — Regime Detection & Oracle Deprecation
 

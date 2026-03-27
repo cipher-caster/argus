@@ -11,7 +11,8 @@ Argus is a cryptocurrency analytics dashboard — real-time market data, technic
 ### Docker (Primary Development)
 
 ```bash
-docker-compose up -d --build       # Start all services
+docker-compose up -d               # Start all services
+docker-compose up -d --build       # Start with rebuild (after code changes)
 docker-compose down                # Stop all services
 docker-compose logs -f backend     # Stream backend logs
 docker-compose logs -f worker      # Stream worker logs
@@ -94,7 +95,7 @@ Detailed architecture and implementation docs live in `docs/`:
 - `docs/backend/ARCHITECTURE.md` — Backend system design
 - `docs/frontend/ARCHITECTURE.md` — Frontend patterns
 - `docs/backend/ERROR_HANDLING.md` — Exception hierarchy details
-- `docs/CHANGELOG.md` — Version history (current: v0.9.3)
+- `docs/CHANGELOG.md` — Version history (current: v0.9.4)
 - `docs/ROADMAP.md` — Planned features
 
 ## AI Slash Commands
@@ -142,3 +143,23 @@ Full system review — trading pipeline health, documentation freshness, memory 
 /review docs         # Documentation staleness check only
 /review plan         # Skip review, jump to planning next steps
 ```
+
+### `/backtest`
+
+Runs a signal backtest across the watchlist using the configured Titan strategy.
+
+```
+/backtest
+```
+
+### `/test-phase-a`
+
+Runs Phase A backend safety net tests (backtest engine, outcome resolution, TradeAnalyzer).
+
+### `/test-phase-b`
+
+Runs Phase B frontend E2E expansion tests (data rendering, trading page).
+
+### `/test-phase-c`
+
+Runs Phase C trading analytics integration tests (signal log joins, regime capture).

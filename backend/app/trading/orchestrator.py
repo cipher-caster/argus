@@ -143,13 +143,10 @@ class TradeOrchestrator:
             quantity, quote_amount, risk_amount = sizing
             now_ms = int(time.time() * 1000)
 
-            # Market signals (BUY/SELL) fill immediately at current price;
-            # Limit signals (BUY_LIMIT/SELL_LIMIT) stay PENDING.
-            is_market = getattr(signal, "titan_signal", "") in ("BUY", "SELL")
-
-            if is_market:
-                prices = await _get_prices()
-                current_price = prices.get(signal.symbol)
+            # Always fill at market price immediately; intended_entry is preserved for reference.
+            prices = await _get_prices()
+            current_price = prices.get(signal.symbol)
+            is_market = True
 
             position = Position(
                 signal_log_id=signal.id,
@@ -246,26 +243,21 @@ class TradeOrchestrator:
                 if current_price is None:
                     continue
 
-                # Simulate limit fill: price reaches entry zone
-                filled = False
-                if pos.direction == "LONG" and current_price <= pos.intended_entry:
-                    filled = True
-                elif pos.direction == "SHORT" and current_price >= pos.intended_entry:
-                    filled = True
-
-                if filled:
-                    pos.status = "OPEN"
-                    pos.actual_entry = pos.intended_entry  # limit fill at intended price
-                    pos.filled_at = now_ms
-                    session.add(pos)
-                    await _log_event(session, pos.id, "FILLED", {
-                        "actual_entry": pos.actual_entry,
-                        "current_price": current_price,
-                    })
-                    logger.info(
-                        f"Orchestrator: {pos.symbol} {pos.direction} FILLED @ {pos.actual_entry}"
-                    )
-                    await notifier.notify_position_filled(pos)
+                # Fill at current market price; intended_entry preserved for reference
+                pos.status = "OPEN"
+                pos.actual_entry = current_price
+                pos.filled_at = now_ms
+                session.add(pos)
+                await _log_event(session, pos.id, "FILLED", {
+                    "actual_entry": pos.actual_entry,
+                    "intended_entry": pos.intended_entry,
+                    "current_price": current_price,
+                })
+                logger.info(
+                    f"Orchestrator: {pos.symbol} {pos.direction} FILLED @ {pos.actual_entry} "
+                    f"(intended: {pos.intended_entry})"
+                )
+                await notifier.notify_position_filled(pos)
 
             await session.commit()
 

@@ -94,29 +94,19 @@ class RiskManager:
         """
         Returns (quantity, quote_amount, risk_amount).
 
-        risk_amount = balance * risk_pct
-        quantity    = risk_amount / |entry - sl|
-        quote_amount = quantity * entry
-
-        If quote_amount exceeds max_leverage * balance, scale down to cap exposure.
+        quote_amount = balance * max_position_size_pct  (notional cap)
+        quantity     = quote_amount / entry
+        risk_amount  = quantity * |entry - sl|  (actual dollar risk if SL hit)
         """
-        risk_pct = config.get("max_position_size_pct", 10.0) / 100
-        risk_amount = balance * risk_pct
-        max_leverage = config.get("max_leverage", 3.0)
+        max_pos_pct = config.get("max_position_size_pct", 10.0) / 100
 
         distance = abs(entry - sl)
         if distance <= 0:
             raise ValueError(f"Invalid entry/SL: entry={entry} sl={sl}")
 
-        quantity = risk_amount / distance
-        quote_amount = quantity * entry
-
-        # Cap notional exposure at max_leverage * balance
-        max_notional = balance * max_leverage
-        if quote_amount > max_notional:
-            quantity = max_notional / entry
-            quote_amount = max_notional
-            risk_amount = quantity * distance  # recalculate actual risk
+        quote_amount = balance * max_pos_pct
+        quantity = quote_amount / entry
+        risk_amount = quantity * distance
 
         return quantity, quote_amount, risk_amount
 
