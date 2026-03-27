@@ -215,6 +215,28 @@
 
 ---
 
+## Priority: Apply Backtest Findings
+
+**Source:** `docs/market-reports/2026-03-27-backtest-report.md`
+**Status:** Report complete, changes not yet applied to production
+
+### What to do (in order)
+
+1. **Switch default TP from adaptive to fixed 2.0x**
+   - Current: `tp_adaptive=True` → 2x normally, 3x in SUPER TREND
+   - New: `tp_mult=2.0` fixed for all coins except BTC/ETH
+   - Impact: +2.6% WR, +0.019R EV, 50% fewer REVIEW signals
+   - Files: `backtest_engine.py` (BacktestConfig defaults), `signal_log.py` (production config)
+   - Keep per-symbol overrides: BTC (SL=1.75, TP=4.0), ETH (TP=4.0)
+
+2. **No trailing stops** — both approaches tested, both worse than fixed TP
+
+3. **No watchlist changes** — new coin candidates (LINK, AVAX, DOT, ADA) don't justify inclusion on Binance
+
+4. **SUPER TREND gating** (future investigation) — alts lose 0-25% WR in SUPER TREND state. Could add per-coin gating to block SUPER TREND signals for weak coins (ATOM 11%, BNB 0%, DOGE 15%)
+
+---
+
 ## Cancelled
 
 ### Drawing Tools ~~(Paused)~~
