@@ -130,7 +130,7 @@ PENDING  →  OPEN  →  CLOSED
 |------|-------------------|----------------|
 | `signal_log.py` | `SignalLog` | Partial unique index `uq_signal_log_open` on `(symbol, direction) WHERE outcome='OPEN'` — enforces one active signal per pair+direction |
 | `trading.py` | `Position`, `TradeEvent` | `Position`: partial unique index `uq_position_active` on `(symbol, direction) WHERE status IN ('PENDING','OPEN')`. `TradeEvent.event_type` values: `CREATED`, `FILLED`, `TP_HIT`, `SL_HIT`, `CANCELLED`, `CIRCUIT_BREAKER`, `RISK_REJECTED` |
-| `optimization.py` | `OptimizationExperiment` | 23-field table — params tested (`sl_mult`, `tp_mult`, `tp_adaptive`, `min_titan_confidence`, gate flags, `min_conviction`) + result metrics (`win_rate`, `total_r`, `ev_per_trade`, `avg_rr`, `coin_results` JSON). `is_production=True` marks the active config. |
+| `optimization.py` | `OptimizationExperiment` | 23-field table — params tested (`sl_mult`, `tp_mult`, `tp_adaptive`, `min_titan_confidence`, gate flags, `min_conviction`) + result metrics (`win_rate`, `total_r`, `ev_per_trade`, `avg_rr`, `coin_results` JSON). `is_production=True` marks the active config. Current production: `tp_mult=2.0`, `tp_adaptive=False`, `sl_mult=1.5`. |
 
 ### `backend/scripts/`
 
@@ -143,7 +143,7 @@ PENDING  →  OPEN  →  CLOSED
 
 ## Testing Strategy
 
-**254 backend tests** (pytest) organized by module:
+**321 backend tests** (pytest) organized by module:
 
 | Test File | Tests | Coverage |
 |-----------|-------|----------|

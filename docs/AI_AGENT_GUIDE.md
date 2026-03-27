@@ -355,7 +355,7 @@ async def get_ohlcv(request: OHLCVRequest):
 
 ## 🧪 Testing
 
-**Backend** (254+ tests — Phase A/B/C added 115 more tests in commit 94c32be):
+**Backend** (321 tests — Phase A/B/C added 115 more tests; 7 previously failing tests fixed in 2026-03-27 refactor):
 
 ```bash
 # Run all tests
@@ -416,7 +416,7 @@ npm run build
 
 - ✅ **Regime Detection**: BTC weekly EMA50 regime system replaces Oracle market gate (`GET /api/strategy/regime`)
 - ✅ **Oracle Removed from UI**: Deprecated across dashboard, chart, analytics (backend code preserved)
-- ✅ **Per-Symbol Risk Overrides**: BTC (SL=1.75x, TP=4.0x), ETH (TP=4.0x) via SYMBOL_OVERRIDES
+- ✅ **Uniform Risk Parameters**: TP=2.0x ATR, SL=1.5x ATR for all coins. `SYMBOL_OVERRIDES` is now empty — per-symbol overrides (BTC SL=1.75x/TP=4.0x, ETH TP=4.0x) were removed after discovering a backtest lookup bug had invalidated their validation, and when correctly applied they degraded overall performance.
 - ✅ **Candle-Based Resolution**: Signal log and orchestrator use candle walk for TP/SL ordering
 - ✅ **Analytics Simplified**: 3 tabs (Best Setups, Signal Log, Backtest Performance)
 - ✅ **Dashboard Cleanup**: Active Signals merged into Best Setups, regime modal on status bar

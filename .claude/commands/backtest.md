@@ -26,7 +26,7 @@ If OFFLINE, tell the user to start the backend with `docker compose up -d`.
 
 ### Step 2: Run the backtest
 
-Run via Docker with `--dry-run` and `--fix-optimal` flags (safe default — no DB writes, proven optimizations):
+Run via Docker with `--dry-run` and `--fix-optimal` flags (safe default — no DB writes, applies proven optimizations: BLOCK_SLEEPING + FIXED_TP_2.0x + SOFT_MACRO):
 
 ```bash
 docker compose exec backend python scripts/run_signal_backtest.py --symbols={COINS} --dry-run --fix-optimal

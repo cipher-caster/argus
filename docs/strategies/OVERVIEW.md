@@ -27,7 +27,7 @@ A hybrid strategy combining trend structure with momentum confirmation.
 - **Signals**: `BUY`, `SELL`, `BUY_LIMIT`, `SELL_LIMIT`, `WAIT_OB`, `WAIT_OS`
 - **Confidence**: 0–100 score
 - **Best for**: 4H entries with momentum confirmation
-- **Per-symbol overrides**: BTC uses wider stops/targets (SL=1.75x ATR, TP=4.0x ATR) via `SYMBOL_OVERRIDES` dict. See `docs/strategies/BACKTEST_RESULTS.md` for analysis.
+- **Uniform risk parameters**: SL=1.5x ATR, TP=2.0x ATR (fixed) for all coins. `SYMBOL_OVERRIDES` is empty — per-symbol overrides were removed after a backtest lookup bug invalidated their validation. See `docs/strategies/BACKTEST_RESULTS.md` for analysis.
 
 See `docs/analytics/TITAN_STRATEGY.md` for full signal logic.
 

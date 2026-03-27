@@ -6,6 +6,10 @@
 
 ---
 
+> **Data Integrity Note (2026-03-27):** This report was run while `SYMBOL_OVERRIDES` in `titan.py` contained BTC TP=4.0x and ETH TP=4.0x entries. Those overrides were never actually applied during the backtest due to a key format mismatch (`"BTC"` vs `"BTCUSDT"`). All results in this report reflect **TP=2.0x ATR for every coin** — the same as the uniform default. The overrides have since been removed. See the 2026-03-27 post-implementation audit for full details.
+
+---
+
 ## Executive Summary
 
 We backtested the Oracle + Titan strategy on OKX spot data across 19 coins over 8.3 months (July 2025 - March 2026). The strategy works on OKX but requires a **different coin selection** than Binance. Key finding: FET and ATOM are strong OKX-specific winners that lose money on Binance. ETH is the most reliable coin on both exchanges.
@@ -202,7 +206,7 @@ SUPER TREND is consistently the worst regime across both exchanges. The block_sl
 
 **Keep current Binance config for OKX — no changes needed:**
 - SL=1.5x ATR (or try 1.75x for OKX if you want higher WR)
-- TP=adaptive (2x normal, 3x SUPER TREND)
+- TP=2.0x ATR fixed (default as of 2026-03-27; adaptive TP was removed)
 - Min Titan confidence=55%
 - Soft macro guard=ON
 - Block SLEEPING=ON

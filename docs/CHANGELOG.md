@@ -2,13 +2,36 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.9.8] - 2026-03-27 — Override Bug Fix + Test Suite Repairs
+
+### Fixed
+
+- **SYMBOL_OVERRIDES lookup bug** — backtest engine was calling `SYMBOL_OVERRIDES.get(f"{symbol}USDT", {})` but `symbol` was already in `"BTC/USDT"` format, producing keys like `"BTC/USDTUSDT"` that never matched. Per-symbol overrides (BTC TP=4.0x, ETH TP=4.0x) were silently never applied since they were added. Fix: use `SYMBOL_OVERRIDES.get(symbol, {})`.
+- **Per-symbol TP overrides removed** — once the lookup bug was fixed and overrides were actually applied, BTC performance degraded (50.6% → 34.3% WR with TP=4.0x). All TP/SL overrides removed. `SYMBOL_OVERRIDES` is now `{}`. Universal TP=2.0x ATR confirmed optimal.
+- **`RiskManager.calculate_position_size`** — fixed risk-based position sizing: max notional cap is now correctly applied as `balance × max_position_size_pct`; leverage cap enforced. Previously generated oversized positions on tight stops.
+- **Orchestrator tiebreaker** — same-candle TP/SL hit logic had inverted WIN/LOSS assignment. Fixed.
+- **LIMIT signal detection in `process_signal`** — LIMIT signals were not being detected and routed correctly; now handled.
+- **Event loop pollution in tests** — `_get_prices` patched in test teardown to prevent async loop contamination across `test_trading.py`.
+
+### Changed
+
+- **`run_signal_backtest.py` defaults** — `tp_mult` default changed from `0.0` to `2.0`; `--fix-optimal` flag no longer forces adaptive TP.
+- **`SYMBOL_OVERRIDES` cleared** — all per-symbol TP/SL overrides removed from `TitanStrategy` and backtest engine after override bug was fixed and overrides proved harmful.
+- **Test suite: 7 pre-existing failures resolved** — `test_trading.py` now passes 53/53 tests (0 failures). Total backend test count: 321 passing.
+
+### Docs
+
+- **Post-implementation audit** — appended to `docs/market-reports/2026-03-27-backtest-report.md` documenting the override lookup bug discovery and validated final config (TP=2.0x, no overrides, 50.61% WR, +162.7R, 12 REVIEW signals).
+
+---
+
 ## [0.9.7] - 2026-03-27 — Fixed TP Default (Backtest-Driven)
 
 ### Changed
 
 - **Default TP switched from adaptive to fixed 2.0x** — backtest sweep across 886 signals showed fixed 2.0x ATR dominates adaptive TP: +2.6% WR (50.9% vs 48.3%), +0.019R EV/trade, 50% fewer REVIEW signals. The adaptive 3x SUPER TREND bonus hurt most alts (ATOM 11%, BNB 0%, DOGE 15% WR in that state).
 - **`BacktestConfig` defaults** — `tp_mult=2.0`, `tp_adaptive=False`. The `tp_adaptive` field is kept for backward compat but no longer the default.
-- **`TitanStrategy._calculate_risk_levels`** — removed ADX-based adaptive TP logic. Now uses fixed `default_tp_mult=2.0` unless a symbol override applies. Per-symbol overrides preserved: BTC (SL=1.75x, TP=4.0x), ETH (TP=4.0x).
+- **`TitanStrategy._calculate_risk_levels`** — removed ADX-based adaptive TP logic. Now uses fixed `default_tp_mult=2.0`. Note: per-symbol overrides (BTC SL=1.75x/TP=4.0x, ETH TP=4.0x) existed in code but were never applied due to a key-format lookup bug (see v0.9.8). Overrides have since been removed entirely.
 - **All sweep scripts** (`run_signal_backtest.py`, `okx_backtest.py`, `optimize_trading.py`) — default configs updated to fixed 2.0x.
 - **Trailing stops tested and rejected** — both trail-at-TP and breakeven-at-50% were catastrophically worse than fixed TP. No changes made.
 

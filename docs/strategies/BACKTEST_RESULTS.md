@@ -3,7 +3,24 @@
 **Date:** 2026-03-17
 **Period:** Dec 2023 – Mar 2026 (varies by coin)
 **Strategy:** Oracle + Titan combined gate on 4H
-**Production settings:** BLOCK_SLEEPING + ADAPTIVE_TP (2.0x/3.0x) + SOFT_MACRO
+**Production settings:** BLOCK_SLEEPING + FIXED_TP (2.0x) + SOFT_MACRO
+
+---
+
+## Final Validated Config (2026-03-27)
+
+**TP sweep + override analysis confirmed uniform fixed TP=2.0x ATR as the best config.**
+
+| Metric | Value |
+|--------|-------|
+| Win Rate | 50.61% |
+| Total R | +162.7R |
+| Signals | 911 |
+| SL | 1.5x ATR |
+| TP | 2.0x ATR (fixed, all coins) |
+| Per-symbol overrides | None (`SYMBOL_OVERRIDES = {}`) |
+
+Key finding: BTC/ETH overrides (SL=1.75x/TP=4.0x for BTC, TP=4.0x for ETH) were proposed based on per-coin sweep analysis but were never correctly applied during validation due to a backtest lookup bug (key format mismatch). When the bug was fixed and overrides correctly applied, overall portfolio performance degraded. Overrides removed 2026-03-27.
 
 ---
 
@@ -20,7 +37,7 @@
 
 ## Production Results (BTC + ETH + BNB)
 
-Using optimal settings (BLOCK_SLEEPING + ADAPTIVE_TP + SOFT_MACRO):
+Using optimal settings (BLOCK_SLEEPING + FIXED_TP 2.0x + SOFT_MACRO):
 
 | Coin | Signals | WR | Profit | LONG/SHORT |
 |------|---------|-----|--------|------------|
@@ -68,7 +85,7 @@ All tests with BLOCK_SLEEPING + SOFT_MACRO enabled, 118 signals across all 4 coi
 | Config | WR | Total R | EV/trade | Notes |
 |--------|-----|---------|----------|-------|
 | No fixes (raw) | 38.9% | +32.0R | +0.16R | 198 signals, high volume but low WR |
-| **SL 1.5 / TP 2.0 adaptive** | **46.5%** | **+13.0R** | **+0.11R** | **Production default** |
+| **SL 1.5 / TP 2.0 fixed** | **46.5%** | **+13.0R** | **+0.11R** | **Production default** |
 | SL 1.0x (tighter) | 35.7% | +13.0R | +0.11R | Stopped out too often |
 | SL 1.25x | 41.2% | +12.2R | +0.10R | Marginally worse |
 | SL 2.0x (wider) | 54.9% | +14.0R | +0.12R | Best WR but lower RR |
@@ -79,7 +96,7 @@ All tests with BLOCK_SLEEPING + SOFT_MACRO enabled, 118 signals across all 4 coi
 ### Key Findings
 
 1. **SL 1.5x ATR is the sweet spot** — tighter stops get hunted, wider stops reduce RR without proportional WR gain
-2. **Adaptive TP (2.0x/3.0x) validated** — gives the best WR (46.5%) while maintaining edge. The SUPER TREND bonus works for BTC
+2. **Fixed TP 2.0x is the production default** — adaptive TP (2.0x/3.0x ADX-based) was tested but removed; per-symbol overrides were invalidated by a backtest lookup bug and degraded performance when correctly applied
 3. **TP 2.5x is interesting for BTC** (+10.7R vs +6.3R at 2.0x) but kills BNB profitability. Not worth the coin-specific complexity
 4. **BLOCK_SLEEPING is essential** — raw strategy fires 12 SOL signals in SLEEPING state at 16.7% WR
 5. **SOFT_MACRO guard works** — blocks the worst counter-trend entries without being too restrictive
@@ -91,8 +108,8 @@ All tests with BLOCK_SLEEPING + SOFT_MACRO enabled, 118 signals across all 4 coi
 ### 1. Block SLEEPING (ADX < 20)
 Trend-following has no edge in range-bound markets. Removed 80 signals (198 → 118) and improved WR from 38.9% → 46.5%.
 
-### 2. Adaptive TP (2.0x ATR normal, 3.0x SUPER TREND)
-The biggest single optimization. In TRENDING state (ADX 20-40), 3x ATR targets are too ambitious and cause REVIEW pile-up. 2x ATR is reachable. In SUPER TREND (ADX > 40), the extended 3x target captures more of the move.
+### 2. Fixed TP (2.0x ATR)
+Adaptive TP (2.0x/3.0x based on ADX) was the original approach. Per-symbol overrides (BTC SL=1.75x/TP=4.0x, ETH TP=4.0x) were added based on sweep analysis but were never correctly applied due to a backtest lookup bug. When the bug was fixed and overrides were properly applied, they degraded overall performance. Both adaptive logic and SYMBOL_OVERRIDES were removed. The validated default is fixed TP=2.0x ATR for all coins.
 
 ### 3. Soft Macro Guard
 No LONG when macro bias is BEARISH. No SHORT when macro is BULLISH. NEUTRAL macro allowed through. This is less restrictive than strict macro alignment (which killed too many signals) but filters the worst counter-trend entries.
@@ -120,7 +137,7 @@ SOL was excluded from the expanded watchlist. Root cause is its mean-reverting c
 
 ### SL Multiplier Sweep (full watchlist, 495 signals)
 
-All tests with BLOCK_SLEEPING + SOFT_MACRO enabled, adaptive TP (2.0x/3.0x):
+All tests with BLOCK_SLEEPING + SOFT_MACRO enabled, fixed TP 2.0x:
 
 | SL Mult | WR    | Total R  | EV/trade |
 |---------|-------|----------|----------|
@@ -198,32 +215,22 @@ Keep `SL=1.5x` for live trading. SL=1.0x may be superior for portfolio-level sim
 
 5. **Oracle is counterproductive for BTC** — The existing BACKTEST_RESULTS.md shows BTC with 47% WR on Oracle+Titan combined. This analysis shows Oracle alone is 9-12% WR. Oracle is dragging BTC performance down.
 
-### Implementation — Per-Symbol Risk Overrides
+### Implementation Note — Per-Symbol Overrides Removed
 
-Added `SYMBOL_OVERRIDES` dict in `titan.py` for coin-specific risk parameters:
+Analysis suggested BTC (SL=1.75x, TP=4.0x) and ETH (TP=4.0x) would benefit from wider parameters. A `SYMBOL_OVERRIDES` dict was added to `titan.py`, but a backtest lookup bug (key format mismatch) meant the overrides were never actually applied during validation. When the bug was corrected and overrides were properly applied, overall performance degraded. `SYMBOL_OVERRIDES` is now `{}` (empty).
 
-```python
-SYMBOL_OVERRIDES = {
-    "BTCUSDT":  {"sl_mult": 1.75, "tp_mult": 4.0},
-    "BTC/USDT": {"sl_mult": 1.75, "tp_mult": 4.0},
-}
-```
+- **Current config (all coins):** SL=1.5x ATR, TP=2.0x ATR (fixed)
 
-- Default (all other coins): SL=1.5x ATR, TP=2.0x ATR (fixed)
-- BTC: SL=1.75x ATR, TP=4.0x ATR (R:R 2.29 vs default 1.33)
-
-All call sites updated: `routes/strategy.py`, `routes/analytics.py`, `jobs/signal_log.py`, `trading/backtest_engine.py`, `worker.py`.
-
-### Recommended BTC Configuration
+### BTC Configuration (Current)
 
 | Parameter | Value | Why |
 |-----------|-------|-----|
 | Strategy | Titan only | Oracle is negative for BTC |
 | Timeframe | 4H | Best balance of frequency + edge |
-| SL | 1.75x ATR | Wider stops reduce false exits |
-| TP | 4.0x ATR | BTC trends extend further than alts |
+| SL | 1.5x ATR | Uniform default (wider override degraded performance) |
+| TP | 2.0x ATR | Uniform default; per-symbol overrides removed |
 | Min Confidence | 55-60 | Filter noise without losing too many signals |
-| R:R | 2.29:1 | Break-even WR = 30.4% |
+| R:R | 1.33:1 | Break-even WR = 42.9% |
 
 ### Analysis Scripts
 
@@ -285,7 +292,7 @@ The default SL=1.5, TP=adaptive on 4H already gives +0.240R EV — better than B
 
 The "best" configs (SL=2.0, MC=65) have only 6 trades — statistically unreliable. The default SL=1.5 adaptive with 43 trades is the most robust positive configuration.
 
-**Override decision:** ETH gets `tp_mult=4.0` (fixed, not adaptive). SL stays at default 1.5x. DB-verified data shows +0.494R EV with fixed TP=4.0 vs +0.167R with adaptive — 3x improvement, same max drawdown (6.0R).
+**Override decision (historical):** Analysis showed ETH `tp_mult=4.0` would yield +0.494R EV vs +0.167R with adaptive. An override was added but was never correctly applied due to a backtest lookup bug. When fixed and applied, it degraded overall performance. ETH now uses the uniform default: SL=1.5x ATR, TP=2.0x ATR.
 
 ### HODL vs Trading
 
@@ -310,19 +317,9 @@ ETH lost 51.7% in this period ($4,487 → $2,166). HODL was brutal. Trading at 5
 | HODL return (this period) | -40.6% | -8.2% |
 | Trading risk-adjusted score | +2.04 | +2.21 |
 
-### Per-Symbol Overrides
+### Per-Symbol Overrides — Removed
 
-BTC needs wider SL+TP. ETH needs fixed TP (not adaptive). The `SYMBOL_OVERRIDES` dict:
-
-```python
-SYMBOL_OVERRIDES = {
-    "BTCUSDT":  {"sl_mult": 1.75, "tp_mult": 4.0},
-    "BTC/USDT": {"sl_mult": 1.75, "tp_mult": 4.0},
-    "ETHUSDT":  {"tp_mult": 4.0},  # keeps default SL=1.5x, only TP fixed at 4.0x
-    "ETH/USDT": {"tp_mult": 4.0},
-}
-# All other coins: SL=1.5x ATR, TP=adaptive (2-3x based on ADX)
-```
+BTC and ETH overrides were proposed based on sweep analysis but were invalidated by a backtest lookup bug. When corrected, overrides degraded performance. `SYMBOL_OVERRIDES = {}`. All coins use: SL=1.5x ATR, TP=2.0x ATR (fixed).
 
 ### Analysis Script
 

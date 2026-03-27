@@ -7,9 +7,10 @@
 
 ## Current Best Config
 Updated: 2026-03-27
-- SL: 1.5x ATR | TP: adaptive 2.0/3.0 | Min Titan: 55% | Min Conviction: 50
+- SL: 1.5x ATR | TP: 2.0x ATR (fixed, all coins) | Min Titan: 55% | Min Conviction: 50
 - Gates: BLOCK_SLEEPING=T, BLOCK_VOLATILE=T, MACRO_GUARD=T, BLOCK_BTC_SELL=T
-- Expected: 48.3% WR, +16.7R, ~0.18R EV/trade on 95 signals (BTC+ETH+BNB)
+- Validated: 50.61% WR, +162.7R, 911 signals (full 11-coin watchlist, TP sweep 2026-03-27)
+- Per-symbol overrides: None. `SYMBOL_OVERRIDES = {}` — BTC/ETH overrides removed after lookup bug invalidated their validation; correctly applied they degraded performance.
 - **Note**: Min Conviction was previously 65, which was found to be a dead zone in confidence_sweep experiments — conf=65 produces 0 signals on the expanded 11-coin watchlist. Lowered to 50 for live production.
 
 ---
@@ -17,7 +18,7 @@ Updated: 2026-03-27
 ## Confirmed Rules
 1. **BLOCK_SLEEPING essential** — removes noise, +8% WR improvement
 2. **SOL removed** — mean-reverts on 4H, consistently negative across 7 configs
-3. **Adaptive TP (2.0/3.0) outperforms fixed TP for BTC**
+3. **Fixed TP 2.0x is the validated default** — adaptive TP and per-symbol overrides were removed after lookup bug invalidated their backtest results
 4. **Soft macro guard > strict macro guard** — strict kills too many signals
 5. **BNB marginal** — 40% WR, -0.7R. Monitor closely
 

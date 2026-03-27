@@ -109,7 +109,7 @@
 ### Phase 16a: BTC Timeframe Analysis & Per-Symbol Overrides (v0.8.2) ✓
 - [x] BTC multi-timeframe backtest (15m, 1h, 4h, 1d) across Oracle and Titan
 - [x] ETH multi-timeframe backtest — Oracle negative, Titan positive with fixed TP
-- [x] Per-symbol risk overrides in Titan (SYMBOL_OVERRIDES: BTC SL=1.75x/TP=4.0x, ETH TP=4.0x)
+- [x] Per-symbol risk overrides added to Titan (SYMBOL_OVERRIDES: BTC SL=1.75x/TP=4.0x, ETH TP=4.0x) — **later found to be non-functional due to key-format bug; removed in v0.9.8 after confirmed harmful when applied**
 - [x] Parameter sweep: 6 SL × 7 TP × 5 confidence thresholds on 4H
 - [x] Analysis scripts: btc_timeframe_analysis, btc_4h_sweep, btc_titan_deep_dive, eth_full_analysis
 
@@ -129,7 +129,7 @@
 
 ## Planned
 
-### Phase 17: Test Coverage (In Progress) — see [TEST_PLAN.md](TEST_PLAN.md)
+### Phase 17: Test Coverage ✓ — see [TEST_PLAN.md](TEST_PLAN.md)
 - [x] Unit tests for signal log worker jobs (log_watchlist_setups, log_best_setups, resolve_signal_outcomes) — 28 tests
 - [x] Unit tests for market gate logic (_passes_market_gate with config permutations) — 6 tests
 - [x] Unit tests for trading API routes (all 9 endpoints) — 18 tests
@@ -138,6 +138,8 @@
 - [x] Phase A: Backtest engine, historical resolution, TradeAnalyzer integration (68 tests) ✓
 - [x] Phase B: E2E data rendering, trading page (15 tests) ✓
 - [x] Phase C: Analytics integration — signal-position join, dedup, rejected signals (32 tests) ✓
+- [x] 7 pre-existing `test_trading.py` failures resolved (RiskManager sizing, tiebreaker, LIMIT detection, event loop) — 53/53 passing ✓
+- **Total: 321 backend tests passing, 0 failures**
 
 ### Phase 18: Data Model for Learning from Trades
 - [x] Add `regime_at_resolution` + `btc_price_at_resolution` to SignalLog schema — capture market context when a signal resolves, not just when it fires ✓
@@ -218,14 +220,15 @@
 ## Priority: Apply Backtest Findings
 
 **Source:** `docs/market-reports/2026-03-27-backtest-report.md`
-**Status:** ✅ Applied to production (v0.9.7)
+**Status:** ✅ Applied to production (v0.9.8) — override bug fixed, validated final config
 
 ### What to do (in order)
 
 1. **Switch default TP from adaptive to fixed 2.0x** ✅ DONE
-   - Current: `tp_mult=2.0` fixed for all coins except BTC/ETH
-   - Per-symbol overrides preserved: BTC (SL=1.75, TP=4.0), ETH (TP=4.0)
-   - Impact: +2.6% WR, +0.019R EV, 50% fewer REVIEW signals
+   - `tp_mult=2.0` fixed for all 11 coins (universal, no per-symbol overrides)
+   - Per-symbol overrides (BTC SL=1.75x/TP=4.0x, ETH TP=4.0x) were found non-functional due to a key-format lookup bug, and degraded performance when fixed — removed in v0.9.8
+   - Validated: 50.61% WR, +162.7R, 12 REVIEW signals
+   - Impact: +2.6% WR, +0.019R EV, 50% fewer REVIEW signals vs adaptive
 
 2. **No trailing stops** — both approaches tested, both worse than fixed TP
 
