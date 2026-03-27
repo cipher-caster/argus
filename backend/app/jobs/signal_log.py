@@ -174,7 +174,7 @@ async def log_watchlist_setups(ctx):
         btc_weekly = await load_candles("BTC/USDT", "1w")
         if not btc_weekly.empty and len(btc_weekly) > 50:
             btc_weekly["ema50"] = _ta.ema(btc_weekly["close"], length=50)
-            last = btc_weekly.iloc[-1]
+            last = btc_weekly.iloc[-2]  # Use last closed candle — iloc[-1] may be an incomplete open candle
             if not pd.isna(last.get("ema50")):
                 regime = "BULL" if float(last["close"]) > float(last["ema50"]) else "BEAR"
     except Exception as e:

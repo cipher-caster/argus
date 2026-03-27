@@ -450,12 +450,12 @@ async def backtest_symbol(
         if tp == 0 or sl == 0:
             continue
 
-        # --- Conviction ---
-        oracle_pts = (abs(e_score) / 5) * 40
-        titan_pts = (t_confidence / 100) * 40
-        bonus = 10 if t_signal in ("BUY", "SELL") else 0
-        bonus += 10 if abs(e_score) >= 4 else 0
-        conviction = int(min(100, oracle_pts + titan_pts + bonus))
+        # --- Conviction (mirrors live signal_log formula for consistency) ---
+        # All backtest signals pass the btc_state regime gate, so regime_bonus always applies.
+        base_pts = (t_confidence / 100) * 60
+        regime_bonus = 20
+        signal_bonus = 10 if t_signal in ("BUY", "SELL") else 0
+        conviction = int(min(100, base_pts + regime_bonus + signal_bonus))
 
         # --- Resolve outcome ---
         outcome, resolved_price, resolved_ts_ms = await resolve_outcome_with_tiebreaker(
