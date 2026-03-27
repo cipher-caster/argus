@@ -445,3 +445,46 @@ Based on TP=2.0x results (≥50% WR and positive profit):
 | 4 | **No trailing stops** | Both approaches hurt | None |
 | 5 | **No Binance watchlist changes** | Current 11 coins optimal | None |
 | 6 | **OKX watchlist: add STRK, LDO, POL** | New strong performers | Low — OKX-only |
+
+---
+
+## Post-Implementation Audit — 2026-03-27
+
+*Performed after implementing Rec #1 and running live verification backtest.*
+
+### Bug Found: SYMBOL_OVERRIDES Lookup Never Matched
+
+**Issue:** `backtest_engine.py` looked up per-symbol overrides using `SYMBOL_OVERRIDES.get(f"{symbol}USDT", {})`, but `symbol` was already in `"BTC/USDT"` format — producing `"BTC/USDTUSDT"` which never matched any key. **Every backtest in this report ran without BTC or ETH overrides applied.**
+
+This means Recs #2 and #3 ("keep BTC override SL=1.75x, TP=4.0x" and "keep ETH override TP=4.0x") were **validated against data that silently ignored them**. The "BTC adaptive" results were actually TP=2x/3x adaptive, not 4.0x.
+
+### What Happens When the Bug Is Fixed
+
+After correcting the lookup to `SYMBOL_OVERRIDES.get(symbol, {})`:
+
+| Coin | TP=2.0x (no override, validated) | TP=4.0x (override, newly applied) | Verdict |
+|------|----------------------------------|-----------------------------------|---------|
+| **BTC** | 50.6% WR, +29.7R, 3 REVIEW | 34.3% WR, +18.0R, 24 REVIEW | TP=4.0x **worse** |
+| **ETH** | 49.8% WR, +38.3R, 3 REVIEW | 34.2% WR, +56.0R, 21 REVIEW | TP=4.0x higher R but 21 REVIEW pile-up |
+
+TP=4.0x for BTC is clearly harmful (−16.3% WR, −11.7R, 8× more REVIEW signals). ETH gains absolute R (+17.7R) but at the cost of WR collapsing and 21 signals stuck in REVIEW.
+
+### Updated Recommendations
+
+| # | Original Rec | Revised Status | Action Taken |
+|---|-------------|---------------|-------------|
+| 1 | Switch default TP to 2.0x | ✅ Confirmed correct | Implemented |
+| 2 | Keep BTC override (TP=4.0x) | ❌ Invalidated — never tested, hurts BTC | **Removed** |
+| 3 | Keep ETH override (TP=4.0x) | ❌ Invalidated — never tested, degrades WR | **Removed** |
+
+### Final Validated Config (as of 2026-03-27)
+
+```
+SL = 1.5x ATR (all coins)
+TP = 2.0x ATR (all coins, no per-symbol overrides)
+Min conviction = 55
+Block sleeping = True
+Macro guard = soft
+```
+
+**Live backtest result:** 911 signals | 50.61% WR | +162.7R | 12 REVIEW (1.3%)
