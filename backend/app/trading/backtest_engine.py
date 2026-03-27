@@ -422,8 +422,9 @@ async def backtest_symbol(
             continue
 
         # Check for per-symbol overrides (e.g. BTC wider stops)
+        # symbol is in "BTC/USDT" format here; SYMBOL_OVERRIDES has both formats
         from app.strategies.titan import SYMBOL_OVERRIDES
-        overrides = SYMBOL_OVERRIDES.get(f"{symbol}USDT", {})
+        overrides = SYMBOL_OVERRIDES.get(symbol, {})
         sl_mult = overrides.get("sl_mult", config.sl_mult)
         tp_override = overrides.get("tp_mult", None)
 

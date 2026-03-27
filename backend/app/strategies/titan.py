@@ -5,14 +5,13 @@ from typing import Dict, Any, Optional
 
 from app.indicators.calculator import _mss_to_list, _sweep_to_list
 
-# Per-symbol risk parameter overrides, discovered via backtesting.
-# BTC benefits from wider stops/targets due to its volatility profile.
-SYMBOL_OVERRIDES: Dict[str, Dict[str, float]] = {
-    "BTCUSDT":  {"sl_mult": 1.75, "tp_mult": 4.0},
-    "BTC/USDT": {"sl_mult": 1.75, "tp_mult": 4.0},
-    "ETHUSDT":  {"tp_mult": 4.0},
-    "ETH/USDT": {"tp_mult": 4.0},
-}
+# Per-symbol risk parameter overrides.
+# NOTE: TP overrides were removed 2026-03-27 after discovering the backtest
+# lookup bug (symbol="BTC/USDT" was checked as "BTC/USDTUSDT" — never matched).
+# All prior "validation" of TP=4.0x overrides used TP=2.0x data. When the bug
+# was fixed, TP=4.0x hurt both BTC and ETH vs the TP=2.0x default.
+# BTC SL=1.75x also untested — removed pending proper validation.
+SYMBOL_OVERRIDES: Dict[str, Dict[str, float]] = {}
 
 
 class TitanStrategy:
