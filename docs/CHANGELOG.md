@@ -2,6 +2,26 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.9.7] - 2026-03-27 — Fixed TP Default (Backtest-Driven)
+
+### Changed
+
+- **Default TP switched from adaptive to fixed 2.0x** — backtest sweep across 886 signals showed fixed 2.0x ATR dominates adaptive TP: +2.6% WR (50.9% vs 48.3%), +0.019R EV/trade, 50% fewer REVIEW signals. The adaptive 3x SUPER TREND bonus hurt most alts (ATOM 11%, BNB 0%, DOGE 15% WR in that state).
+- **`BacktestConfig` defaults** — `tp_mult=2.0`, `tp_adaptive=False`. The `tp_adaptive` field is kept for backward compat but no longer the default.
+- **`TitanStrategy._calculate_risk_levels`** — removed ADX-based adaptive TP logic. Now uses fixed `default_tp_mult=2.0` unless a symbol override applies. Per-symbol overrides preserved: BTC (SL=1.75x, TP=4.0x), ETH (TP=4.0x).
+- **All sweep scripts** (`run_signal_backtest.py`, `okx_backtest.py`, `optimize_trading.py`) — default configs updated to fixed 2.0x.
+- **Trailing stops tested and rejected** — both trail-at-TP and breakeven-at-50% were catastrophically worse than fixed TP. No changes made.
+
+### Why
+
+Backtest report `docs/market-reports/2026-03-27-backtest-report.md` ran 6 experiments. Key findings:
+- Fixed TP=2.0x: 50.9% WR, +0.185R EV (best overall)
+- Adaptive TP: 48.3% WR, +0.166R EV (current prod)
+- TP=4.0x: 31.6% WR, +0.145R EV (clearly negative for alts)
+- The 3x SUPER TREND bonus is a trap for 9/11 coins — only BTC/ETH thrive in it (already handled by per-symbol overrides)
+
+---
+
 ## [0.9.6] - 2026-03-27 — Backend Codebase Assessment Fixes
 
 ### Fixed

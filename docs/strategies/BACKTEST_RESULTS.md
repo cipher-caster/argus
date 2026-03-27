@@ -209,7 +209,7 @@ SYMBOL_OVERRIDES = {
 }
 ```
 
-- Default (all other coins): SL=1.5x ATR, TP=adaptive (2-3x based on ADX)
+- Default (all other coins): SL=1.5x ATR, TP=2.0x ATR (fixed)
 - BTC: SL=1.75x ATR, TP=4.0x ATR (R:R 2.29 vs default 1.33)
 
 All call sites updated: `routes/strategy.py`, `routes/analytics.py`, `jobs/signal_log.py`, `trading/backtest_engine.py`, `worker.py`.
