@@ -361,7 +361,7 @@ def _fvg_to_list(df: pd.DataFrame) -> List[Dict[str, Any]]:
     for i in range(2, len(df)):
         # Bullish FVG: Low of current (i) > High of (i-2)
         if df['low'].iloc[i] > df['high'].iloc[i-2]:
-            ts = df['timestamp'].iloc[i-1]
+            ts = df['timestamp'].iloc[i]
             result.append({
                 "timestamp": int(ts.timestamp() * 1000) if isinstance(ts, pd.Timestamp) else int(ts),
                 "type": "bullish",
@@ -371,7 +371,7 @@ def _fvg_to_list(df: pd.DataFrame) -> List[Dict[str, Any]]:
             
         # Bearish FVG: High of current (i) < Low of (i-2)
         elif df['high'].iloc[i] < df['low'].iloc[i-2]:
-            ts = df['timestamp'].iloc[i-1]
+            ts = df['timestamp'].iloc[i]
             result.append({
                 "timestamp": int(ts.timestamp() * 1000) if isinstance(ts, pd.Timestamp) else int(ts),
                 "type": "bearish",

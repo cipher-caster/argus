@@ -353,17 +353,17 @@ class TradeOrchestrator:
                             sl_hit = True
 
                     if tp_hit and sl_hit:
-                        # Both hit in same candle — use candle direction
+                        # Both hit in same candle — use candle direction to infer which hit first
                         if pos.direction == "LONG":
-                            if c_close >= c_open:  # Bullish: SL hit first
-                                outcome, exit_price = "LOSS", pos.intended_sl
-                            else:
+                            if c_close >= c_open:  # Bullish: price moved up → TP hit first
                                 outcome, exit_price = "WIN", pos.intended_tp
+                            else:  # Bearish: price moved down → SL hit first
+                                outcome, exit_price = "LOSS", pos.intended_sl
                         else:
-                            if c_close <= c_open:  # Bearish: SL hit first
-                                outcome, exit_price = "LOSS", pos.intended_sl
-                            else:
+                            if c_close <= c_open:  # Bearish: price moved down → TP hit first
                                 outcome, exit_price = "WIN", pos.intended_tp
+                            else:  # Bullish: price moved up → SL hit first
+                                outcome, exit_price = "LOSS", pos.intended_sl
                     elif tp_hit:
                         outcome, exit_price = "WIN", pos.intended_tp
                     elif sl_hit:
