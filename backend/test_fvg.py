@@ -1,12 +1,7 @@
-import importlib.metadata
 import pandas as pd
-import sys
-import os
-
-# Add /app to path
-sys.path.append("/app")
 
 from app.indicators.calculator import calculate_indicator
+
 
 def test_fvg_detection():
     # Create mock data with a Bullish FVG
@@ -23,16 +18,14 @@ def test_fvg_detection():
         "volume": [100, 200, 150, 180]
     }
     df = pd.DataFrame(data)
-    
+
     result = calculate_indicator(df, "fvg", {})
-    
-    print(f"Calculated FVGs: {result.data}")
-    
+
     assert len(result.data) > 0
     assert result.data[0]['type'] == 'bullish'
     assert result.data[0]['bottom'] == 100.0
     assert result.data[0]['top'] == 110.0
-    print("✅ FVG Detection Test Passed!")
+
 
 if __name__ == "__main__":
     test_fvg_detection()

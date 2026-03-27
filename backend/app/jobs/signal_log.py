@@ -92,7 +92,7 @@ async def _resolve_tiebreaker_5m(
     tp: float,
     sl: float,
     candle_open_ms: int,
-    provider,
+    provider=None,
 ) -> dict:
     """
     When both TP and SL are hit in the same 4H candle, fetch 5min candles
@@ -144,18 +144,6 @@ async def _resolve_tiebreaker_5m(
 
     # Conservative fallback
     return {"outcome": "LOSS", "resolved_price": sl, "resolved_at_ms": candle_open_ms}
-
-
-def _passes_market_gate(regime: str, config: dict) -> bool:
-    """Return True only when market conditions are tradeable.
-    Uses BTC weekly EMA50 regime instead of Oracle signals.
-    In BEAR: log SHORTS only. In BULL: log LONGS only. Always pass if regime unknown.
-    """
-    if regime == "UNKNOWN":
-        return True  # Don't block if regime data unavailable
-    if config.get("bear_long_only", False) and regime == "BEAR":
-        return True  # Allow all in bear (shorts are filtered by direction check below)
-    return True  # Gate is always open — direction filtering happens at signal level
 
 
 # ---------------------------------------------------------------------------
@@ -486,9 +474,11 @@ async def resolve_outcomes_historical(ctx):
                     if tp_hit and sl_hit:
                         # Both hit in same 4H candle — fetch 5min candles
                         # to determine which level was actually hit first.
+                        # Pass provider=None so get_candles_df manages its own
+                        # lifecycle (shared_provider is already closed at this point).
                         tiebreak = await _resolve_tiebreaker_5m(
                             sig.symbol, sig.direction, sig.tp, sig.sl,
-                            c_time, shared_provider,
+                            c_time,
                         )
                         new_outcome = tiebreak["outcome"]
                         resolved_price = tiebreak["resolved_price"]

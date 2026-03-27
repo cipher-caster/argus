@@ -28,7 +28,7 @@ from app.schemas.analytics import (
 from app.routes.strategy import get_candles_df, titan, oracle
 from app.indicators.screener import run_oracle_screener
 from app.indicators.mean_reversion import detect_mean_reversion
-from app.providers import get_provider
+from app.providers import get_provider, owns_provider
 from app.services.market_data import MarketDataService
 from app.storage import RedisClient
 from app.exceptions import DataProviderError, CacheError, CalculationError
@@ -57,6 +57,10 @@ async def fetch_all_candles(symbols: List[str], timeframe: str = "1h", limit: in
     from app.providers.binance_provider import BinanceProvider
 
     provider = get_provider()
+    # owns_provider() is True when we created a fresh instance (worker / test context)
+    # and False when get_provider() returned the shared singleton (backend API context).
+    # Only close the provider if we own it — never close the app-lifetime singleton.
+    _should_close = owns_provider(provider)
 
     # Probe non-Binance providers with a tight timeout before committing to a full
     # batch fetch. OKX (and similar) can be geo-blocked, causing every gather() call
@@ -66,9 +70,11 @@ async def fetch_all_candles(symbols: List[str], timeframe: str = "1h", limit: in
         try:
             await asyncio.wait_for(provider._ensure_loaded(), timeout=4.0)
         except Exception:
-            await provider.close()
+            if _should_close:
+                await provider.close()
             logger.warning(f"{provider.name} unreachable for analytics, falling back to Binance")
             provider = BinanceProvider()
+            _should_close = True  # we created this fallback instance
 
     try:
         tasks = [get_candles_df(sym, timeframe, limit, provider=provider) for sym in symbols]
@@ -85,7 +91,8 @@ async def fetch_all_candles(symbols: List[str], timeframe: str = "1h", limit: in
         logger.error(f"Failed to fetch candles: {e}", exc_info=True)
         raise DataProviderError(f"Failed to fetch candle data: {e}")
     finally:
-        await provider.close()
+        if _should_close:
+            await provider.close()
 
 
 @router.get("/screener", response_model=ScreenerResponse)

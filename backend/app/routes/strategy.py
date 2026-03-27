@@ -86,7 +86,7 @@ async def get_candles_df(symbol: str, timeframe: str, limit: int = 500, provider
                     for c in fresh:
                         candle_db = DbCandle(
                             symbol=symbol,
-                            provider="binance",
+                            provider=local_provider.name,
                             timeframe=timeframe,
                             timestamp=c.timestamp,
                             open=c.open,

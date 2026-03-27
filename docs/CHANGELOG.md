@@ -2,6 +2,26 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.9.6] - 2026-03-27 — Backend Codebase Assessment Fixes
+
+### Fixed
+
+- **Provider leak** — `get_provider()` factory previously created a new CCXT exchange instance (and called `load_markets()`) on every OHLCV request from `services/market_data.py`, `routes/analytics.py`, and `routes/strategy.py`. Under load this hammered Binance's API and left orphan connections. The backend now uses a single shared provider singleton registered at startup via `set_shared_provider()`.
+- **Hardcoded provider tag** — candles fetched via OKX were saved to the DB with `provider="binance"`, causing an infinite cache-miss loop when the active provider was OKX. Both `market_data.py` and `strategy.py` now use `provider.name` dynamically.
+- **Tiebreaker using closed provider** — `_resolve_tiebreaker_5m()` in `signal_log.py` was called with `shared_provider` after it had already been closed in the `finally` block above. The tiebreaker was silently falling back to LOSS on every same-candle TP+SL hit. Fixed by making `provider` optional (default `None`) — `get_candles_df` manages its own provider lifecycle when no provider is passed.
+- **Singleton not closed by routes** — `routes/analytics.py` and `services/market_data.py` now use `owns_provider()` to guard `close()` calls: only close a provider if the caller created it (worker/test context); never close the app-lifetime singleton.
+- **Oracle backtest timestamp type error** — `exit_time` assignment in `oracle.py` called `.timestamp()` unconditionally, which raises `AttributeError` when the column contains raw integer timestamps (API path) instead of `pd.Timestamp` objects (DB path). Now uses the same `isinstance(ts, pd.Timestamp)` guard as `calculator.py`.
+- **Silent exception swallow** — bare `except Exception: pass` in `market_data.py` symbol-filter path now logs a warning instead of discarding the error silently.
+
+### Changed
+
+- **`providers/__init__.py`** — `get_provider()` now returns the shared singleton when registered (backend process) and falls back to creating a new instance (worker process, tests). Adds `set_shared_provider()` and `owns_provider()` to the public API.
+- **`DataProvider` ABC** — `close()` and `get_all_tickers()` are now declared as `@abstractmethod`, enforcing the contract on all subclasses.
+- **Dead code removed** — `_passes_market_gate()` in `signal_log.py` (all three branches returned `True`; the function was never called) has been deleted along with its three unit tests.
+- **`test_fvg.py` cleanup** — removed unused `importlib.metadata`, `os` imports and the brittle `sys.path.append("/app")` Docker-path hack.
+
+---
+
 ## [0.9.5] - 2026-03-27 — Market-Fill Entry + Position Sizing Fix
 
 ### Fixed

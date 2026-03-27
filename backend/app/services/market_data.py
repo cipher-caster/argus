@@ -50,7 +50,7 @@ class MarketDataService:
                 limit=100
             )
         """
-        from app.providers import get_provider
+        from app.providers import get_provider, owns_provider
 
         active_provider = os.getenv("DATA_PROVIDER", "binance").lower()
 
@@ -107,15 +107,15 @@ class MarketDataService:
                             since_ts = end_timestamp - (1000 * timeframe_ms)
                         else:
                             since_ts = None  # Fetch latest
-                        
+
                         logger.debug(f"Fetching from exchange with since={since_ts}")
                         fresh_candles = await provider.get_ohlcv(symbol, timeframe=timeframe, limit=1000, since=since_ts)
-                        
+
                         # Save to DB
                         for c in fresh_candles:
                             candle_db = DbCandle(
                                 symbol=symbol,
-                                provider="binance",
+                                provider=provider.name,
                                 timeframe=timeframe,
                                 timestamp=c.timestamp,
                                 open=c.open,
@@ -127,13 +127,14 @@ class MarketDataService:
                             await session.merge(candle_db)
                         await session.commit()
                         logger.info(f"Saved {len(fresh_candles)} candles to DB for {symbol} {timeframe}")
-                        
+
                         # Re-query
                         results = await session.execute(statement)
                         db_candles = results.scalars().all()
-                        
+
                     finally:
-                        await provider.close()
+                        if owns_provider(provider):
+                            await provider.close()
                         
                 except Exception as e:
                     logger.error(f"Failed to fetch from Binance for {symbol} {timeframe}: {e}", exc_info=True)
@@ -340,7 +341,7 @@ class MarketDataService:
             data.sort(key=lambda x: x.get('market_cap' or 0) or 0, reverse=True)
             
         # Filter against active exchange symbols to ensure we only return tradeable assets
-        from app.providers import get_provider
+        from app.providers import get_provider, owns_provider
         try:
             symbols_cache_key = "exchange:active_symbols"
             cached_symbols = await RedisClient.get_json(symbols_cache_key)
@@ -353,7 +354,8 @@ class MarketDataService:
                     active_symbols = {s.symbol for s in active_symbols_info}
                     await RedisClient.set_json(symbols_cache_key, list(active_symbols), ttl=300)
                 finally:
-                    await provider.close()
+                    if owns_provider(provider):
+                        await provider.close()
 
             # Filter data
             filtered_data = [
@@ -370,7 +372,6 @@ class MarketDataService:
                 data = filtered_data
 
         except Exception as e:
-            # excessive logging might be noisy, but good for debugging
-            pass
+            logger.warning(f"Symbol filter failed, using unfiltered list: {e}")
             
         return [item['symbol'] for item in data[:limit]]

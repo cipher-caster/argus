@@ -2,7 +2,6 @@
 Tests for signal_log.py — the core signal pipeline.
 
 Covers:
-- _passes_market_gate: pure function, no mocks
 - _get_config: Redis cache hit/miss
 - Redis helpers: _get_market_state, _get_btc_oracle_signal, _get_oracle_score
 - log_watchlist_setups: market gate, titan confidence, direction, macro guard, insert
@@ -14,7 +13,6 @@ import pytest
 from unittest.mock import AsyncMock, MagicMock, patch
 
 from app.jobs.signal_log import (
-    _passes_market_gate,
     _get_config,
     _get_market_state,
     _get_btc_oracle_signal,
@@ -22,27 +20,6 @@ from app.jobs.signal_log import (
     DEFAULT_WATCHLIST,
     SIGNAL_LOG_CONFIG_KEY,
 )
-
-
-# ---------------------------------------------------------------------------
-# TestPassesMarketGate — pure function, no mocks needed
-# ---------------------------------------------------------------------------
-
-class TestPassesMarketGate:
-
-    def _cfg(self, **overrides):
-        base = {}
-        base.update(overrides)
-        return base
-
-    def test_bull_regime_passes(self):
-        assert _passes_market_gate("BULL", self._cfg()) is True
-
-    def test_bear_regime_passes(self):
-        assert _passes_market_gate("BEAR", self._cfg()) is True
-
-    def test_unknown_regime_passes(self):
-        assert _passes_market_gate("UNKNOWN", self._cfg()) is True
 
 
 # ---------------------------------------------------------------------------

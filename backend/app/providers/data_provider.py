@@ -69,11 +69,26 @@ class DataProvider(ABC):
     async def get_ticker_price(self, symbol: str) -> Optional[float]:
         """
         Get current price for a symbol
-        
+
         Args:
             symbol: Trading pair (e.g., "BTC/USDT")
-            
+
         Returns:
             Current price or None if not available
         """
+        pass
+
+    @abstractmethod
+    async def get_all_tickers(self) -> dict:
+        """
+        Fetch all tickers at once.
+
+        Returns:
+            Dict of {symbol: ticker_dict}
+        """
+        pass
+
+    @abstractmethod
+    async def close(self) -> None:
+        """Close the underlying exchange connection and release resources."""
         pass

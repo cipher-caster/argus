@@ -28,9 +28,10 @@ async def lifespan(app: FastAPI):
     print("✓ Argus Backend: Database initialized")
 
     # Initialize Data Provider
-    from app.providers import get_provider
+    from app.providers import get_provider, set_shared_provider
     from app.routes.market import set_provider
     provider = get_provider()
+    set_shared_provider(provider)
     set_provider(provider)
     print("✓ Argus Backend: Provider initialized")
     

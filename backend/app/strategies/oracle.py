@@ -116,7 +116,8 @@ class OracleStrategy:
                 if result:
                     active_trade['result'] = result
                     active_trade['pnl'] = pnl
-                    active_trade['exit_time'] = int(row['timestamp'].timestamp() * 1000)
+                    ts = row['timestamp']
+                    active_trade['exit_time'] = int(ts.timestamp() * 1000) if isinstance(ts, pd.Timestamp) else int(ts)
                     trades.append(active_trade)
                     active_trade = None
                     # Don't enter new trade on same bar as exit
