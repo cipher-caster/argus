@@ -36,7 +36,7 @@ class TitanStrategy:
         self.fib_level = 0.618
         # Default risk parameters (overridable per-symbol)
         self.default_sl_mult = 1.5
-        self.default_tp_mult_adaptive = True  # 2R or 3R based on ADX
+        self.default_tp_mult = 2.0
 
     def analyze(self, df: pd.DataFrame, symbol: str = None) -> Dict[str, Any]:
         """
@@ -346,9 +346,9 @@ class TitanStrategy:
 
     def _calculate_risk_levels(self, row: pd.Series, signal_type: str, entry_price: float = None, adx: float = None, symbol: str = None) -> Dict[str, float]:
         """
-        Calculates TP/SL based on ATR with adaptive targets.
-        - SUPER TREND (ADX > 40): TP = 3.0x ATR (strong trend has legs)
-        - TRENDING (ADX 20-40):   TP = 2.0x ATR (take profit faster)
+        Calculates TP/SL based on ATR with fixed targets.
+        - Default TP = 2.0x ATR (backtested optimal across alts)
+        - Per-symbol overrides for BTC/ETH (TP = 4.0x ATR)
         - SL default 1.5x ATR (overridable per-symbol)
         """
         atr = row.get('atr', 0)
@@ -362,12 +362,8 @@ class TitanStrategy:
         sl_mult = overrides.get("sl_mult", self.default_sl_mult)
         tp_override = overrides.get("tp_mult", None)
 
-        # TP multiplier: use override if set, else adaptive based on trend strength
-        if tp_override is not None:
-            tp_mult = tp_override
-        else:
-            row_adx = adx if adx is not None else row.get('adx', 25)
-            tp_mult = 3.0 if (not pd.isna(row_adx) and row_adx > 40) else 2.0
+        # TP multiplier: use per-symbol override if set, else fixed default
+        tp_mult = tp_override if tp_override is not None else self.default_tp_mult
         rr = round(tp_mult / sl_mult, 2)
 
         # Long Logic

@@ -47,8 +47,8 @@ class BacktestConfig:
     symbols: list[str] = field(default_factory=lambda: list(DEFAULT_COINS))
     provider: str = "binance"    # which exchange's candle data to use
     sl_mult: float = 1.5
-    tp_mult: float = 0.0         # 0 = use adaptive logic
-    tp_adaptive: bool = True
+    tp_mult: float = 2.0
+    tp_adaptive: bool = False
     min_titan_confidence: int = 55
     block_sleeping: bool = True
     block_volatile: bool = True
