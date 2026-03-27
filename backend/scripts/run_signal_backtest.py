@@ -15,11 +15,11 @@ Flags:
     --symbols=X,Y   Comma-separated coins to test (default: all watchlist coins)
     --dry-run       Print signals without writing to DB
     --clear         Delete existing backtest rows before running
-    --fix-optimal   Apply all proven optimizations (BLOCK_SLEEPING + ADAPTIVE_TP + SOFT_MACRO)
+    --fix-optimal   Apply all proven optimizations (BLOCK_SLEEPING + FIXED_TP_2.0x + SOFT_MACRO)
 
 Experiment flags:
     --fix-sleeping     Block SLEEPING market state
-    --fix-tp           Use adaptive TP (2× ATR normal, 3× only SUPER TREND)
+    --fix-tp           Use adaptive TP (2× ATR normal, 3× only SUPER TREND) [legacy]
     --fix-soft-macro   Soft macro guard (block worst counter-trend)
     --fix-macro        Strict macro alignment
     --fix-all          All fixes (strict macro)
@@ -86,10 +86,8 @@ config = BacktestConfig(
     symbols=_parse_symbols(),
     provider=_parse_provider(),
     sl_mult=_parse_flag("--sl-mult=", 1.5),
-    tp_mult=_parse_flag("--tp-mult=", 0.0),
-    tp_adaptive=(
-        "--fix-tp" in sys.argv or FIX_ALL or FIX_OPTIMAL or _parse_flag("--tp-mult=", 0.0) == 0.0
-    ),
+    tp_mult=_parse_flag("--tp-mult=", 2.0),
+    tp_adaptive="--fix-tp" in sys.argv or FIX_ALL,
     min_titan_confidence=int(_parse_flag("--min-conv=", 55)),
     block_sleeping="--fix-sleeping" in sys.argv or FIX_ALL or FIX_OPTIMAL,
     block_volatile=True,
