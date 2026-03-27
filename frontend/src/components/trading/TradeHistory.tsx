@@ -24,6 +24,8 @@ function duration(from: number | null, to: number | null): string {
   return "< 1h";
 }
 
+const ROW_GRID = "grid grid-cols-6 items-center gap-0 py-2.5 px-4 border-b border-border/20 last:border-0";
+
 function HistoryRow({ pos, onClick }: { pos: Position; onClick: () => void }) {
   const base = pos.symbol.replace("USDT", "");
   const isWin = pos.outcome === "WIN";
@@ -33,10 +35,10 @@ function HistoryRow({ pos, onClick }: { pos: Position; onClick: () => void }) {
   const exit = pos.actual_exit ?? 0;
 
   return (
-    <div className="flex items-center gap-3 py-2.5 px-4 border-b border-border/20 last:border-0 hover:bg-secondary/20 transition-colors cursor-pointer" onClick={onClick}>
+    <div className={cn(ROW_GRID, "hover:bg-secondary/20 transition-colors cursor-pointer")} onClick={onClick}>
       {/* Outcome badge */}
       <span className={cn(
-        "text-[9px] font-black px-1.5 py-0.5 rounded uppercase w-10 text-center",
+        "text-[9px] font-black px-1.5 py-0.5 rounded uppercase text-center justify-self-start",
         isWin && "bg-emerald-500/10 text-emerald-500",
         isLoss && "bg-red-500/10 text-red-500",
         isExpired && "bg-muted text-muted-foreground",
@@ -45,7 +47,7 @@ function HistoryRow({ pos, onClick }: { pos: Position; onClick: () => void }) {
       </span>
 
       {/* Symbol + direction */}
-      <div className="flex items-center gap-1.5 min-w-[70px]">
+      <div className="flex items-center gap-1.5">
         <Link href={`/chart/${base}-USDT`} className="font-black text-[13px] hover:underline">{base}</Link>
         <span className={cn(
           "text-[9px] font-black px-1 py-0.5 rounded",
@@ -53,19 +55,18 @@ function HistoryRow({ pos, onClick }: { pos: Position; onClick: () => void }) {
         )}>{pos.direction}</span>
       </div>
 
-      {/* Entry → Exit */}
-      <div className="flex items-center gap-1.5 text-[11px] font-mono text-muted-foreground flex-1">
-        <span>${formatPrice(entry)}</span>
-        <span className="text-muted-foreground/40">→</span>
-        <span className="text-foreground">${exit > 0 ? formatPrice(exit) : "—"}</span>
-      </div>
+      {/* Entry */}
+      <span className="text-[11px] font-mono text-muted-foreground">${formatPrice(entry)}</span>
+
+      {/* Exit */}
+      <span className="text-[11px] font-mono text-foreground">{exit > 0 ? `$${formatPrice(exit)}` : "—"}</span>
 
       {/* PnL */}
       <span className={cn(
-        "text-[12px] font-medium font-mono min-w-[70px] text-right",
-        isWin && "text-emerald-500",
-        isLoss && "text-red-500",
-        isExpired && "text-muted-foreground",
+        "text-[12px] font-medium font-mono text-right",
+        pos.pnl_usd !== null && pos.pnl_usd > 0 && "text-emerald-500",
+        pos.pnl_usd !== null && pos.pnl_usd < 0 && "text-red-500",
+        (pos.pnl_usd === null || isExpired) && "text-muted-foreground",
       )}>
         {pos.pnl_usd !== null ? `${pos.pnl_usd >= 0 ? "+" : ""}$${pos.pnl_usd.toFixed(2)}` : "—"}
         {pos.pnl_pct !== null && (
@@ -74,7 +75,7 @@ function HistoryRow({ pos, onClick }: { pos: Position; onClick: () => void }) {
       </span>
 
       {/* Duration */}
-      <span className="text-[10px] text-muted-foreground min-w-[40px] text-right">
+      <span className="text-[10px] text-muted-foreground text-right">
         {duration(pos.filled_at, pos.closed_at)}
       </span>
     </div>
@@ -107,12 +108,13 @@ export function TradeHistory() {
         </div>
       ) : (
         <div>
-          <div className="flex items-center gap-3 py-1.5 px-4 border-b border-border/20 text-[9px] font-bold text-muted-foreground uppercase tracking-wider">
-            <span className="w-10">Result</span>
-            <span className="min-w-[70px]">Symbol</span>
-            <span className="flex-1">Entry → Exit</span>
-            <span className="min-w-[70px] text-right">PnL</span>
-            <span className="min-w-[40px] text-right">Held</span>
+          <div className={cn(ROW_GRID, "py-1.5 text-[9px] font-bold text-muted-foreground uppercase tracking-wider")}>
+            <span>Result</span>
+            <span>Symbol</span>
+            <span>Entry</span>
+            <span>Exit</span>
+            <span className="text-right">PnL</span>
+            <span className="text-right">Held</span>
           </div>
           {trades.map(t => <HistoryRow key={t.id} pos={t} onClick={() => setSelectedPosition(t)} />)}
 

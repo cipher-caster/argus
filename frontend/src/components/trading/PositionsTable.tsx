@@ -32,16 +32,18 @@ function StatusBadge({ status }: { status: Position["status"] }) {
   );
 }
 
+const ROW_GRID = "grid grid-cols-[repeat(8,1fr)_40px] items-center gap-0 py-2.5 px-4 border-b border-border/20 last:border-0";
+
 function PositionRow({ pos, onClose, onClick }: { pos: Position; onClose: (id: number) => void; onClick: () => void }) {
   const base = pos.symbol.replace("USDT", "");
   const isLong = pos.direction === "LONG";
   const entry = pos.actual_entry ?? pos.intended_entry;
-  const hasPnl = pos.unrealized_pnl_pct !== undefined;
+  const pnlPct = pos.unrealized_pnl_pct;
 
   return (
-    <div className="flex items-center gap-3 py-2.5 px-4 border-b border-border/20 last:border-0 hover:bg-secondary/20 transition-colors cursor-pointer" onClick={onClick}>
+    <div className={cn(ROW_GRID, "hover:bg-secondary/20 transition-colors cursor-pointer")} onClick={onClick}>
       {/* Symbol + direction */}
-      <div className="flex items-center gap-1.5 min-w-[70px]">
+      <div className="flex items-center gap-1.5">
         <Link href={`/chart/${base}-USDT`} className="font-black text-[13px] hover:underline">{base}</Link>
         <span className={cn(
           "text-[9px] font-black px-1 py-0.5 rounded",
@@ -50,33 +52,35 @@ function PositionRow({ pos, onClose, onClick }: { pos: Position; onClose: (id: n
       </div>
 
       {/* Status */}
-      <StatusBadge status={pos.status} />
+      <div className="flex"><StatusBadge status={pos.status} /></div>
 
-      {/* Entry / TP / SL */}
-      <div className="flex items-center gap-2.5 text-[11px] font-mono flex-1">
-        <span className="text-muted-foreground">${formatPriceCompact(entry)}</span>
-        {pos.current_price && (
-          <>
-            <span className="text-muted-foreground/40">→</span>
-            <span className="text-foreground">${formatPriceCompact(pos.current_price)}</span>
-          </>
-        )}
-        <span className="text-emerald-500/70">${formatPriceCompact(pos.intended_tp)}</span>
-        <span className="text-red-500/70">${formatPriceCompact(pos.intended_sl)}</span>
-      </div>
+      {/* Entry */}
+      <span className="text-[11px] font-mono text-muted-foreground">${formatPriceCompact(entry)}</span>
+
+      {/* Now */}
+      <span className="text-[11px] font-mono text-foreground">
+        {pos.current_price ? `$${formatPriceCompact(pos.current_price)}` : "—"}
+      </span>
+
+      {/* TP */}
+      <span className="text-[11px] font-mono text-emerald-500/70">${formatPriceCompact(pos.intended_tp)}</span>
+
+      {/* SL */}
+      <span className="text-[11px] font-mono text-red-500/70">${formatPriceCompact(pos.intended_sl)}</span>
 
       {/* PnL */}
-      {hasPnl && (
-        <span className={cn(
-          "text-[11px] font-medium font-mono min-w-[50px] text-right",
-          (pos.unrealized_pnl_pct ?? 0) >= 0 ? "text-emerald-500" : "text-red-500"
-        )}>
-          {(pos.unrealized_pnl_pct ?? 0) >= 0 ? "+" : ""}{pos.unrealized_pnl_pct?.toFixed(1)}%
-        </span>
-      )}
+      <span className={cn(
+        "text-[11px] font-medium font-mono text-right",
+        pnlPct !== undefined && pnlPct !== null && pnlPct >= 0 ? "text-emerald-500" : "text-red-500",
+        pnlPct === undefined || pnlPct === null ? "text-muted-foreground" : "",
+      )}>
+        {pnlPct !== undefined && pnlPct !== null
+          ? `${pnlPct >= 0 ? "+" : ""}${pnlPct.toFixed(1)}%`
+          : "—"}
+      </span>
 
       {/* Size + age */}
-      <div className="text-[10px] text-muted-foreground text-right min-w-[60px]">
+      <div className="text-[10px] text-muted-foreground text-right">
         <div className="font-mono">${pos.quote_amount.toFixed(0)}</div>
         <div>{timeAgo(pos.created_at)}</div>
       </div>
@@ -84,10 +88,10 @@ function PositionRow({ pos, onClose, onClick }: { pos: Position; onClose: (id: n
       {/* Close button */}
       <button
         onClick={(e) => { e.stopPropagation(); onClose(pos.id); }}
-        className="p-1 rounded hover:bg-red-500/10 text-muted-foreground hover:text-red-500 transition-colors"
+        className="p-2 rounded hover:bg-red-500/10 text-muted-foreground hover:text-red-500 transition-colors justify-self-center"
         title="Close position"
       >
-        <X size={12} />
+        <X size={14} />
       </button>
     </div>
   );
@@ -120,13 +124,16 @@ export function PositionsTable() {
       ) : (
         <div>
           {/* Header */}
-          <div className="flex items-center gap-3 py-1.5 px-4 border-b border-border/20 text-[9px] font-bold text-muted-foreground uppercase tracking-wider">
-            <span className="min-w-[70px]">Symbol</span>
-            <span className="w-12">Status</span>
-            <span className="flex-1">Entry / Now / TP / SL</span>
-            <span className="min-w-[50px] text-right">PnL</span>
-            <span className="min-w-[60px] text-right">Size / Age</span>
-            <span className="w-6" />
+          <div className={cn(ROW_GRID, "py-1.5 text-[9px] font-bold text-muted-foreground uppercase tracking-wider")}>
+            <span>Symbol</span>
+            <span>Status</span>
+            <span>Entry</span>
+            <span>Now</span>
+            <span>TP</span>
+            <span>SL</span>
+            <span className="text-right">PnL</span>
+            <span className="text-right">Size / Age</span>
+            <span />
           </div>
           {positions.map(p => (
             <PositionRow
