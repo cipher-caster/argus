@@ -32,7 +32,7 @@ function StatusBadge({ status }: { status: Position["status"] }) {
   );
 }
 
-const ROW_GRID = "grid grid-cols-[repeat(8,1fr)_40px] items-center gap-0 py-2.5 px-4 border-b border-border/20 last:border-0";
+const ROW_GRID = "grid grid-cols-[repeat(8,1fr)_40px] items-center gap-x-2 py-2.5 px-4 border-b border-border/20 last:border-0";
 
 function PositionRow({ pos, onClose, onClick }: { pos: Position; onClose: (id: number) => void; onClick: () => void }) {
   const base = pos.symbol.replace("USDT", "");

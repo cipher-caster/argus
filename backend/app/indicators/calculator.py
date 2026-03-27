@@ -391,6 +391,9 @@ def _mss_to_list(df: pd.DataFrame, lookback: int = 2) -> List[Dict[str, Any]]:
     last_pivot_high = None
     last_pivot_low = None
     
+    # Note: loop stops `lookback` candles before the end — the inner comparison accesses i+j,
+    # so the last `lookback` candles (default 2) can never qualify as pivots. MSS detection
+    # is intentionally lagged by this amount.
     for i in range(lookback, len(df) - lookback):
         # 1. Detect Pivot High
         is_pivot_high = True
