@@ -635,6 +635,7 @@ class TestOrchestratorCycle:
             patch("app.trading.orchestrator.get_trading_config", new_callable=AsyncMock, return_value=config),
             patch("app.trading.orchestrator.Database") as mock_db,
             patch("app.trading.orchestrator.notifier.notify_position_created", new_callable=AsyncMock),
+            patch("app.trading.orchestrator._get_prices", new_callable=AsyncMock, return_value={"ETHUSDT": 1800.0}),
             patch("app.trading.portfolio.Database") as mock_pdb,
         ):
             mock_db.get_session.return_value = db_ctx

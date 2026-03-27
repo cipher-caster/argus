@@ -92,21 +92,32 @@ class RiskManager:
         config: dict,
     ) -> tuple[float, float, float]:
         """
+        Risk-based position sizing with leverage cap.
+
         Returns (quantity, quote_amount, risk_amount).
 
-        quote_amount = balance * max_position_size_pct  (notional cap)
-        quantity     = quote_amount / entry
-        risk_amount  = quantity * |entry - sl|  (actual dollar risk if SL hit)
+        1. risk_amount  = balance * max_position_size_pct / 100
+        2. quantity     = risk_amount / |entry - sl|
+        3. quote_amount = quantity * entry   (notional exposure)
+        4. If quote_amount > balance * max_leverage, clamp down.
         """
         max_pos_pct = config.get("max_position_size_pct", 10.0) / 100
+        max_leverage = config.get("max_leverage", 3.0)
 
         distance = abs(entry - sl)
         if distance <= 0:
             raise ValueError(f"Invalid entry/SL: entry={entry} sl={sl}")
 
-        quote_amount = balance * max_pos_pct
-        quantity = quote_amount / entry
-        risk_amount = quantity * distance
+        risk_amount = balance * max_pos_pct
+        quantity = risk_amount / distance
+        quote_amount = quantity * entry
+
+        # Leverage cap: clamp notional to balance * max_leverage
+        max_notional = balance * max_leverage
+        if quote_amount > max_notional:
+            quote_amount = max_notional
+            quantity = quote_amount / entry
+            risk_amount = quantity * distance
 
         return quantity, quote_amount, risk_amount
 

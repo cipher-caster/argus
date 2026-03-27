@@ -144,10 +144,13 @@ class TradeOrchestrator:
             quantity, quote_amount, risk_amount = sizing
             now_ms = int(time.time() * 1000)
 
-            # Always fill at market price immediately; intended_entry is preserved for reference.
+            # Determine order type: LIMIT signals create PENDING positions,
+            # market signals fill immediately at current price.
+            titan_signal = getattr(signal, "titan_signal", "") or ""
+            is_limit = "LIMIT" in titan_signal.upper()
             prices = await _get_prices()
             current_price = prices.get(signal.symbol)
-            is_market = True
+            is_market = not is_limit
 
             # Price tolerance gate: skip if current price has drifted too far from intended entry.
             # Prevents taking a trade where the setup's R:R is already degraded.
@@ -353,17 +356,20 @@ class TradeOrchestrator:
                             sl_hit = True
 
                     if tp_hit and sl_hit:
-                        # Both hit in same candle — use candle direction to infer which hit first
+                        # Both hit in same candle — use candle direction to infer which hit first.
+                        # Heuristic: candle direction shows where price *ended*, so the opposite
+                        # extreme was likely hit first (e.g. bullish LONG candle dipped to SL
+                        # before rallying to close above open).
                         if pos.direction == "LONG":
-                            if c_close >= c_open:  # Bullish: price moved up → TP hit first
-                                outcome, exit_price = "WIN", pos.intended_tp
-                            else:  # Bearish: price moved down → SL hit first
+                            if c_close >= c_open:  # Bullish: dipped first → SL hit first
                                 outcome, exit_price = "LOSS", pos.intended_sl
+                            else:  # Bearish: rallied first → TP hit first
+                                outcome, exit_price = "WIN", pos.intended_tp
                         else:
-                            if c_close <= c_open:  # Bearish: price moved down → TP hit first
-                                outcome, exit_price = "WIN", pos.intended_tp
-                            else:  # Bullish: price moved up → SL hit first
+                            if c_close <= c_open:  # Bearish: rallied first → SL hit first
                                 outcome, exit_price = "LOSS", pos.intended_sl
+                            else:  # Bullish: dipped first → TP hit first
+                                outcome, exit_price = "WIN", pos.intended_tp
                     elif tp_hit:
                         outcome, exit_price = "WIN", pos.intended_tp
                     elif sl_hit:
