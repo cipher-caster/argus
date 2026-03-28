@@ -144,13 +144,13 @@ async def calculate_indicators(request: CalculateRequest):
     
     except DataProviderError as e:
         logger.error(f"Provider error calculating indicators: {e}")
-        raise HTTPException(status_code=503, detail=str(e))
+        raise HTTPException(status_code=503, detail="Data provider error")
     except ValidationError as e:
         logger.warning(f"Validation error: {e}")
         raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
         logger.error(f"Failed to calculate indicators: {e}", exc_info=True)
-        raise HTTPException(status_code=400, detail=f"Failed to calculate: {str(e)}")
+        raise HTTPException(status_code=500, detail="Failed to calculate indicators")
 
 
 @router.get("/market/dashboard")
@@ -170,6 +170,13 @@ async def get_market_dashboard_indicators():
     from sqlmodel import select
     from datetime import datetime
     
+    DASHBOARD_CACHE_KEY = "indicators:market:dashboard"
+    DASHBOARD_CACHE_TTL = 300  # 5 minutes
+
+    cached = await RedisClient.get_json(DASHBOARD_CACHE_KEY)
+    if cached:
+        return cached
+
     result = {
         "btc_volatility": None,
         "market_adx": None,
@@ -177,7 +184,7 @@ async def get_market_dashboard_indicators():
         "btc_dominance": None,
         "updated_at": datetime.utcnow().isoformat()
     }
-    
+
     try:
         # Fetch BTC/USDT daily candles for volatility + ADX calculation
         async with Database.get_session() as session:
@@ -234,15 +241,16 @@ async def get_market_dashboard_indicators():
             logger.warning("No ticker data available for market cap calculations")
         
         logger.info("Dashboard indicators calculated successfully")
+        await RedisClient.set_json(DASHBOARD_CACHE_KEY, result, ttl=DASHBOARD_CACHE_TTL)
         return result
     
     except CacheError as e:
-        logger.error(f"Cache error fetching dashboard indicators: {e}")
-        raise HTTPException(status_code=503, detail=f"Cache unavailable: {e}")
+        logger.error(f"Cache error fetching dashboard indicators: {e}", exc_info=True)
+        raise HTTPException(status_code=503, detail="Cache unavailable")
     except CalculationError as e:
-        logger.error(f"Calculation error in dashboard indicators: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        logger.error(f"Calculation error in dashboard indicators: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail="Failed to calculate dashboard indicators")
     except Exception as e:
         logger.error(f"Failed to calculate dashboard indicators: {e}", exc_info=True)
-        raise HTTPException(status_code=500, detail=f"Failed to calculate dashboard indicators: {str(e)}")
+        raise HTTPException(status_code=500, detail="Failed to calculate dashboard indicators")
 

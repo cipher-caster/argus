@@ -11,6 +11,7 @@ from fastapi import APIRouter, HTTPException, Query
 from typing import Dict, Any, Optional
 import pandas as pd
 from sqlmodel import select
+from app.constants import TIMEFRAME_MS, DEFAULT_TIMEFRAME_MS
 
 logger = logging.getLogger(__name__)
 
@@ -48,18 +49,7 @@ async def get_candles_df(symbol: str, timeframe: str, limit: int = 500, provider
     now_ms = pd.Timestamp.now().timestamp() * 1000
     
     # Calculate timeframe in ms
-    tf_ms = {
-        '1m': 60 * 1000,
-        '5m': 5 * 60 * 1000,
-        '15m': 15 * 60 * 1000,
-        '30m': 30 * 60 * 1000,
-        '1h': 60 * 60 * 1000,
-        '4h': 4 * 60 * 60 * 1000,
-        '12h': 12 * 60 * 60 * 1000,
-        '1d': 24 * 60 * 60 * 1000,
-        '3d': 3 * 24 * 60 * 60 * 1000,
-        '1w': 7 * 24 * 60 * 60 * 1000,
-    }.get(timeframe, 60 * 60 * 1000)
+    tf_ms = TIMEFRAME_MS.get(timeframe, DEFAULT_TIMEFRAME_MS)
 
     is_count_sufficient = len(db_candles) >= (limit * 0.8)
 
@@ -174,11 +164,11 @@ async def get_oracle_strategy(
         await RedisClient.set_json(cache_key, result, ttl=60)
         return result
         
-    except HTTPException as he:
-        raise he
+    except HTTPException:
+        raise
     except Exception as e:
         logger.error(f"Oracle strategy error for {symbol}: {e}", exc_info=True)
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="Internal server error")
 
 
 @router.get("/titan/{symbol:path}")
@@ -213,11 +203,11 @@ async def get_titan_strategy(
         await RedisClient.set_json(cache_key, result, ttl=60)
         return result
         
-    except HTTPException as he:
-        raise he
+    except HTTPException:
+        raise
     except Exception as e:
         logger.error(f"Titan strategy error for {symbol}: {e}", exc_info=True)
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="Internal server error")
 
 
 @router.get("/regime")
@@ -294,4 +284,4 @@ async def get_market_regime():
 
     except Exception as e:
         logger.error(f"Regime analysis error: {e}", exc_info=True)
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="Internal server error")

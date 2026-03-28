@@ -58,8 +58,8 @@ app.add_middleware(
         "http://127.0.0.1:3000",
     ],
     allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
+    allow_methods=["GET", "POST", "PUT", "DELETE"],
+    allow_headers=["Content-Type", "Authorization", "Accept"],
 )
 
 # Include routers
@@ -77,5 +77,18 @@ app.include_router(system_router)
 @app.get("/health")
 async def health_check():
     """Health check endpoint"""
-    return {"status": "healthy", "service": "argus-backend"}
+    from app.storage import RedisClient, Database
+    checks = {"service": "argus-backend", "database": "ok", "redis": "ok"}
+    try:
+        r = RedisClient.get_instance()
+        await r.ping()
+    except Exception:
+        checks["redis"] = "unavailable"
+    if Database._engine is None:
+        checks["database"] = "unavailable"
+    status = "healthy" if all(v == "ok" for k, v in checks.items() if k != "service") else "degraded"
+    checks["status"] = status
+    from fastapi.responses import JSONResponse
+    code = 200 if status == "healthy" else 503
+    return JSONResponse(content=checks, status_code=code)
 

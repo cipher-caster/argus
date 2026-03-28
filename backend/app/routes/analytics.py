@@ -7,7 +7,7 @@ import logging
 import time
 import pandas as pd
 import asyncio
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Query
 from typing import List, Dict, Any, Optional
 
 from app.schemas.analytics import (
@@ -32,6 +32,7 @@ from app.providers import get_provider, owns_provider
 from app.services.market_data import MarketDataService
 from app.storage import RedisClient
 from app.exceptions import DataProviderError, CacheError, CalculationError
+from app.utils.trading_utils import calculate_conviction
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/analytics", tags=["Analytics"])
@@ -96,7 +97,7 @@ async def fetch_all_candles(symbols: List[str], timeframe: str = "1h", limit: in
 
 
 @router.get("/screener", response_model=ScreenerResponse)
-async def get_oracle_screener(limit: int = 50, timeframe: str = "1h"):
+async def get_oracle_screener(limit: int = 50, timeframe: str = Query(default="1h", pattern="^(1m|5m|15m|30m|1h|4h|12h|1d|3d|1w)$")):
     """Get Oracle analysis for top coins with specific timeframe"""
     cache_key = f"analytics:screener:{timeframe}:{limit}"
     
@@ -124,7 +125,7 @@ async def get_oracle_screener(limit: int = 50, timeframe: str = "1h"):
 
 
 @router.get("/contrarian-radar", response_model=MeanReversionResponse)
-async def get_contrarian_radar(limit: int = 50, timeframe: str = "1h"):
+async def get_contrarian_radar(limit: int = 50, timeframe: str = Query(default="1h", pattern="^(1m|5m|15m|30m|1h|4h|12h|1d|3d|1w)$")):
     """Identify overextended coins for potential reversal with specific timeframe"""
     cache_key = f"analytics:contrarian:{timeframe}:{limit}"
     
@@ -200,7 +201,7 @@ async def get_oracle_signal_summary():
 
 
 @router.get("/best-setups", response_model=BestSetupsResponse)
-async def get_best_setups(timeframe: str = "4h", limit: int = 50):
+async def get_best_setups(timeframe: str = Query(default="4h", pattern="^(1m|5m|15m|30m|1h|4h|12h|1d|3d|1w)$"), limit: int = 50):
     """
     High-conviction Titan setups filtered by market regime.
     In BULL regime: prioritizes LONG signals.
@@ -217,19 +218,27 @@ async def get_best_setups(timeframe: str = "4h", limit: int = 50):
     # Fetch Titan candles (primary timeframe)
     titan_candles = await fetch_all_candles(symbols, timeframe=timeframe, limit=300)
 
-    # Detect regime from BTC weekly EMA50
+    # Detect regime from BTC weekly EMA50 (cached to avoid recomputing on every call)
     from app.trading.backtest_engine import load_candles
     import pandas_ta as _ta
+    REGIME_CACHE_KEY = "market:regime"
+    REGIME_CACHE_TTL = 3600  # 1 hour
+
     regime = "UNKNOWN"
-    try:
-        btc_weekly = await load_candles("BTC/USDT", "1w")
-        if not btc_weekly.empty and len(btc_weekly) > 50:
-            btc_weekly["ema50"] = _ta.ema(btc_weekly["close"], length=50)
-            last = btc_weekly.iloc[-1]
-            if not pd.isna(last.get("ema50")):
-                regime = "BULL" if float(last["close"]) > float(last["ema50"]) else "BEAR"
-    except Exception:
-        pass
+    cached_regime = await RedisClient.get_json(REGIME_CACHE_KEY)
+    if cached_regime:
+        regime = cached_regime.get("regime", "UNKNOWN")
+    else:
+        try:
+            btc_weekly = await load_candles("BTC/USDT", "1w")
+            if not btc_weekly.empty and len(btc_weekly) > 50:
+                btc_weekly["ema50"] = _ta.ema(btc_weekly["close"], length=50)
+                last = btc_weekly.iloc[-1]
+                if not pd.isna(last.get("ema50")):
+                    regime = "BULL" if float(last["close"]) > float(last["ema50"]) else "BEAR"
+            await RedisClient.set_json(REGIME_CACHE_KEY, {"regime": regime}, ttl=REGIME_CACHE_TTL)
+        except Exception as e:
+            logger.warning(f"Regime detection failed, defaulting to UNKNOWN: {e}")
 
     results = []
     for sym, df in titan_candles.items():
@@ -250,10 +259,11 @@ async def get_best_setups(timeframe: str = "4h", limit: int = 50):
             regime_aligned = (regime == "BULL" and is_long) or (regime == "BEAR" and is_short)
 
             # Conviction: base from Titan confidence, bonus for regime alignment
-            base_pts = (t_confidence / 100) * 60
-            regime_bonus = 20 if regime_aligned else 0
-            signal_bonus = 10 if t_signal in ("BUY", "SELL") else 0  # non-limit
-            conviction = int(min(100, base_pts + regime_bonus + signal_bonus))
+            conviction = calculate_conviction(
+                confidence=t_confidence,
+                regime_aligned=regime_aligned,
+                is_market_signal=t_signal in ("BUY", "SELL"),
+            )
 
             targets = t.get("targets", {})
             price = float(df.iloc[-1]["close"])
@@ -335,7 +345,7 @@ async def get_best_setups(timeframe: str = "4h", limit: int = 50):
 
 
 @router.get("/titan-radar", response_model=TitanRadarResponse)
-async def get_titan_radar(limit: int = 50, timeframe: str = "4h"):
+async def get_titan_radar(limit: int = 50, timeframe: str = Query(default="4h", pattern="^(1m|5m|15m|30m|1h|4h|12h|1d|3d|1w)$")):
     """Titan Unified System Scanner"""
     cache_key = f"analytics:titan:{timeframe}:{limit}"
     cached = await RedisClient.get_json(cache_key)

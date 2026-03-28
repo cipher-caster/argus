@@ -85,3 +85,35 @@ async def test_ohlcv_fresh_data_skips_binance_fetch():
 
             assert not mock_provider_instance.get_ohlcv.called, \
                 "BinanceProvider.get_ohlcv should NOT be called when data is fresh"
+
+
+@pytest.mark.asyncio
+async def test_ohlcv_data_provider_error_returns_503_generic(async_client):
+    """DataProviderError should return 503 with a generic message (no raw exception string)."""
+    from app.exceptions import DataProviderError
+
+    with patch(
+        "app.services.market_data.MarketDataService.fetch_and_sync_ohlcv",
+        new_callable=AsyncMock,
+        side_effect=DataProviderError("Binance API key invalid - secret details"),
+    ):
+        response = await async_client.get("/api/ohlcv/BTC%2FUSDT?timeframe=1h&limit=100")
+        assert response.status_code == 503
+        detail = response.json()["detail"]
+        assert detail == "Data provider unavailable"
+        assert "Binance API key invalid" not in detail
+
+
+@pytest.mark.asyncio
+async def test_ohlcv_unexpected_error_returns_500_generic(async_client):
+    """An unexpected Exception should return 500 with a generic message (no raw exception string)."""
+    with patch(
+        "app.services.market_data.MarketDataService.fetch_and_sync_ohlcv",
+        new_callable=AsyncMock,
+        side_effect=RuntimeError("unexpected internal detail"),
+    ):
+        response = await async_client.get("/api/ohlcv/BTC%2FUSDT?timeframe=1h&limit=100")
+        assert response.status_code == 500
+        detail = response.json()["detail"]
+        assert detail == "Internal server error"
+        assert "unexpected internal detail" not in detail

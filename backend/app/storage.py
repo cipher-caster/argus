@@ -43,7 +43,14 @@ class Database:
     @classmethod
     def init(cls):
         if cls._engine is None:
-            cls._engine = create_async_engine(DATABASE_URL, echo=False)
+            cls._engine = create_async_engine(
+                DATABASE_URL,
+                echo=False,
+                pool_size=10,
+                max_overflow=20,
+                pool_recycle=3600,
+                pool_pre_ping=True,
+            )
             cls._sessionmaker = async_sessionmaker(cls._engine, expire_on_commit=False)
             
     @classmethod

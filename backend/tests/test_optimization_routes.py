@@ -106,6 +106,102 @@ class TestExperiments:
 
 
 # ---------------------------------------------------------------------------
+# Apply Experiment
+# ---------------------------------------------------------------------------
+
+class TestApplyExperiment:
+
+    @pytest.mark.asyncio
+    @patch("app.routes.optimization.RedisClient")
+    @patch("app.routes.optimization.Database")
+    async def test_apply_experiment_404(self, mock_db, mock_redis, async_client):
+        """Returns 404 when experiment_id does not exist."""
+        mock_session = AsyncMock()
+        mock_result = MagicMock()
+        mock_result.scalar_one_or_none.return_value = None
+        mock_session.execute = AsyncMock(return_value=mock_result)
+        mock_db.get_session.return_value.__aenter__ = AsyncMock(return_value=mock_session)
+        mock_db.get_session.return_value.__aexit__ = AsyncMock(return_value=False)
+
+        resp = await async_client.post("/api/optimization/apply", json={"experiment_id": 99999})
+        assert resp.status_code == 404
+
+    @pytest.mark.asyncio
+    @patch("app.routes.optimization.RedisClient")
+    @patch("app.routes.optimization.Database")
+    async def test_apply_experiment_db_failure_returns_500_and_rolls_back_redis(
+        self, mock_db, mock_redis, async_client
+    ):
+        """If the DB commit fails, returns 500 and restores original Redis values."""
+        exp = _make_experiment(id=1)
+
+        # First session call (lookup) succeeds
+        lookup_session = AsyncMock()
+        lookup_result = MagicMock()
+        lookup_result.scalar_one_or_none.return_value = exp
+        lookup_session.execute = AsyncMock(return_value=lookup_result)
+
+        # Second session call (commit) raises
+        commit_session = AsyncMock()
+        commit_result = MagicMock()
+        scalars_mock = MagicMock()
+        scalars_mock.all.return_value = []
+        commit_result.scalars.return_value = scalars_mock
+
+        scalar_one_result = MagicMock()
+        scalar_one_result.scalar_one_or_none.return_value = exp
+
+        async def _execute_side_effect(stmt):
+            return commit_result
+
+        commit_session.execute = AsyncMock(side_effect=_execute_side_effect)
+        commit_session.commit = AsyncMock(side_effect=Exception("DB commit failed"))
+        commit_session.add = MagicMock()
+
+        call_count = 0
+
+        class _SessionCtx:
+            def __init__(self, session):
+                self._session = session
+
+            async def __aenter__(self):
+                return self._session
+
+            async def __aexit__(self, *args):
+                return False
+
+        sessions = [_SessionCtx(lookup_session), _SessionCtx(commit_session)]
+
+        def _get_session():
+            return sessions.pop(0)
+
+        mock_db.get_session.side_effect = _get_session
+
+        # Redis: r.get returns original values; track set calls
+        original_sl = b'{"min_titan_confidence": 55}'
+        original_t = b'{"min_conviction": 65}'
+        r_mock = AsyncMock()
+        r_mock.get = AsyncMock(side_effect=[original_sl, original_t])
+        set_calls = []
+
+        async def _redis_set(key, value):
+            set_calls.append((key, value))
+
+        r_mock.set = AsyncMock(side_effect=_redis_set)
+        mock_redis.get_instance.return_value = r_mock
+
+        resp = await async_client.post("/api/optimization/apply", json={"experiment_id": 1})
+        assert resp.status_code == 500
+        assert "Failed to apply experiment" in resp.json()["detail"]
+
+        # Redis should have been rolled back: the last two set calls should restore originals
+        rollback_calls = [(k, v) for k, v in set_calls if v in (original_sl, original_t)]
+        assert len(rollback_calls) == 2, (
+            f"Expected 2 rollback Redis set calls, got {len(rollback_calls)}. All calls: {set_calls}"
+        )
+
+
+# ---------------------------------------------------------------------------
 # Trade Analysis
 # ---------------------------------------------------------------------------
 

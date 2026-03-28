@@ -137,24 +137,30 @@ class TestLogWatchlistSetups:
     @pytest.mark.asyncio
     @patch("app.jobs.signal_log.Database")
     @patch("app.jobs.signal_log._get_config", new_callable=AsyncMock)
-    async def test_skips_counter_trend_in_bear(self, mock_cfg, mock_db):
+    @patch("app.jobs.signal_log.RedisClient")
+    async def test_skips_counter_trend_in_bear(self, mock_redis, mock_cfg, mock_db):
         """BEAR regime + LONG signal → skip (counter-trend)."""
         mock_cfg.return_value = {
             "watchlist": ["BTCUSDT"], "min_titan_confidence": 55,
             "review_days": 7,
         }
+        # No cached regime — let it compute from BTC weekly
+        mock_redis.get_json = AsyncMock(return_value=None)
+        mock_redis.set_json = AsyncMock()
+
         with patch("app.routes.strategy.get_candles_df", new_callable=AsyncMock) as mock_candles, \
              patch("app.routes.strategy.titan") as mock_titan, \
              patch("app.trading.backtest_engine.load_candles", new_callable=AsyncMock) as mock_load:
             import pandas as pd
+            import numpy as np
             mock_candles.return_value = pd.DataFrame({
                 "open": [100], "high": [101], "low": [99], "close": [100], "volume": [1000],
                 "timestamp": pd.to_datetime(["2024-01-01"]),
             })
             mock_titan.analyze.return_value = {"signal": "BUY", "confidence": 70, "targets": {"entry": 100, "tp": 110, "sl": 90}}
-            # BEAR regime: BTC weekly below EMA50
+            # BEAR regime: declining prices → last close below EMA50
             mock_load.return_value = pd.DataFrame({
-                "close": [70000.0] * 100,
+                "close": np.linspace(80000.0, 10000.0, 100),
                 "timestamp": pd.date_range("2020-01-01", periods=100, freq="W"),
             })
 
@@ -173,12 +179,16 @@ class TestLogWatchlistSetups:
     @pytest.mark.asyncio
     @patch("app.jobs.signal_log.Database")
     @patch("app.jobs.signal_log._get_config", new_callable=AsyncMock)
-    async def test_inserts_qualified_signal(self, mock_cfg, mock_db):
+    @patch("app.jobs.signal_log.RedisClient")
+    async def test_inserts_qualified_signal(self, mock_redis, mock_cfg, mock_db):
         """Valid signal with regime alignment → pg_insert called."""
         mock_cfg.return_value = {
             "watchlist": ["BTCUSDT"], "min_titan_confidence": 55,
             "review_days": 7,
         }
+        # No cached regime — let it compute from BTC weekly
+        mock_redis.get_json = AsyncMock(return_value=None)
+        mock_redis.set_json = AsyncMock()
 
         mock_session = AsyncMock()
         mock_db.get_session.return_value.__aenter__ = AsyncMock(return_value=mock_session)
@@ -198,9 +208,10 @@ class TestLogWatchlistSetups:
                 "targets": {"entry": 100.0, "tp": 90.0, "sl": 105.0},
                 "reasons": ["trend aligned", "momentum strong"],
             }
-            # BEAR regime: BTC weekly below EMA50
+            # BEAR regime: BTC weekly declining so last close below EMA50
+            import numpy as np
             mock_load.return_value = pd.DataFrame({
-                "close": [70000.0] * 100,
+                "close": np.linspace(80000.0, 10000.0, 100),
                 "timestamp": pd.date_range("2020-01-01", periods=100, freq="W"),
             })
 
@@ -214,12 +225,16 @@ class TestLogWatchlistSetups:
     @pytest.mark.asyncio
     @patch("app.jobs.signal_log.Database")
     @patch("app.jobs.signal_log._get_config", new_callable=AsyncMock)
-    async def test_batch_insert_multiple_symbols(self, mock_cfg, mock_db):
+    @patch("app.jobs.signal_log.RedisClient")
+    async def test_batch_insert_multiple_symbols(self, mock_redis, mock_cfg, mock_db):
         """Multiple qualifying symbols → batch insert in one session."""
         mock_cfg.return_value = {
             "watchlist": ["BTCUSDT", "ETHUSDT"], "min_titan_confidence": 55,
             "review_days": 7,
         }
+        # No cached regime — let it compute from BTC weekly
+        mock_redis.get_json = AsyncMock(return_value=None)
+        mock_redis.set_json = AsyncMock()
 
         mock_session = AsyncMock()
         mock_db.get_session.return_value.__aenter__ = AsyncMock(return_value=mock_session)
@@ -229,6 +244,7 @@ class TestLogWatchlistSetups:
              patch("app.routes.strategy.titan") as mock_titan, \
              patch("app.trading.backtest_engine.load_candles", new_callable=AsyncMock) as mock_load:
             import pandas as pd
+            import numpy as np
             mock_candles.return_value = pd.DataFrame({
                 "open": [100.0], "high": [101.0], "low": [99.0],
                 "close": [100.0], "volume": [1000.0],
@@ -239,9 +255,9 @@ class TestLogWatchlistSetups:
                 "targets": {"entry": 100.0, "tp": 90.0, "sl": 105.0},
                 "reasons": ["trend"],
             }
-            # BEAR regime
+            # BEAR regime: declining prices → last close below EMA50
             mock_load.return_value = pd.DataFrame({
-                "close": [70000.0] * 100,
+                "close": np.linspace(80000.0, 10000.0, 100),
                 "timestamp": pd.date_range("2020-01-01", periods=100, freq="W"),
             })
 
@@ -928,3 +944,70 @@ class TestHistoricalResolution:
             df, 0, "LONG", tp=110.0, sl=90.0, max_hold=5
         )
         assert outcome == "REVIEW"
+
+
+# ---------------------------------------------------------------------------
+# TestRegimeCachingSignalLog — regime Redis cache in log_watchlist_setups
+# ---------------------------------------------------------------------------
+
+class TestRegimeCachingSignalLog:
+    """Verify regime cache hit skips BTC fetch; miss fetches, computes, stores."""
+
+    def _make_ctx(self):
+        return {}
+
+    @pytest.mark.asyncio
+    @patch("app.jobs.signal_log.Database")
+    @patch("app.jobs.signal_log._get_config", new_callable=AsyncMock)
+    @patch("app.jobs.signal_log.RedisClient")
+    async def test_regime_cache_hit_skips_btc_fetch(self, mock_redis, mock_cfg, mock_db):
+        """When market:regime is in Redis, load_candles is NOT called."""
+        mock_cfg.return_value = {
+            "watchlist": [], "min_titan_confidence": 55, "review_days": 7,
+        }
+        # Simulate cache hit for regime
+        async def fake_get_json(key):
+            if key == "market:regime":
+                return {"regime": "BULL"}
+            return None
+        mock_redis.get_json = AsyncMock(side_effect=fake_get_json)
+        mock_redis.set_json = AsyncMock()
+
+        with patch("app.trading.backtest_engine.load_candles", new_callable=AsyncMock) as mock_load:
+            from app.jobs.signal_log import log_watchlist_setups
+            await log_watchlist_setups(self._make_ctx())
+            mock_load.assert_not_awaited()
+
+    @pytest.mark.asyncio
+    @patch("app.jobs.signal_log.Database")
+    @patch("app.jobs.signal_log._get_config", new_callable=AsyncMock)
+    @patch("app.jobs.signal_log.RedisClient")
+    async def test_regime_cache_miss_fetches_and_stores(self, mock_redis, mock_cfg, mock_db):
+        """On cache miss, BTC weekly is fetched and result is stored in Redis."""
+        import pandas as pd
+        mock_cfg.return_value = {
+            "watchlist": [], "min_titan_confidence": 55, "review_days": 7,
+        }
+        mock_redis.get_json = AsyncMock(return_value=None)
+        mock_redis.set_json = AsyncMock()
+
+        # BTC weekly candles — rising prices so last close well above EMA50 → BULL
+        import numpy as np
+        btc_weekly = pd.DataFrame({
+            "close": np.linspace(10000.0, 80000.0, 100),
+            "timestamp": pd.date_range("2020-01-01", periods=100, freq="W"),
+        })
+
+        with patch("app.trading.backtest_engine.load_candles", new_callable=AsyncMock, return_value=btc_weekly):
+            from app.jobs.signal_log import log_watchlist_setups
+            await log_watchlist_setups(self._make_ctx())
+
+        # set_json should have been called to cache the regime
+        mock_redis.set_json.assert_awaited()
+        call_args = mock_redis.set_json.call_args_list
+        regime_call = next(
+            (c for c in call_args if c[0][0] == "market:regime"),
+            None,
+        )
+        assert regime_call is not None, "Expected set_json called with 'market:regime'"
+        assert regime_call[0][1]["regime"] == "BULL"

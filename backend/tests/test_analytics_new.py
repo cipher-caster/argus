@@ -249,3 +249,113 @@ class TestTitanRadarEndpoint:
             response = await async_client.get("/api/analytics/titan-radar")
         for item in response.json()["data"]:
             assert item["signal"] in valid_signals
+
+
+# ---------------------------------------------------------------------------
+# Timeframe validation — invalid timeframe → 422
+# ---------------------------------------------------------------------------
+
+class TestTimeframeValidation:
+
+    @pytest.mark.asyncio
+    async def test_screener_invalid_timeframe_returns_422(self, async_client):
+        """Non-whitelisted timeframe → 422 Unprocessable Entity."""
+        response = await async_client.get("/api/analytics/screener?timeframe=2h")
+        assert response.status_code == 422
+
+    @pytest.mark.asyncio
+    async def test_contrarian_radar_invalid_timeframe_returns_422(self, async_client):
+        response = await async_client.get("/api/analytics/contrarian-radar?timeframe=2h")
+        assert response.status_code == 422
+
+    @pytest.mark.asyncio
+    async def test_best_setups_invalid_timeframe_returns_422(self, async_client):
+        response = await async_client.get("/api/analytics/best-setups?timeframe=2h")
+        assert response.status_code == 422
+
+    @pytest.mark.asyncio
+    async def test_titan_radar_invalid_timeframe_returns_422(self, async_client):
+        response = await async_client.get("/api/analytics/titan-radar?timeframe=2h")
+        assert response.status_code == 422
+
+    @pytest.mark.asyncio
+    async def test_screener_valid_timeframe_accepted(self, async_client):
+        """Whitelisted timeframe → passes validation (cache hit path)."""
+        from unittest.mock import AsyncMock, patch
+        cached = {"data": MOCK_SCREENER_DATA, "last_updated": 1700000000000}
+        with patch("app.routes.analytics.RedisClient", mock_cache_hit(cached)):
+            response = await async_client.get("/api/analytics/screener?timeframe=4h")
+        assert response.status_code == 200
+
+    @pytest.mark.asyncio
+    async def test_best_setups_valid_timeframe_accepted(self, async_client):
+        cached = {"data": [], "last_updated": 1700000000000}
+        with patch("app.routes.analytics.RedisClient", mock_cache_hit(cached)):
+            response = await async_client.get("/api/analytics/best-setups?timeframe=1d")
+        assert response.status_code == 200
+
+
+# ---------------------------------------------------------------------------
+# Regime caching in analytics — best-setups endpoint
+# ---------------------------------------------------------------------------
+
+class TestBestSetupsRegimeCaching:
+
+    @pytest.mark.asyncio
+    async def test_regime_cache_hit_skips_load_candles(self, async_client):
+        """When market:regime is cached, load_candles (BTC weekly) is NOT called."""
+        from unittest.mock import AsyncMock, patch, MagicMock
+
+        # Cache miss for the best-setups endpoint cache, but hit for regime
+        regime_hit_redis = MagicMock()
+        async def fake_get_json(key):
+            if key == "market:regime":
+                return {"regime": "BULL"}
+            return None  # miss for best-setups cache key
+        regime_hit_redis.get_json = AsyncMock(side_effect=fake_get_json)
+        regime_hit_redis.set_json = AsyncMock()
+
+        with patch("app.routes.analytics.RedisClient", regime_hit_redis), \
+             patch("app.routes.analytics.MarketDataService.get_top_symbols", AsyncMock(return_value=[])), \
+             patch("app.routes.analytics.fetch_all_candles", AsyncMock(return_value={})), \
+             patch("app.trading.backtest_engine.load_candles", new_callable=AsyncMock) as mock_load:
+            response = await async_client.get("/api/analytics/best-setups")
+
+        assert response.status_code == 200
+        mock_load.assert_not_awaited()
+
+    @pytest.mark.asyncio
+    async def test_regime_cache_miss_fetches_and_stores(self, async_client):
+        """On cache miss, BTC weekly is fetched and stored in Redis."""
+        import pandas as pd
+        import numpy as np
+        from unittest.mock import AsyncMock, patch, MagicMock
+
+        stored = {}
+
+        regime_miss_redis = MagicMock()
+        async def fake_get_json(key):
+            return stored.get(key)
+        async def fake_set_json(key, value, ttl=None):
+            stored[key] = value
+        regime_miss_redis.get_json = AsyncMock(side_effect=fake_get_json)
+        regime_miss_redis.set_json = AsyncMock(side_effect=fake_set_json)
+
+        # BTC weekly: rising prices so last close is well above EMA50 → BULL
+        n = 100
+        # Linearly rising from 10000 to 80000 — last value well above the EMA50
+        btc_weekly = pd.DataFrame({
+            "close": np.linspace(10000.0, 80000.0, n),
+            "timestamp": pd.date_range("2020-01-01", periods=n, freq="W"),
+        })
+
+        with patch("app.routes.analytics.RedisClient", regime_miss_redis), \
+             patch("app.routes.analytics.MarketDataService.get_top_symbols", AsyncMock(return_value=[])), \
+             patch("app.routes.analytics.fetch_all_candles", AsyncMock(return_value={})), \
+             patch("app.trading.backtest_engine.load_candles", AsyncMock(return_value=btc_weekly)):
+            response = await async_client.get("/api/analytics/best-setups")
+
+        assert response.status_code == 200
+        # Regime should have been cached
+        assert "market:regime" in stored
+        assert stored["market:regime"]["regime"] == "BULL"

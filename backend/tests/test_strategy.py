@@ -133,3 +133,35 @@ async def test_get_candles_df_binance_fallback():
     assert df.iloc[-1]["close"] == 10.5
     # Ensure Binance provider was called since DB was empty
     binance_provider_mock.get_ohlcv.assert_called_once()
+
+
+@pytest.mark.asyncio
+async def test_oracle_strategy_generic_500_on_unexpected_error(async_client):
+    """When an unexpected exception occurs, the API returns 500 with a generic message (no raw str(e))."""
+    with patch("app.routes.strategy.RedisClient.get_json", new_callable=AsyncMock, return_value=None):
+        with patch(
+            "app.routes.strategy.get_candles_df",
+            new_callable=AsyncMock,
+            side_effect=RuntimeError("internal details that should not leak"),
+        ):
+            response = await async_client.get("/api/strategy/oracle/BTCUSDT")
+            assert response.status_code == 500
+            detail = response.json()["detail"]
+            assert detail == "Internal server error"
+            assert "internal details that should not leak" not in detail
+
+
+@pytest.mark.asyncio
+async def test_titan_strategy_generic_500_on_unexpected_error(async_client):
+    """When an unexpected exception occurs, the titan route returns 500 with a generic message."""
+    with patch("app.routes.strategy.RedisClient.get_json", new_callable=AsyncMock, return_value=None):
+        with patch(
+            "app.routes.strategy.get_candles_df",
+            new_callable=AsyncMock,
+            side_effect=RuntimeError("sensitive internal detail"),
+        ):
+            response = await async_client.get("/api/strategy/titan/BTCUSDT")
+            assert response.status_code == 500
+            detail = response.json()["detail"]
+            assert detail == "Internal server error"
+            assert "sensitive internal detail" not in detail

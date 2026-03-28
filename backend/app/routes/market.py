@@ -66,13 +66,13 @@ async def get_ohlcv(
         )
     except DataProviderError as e:
         logger.error(f"Provider error fetching {symbol} {timeframe}: {e}")
-        raise HTTPException(status_code=503, detail=f"Data provider unavailable: {str(e)}")
+        raise HTTPException(status_code=503, detail="Data provider unavailable")
     except ValidationError as e:
         logger.warning(f"Validation error for {symbol} {timeframe}: {e}")
         raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
         logger.error(f"Unexpected error fetching {symbol} {timeframe}: {e}", exc_info=True)
-        raise HTTPException(status_code=500, detail=f"Failed to fetch data: {str(e)}")
+        raise HTTPException(status_code=500, detail="Internal server error")
 
 
 @router.get("/symbols", response_model=List[SymbolInfo])
@@ -86,10 +86,10 @@ async def get_symbols():
         return symbols
     except DataProviderError as e:
         logger.error(f"Provider error fetching symbols: {e}")
-        raise HTTPException(status_code=503, detail=f"Data provider unavailable: {str(e)}")
+        raise HTTPException(status_code=503, detail="Data provider unavailable")
     except Exception as e:
         logger.error(f"Unexpected error fetching symbols: {e}", exc_info=True)
-        raise HTTPException(status_code=500, detail=f"Failed to fetch symbols: {str(e)}")
+        raise HTTPException(status_code=500, detail="Internal server error")
 
 
 @router.get("/ticker/{symbol:path}", response_model=TickerResponse)
@@ -115,10 +115,10 @@ async def get_ticker(symbol: str):
         return TickerResponse(symbol=symbol, price=None, provider="not-found")
     except CacheError as e:
         logger.error(f"Cache error fetching ticker {symbol}: {e}")
-        raise HTTPException(status_code=503, detail=f"Cache unavailable: {str(e)}")
+        raise HTTPException(status_code=503, detail="Cache unavailable")
     except Exception as e:
         logger.error(f"Unexpected error fetching ticker {symbol}: {e}", exc_info=True)
-        raise HTTPException(status_code=500, detail=f"Failed to fetch ticker: {str(e)}")
+        raise HTTPException(status_code=500, detail="Internal server error")
 
 
 @router.get("/provider")
@@ -196,10 +196,10 @@ async def get_market_summary():
         )
     except CacheError as e:
         logger.error(f"Cache error fetching market summary: {e}")
-        raise HTTPException(status_code=503, detail=f"Cache unavailable: {str(e)}")
+        raise HTTPException(status_code=503, detail="Cache unavailable")
     except Exception as e:
         logger.error(f"Unexpected error fetching market summary: {e}", exc_info=True)
-        raise HTTPException(status_code=500, detail=f"Failed to fetch summary: {str(e)}")
+        raise HTTPException(status_code=500, detail="Internal server error")
 
 
 @router.get("/market/tickers")
@@ -215,10 +215,10 @@ async def get_market_tickers():
         return {"tickers": data, "provider": "redis-merged"}
     except CacheError as e:
         logger.error(f"Cache error fetching tickers: {e}")
-        raise HTTPException(status_code=503, detail=f"Cache unavailable: {str(e)}")
+        raise HTTPException(status_code=503, detail="Cache unavailable")
     except Exception as e:
         logger.error(f"Unexpected error fetching tickers: {e}", exc_info=True)
-        raise HTTPException(status_code=500, detail=f"Failed to fetch tickers: {str(e)}")
+        raise HTTPException(status_code=500, detail="Internal server error")
 
 
 @router.get("/market/coins", response_model=CoinsResponse)
@@ -260,10 +260,10 @@ async def get_coins(
         
     except CacheError as e:
         logger.error(f"Cache error fetching coins: {e}")
-        raise HTTPException(status_code=503, detail=f"Cache unavailable: {str(e)}")
+        raise HTTPException(status_code=503, detail="Cache unavailable")
     except ValidationError as e:
         logger.warning(f"Validation error in coins endpoint: {e}")
         raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
         logger.error(f"Unexpected error fetching coins: {e}", exc_info=True)
-        raise HTTPException(status_code=500, detail=f"Failed to fetch coins: {str(e)}")
+        raise HTTPException(status_code=500, detail="Internal server error")

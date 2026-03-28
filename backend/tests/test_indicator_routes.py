@@ -149,6 +149,7 @@ class TestMarketDashboard:
         mock_db.get_session.return_value.__aexit__ = AsyncMock(return_value=False)
 
         mock_redis.get_json = AsyncMock(return_value=None)
+        mock_redis.set_json = AsyncMock(return_value=True)
 
         resp = await async_client.get("/api/indicators/market/dashboard")
         assert resp.status_code == 200
@@ -170,11 +171,55 @@ class TestMarketDashboard:
         mock_db.get_session.return_value.__aexit__ = AsyncMock(return_value=False)
 
         mock_redis.get_json = AsyncMock(return_value=None)
+        mock_redis.set_json = AsyncMock(return_value=True)
 
         resp = await async_client.get("/api/indicators/market/dashboard")
         assert resp.status_code == 200
         data = resp.json()
         assert data["btc_volatility"] is None
+
+    @pytest.mark.asyncio
+    @patch("app.routes.indicators.RedisClient")
+    @patch("app.storage.Database")
+    async def test_dashboard_cache_hit_skips_db(self, mock_db, mock_redis, async_client):
+        """Cache hit returns cached result immediately without querying DB."""
+        cached_payload = {
+            "btc_volatility": {"value": 2.5},
+            "market_adx": {"value": 30.0},
+            "total_market_cap": None,
+            "btc_dominance": None,
+            "updated_at": "2026-01-01T00:00:00",
+        }
+
+        mock_redis.get_json = AsyncMock(return_value=cached_payload)
+        mock_redis.set_json = AsyncMock()
+
+        resp = await async_client.get("/api/indicators/market/dashboard")
+        assert resp.status_code == 200
+        data = resp.json()
+        assert data["btc_volatility"] == {"value": 2.5}
+        # DB must not have been touched on a cache hit
+        mock_db.get_session.assert_not_called()
+
+    @pytest.mark.asyncio
+    @patch("app.routes.indicators.RedisClient")
+    @patch("app.storage.Database")
+    async def test_dashboard_error_returns_generic_message(self, mock_db, mock_redis, async_client):
+        """Unexpected exception returns 500 with generic message, not raw error internals."""
+        mock_redis.get_json = AsyncMock(return_value=None)
+        mock_redis.set_json = AsyncMock()
+
+        # Force an unexpected error during DB access
+        mock_db.get_session.return_value.__aenter__ = AsyncMock(
+            side_effect=RuntimeError("internal db secret details")
+        )
+        mock_db.get_session.return_value.__aexit__ = AsyncMock(return_value=False)
+
+        resp = await async_client.get("/api/indicators/market/dashboard")
+        assert resp.status_code == 500
+        detail = resp.json()["detail"]
+        assert "internal db secret details" not in detail
+        assert detail == "Failed to calculate dashboard indicators"
 
 
 # ---------------------------------------------------------------------------
@@ -222,3 +267,44 @@ class TestActivityLog:
 
         resp = await async_client.get("/api/system/activity-log?event_type=STARTUP")
         assert resp.status_code == 200
+
+
+# ---------------------------------------------------------------------------
+# Health Endpoint
+# ---------------------------------------------------------------------------
+
+class TestHealthCheck:
+
+    @pytest.mark.asyncio
+    @patch("app.storage.RedisClient")
+    @patch("app.storage.Database")
+    async def test_health_returns_200_when_redis_ok(self, mock_db, mock_redis, async_client):
+        """Health endpoint returns 200 with status 'healthy' when Redis is available."""
+        mock_redis_instance = AsyncMock()
+        mock_redis_instance.ping = AsyncMock(return_value=True)
+        mock_redis.get_instance.return_value = mock_redis_instance
+        mock_db._engine = object()  # engine is not None → database ok
+
+        resp = await async_client.get("/health")
+        assert resp.status_code == 200
+        data = resp.json()
+        assert data["status"] == "healthy"
+        assert "service" in data
+        assert "redis" in data
+        assert "database" in data
+
+    @pytest.mark.asyncio
+    @patch("app.storage.RedisClient")
+    @patch("app.storage.Database")
+    async def test_health_returns_503_when_redis_down(self, mock_db, mock_redis, async_client):
+        """Health endpoint returns 503 with status 'degraded' when Redis is unavailable."""
+        mock_redis_instance = AsyncMock()
+        mock_redis_instance.ping = AsyncMock(side_effect=Exception("Connection refused"))
+        mock_redis.get_instance.return_value = mock_redis_instance
+        mock_db._engine = object()  # engine is not None → database ok
+
+        resp = await async_client.get("/health")
+        assert resp.status_code == 503
+        data = resp.json()
+        assert data["status"] == "degraded"
+        assert data["redis"] == "unavailable"

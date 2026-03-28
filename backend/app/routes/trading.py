@@ -7,7 +7,7 @@ import time
 from typing import Optional
 
 from fastapi import APIRouter, HTTPException, Query
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from sqlalchemy import select, desc
 
 from app.storage import Database, RedisClient
@@ -31,14 +31,17 @@ _orchestrator = TradeOrchestrator()
 # ------------------------------------------------------------------
 
 class TradingConfigUpdate(BaseModel):
+    initial_capital: Optional[float] = Field(None, gt=0, le=1_000_000)
+    max_position_size_pct: Optional[float] = Field(None, gt=0, le=100)
+    max_concurrent_positions: Optional[int] = Field(None, ge=1, le=20)
+    max_correlated_positions: Optional[int] = Field(None, ge=1, le=10)
+    max_drawdown_pct: Optional[float] = Field(None, gt=0, le=100)
+    max_leverage: Optional[float] = Field(None, ge=1.0, le=10.0)
+    min_conviction: Optional[int] = Field(None, ge=0, le=100)
+    max_total_exposure_pct: Optional[float] = Field(None, gt=0, le=1000)
+    order_expiry_hours: Optional[int] = Field(None, ge=1, le=168)
+    entry_tolerance_pct: Optional[float] = Field(None, ge=0, le=10)
     enabled: Optional[bool] = None
-    initial_capital: Optional[float] = None
-    max_position_size_pct: Optional[float] = None
-    max_concurrent_positions: Optional[int] = None
-    max_correlated_positions: Optional[int] = None
-    max_drawdown_pct: Optional[float] = None
-    min_conviction: Optional[int] = None
-    order_expiry_hours: Optional[int] = None
 
 
 # ------------------------------------------------------------------

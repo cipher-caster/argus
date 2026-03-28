@@ -267,6 +267,78 @@ class TestConfig:
         # enabled should remain True since None is excluded
         assert resp.json()["enabled"] is True
 
+    @pytest.mark.asyncio
+    async def test_put_config_initial_capital_zero_returns_422(self, async_client):
+        """initial_capital=0 must be rejected (gt=0 constraint)."""
+        resp = await async_client.put(
+            "/api/trading/config",
+            json={"initial_capital": 0}
+        )
+        assert resp.status_code == 422
+
+    @pytest.mark.asyncio
+    async def test_put_config_initial_capital_negative_returns_422(self, async_client):
+        """Negative initial_capital must be rejected (gt=0 constraint)."""
+        resp = await async_client.put(
+            "/api/trading/config",
+            json={"initial_capital": -500}
+        )
+        assert resp.status_code == 422
+
+    @pytest.mark.asyncio
+    async def test_put_config_max_drawdown_over_100_returns_422(self, async_client):
+        """max_drawdown_pct > 100 must be rejected (le=100 constraint)."""
+        resp = await async_client.put(
+            "/api/trading/config",
+            json={"max_drawdown_pct": 200}
+        )
+        assert resp.status_code == 422
+
+    @pytest.mark.asyncio
+    async def test_put_config_max_drawdown_zero_returns_422(self, async_client):
+        """max_drawdown_pct=0 must be rejected (gt=0 constraint)."""
+        resp = await async_client.put(
+            "/api/trading/config",
+            json={"max_drawdown_pct": 0}
+        )
+        assert resp.status_code == 422
+
+    @pytest.mark.asyncio
+    async def test_put_config_min_conviction_over_100_returns_422(self, async_client):
+        """min_conviction > 100 must be rejected (le=100 constraint)."""
+        resp = await async_client.put(
+            "/api/trading/config",
+            json={"min_conviction": 101}
+        )
+        assert resp.status_code == 422
+
+    @pytest.mark.asyncio
+    async def test_put_config_max_concurrent_positions_zero_returns_422(self, async_client):
+        """max_concurrent_positions=0 must be rejected (ge=1 constraint)."""
+        resp = await async_client.put(
+            "/api/trading/config",
+            json={"max_concurrent_positions": 0}
+        )
+        assert resp.status_code == 422
+
+    @pytest.mark.asyncio
+    async def test_put_config_order_expiry_hours_over_168_returns_422(self, async_client):
+        """order_expiry_hours > 168 (1 week) must be rejected."""
+        resp = await async_client.put(
+            "/api/trading/config",
+            json={"order_expiry_hours": 200}
+        )
+        assert resp.status_code == 422
+
+    @pytest.mark.asyncio
+    async def test_put_config_max_leverage_over_10_returns_422(self, async_client):
+        """max_leverage > 10 must be rejected (le=10.0 constraint)."""
+        resp = await async_client.put(
+            "/api/trading/config",
+            json={"max_leverage": 15.0}
+        )
+        assert resp.status_code == 422
+
 
 # ---------------------------------------------------------------------------
 # TestClose

@@ -19,6 +19,7 @@ from sqlalchemy.dialects.postgresql import insert as pg_insert
 from app.storage import RedisClient, Database
 from app.schemas.signal_log import SignalLog
 from app.schemas.trading import Position, TradeEvent
+from app.utils.trading_utils import calculate_conviction
 
 logger = logging.getLogger(__name__)
 
@@ -166,19 +167,27 @@ async def log_watchlist_setups(ctx):
     now_ms = int(time.time() * 1000)
     logged = 0
 
-    # Detect regime from BTC weekly EMA50
+    # Detect regime from BTC weekly EMA50 (cached to avoid recomputing on every watchlist scan)
+    REGIME_CACHE_KEY = "market:regime"
+    REGIME_CACHE_TTL = 3600  # 1 hour
+
     regime = "UNKNOWN"
-    try:
-        from app.trading.backtest_engine import load_candles
-        import pandas_ta as _ta
-        btc_weekly = await load_candles("BTC/USDT", "1w")
-        if not btc_weekly.empty and len(btc_weekly) > 50:
-            btc_weekly["ema50"] = _ta.ema(btc_weekly["close"], length=50)
-            last = btc_weekly.iloc[-2]  # Use last closed candle — iloc[-1] may be an incomplete open candle
-            if not pd.isna(last.get("ema50")):
-                regime = "BULL" if float(last["close"]) > float(last["ema50"]) else "BEAR"
-    except Exception as e:
-        logger.warning(f"Regime detection failed: {e}, using UNKNOWN")
+    cached_regime = await RedisClient.get_json(REGIME_CACHE_KEY)
+    if cached_regime:
+        regime = cached_regime.get("regime", "UNKNOWN")
+    else:
+        try:
+            from app.trading.backtest_engine import load_candles
+            import pandas_ta as _ta
+            btc_weekly = await load_candles("BTC/USDT", "1w")
+            if not btc_weekly.empty and len(btc_weekly) > 50:
+                btc_weekly["ema50"] = _ta.ema(btc_weekly["close"], length=50)
+                last = btc_weekly.iloc[-2]  # Use last closed candle — iloc[-1] may be an incomplete open candle
+                if not pd.isna(last.get("ema50")):
+                    regime = "BULL" if float(last["close"]) > float(last["ema50"]) else "BEAR"
+            await RedisClient.set_json(REGIME_CACHE_KEY, {"regime": regime}, ttl=REGIME_CACHE_TTL)
+        except Exception as e:
+            logger.warning(f"Regime detection failed: {e}, using UNKNOWN")
 
     # Collect all qualified rows first
     rows_to_insert = []
@@ -213,10 +222,11 @@ async def log_watchlist_setups(ctx):
                     continue
 
                 # Compute conviction (regime-based, not Oracle-based)
-                base_pts = (t_confidence / 100) * 60
-                regime_bonus = 20 if regime_aligned else 0
-                signal_bonus = 10 if t_signal in ("BUY", "SELL") else 0  # non-limit
-                conviction = int(min(100, base_pts + regime_bonus + signal_bonus))
+                conviction = calculate_conviction(
+                    confidence=t_confidence,
+                    regime_aligned=regime_aligned,
+                    is_market_signal=t_signal in ("BUY", "SELL"),
+                )
 
                 # Regime tag for reason
                 reg_tag = "trend" if regime_aligned else "counter"

@@ -9,6 +9,7 @@ from app.providers import get_provider
 from app.providers.binance_provider import BinanceProvider
 from app.providers.okx_provider import OKXProvider
 from app.schemas.market_data import MarketSummary, MarketTicker
+from app.utils.trading_utils import calculate_conviction
 
 # Configure Logging
 logging.basicConfig(level=logging.INFO)
@@ -96,11 +97,12 @@ async def _recover_missed_scans(ctx, missed_closes: list):
                         continue
 
                     # Conviction: 60% Titan + 20% regime bonus + 10% signal type
-                    base_pts = (t_confidence / 100) * 60
                     regime_aligned = (regime == "BULL" and is_long) or (regime == "BEAR" and is_short)
-                    regime_bonus = 20 if regime_aligned else 0
-                    signal_bonus = 10 if t_signal in ("BUY", "SELL") else 0
-                    conviction = int(min(100, base_pts + regime_bonus + signal_bonus))
+                    conviction = calculate_conviction(
+                        confidence=t_confidence,
+                        regime_aligned=regime_aligned,
+                        is_market_signal=t_signal in ("BUY", "SELL"),
+                    )
 
                     targets = t.get("targets", {})
                     price = float(df.iloc[-1]["close"])

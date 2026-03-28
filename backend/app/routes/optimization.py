@@ -30,13 +30,17 @@ async def list_experiments(
     limit: int = Query(50, ge=1, le=200),
 ):
     """List experiments, optionally filtered by run_id, sorted by EV/trade desc."""
-    async with Database.get_session() as session:
-        stmt = select(OptimizationExperiment)
-        if run_id:
-            stmt = stmt.where(OptimizationExperiment.run_id == run_id)
-        stmt = stmt.order_by(desc(OptimizationExperiment.ev_per_trade)).limit(limit)
-        result = await session.execute(stmt)
-        experiments = result.scalars().all()
+    try:
+        async with Database.get_session() as session:
+            stmt = select(OptimizationExperiment)
+            if run_id:
+                stmt = stmt.where(OptimizationExperiment.run_id == run_id)
+            stmt = stmt.order_by(desc(OptimizationExperiment.ev_per_trade)).limit(limit)
+            result = await session.execute(stmt)
+            experiments = result.scalars().all()
+    except Exception as exc:
+        logger.error("list_experiments: DB query failed: %s", exc, exc_info=True)
+        raise HTTPException(status_code=500, detail="Failed to retrieve experiments")
 
     return [_exp_to_dict(e) for e in experiments]
 
@@ -44,11 +48,15 @@ async def list_experiments(
 @router.get("/experiments/{experiment_id}")
 async def get_experiment(experiment_id: int):
     """Get a single experiment with full coin_results breakdown."""
-    async with Database.get_session() as session:
-        result = await session.execute(
-            select(OptimizationExperiment).where(OptimizationExperiment.id == experiment_id)
-        )
-        exp = result.scalar_one_or_none()
+    try:
+        async with Database.get_session() as session:
+            result = await session.execute(
+                select(OptimizationExperiment).where(OptimizationExperiment.id == experiment_id)
+            )
+            exp = result.scalar_one_or_none()
+    except Exception as exc:
+        logger.error("get_experiment: DB query failed for id=%s: %s", experiment_id, exc, exc_info=True)
+        raise HTTPException(status_code=500, detail="Failed to retrieve experiment")
 
     if not exp:
         raise HTTPException(status_code=404, detail="Experiment not found")
@@ -61,14 +69,18 @@ async def get_experiment(experiment_id: int):
 @router.get("/best")
 async def get_best_experiment(min_signals: int = Query(30, ge=1)):
     """Return the highest EV/trade experiment with at least min_signals."""
-    async with Database.get_session() as session:
-        result = await session.execute(
-            select(OptimizationExperiment)
-            .where(OptimizationExperiment.total_signals >= min_signals)
-            .order_by(desc(OptimizationExperiment.ev_per_trade))
-            .limit(1)
-        )
-        exp = result.scalar_one_or_none()
+    try:
+        async with Database.get_session() as session:
+            result = await session.execute(
+                select(OptimizationExperiment)
+                .where(OptimizationExperiment.total_signals >= min_signals)
+                .order_by(desc(OptimizationExperiment.ev_per_trade))
+                .limit(1)
+            )
+            exp = result.scalar_one_or_none()
+    except Exception as exc:
+        logger.error("get_best_experiment: DB query failed: %s", exc, exc_info=True)
+        raise HTTPException(status_code=500, detail="Failed to retrieve best experiment")
 
     if not exp:
         raise HTTPException(
@@ -92,49 +104,77 @@ async def apply_experiment(body: ApplyRequest):
     and mark it as is_production=True.
     """
     async with Database.get_session() as session:
-        result = await session.execute(
-            select(OptimizationExperiment).where(OptimizationExperiment.id == body.experiment_id)
-        )
-        exp = result.scalar_one_or_none()
+        try:
+            result = await session.execute(
+                select(OptimizationExperiment).where(OptimizationExperiment.id == body.experiment_id)
+            )
+            exp = result.scalar_one_or_none()
+        except Exception as exc:
+            logger.error("apply_experiment: DB lookup failed: %s", exc, exc_info=True)
+            raise HTTPException(status_code=500, detail="Failed to apply experiment — no changes were committed")
 
     if not exp:
         raise HTTPException(status_code=404, detail="Experiment not found")
 
     r = RedisClient.get_instance()
 
-    # Update signal_log:config
-    sl_cfg_raw = await r.get("signal_log:config")
-    sl_cfg = json.loads(sl_cfg_raw) if sl_cfg_raw else {}
-    sl_cfg["min_titan_confidence"] = exp.min_titan_confidence
-    sl_cfg["block_sleeping"] = exp.block_sleeping
-    sl_cfg["block_volatile"] = exp.block_volatile
-    sl_cfg["macro_guard"] = exp.macro_guard
-    sl_cfg["sl_mult"] = exp.sl_mult
-    sl_cfg["tp_mult"] = exp.tp_mult
-    sl_cfg["tp_adaptive"] = exp.tp_adaptive
-    await r.set("signal_log:config", json.dumps(sl_cfg))
+    # Snapshot existing Redis values so we can roll back on failure
+    sl_cfg_raw_original = None
+    t_cfg_raw_original = None
 
-    # Update trading:config
-    t_cfg_raw = await r.get("trading:config")
-    t_cfg = json.loads(t_cfg_raw) if t_cfg_raw else {}
-    t_cfg["min_conviction"] = exp.min_conviction
-    await r.set("trading:config", json.dumps(t_cfg))
+    try:
+        # Snapshot originals for potential rollback
+        sl_cfg_raw_original = await r.get("signal_log:config")
+        t_cfg_raw_original = await r.get("trading:config")
 
-    # Mark production in DB
-    async with Database.get_session() as session:
-        prev = await session.execute(
-            select(OptimizationExperiment).where(OptimizationExperiment.is_production == True)
+        # Update signal_log:config
+        sl_cfg = json.loads(sl_cfg_raw_original) if sl_cfg_raw_original else {}
+        sl_cfg["min_titan_confidence"] = exp.min_titan_confidence
+        sl_cfg["block_sleeping"] = exp.block_sleeping
+        sl_cfg["block_volatile"] = exp.block_volatile
+        sl_cfg["macro_guard"] = exp.macro_guard
+        sl_cfg["sl_mult"] = exp.sl_mult
+        sl_cfg["tp_mult"] = exp.tp_mult
+        sl_cfg["tp_adaptive"] = exp.tp_adaptive
+        await r.set("signal_log:config", json.dumps(sl_cfg))
+
+        # Update trading:config
+        t_cfg = json.loads(t_cfg_raw_original) if t_cfg_raw_original else {}
+        t_cfg["min_conviction"] = exp.min_conviction
+        await r.set("trading:config", json.dumps(t_cfg))
+
+        # Mark production in DB (SQLAlchemy session rolls back automatically on exception)
+        async with Database.get_session() as session:
+            prev = await session.execute(
+                select(OptimizationExperiment).where(OptimizationExperiment.is_production == True)
+            )
+            for p in prev.scalars().all():
+                p.is_production = False
+                session.add(p)
+            result2 = await session.execute(
+                select(OptimizationExperiment).where(OptimizationExperiment.id == body.experiment_id)
+            )
+            exp2 = result2.scalar_one()
+            exp2.is_production = True
+            session.add(exp2)
+            await session.commit()
+
+    except HTTPException:
+        raise
+    except Exception as exc:
+        logger.error(
+            "apply_experiment: operation failed for experiment_id=%s, attempting Redis rollback: %s",
+            body.experiment_id, exc, exc_info=True,
         )
-        for p in prev.scalars().all():
-            p.is_production = False
-            session.add(p)
-        result2 = await session.execute(
-            select(OptimizationExperiment).where(OptimizationExperiment.id == body.experiment_id)
-        )
-        exp2 = result2.scalar_one()
-        exp2.is_production = True
-        session.add(exp2)
-        await session.commit()
+        # Attempt to restore original Redis values
+        try:
+            if sl_cfg_raw_original is not None:
+                await r.set("signal_log:config", sl_cfg_raw_original)
+            if t_cfg_raw_original is not None:
+                await r.set("trading:config", t_cfg_raw_original)
+        except Exception as rollback_exc:
+            logger.error("apply_experiment: Redis rollback also failed: %s", rollback_exc, exc_info=True)
+        raise HTTPException(status_code=500, detail="Failed to apply experiment — no changes were committed")
 
     return {
         "status": "applied",

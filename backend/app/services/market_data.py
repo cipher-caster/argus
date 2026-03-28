@@ -13,6 +13,7 @@ from sqlmodel import select
 from app.storage import RedisClient, Database
 from app.schemas.candle import Candle as DbCandle
 from app.schemas.market_data import CoinInfo
+from app.constants import TIMEFRAME_MS, DEFAULT_TIMEFRAME_MS
 from app.providers import Candle as ProviderCandle
 
 logger = logging.getLogger(__name__)
@@ -73,18 +74,7 @@ class MarketDataService:
             db_candles = results.scalars().all()
             
             # Helper for timeframe ms
-            timeframe_ms = {
-                '1m': 60 * 1000,
-                '5m': 5 * 60 * 1000,
-                '15m': 15 * 60 * 1000,
-                '30m': 30 * 60 * 1000,
-                '1h': 60 * 60 * 1000,
-                '4h': 4 * 60 * 60 * 1000,
-                '12h': 12 * 60 * 60 * 1000,
-                '1d': 24 * 60 * 60 * 1000,
-                '3d': 3 * 24 * 60 * 60 * 1000,
-                '1w': 7 * 24 * 60 * 60 * 1000,
-            }.get(timeframe, 60 * 60 * 1000)
+            timeframe_ms = TIMEFRAME_MS.get(timeframe, DEFAULT_TIMEFRAME_MS)
 
             # Check staleness
             import time
