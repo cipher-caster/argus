@@ -4,6 +4,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/components/ui/toaster";
 import { cn } from "@/lib/utils";
 import { Moon, RefreshCcw, Waves, Zap } from "lucide-react";
+import { useMemo } from "react";
 
 interface MarketSentimentData {
   bullish_pct: number;
@@ -42,9 +43,9 @@ export function MarketSentimentBar({ data, isLoading, isRefetching, onRefresh, e
   if (!data) return <Skeleton className="h-12 rounded-lg" />;
 
   // Determine market state and visuals
-  const getMarketVisuals = () => {
+  const visuals = useMemo(() => {
     if (variant === "confluence") {
-      const verdict = data.verdict || "";
+      const verdict = data?.verdict || "";
       switch (verdict) {
         case "SLEEPING":
           return { icon: Moon, color: "text-blue-400", bg: "bg-blue-500/10", label: "MARKET SLEEPING", desc: "Low Volatility. Stay Cash." };
@@ -56,18 +57,33 @@ export function MarketSentimentBar({ data, isLoading, isRefetching, onRefresh, e
           return { icon: Zap, color: "text-yellow-500", bg: "bg-yellow-500/10", label: "CHOPPY / VOLATILE", desc: "Reduce Position Size." };
       }
     } else {
-      // Oracle variant
-      const marketState = data.market_state || "Analyzing";
+      const marketState = data?.market_state || "Analyzing";
       const labelColor = marketState === "STRONG BULL" ? "text-green-400" : marketState === "STRONG BEAR" ? "text-red-400" : "text-cyan-400";
       const bgColor = marketState === "STRONG BULL" ? "bg-green-500/10" : marketState === "STRONG BEAR" ? "bg-red-500/10" : "bg-cyan-500/10";
-
       return { icon: Zap, color: labelColor, bg: bgColor, label: marketState.toUpperCase(), desc: "Oracle Market Intelligence" };
     }
-  };
+  }, [variant, data?.verdict, data?.market_state]);
 
-  const visuals = getMarketVisuals();
+  // Parse top signals into longs/shorts
+  const parsedSignals = useMemo(() => {
+    if (!data?.top_signals?.length) return null;
+    const longs: string[] = [];
+    const shorts: string[] = [];
+    for (const sig of data.top_signals.slice(0, 4)) {
+      const parts = sig.split(" ");
+      const ticker = parts[0].replace("/USDT", "");
+      const scorePart = parts[1] || "";
+      if (scorePart.startsWith("-")) {
+        shorts.push(ticker);
+      } else {
+        longs.push(ticker);
+      }
+    }
+    return { longs, shorts };
+  }, [data?.top_signals]);
+
   const Icon = visuals.icon;
-  const confidence = Math.max(data.bullish_pct, data.bearish_pct);
+  const confidence = Math.max(data?.bullish_pct ?? 0, data?.bearish_pct ?? 0);
 
   return (
     <div className={cn("bg-secondary/30 rounded-lg px-4 py-3 border border-border/50 backdrop-blur-sm flex items-center justify-between gap-8", visuals.bg)}>
@@ -104,50 +120,29 @@ export function MarketSentimentBar({ data, isLoading, isRefetching, onRefresh, e
 
       {/* Right: Top Signals or Progress Bar */}
       <div className="flex items-center gap-3">
-        {variant === "oracle" && data.top_signals && data.top_signals.length > 0 ? (
-          <>
-            {(() => {
-              const longs: string[] = [];
-              const shorts: string[] = [];
-
-              data.top_signals.slice(0, 4).forEach((sig: string) => {
-                const parts = sig.split(" ");
-                const ticker = parts[0].replace("/USDT", "");
-                const scorePart = parts[1] || "";
-
-                if (scorePart.startsWith("-")) {
-                  shorts.push(ticker);
-                } else {
-                  longs.push(ticker);
-                }
-              });
-
-              return (
-                <div className="flex items-center gap-2">
-                  {longs.length > 0 && (
-                    <div className="flex items-center gap-1">
-                      <span className="text-[9px] text-green-500 font-bold uppercase">L:</span>
-                      {longs.slice(0, 2).map((ticker) => (
-                        <span key={ticker} className="bg-background border border-green-500/30 px-1.5 py-0.5 rounded text-[9px] font-bold text-green-500">
-                          {ticker}
-                        </span>
-                      ))}
-                    </div>
-                  )}
-                  {shorts.length > 0 && (
-                    <div className="flex items-center gap-1">
-                      <span className="text-[9px] text-red-500 font-bold uppercase">S:</span>
-                      {shorts.slice(0, 2).map((ticker) => (
-                        <span key={ticker} className="bg-background border border-red-500/30 px-1.5 py-0.5 rounded text-[9px] font-bold text-red-500">
-                          {ticker}
-                        </span>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              );
-            })()}
-          </>
+        {variant === "oracle" && parsedSignals ? (
+          <div className="flex items-center gap-2">
+            {parsedSignals.longs.length > 0 && (
+              <div className="flex items-center gap-1">
+                <span className="text-[9px] text-green-500 font-bold uppercase">L:</span>
+                {parsedSignals.longs.slice(0, 2).map((ticker) => (
+                  <span key={ticker} className="bg-background border border-green-500/30 px-1.5 py-0.5 rounded text-[9px] font-bold text-green-500">
+                    {ticker}
+                  </span>
+                ))}
+              </div>
+            )}
+            {parsedSignals.shorts.length > 0 && (
+              <div className="flex items-center gap-1">
+                <span className="text-[9px] text-red-500 font-bold uppercase">S:</span>
+                {parsedSignals.shorts.slice(0, 2).map((ticker) => (
+                  <span key={ticker} className="bg-background border border-red-500/30 px-1.5 py-0.5 rounded text-[9px] font-bold text-red-500">
+                    {ticker}
+                  </span>
+                ))}
+              </div>
+            )}
+          </div>
         ) : (
           <div className="w-48 space-y-1">
             <div className="h-3 w-full bg-background/50 rounded-full overflow-hidden flex border border-white/5">

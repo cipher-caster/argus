@@ -1,16 +1,21 @@
 "use client";
 
 import {
-  fetchTradingPortfolio,
   fetchPositions,
   fetchTradeHistory,
+  fetchTradingPortfolio,
   fetchTradingConfig,
   fetchTradingStats,
-  updateTradingConfig,
   closePosition,
   closeAllPositions,
   pauseTrading,
+  updateTradingConfig,
+  Position,
+  PositionsResponse,
+  HistoryResponse,
+  TradingPortfolio,
   TradingConfig,
+  TradingStats,
 } from "@/lib/api";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
@@ -73,12 +78,23 @@ export function useUpdateTradingConfig() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (patch: Partial<TradingConfig>) => updateTradingConfig(patch),
-    onSuccess: () => {
+    onMutate: async (patch) => {
+      await qc.cancelQueries({ queryKey: ["trading", "config"] });
+      const previous = qc.getQueryData<TradingConfig>(["trading", "config"]);
+      if (previous) {
+        qc.setQueryData<TradingConfig>(["trading", "config"], { ...previous, ...patch });
+      }
+      return { previous };
+    },
+    onError: (error: Error, _patch, context) => {
+      if (context?.previous) {
+        qc.setQueryData(["trading", "config"], context.previous);
+      }
+      if (process.env.NODE_ENV === "development") console.error("Failed to update trading config:", error.message);
+    },
+    onSettled: () => {
       qc.invalidateQueries({ queryKey: ["trading", "config"] });
       qc.invalidateQueries({ queryKey: ["trading", "portfolio"] });
-    },
-    onError: (error: Error) => {
-      console.error("Failed to update trading config:", error.message);
     },
   });
 }
@@ -87,11 +103,25 @@ export function useClosePosition() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (id: number) => closePosition(id),
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["trading"] });
+    onMutate: async (id) => {
+      await qc.cancelQueries({ queryKey: ["trading"] });
+      const previous = qc.getQueryData<PositionsResponse>(["trading", "positions"]);
+      if (previous) {
+        qc.setQueryData<PositionsResponse>(["trading", "positions"], {
+          ...previous,
+          data: previous.data.map((p) => p.id === id ? { ...p, status: "CLOSED" as const } : p),
+        });
+      }
+      return { previous };
     },
-    onError: (error: Error) => {
-      console.error("Failed to close position:", error.message);
+    onError: (error: Error, _id, context) => {
+      if (context?.previous) {
+        qc.setQueryData(["trading", "positions"], context.previous);
+      }
+      if (process.env.NODE_ENV === "development") console.error("Failed to close position:", error.message);
+    },
+    onSettled: () => {
+      qc.invalidateQueries({ queryKey: ["trading"] });
     },
   });
 }

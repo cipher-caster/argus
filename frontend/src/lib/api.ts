@@ -324,6 +324,95 @@ export async function fetchTitanStrategy(symbol: string, timeframe: string = "4h
   return apiFetch<TitanStrategyResponse>(`${API_URL}/api/strategy/titan/${encodeURIComponent(symbol)}?timeframe=${timeframe}`);
 }
 
+// ---------------------------------------------------------------------------
+// Optimization API
+// ---------------------------------------------------------------------------
+
+export interface ExperimentParams {
+  sl_mult: number;
+  tp_mult: number;
+  tp_adaptive: boolean;
+  min_titan_confidence: number;
+  block_sleeping: boolean;
+  block_volatile: boolean;
+  macro_guard: boolean;
+  strict_macro: boolean;
+  min_conviction: number;
+}
+
+export interface ExperimentResults {
+  total_signals: number;
+  wins: number;
+  losses: number;
+  reviews: number;
+  win_rate: number;
+  total_r: number;
+  ev_per_trade: number;
+  avg_rr: number;
+}
+
+export interface Experiment {
+  id: number;
+  run_id: string;
+  name: string;
+  created_at: string;
+  symbols: string;
+  params: ExperimentParams;
+  results: ExperimentResults;
+  coin_results?: Record<string, ExperimentResults>;
+  notes: string;
+  is_production: boolean;
+}
+
+export interface TradeAnalysis {
+  total_trades: number;
+  win_rate: number;
+  total_r: number;
+  avg_rr: number;
+  [key: string]: unknown;
+}
+
+export interface Recommendation {
+  field: string;
+  current: unknown;
+  recommended: unknown;
+  reason: string;
+}
+
+export async function fetchExperiments(runId?: string, limit = 50): Promise<Experiment[]> {
+  const params = new URLSearchParams({ limit: limit.toString() });
+  if (runId) params.set("run_id", runId);
+  return apiFetch<Experiment[]>(`${API_URL}/api/optimization/experiments?${params}`);
+}
+
+export async function fetchExperiment(id: number): Promise<Experiment> {
+  return apiFetch<Experiment>(`${API_URL}/api/optimization/experiments/${id}`);
+}
+
+export async function fetchBestExperiment(minSignals = 30): Promise<Experiment> {
+  return apiFetch<Experiment>(`${API_URL}/api/optimization/best?min_signals=${minSignals}`);
+}
+
+export async function applyExperiment(experimentId: number): Promise<{ status: string; experiment_id: number; name: string }> {
+  return apiFetch(`${API_URL}/api/optimization/apply`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ experiment_id: experimentId }),
+  });
+}
+
+export async function fetchTradeAnalysis(): Promise<TradeAnalysis> {
+  return apiFetch<TradeAnalysis>(`${API_URL}/api/trading/analysis`);
+}
+
+export async function fetchTradeRecommendations(): Promise<Recommendation[]> {
+  return apiFetch<Recommendation[]>(`${API_URL}/api/trading/analysis/recommendations`);
+}
+
+export async function fetchTradeAnalysisReport(): Promise<{ report: string }> {
+  return apiFetch<{ report: string }>(`${API_URL}/api/trading/analysis/report`);
+}
+
 /**
  * Fetch Oracle Strategy analysis
  */

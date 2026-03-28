@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { useBacktestStats, useSignalLog } from "@/hooks/useAnalyticsData";
 import { CoinBacktestStats, SignalLogItem } from "@/lib/api";
 import { formatPriceCompact, formatDateTime } from "@/lib/formatters";
@@ -175,11 +175,14 @@ export function BacktestPerformance() {
   const [sortBy, setSortBy] = useState<SortKey>("profit_r");
   const [expandedCoin, setExpandedCoin] = useState<string | null>(null);
 
-  const sorted = [...(data?.coins ?? [])].sort((a, b) => {
-    if (sortBy === "profit_r") return b.profit_r - a.profit_r;
-    if (sortBy === "win_rate") return (b.win_rate ?? 0) - (a.win_rate ?? 0);
-    return b.total - a.total;
-  });
+  const sorted = useMemo(() =>
+    [...(data?.coins ?? [])].sort((a, b) => {
+      if (sortBy === "profit_r") return b.profit_r - a.profit_r;
+      if (sortBy === "win_rate") return (b.win_rate ?? 0) - (a.win_rate ?? 0);
+      return b.total - a.total;
+    }),
+    [data?.coins, sortBy]
+  );
 
   const overall = data?.overall;
 

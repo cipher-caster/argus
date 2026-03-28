@@ -1,7 +1,7 @@
 import { Sparkline } from "@/components/features/chart/Sparkline";
 import { Skeleton } from "@/components/ui/skeleton";
 import { CoinInfo } from "@/lib/marketApi";
-import { memo } from "react";
+import { memo, useMemo } from "react";
 
 interface StatsCardsProps {
   coins: CoinInfo[];
@@ -25,11 +25,14 @@ function StatsCardsComponent({ coins, isLoading }: StatsCardsProps) {
   };
 
   // Calculate stats from available coins
-  const totalVolume = coins.reduce((acc, coin) => acc + (coin.volume_24h || 0), 0);
-  const sorted = [...coins].sort((a, b) => (b.change_24h || 0) - (a.change_24h || 0));
-  const topGainer = sorted[0];
-  const topLoser = sorted[sorted.length - 1];
-  const volLeader = [...coins].sort((a, b) => (b.volume_24h || 0) - (a.volume_24h || 0))[0];
+  const { totalVolume, topGainer, topLoser, volLeader } = useMemo(() => {
+    const totalVolume = coins.reduce((acc, coin) => acc + (coin.volume_24h || 0), 0);
+    const sorted = [...coins].sort((a, b) => (b.change_24h || 0) - (a.change_24h || 0));
+    const topGainer = sorted[0];
+    const topLoser = sorted[sorted.length - 1];
+    const volLeader = [...coins].sort((a, b) => (b.volume_24h || 0) - (a.volume_24h || 0))[0];
+    return { totalVolume, topGainer, topLoser, volLeader };
+  }, [coins]);
 
 interface StatCardProps {
   title: string;
