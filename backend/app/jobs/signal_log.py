@@ -56,11 +56,18 @@ async def _get_config() -> dict:
 # ---------------------------------------------------------------------------
 
 async def _get_market_state() -> str:
-    """Return current market_state from cached signal-summary, or empty string."""
+    """Return current market_state (STRONG BULL/BEAR etc) or fallback to regime (BULL/BEAR)."""
+    # 1. Try Oracle market_state (High precision)
     data = await RedisClient.get_json("analytics:signal-summary")
-    if data:
-        return data.get("market_state", "")
-    return ""
+    if data and data.get("market_state"):
+        return data.get("market_state")
+    
+    # 2. Fallback to BTC Weekly Regime (Broad bias)
+    regime_data = await RedisClient.get_json("market:regime")
+    if regime_data and regime_data.get("regime"):
+        return regime_data.get("regime")
+        
+    return "UNKNOWN"
 
 
 async def _get_btc_oracle_signal() -> str:

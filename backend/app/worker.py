@@ -465,7 +465,7 @@ async def sync_analytics_cache(ctx):
     Runs every 5 minutes, offset from snapshot job.
     """
     import time
-    from app.routes.analytics import get_best_setups
+    from app.routes.analytics import get_best_setups, get_oracle_signal_summary
 
     # Make get_provider() inside analytics functions use the effective provider.
     effective = (
@@ -478,14 +478,20 @@ async def sync_analytics_cache(ctx):
 
     try:
         await _retry(
+            lambda: get_oracle_signal_summary(),
+            retries=3,
+            delay=2.0,
+            label="sync_analytics_cache:get_oracle_signal_summary",
+        )
+        await _retry(
             lambda: get_best_setups(timeframe="4h", limit=50),
             retries=3,
             delay=2.0,
             label="sync_analytics_cache:get_best_setups",
         )
-        logger.info("Job: Analytics cache warmed (best-setups 4h)")
+        logger.info("Job: Analytics cache warmed (signal-summary + best-setups 4h)")
     except Exception as e:
-        logger.warning(f"Cache warm failed for best-setups: {e}")
+        logger.warning(f"Cache warm failed: {e}")
 
     logger.info("Job: Analytics Cache Pre-warm Complete")
 

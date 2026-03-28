@@ -9,6 +9,7 @@ All notable changes to this project will be documented in this file.
 - **Clock-drift sensitive candle fetching** — `get_candles_df` now uses UTC epoch (`time.time()`) for freshness checks instead of local system time. This prevents the worker from skipping data updates when the container clock drifts (e.g. 16-hour drift previously caused stale data to be marked as "fresh").
 - **Resolution Lag** — OPEN signals now undergo a "Fast-path" resolution check against live ticker prices every 30 minutes. Previously, signals only resolved on 4H candle closes, causing significant delays in assessing trade performance.
 - **Symbol Normalization** — Resolution engine now handles both slash and no-slash symbol formats (`BTC/USDT` vs `BTCUSDT`) seamlessly when mapping exchange ticker data.
+- **Regime at Resolution Data** — Fixed "no data" bug by adding `get_oracle_signal_summary` to the worker's cache-warming job. This ensures market state context is available when signals resolve. Added a broad BTC-regime fallback for maximum reliability.
 
 ### Added
 
