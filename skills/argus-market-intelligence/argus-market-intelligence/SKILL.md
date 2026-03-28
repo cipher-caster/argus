@@ -13,7 +13,7 @@ This skill transforms Gemini CLI into a specialized crypto market analyst using 
 
 ### 1. Market Health Check
 Before any analysis, ensure the Argus stack is operational:
-- **Location:** `/home/mjm/Documents/projects/argus/`
+- **Location:** `.`
 - **Action:** Run `docker compose up -d backend worker redis db` (Exclude `frontend` to save resources).
 - **Verification:** `curl -s http://localhost:8000/api/market/summary` (Wait for sync if `cache-empty`).
 

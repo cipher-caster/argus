@@ -11,7 +11,7 @@ Use this skill when the user asks for:
 - "best setups right now"
 
 ## 🚀 Step 1: Ensure Project is Running
-1. Go to the project root: `/home/mjm/Documents/projects/argus/`
+1. Go to the project root: `.`
 2. Run `docker compose up -d backend worker redis db` (Frontend is optional for summaries).
 3. Verify backend is alive: `curl -s http://localhost:8000/api/market/summary`
    - If `total_coins` is 0 or it says `cache-empty`, wait 30–60s for the worker to sync.
@@ -29,6 +29,7 @@ Follow the template defined in `.claude/commands/read.md`.
 
 ### Template Summary:
 - **Market Pulse**: State, Sentiment (Bullish/Bearish %), BTC Dominance, Volatility, ADX.
+- **Geopolitical Context**: Current major drivers (e.g., Iran War) and their impact on risk-on vs. risk-off sentiment.
 - **Top Signals**: Highlights from `signal-summary`.
 - **Oracle Screener (1H)**: Top 5 by score (symbol, bias, state).
 - **Best Setups (4H)**: Top 5 by conviction (symbol, entry, TP, SL, win rate).

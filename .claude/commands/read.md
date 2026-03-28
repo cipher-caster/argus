@@ -332,7 +332,9 @@ If `long_term_mode = true`, add a 5th sentence summarizing the HODL verdict and 
 
 ---
 
-## Logging
+## Logging (STRICTLY NO PII)
+
+**STRICT MANDATE:** NEVER include personal information, names or user-specific identifiers, or user-specific context in these logs. All reports must be strictly technical and market-focused.
 
 After displaying the report to the user, always save it to `docs/market-reports/` using the Write tool.
 

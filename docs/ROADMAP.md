@@ -186,7 +186,7 @@
   - Risk gate audit: which gates are firing, are they helping or blocking good trades?
   - Signal quality trends over time (conviction vs outcome correlation)
   - Rejected signal analysis — how many, why, did any go on to win?
-- [ ] Dashboard for user (mjm) to observe AI trader performance at a glance
+- [ ] Dashboard for user to observe AI trader performance at a glance
 
 **Goal:** The analytics page should serve two audiences — Claude as the AI trader (feedback loop to improve), and the user as the observer (visibility into how trading is going). Current page is designed for a human browsing signals, which is no longer the primary use case. The data model needs to capture resolution-time context so we can actually learn what works.
 

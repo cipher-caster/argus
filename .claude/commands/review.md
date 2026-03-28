@@ -157,7 +157,7 @@ Deploy an agent to check these docs for staleness:
 
 ## Section D — Memory Review
 
-Read all memory files in the memory directory (`/home/mjm/.claude/projects/-home-mjm-Documents-projects-argus/memory/`):
+Read all memory files in the memory directory (`.claude/memory/`):
 
 1. Read `MEMORY.md` index
 2. Read each referenced memory file
