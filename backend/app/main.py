@@ -22,23 +22,34 @@ load_dotenv()
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Manage application lifecycle"""
-    
-    # Initialize Database (Storage)
-    Database.init()
-    print("✓ Argus Backend: Database initialized")
+
+    # Initialize Database
+    try:
+        Database.init()
+        print("✓ Argus Backend: Database initialized")
+    except Exception as e:
+        print(f"✗ Argus Backend: Database init failed — {e}")
+        raise RuntimeError(f"Database initialization failed: {e}") from e
 
     # Initialize Data Provider
-    from app.providers import get_provider, set_shared_provider
-    from app.routes.market import set_provider
-    provider = get_provider()
-    set_shared_provider(provider)
-    set_provider(provider)
-    print("✓ Argus Backend: Provider initialized")
-    
+    try:
+        from app.providers import get_provider, set_shared_provider
+        from app.routes.market import set_provider
+        provider = get_provider()
+        set_shared_provider(provider)
+        set_provider(provider)
+        print("✓ Argus Backend: Provider initialized")
+    except Exception as e:
+        print(f"✗ Argus Backend: Provider init failed — {e}")
+        raise RuntimeError(f"Provider initialization failed: {e}") from e
+
     yield
-    
+
     # Cleanup
-    await provider.close()
+    try:
+        await provider.close()
+    except Exception as e:
+        print(f"Warning: provider close failed — {e}")
     await Database.close()
     print("✓ Argus Backend: Storage closed")
 

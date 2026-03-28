@@ -7,7 +7,12 @@ from typing import Optional, Any
 
 # Environment Variables
 REDIS_URL = os.getenv("REDIS_URL", "redis://localhost:6379/0")
-DATABASE_URL = os.getenv("DATABASE_URL", "postgresql+asyncpg://argus:argus_password@localhost:5433/argus_db")
+DATABASE_URL = os.getenv("DATABASE_URL")
+if not DATABASE_URL:
+    raise RuntimeError(
+        "DATABASE_URL environment variable is required. "
+        "Example: postgresql+asyncpg://user:pass@host:5432/dbname"
+    )
 
 class RedisClient:
     _instance: Optional[redis.Redis] = None

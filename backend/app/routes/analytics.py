@@ -37,6 +37,8 @@ from app.utils.trading_utils import calculate_conviction
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/analytics", tags=["Analytics"])
 
+_FETCH_SEMAPHORE = asyncio.Semaphore(10)  # max 10 concurrent provider calls
+
 # Cache TTL in seconds.
 # Must be > pre-warm interval (300s / 5min) to ensure the cache is always
 # renewed before it expires. 360s gives a 60s safety buffer each cycle.
@@ -78,7 +80,11 @@ async def fetch_all_candles(symbols: List[str], timeframe: str = "1h", limit: in
             _should_close = True  # we created this fallback instance
 
     try:
-        tasks = [get_candles_df(sym, timeframe, limit, provider=provider) for sym in symbols]
+        async def _fetch_one(sym):
+            async with _FETCH_SEMAPHORE:
+                return await get_candles_df(sym, timeframe, limit, provider=provider)
+
+        tasks = [_fetch_one(sym) for sym in symbols]
         dataframes = await asyncio.gather(*tasks, return_exceptions=True)
 
         result = {

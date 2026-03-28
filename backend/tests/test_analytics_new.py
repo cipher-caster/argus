@@ -359,3 +359,43 @@ class TestBestSetupsRegimeCaching:
         # Regime should have been cached
         assert "market:regime" in stored
         assert stored["market:regime"]["regime"] == "BULL"
+
+
+# ---------------------------------------------------------------------------
+# fetch_all_candles — semaphore concurrency cap
+# ---------------------------------------------------------------------------
+
+class TestFetchAllCandlesConcurrency:
+
+    @pytest.mark.asyncio
+    async def test_max_concurrent_calls_never_exceeds_10(self):
+        """fetch_all_candles must never run more than 10 provider calls at once."""
+        import asyncio
+        from app.routes.analytics import fetch_all_candles
+
+        symbols = [f"SYM{i}USDT" for i in range(20)]
+
+        peak_concurrent = 0
+        current_concurrent = 0
+
+        async def slow_get_candles_df(sym, timeframe, limit, provider=None):
+            nonlocal peak_concurrent, current_concurrent
+            current_concurrent += 1
+            peak_concurrent = max(peak_concurrent, current_concurrent)
+            await asyncio.sleep(0.05)  # simulate I/O
+            current_concurrent -= 1
+            import pandas as pd
+            return pd.DataFrame()
+
+        with patch("app.routes.analytics.get_candles_df", slow_get_candles_df), \
+             patch("app.routes.analytics.get_provider") as mock_get_provider, \
+             patch("app.routes.analytics.owns_provider", return_value=False):
+            mock_provider = MagicMock()
+            mock_provider.name = "binance"
+            mock_get_provider.return_value = mock_provider
+
+            await fetch_all_candles(symbols, timeframe="4h", limit=300)
+
+        assert peak_concurrent <= 10, (
+            f"Expected max 10 concurrent calls, but saw {peak_concurrent}"
+        )
