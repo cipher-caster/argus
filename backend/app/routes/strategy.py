@@ -19,7 +19,7 @@ from app.strategies.oracle import OracleStrategy
 from app.strategies.titan import TitanStrategy
 from app.storage import Database, RedisClient
 from app.schemas.candle import Candle as DbCandle
-from app.providers import get_provider, DataProvider
+from app.providers import get_provider, DataProvider, BinanceProvider, OKXProvider
 
 router = APIRouter(prefix="/api/strategy", tags=["strategy"])
 
@@ -68,7 +68,7 @@ async def get_candles_df(symbol: str, timeframe: str, limit: int = 500, provider
             try:
                 fetch_limit = min(limit, 1000)
                 
-                logger.info(f"Fetching {timeframe} for {symbol} from Binance")
+                logger.info(f"Fetching {timeframe} for {symbol} from {local_provider.name}")
                 fresh = await local_provider.get_ohlcv(symbol, timeframe=timeframe, limit=fetch_limit)
                 
                 # Save to DB (Async)
@@ -173,20 +173,36 @@ async def get_oracle_strategy(
 
 @router.get("/titan/{symbol:path}")
 async def get_titan_strategy(
-    symbol: str, 
-    timeframe: str = Query(default="4h", description="Timeframe for analysis")
+    symbol: str,
+    timeframe: str = Query(default="4h", description="Timeframe for analysis"),
+    provider: Optional[str] = Query(default=None, description="Data provider override: 'binance' or 'okx'"),
 ):
     """
     Runs the Titan Unified Trading System on a symbol.
     """
     try:
-        cache_key = f"strategy:titan:{symbol}:{timeframe}"
+        provider_name = provider.lower() if provider else None
+        if provider_name and provider_name not in ("binance", "okx"):
+            raise HTTPException(status_code=400, detail="provider must be 'binance' or 'okx'")
+
+        cache_key = f"strategy:titan:{symbol}:{timeframe}:{provider_name or 'default'}"
         cached = await RedisClient.get_json(cache_key)
         if cached:
             return cached
 
-        # Fetch sufficient data for 200 EMA + lookback
-        df = await get_candles_df(symbol, timeframe, limit=300)
+        # Instantiate a one-off provider if an override was requested
+        override_provider: Optional[DataProvider] = None
+        if provider_name == "okx":
+            override_provider = OKXProvider()
+        elif provider_name == "binance":
+            override_provider = BinanceProvider()
+
+        try:
+            # Fetch sufficient data for 200 EMA + lookback
+            df = await get_candles_df(symbol, timeframe, limit=300, provider=override_provider)
+        finally:
+            if override_provider is not None:
+                await override_provider.close()
 
         if df.empty:
              raise HTTPException(status_code=404, detail=f"Insufficient data for {symbol}")
@@ -197,12 +213,13 @@ async def get_titan_strategy(
         # Add metadata
         result['symbol'] = symbol
         result['timeframe'] = timeframe
+        result['provider'] = provider_name or os.getenv("DATA_PROVIDER", "binance").lower()
         result['price'] = df.iloc[-1]['close']
         result['last_updated'] = int(time.time() * 1000)
 
         await RedisClient.set_json(cache_key, result, ttl=60)
         return result
-        
+
     except HTTPException:
         raise
     except Exception as e:

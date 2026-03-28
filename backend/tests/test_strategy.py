@@ -152,6 +152,41 @@ async def test_oracle_strategy_generic_500_on_unexpected_error(async_client):
 
 
 @pytest.mark.asyncio
+async def test_get_titan_strategy_with_okx_provider(async_client):
+    """Test the /titan route accepts provider=okx and routes through OKXProvider."""
+    mock_df = pd.DataFrame({
+        "timestamp": pd.date_range("2024-01-01", periods=250, freq="4h"),
+        "open": [10]*250, "high": [11]*250, "low": [9]*250, "close": [10.5]*250, "volume": [1000]*250
+    })
+
+    with patch("app.routes.strategy.RedisClient.get_json", new_callable=AsyncMock, return_value=None):
+        with patch("app.routes.strategy.RedisClient.set_json", new_callable=AsyncMock):
+            with patch("app.routes.strategy.OKXProvider") as MockOKX:
+                mock_okx_instance = AsyncMock()
+                mock_okx_instance.name = "okx"
+                MockOKX.return_value = mock_okx_instance
+                with patch("app.routes.strategy.get_candles_df", new_callable=AsyncMock, return_value=mock_df):
+                    with patch("app.routes.strategy.titan.analyze") as mock_analyze:
+                        mock_analyze.return_value = {"signal": "BUY", "confidence": 75}
+
+                        response = await async_client.get("/api/strategy/titan/HYPEUSDT?timeframe=4h&provider=okx")
+
+                        assert response.status_code == 200
+                        data = response.json()
+                        assert data["signal"] == "BUY"
+                        assert data["provider"] == "okx"
+                        mock_okx_instance.close.assert_called_once()
+
+
+@pytest.mark.asyncio
+async def test_get_titan_strategy_invalid_provider(async_client):
+    """Test the /titan route rejects unknown provider names."""
+    response = await async_client.get("/api/strategy/titan/BTCUSDT?provider=kraken")
+    assert response.status_code == 400
+    assert "provider" in response.json()["detail"]
+
+
+@pytest.mark.asyncio
 async def test_titan_strategy_generic_500_on_unexpected_error(async_client):
     """When an unexpected exception occurs, the titan route returns 500 with a generic message."""
     with patch("app.routes.strategy.RedisClient.get_json", new_callable=AsyncMock, return_value=None):
