@@ -355,7 +355,7 @@ async def get_ohlcv(request: OHLCVRequest):
 
 ## 🧪 Testing
 
-**Backend** (321 tests — Phase A/B/C added 115 more tests; 7 previously failing tests fixed in 2026-03-27 refactor):
+**Backend** (367 tests — Phase A/B/C added 115 more tests; v0.9.9 hardening added 46 more; 7 previously failing tests fixed in 2026-03-27 refactor):
 
 ```bash
 # Run all tests

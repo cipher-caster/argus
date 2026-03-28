@@ -109,7 +109,7 @@ Paper trading engine. All components are async and interact with the Postgres `P
 
 | File | Class / entrypoint | Description |
 |------|--------------------|-------------|
-| `orchestrator.py` | `TradeOrchestrator` | Main simulation loop. `process_signal()` creates positions from new OPEN signals, filling immediately at market price (intended entry preserved for reference); entry tolerance gate (`entry_tolerance_pct`) skips signals where price has already drifted too far from the intended entry. `check_pending_fills()` market-fills any remaining PENDING positions. `check_open_positions()` transitions OPEN → CLOSED on TP/SL hit or expiry; `check_circuit_breaker()` pauses trading when drawdown threshold is exceeded. Default config stored in `DEFAULT_TRADING_CONFIG` and persisted to Redis. Key config params: `max_position_size_pct` (notional % of balance per position), `entry_tolerance_pct` (default 1%), `order_expiry_hours`, `min_conviction`. |
+| `orchestrator.py` | `TradeOrchestrator` | Main simulation loop. `process_signal()` creates positions from new OPEN signals, filling immediately at market price (intended entry preserved for reference). `check_pending_fills()` market-fills any remaining PENDING positions. `check_open_positions()` transitions OPEN → CLOSED on TP/SL hit or expiry; `check_circuit_breaker()` pauses trading when drawdown threshold is exceeded. Default config stored in `DEFAULT_TRADING_CONFIG` and persisted to Redis. Key config params: `max_position_size_pct` (notional % of balance per position), `order_expiry_hours`, `min_conviction`. |
 | `risk_manager.py` | `RiskManager` | Static gate methods run in sequence before any position is created: drawdown circuit breaker, max concurrent positions, correlated-pair limit (`correlation_groups` config), conviction gate (`min_conviction`). Position size = `balance × max_position_size_pct` (notional cap). First failure rejects the trade. |
 | `portfolio.py` | `PortfolioTracker` | Real-time P&L, balance, and drawdown derived from the `Position` table + current prices pulled from Redis market tickers. Helper `_price_map_from_tickers()` converts the `market:tickers` Redis list into a `{BTCUSDT: price}` dict. |
 | `analyzer.py` | `TradeAnalyzer` | Queries closed positions and `OptimizationExperiment` rows. Surfaces per-coin, per-direction, per-market-state, and per-conviction-bucket breakdowns. Compares live win rate vs backtest win rate and generates config change recommendations. |
@@ -143,7 +143,7 @@ PENDING  →  OPEN  →  CLOSED
 
 ## Testing Strategy
 
-**321 backend tests** (pytest) organized by module:
+**367 backend tests** (pytest) organized by module:
 
 | Test File | Tests | Coverage |
 |-----------|-------|----------|
