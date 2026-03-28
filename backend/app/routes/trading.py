@@ -40,7 +40,6 @@ class TradingConfigUpdate(BaseModel):
     min_conviction: Optional[int] = Field(None, ge=0, le=100)
     max_total_exposure_pct: Optional[float] = Field(None, gt=0, le=1000)
     order_expiry_hours: Optional[int] = Field(None, ge=1, le=168)
-    entry_tolerance_pct: Optional[float] = Field(None, ge=0, le=10)
     enabled: Optional[bool] = None
 
 

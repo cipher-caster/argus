@@ -41,7 +41,6 @@ DEFAULT_TRADING_CONFIG = {
     "min_conviction": 50,
     "max_total_exposure_pct": 300.0,
     "order_expiry_hours": 24,
-    "entry_tolerance_pct": 1.0,
     "correlation_groups": {
         "btc_correlated": [
             "BTCUSDT", "ETHUSDT", "BNBUSDT",
@@ -151,24 +150,6 @@ class TradeOrchestrator:
             prices = await _get_prices()
             current_price = prices.get(signal.symbol)
             is_market = not is_limit
-
-            # Price tolerance gate: skip if current price has drifted too far from intended entry.
-            # Prevents taking a trade where the setup's R:R is already degraded.
-            if current_price and signal.entry:
-                tolerance = config.get("entry_tolerance_pct", 1.0) / 100
-                drift = (current_price - signal.entry) / signal.entry
-                too_far = (
-                    (signal.direction == "SHORT" and drift < -tolerance) or
-                    (signal.direction == "LONG" and drift > tolerance)
-                )
-                if too_far:
-                    reason = (
-                        f"entry drift {drift*100:.1f}% exceeds tolerance "
-                        f"±{tolerance*100:.1f}% (current={current_price} intended={signal.entry})"
-                    )
-                    logger.info(f"Orchestrator: {signal.symbol} {signal.direction} SKIPPED — {reason}")
-                    await notifier.notify_risk_rejected(signal.symbol, signal.direction, reason)
-                    return None
 
             position = Position(
                 signal_log_id=signal.id,
