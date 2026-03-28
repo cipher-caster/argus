@@ -262,7 +262,11 @@ class TradeOrchestrator:
                 )
                 await notifier.notify_position_filled(pos)
 
-            await session.commit()
+            try:
+                await session.commit()
+            except Exception as e:
+                await session.rollback()
+                logger.error(f"Orchestrator: check_pending_fills commit failed — {e}", exc_info=True)
 
     # ------------------------------------------------------------------
     # check_open_positions: OPEN → CLOSED (WIN/LOSS)
@@ -397,7 +401,12 @@ class TradeOrchestrator:
                 )
                 await notifier.notify_position_closed(pos)
 
-            await session.commit()
+            try:
+                await session.commit()
+            except Exception as e:
+                await session.rollback()
+                logger.error(f"Orchestrator: check_open_positions commit failed — {e}", exc_info=True)
+                return
 
     # ------------------------------------------------------------------
     # check_circuit_breaker: auto-disable trading on large drawdown
@@ -420,21 +429,26 @@ class TradeOrchestrator:
             )
             # Cancel all pending, disable trading
             now_ms = int(time.time() * 1000)
-            async with Database.get_session() as session:
-                result = await session.execute(
-                    select(Position).where(Position.status == "PENDING")
-                )
-                pending = result.scalars().all()
-                for pos in pending:
-                    pos.status = "CANCELLED"
-                    pos.outcome = "EXPIRED"
-                    pos.closed_at = now_ms
-                    session.add(pos)
-                    await _log_event(session, pos.id, "CIRCUIT_BREAKER", {
-                        "balance": balance,
-                        "floor": floor,
-                    })
-                await session.commit()
+            try:
+                async with Database.get_session() as session:
+                    result = await session.execute(
+                        select(Position).where(Position.status == "PENDING")
+                    )
+                    pending = result.scalars().all()
+                    for pos in pending:
+                        pos.status = "CANCELLED"
+                        pos.outcome = "EXPIRED"
+                        pos.closed_at = now_ms
+                        session.add(pos)
+                        await _log_event(session, pos.id, "CIRCUIT_BREAKER", {
+                            "balance": balance,
+                            "floor": floor,
+                        })
+                    await session.commit()
+            except Exception as e:
+                logger.error(f"Orchestrator: circuit breaker DB operations failed — {e}", exc_info=True)
+                # Config was already saved disabled — log but don't re-raise
+                # (better to be safe: trading stays disabled even if cancel fails)
 
             config["enabled"] = False
             await save_trading_config(config)

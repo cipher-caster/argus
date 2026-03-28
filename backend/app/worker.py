@@ -15,6 +15,19 @@ from app.utils.trading_utils import calculate_conviction
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
+
+async def _retry(coro_fn, retries: int = 3, delay: float = 2.0, label: str = ""):
+    """Run an async callable with simple linear retry on exception."""
+    for attempt in range(1, retries + 1):
+        try:
+            return await coro_fn()
+        except Exception as e:
+            if attempt == retries:
+                logger.error(f"{label} failed after {retries} attempts: {e}", exc_info=True)
+                raise
+            logger.warning(f"{label} attempt {attempt}/{retries} failed: {e} — retrying in {delay}s")
+            await asyncio.sleep(delay)
+
 # Global Provider Instance (hot-swappable based on Redis config)
 provider = None
 _active_provider = None
@@ -297,12 +310,22 @@ async def sync_market_summary(ctx):
             # Primary provider is in cooldown — use Binance directly, no timeout wait
             fallback = BinanceProvider()
             try:
-                tickers = await fallback.get_all_tickers()
+                tickers = await _retry(
+                    lambda: fallback.get_all_tickers(),
+                    retries=3,
+                    delay=2.0,
+                    label="sync_market_summary:fallback:get_all_tickers",
+                )
             finally:
                 await fallback.close()
         else:
             try:
-                tickers = await active.get_all_tickers()
+                tickers = await _retry(
+                    lambda: active.get_all_tickers(),
+                    retries=3,
+                    delay=2.0,
+                    label="sync_market_summary:get_all_tickers",
+                )
                 _provider_unavailable_until = 0  # clear backoff on success
             except Exception as provider_err:
                 if active.name != "binance":
@@ -313,7 +336,12 @@ async def sync_market_summary(ctx):
                     )
                     fallback = BinanceProvider()
                     try:
-                        tickers = await fallback.get_all_tickers()
+                        tickers = await _retry(
+                            lambda: fallback.get_all_tickers(),
+                            retries=3,
+                            delay=2.0,
+                            label="sync_market_summary:fallback:get_all_tickers",
+                        )
                     finally:
                         await fallback.close()
                 else:
@@ -389,8 +417,13 @@ async def sync_market_snapshot(ctx):
                     "sparkline": "true",
                     "price_change_percentage": "1h,7d"
                 }
-                
-                resp = await client.get(base_url, params=params, timeout=30.0)
+
+                resp = await _retry(
+                    lambda: client.get(base_url, params=params, timeout=30.0),
+                    retries=3,
+                    delay=2.0,
+                    label=f"sync_market_snapshot:coingecko:page{page}",
+                )
                 if resp.status_code == 200:
                     data = resp.json()
                     all_coins.extend(data)
@@ -444,7 +477,12 @@ async def sync_analytics_cache(ctx):
     logger.info(f"Job: Pre-warming Analytics Cache (provider={effective})...")
 
     try:
-        await get_best_setups(timeframe="4h", limit=50)
+        await _retry(
+            lambda: get_best_setups(timeframe="4h", limit=50),
+            retries=3,
+            delay=2.0,
+            label="sync_analytics_cache:get_best_setups",
+        )
         logger.info("Job: Analytics cache warmed (best-setups 4h)")
     except Exception as e:
         logger.warning(f"Cache warm failed for best-setups: {e}")

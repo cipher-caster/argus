@@ -969,3 +969,133 @@ class TestCandleWalkResolution:
         # Position should remain unchanged
         assert pos.status == "OPEN"
         assert pos.outcome is None
+
+
+# ---------------------------------------------------------------------------
+# Error handling: commit failures trigger rollback and logging
+# ---------------------------------------------------------------------------
+
+class TestOrchestratorCommitErrorHandling:
+    """Verify that commit failures in each method trigger rollback and log an error."""
+
+    def _make_session(self, commit_raises=False):
+        mock_session = AsyncMock()
+        mock_session.__aenter__ = AsyncMock(return_value=mock_session)
+        mock_session.__aexit__ = AsyncMock(return_value=None)
+        mock_session.add = MagicMock()
+        mock_session.rollback = AsyncMock()
+        if commit_raises:
+            mock_session.commit = AsyncMock(side_effect=Exception("DB commit error"))
+        else:
+            mock_session.commit = AsyncMock()
+        return mock_session
+
+    @pytest.mark.asyncio
+    async def test_check_pending_fills_commit_failure_calls_rollback(self):
+        """check_pending_fills: commit failure triggers rollback and logs error."""
+        from app.trading.orchestrator import TradeOrchestrator
+
+        orch = TradeOrchestrator()
+        config = make_config(enabled=True, order_expiry_hours=8)
+        mock_session = self._make_session(commit_raises=True)
+
+        pos = MagicMock()
+        pos.symbol = "BTCUSDT"
+        pos.direction = "LONG"
+        pos.id = 1
+        pos.created_at = int(time.time() * 1000)  # fresh — not expired
+        pos.intended_entry = 50000.0
+
+        result_mock = MagicMock()
+        result_mock.scalars.return_value.all.return_value = [pos]
+        mock_session.execute = AsyncMock(return_value=result_mock)
+
+        with (
+            patch("app.trading.orchestrator.get_trading_config", return_value=config),
+            patch("app.trading.orchestrator.Database.get_session", return_value=mock_session),
+            patch("app.trading.orchestrator._get_prices", new_callable=AsyncMock, return_value={}),
+            patch("app.trading.orchestrator.logger") as mock_logger,
+        ):
+            # Should not raise despite commit failure
+            await orch.check_pending_fills(config=config, prices={})
+
+        mock_session.rollback.assert_awaited_once()
+        mock_logger.error.assert_called_once()
+        assert "check_pending_fills" in mock_logger.error.call_args[0][0]
+
+    @pytest.mark.asyncio
+    async def test_check_open_positions_commit_failure_calls_rollback(self):
+        """check_open_positions: commit failure triggers rollback and logs error."""
+        from app.trading.orchestrator import TradeOrchestrator
+
+        orch = TradeOrchestrator()
+        config = make_config(enabled=True)
+        mock_session = self._make_session(commit_raises=True)
+
+        pos = _make_position(direction="LONG", entry=50000, tp=52000, sl=49000)
+        result_mock = MagicMock()
+        result_mock.scalars.return_value.all.return_value = [pos]
+        mock_session.execute = AsyncMock(return_value=result_mock)
+
+        candles = _make_candles([
+            (1000, 50000, 52100, 49800, 51800),  # TP hit
+        ])
+
+        with (
+            patch("app.trading.orchestrator.get_trading_config", return_value=config),
+            patch("app.trading.orchestrator.Database.get_session", return_value=mock_session),
+            patch("app.routes.strategy.get_candles_df", new_callable=AsyncMock, return_value=candles),
+            patch("app.trading.orchestrator.notifier.notify_position_closed", new_callable=AsyncMock),
+            patch("app.trading.orchestrator.RedisClient.get_json", new_callable=AsyncMock, return_value={}),
+            patch("app.trading.orchestrator.logger") as mock_logger,
+        ):
+            # Should not raise despite commit failure
+            await orch.check_open_positions(config=config)
+
+        mock_session.rollback.assert_awaited_once()
+        mock_logger.error.assert_called_once()
+        assert "check_open_positions" in mock_logger.error.call_args[0][0]
+
+    @pytest.mark.asyncio
+    async def test_check_circuit_breaker_db_failure_still_disables_trading(self):
+        """check_circuit_breaker: DB failure is logged but trading is still disabled."""
+        from app.trading.orchestrator import TradeOrchestrator
+
+        orch = TradeOrchestrator()
+        config = make_config(enabled=True, initial_capital=100.0, max_drawdown_pct=10.0)
+        # Balance below floor → circuit breaker triggers
+        balance_below_floor = 85.0
+
+        mock_session = self._make_session(commit_raises=True)
+        result_mock = MagicMock()
+        result_mock.scalars.return_value.all.return_value = []
+        mock_session.execute = AsyncMock(return_value=result_mock)
+
+        saved_configs = []
+
+        async def capture_save(cfg):
+            saved_configs.append(dict(cfg))
+
+        with (
+            patch("app.trading.orchestrator.get_trading_config", return_value=config),
+            patch("app.trading.orchestrator.Database.get_session", return_value=mock_session),
+            patch("app.trading.orchestrator.save_trading_config", side_effect=capture_save),
+            patch("app.trading.orchestrator.notifier.notify_circuit_breaker", new_callable=AsyncMock),
+            patch("app.trading.orchestrator.logger") as mock_logger,
+        ):
+            # Mock portfolio so balance returns below floor
+            portfolio_mock = AsyncMock()
+            portfolio_mock.get_balance = AsyncMock(return_value=balance_below_floor)
+            portfolio_mock.initial_capital = 100.0
+            orch._portfolio = portfolio_mock
+
+            # Should not raise despite DB failure
+            await orch.check_circuit_breaker(config=config)
+
+        # DB error must be logged
+        mock_logger.error.assert_called_once()
+        assert "circuit breaker" in mock_logger.error.call_args[0][0]
+
+        # Trading must be disabled regardless of the DB failure
+        assert len(saved_configs) == 1
+        assert saved_configs[0]["enabled"] is False

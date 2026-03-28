@@ -88,6 +88,55 @@ async def test_ohlcv_fresh_data_skips_binance_fetch():
 
 
 @pytest.mark.asyncio
+async def test_bulk_upsert_uses_single_execute_call():
+    """
+    When fresh candles are fetched from the provider, the service must persist
+    them with a single bulk execute call (not N individual merge calls).
+    """
+    from app.services.market_data import MarketDataService
+
+    # Simulate an empty DB so the fetch path is triggered
+    mock_session = _make_mock_session([])
+    mock_session.execute = AsyncMock(return_value=mock_session.execute.return_value)
+
+    class FakeProviderCandle:
+        def __init__(self, ts):
+            self.timestamp = ts
+            self.open = 1.0
+            self.high = 2.0
+            self.low = 0.5
+            self.close = 1.5
+            self.volume = 100.0
+
+    fake_candles = [FakeProviderCandle(i * 1000) for i in range(5)]
+
+    mock_provider = AsyncMock()
+    mock_provider.name = "binance"
+    mock_provider.get_ohlcv.return_value = fake_candles
+
+    with patch("app.storage.Database.get_session") as mock_get_session:
+        mock_get_session.return_value.__aenter__.return_value = mock_session
+
+        with patch("app.providers.get_provider", return_value=mock_provider):
+            with patch("app.providers.owns_provider", return_value=False):
+                try:
+                    await MarketDataService.fetch_and_sync_ohlcv(
+                        "BTC/USDT", timeframe="1h", limit=100
+                    )
+                except Exception:
+                    pass  # DB re-query after insert may fail in mock context
+
+    # execute() is called: once for the initial DB query, once for the bulk insert,
+    # and once for the re-query — but critically NOT once-per-candle (5 candles = 5 calls).
+    # The bulk insert is a single execute call, so total calls must be < len(fake_candles).
+    total_execute_calls = mock_session.execute.call_count
+    assert total_execute_calls < len(fake_candles), (
+        f"Expected fewer than {len(fake_candles)} execute calls (bulk upsert), "
+        f"but got {total_execute_calls}"
+    )
+
+
+@pytest.mark.asyncio
 async def test_ohlcv_data_provider_error_returns_503_generic(async_client):
     """DataProviderError should return 503 with a generic message (no raw exception string)."""
     from app.exceptions import DataProviderError

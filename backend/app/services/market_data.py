@@ -9,6 +9,7 @@ import logging
 import os
 from typing import List, Dict, Any, Optional, Tuple
 from sqlmodel import select
+from sqlalchemy.dialects.postgresql import insert as pg_insert
 
 from app.storage import RedisClient, Database
 from app.schemas.candle import Candle as DbCandle
@@ -102,20 +103,34 @@ class MarketDataService:
                         fresh_candles = await provider.get_ohlcv(symbol, timeframe=timeframe, limit=1000, since=since_ts)
 
                         # Save to DB
-                        for c in fresh_candles:
-                            candle_db = DbCandle(
-                                symbol=symbol,
-                                provider=provider.name,
-                                timeframe=timeframe,
-                                timestamp=c.timestamp,
-                                open=c.open,
-                                high=c.high,
-                                low=c.low,
-                                close=c.close,
-                                volume=c.volume
+                        if fresh_candles:
+                            rows = [
+                                {
+                                    "symbol": symbol,
+                                    "timeframe": timeframe,
+                                    "timestamp": c.timestamp,
+                                    "open": c.open,
+                                    "high": c.high,
+                                    "low": c.low,
+                                    "close": c.close,
+                                    "volume": c.volume,
+                                    "provider": provider.name,
+                                }
+                                for c in fresh_candles
+                            ]
+                            stmt = pg_insert(DbCandle).values(rows)
+                            stmt = stmt.on_conflict_do_update(
+                                index_elements=["symbol", "timeframe", "timestamp", "provider"],
+                                set_={
+                                    "open": stmt.excluded.open,
+                                    "high": stmt.excluded.high,
+                                    "low": stmt.excluded.low,
+                                    "close": stmt.excluded.close,
+                                    "volume": stmt.excluded.volume,
+                                },
                             )
-                            await session.merge(candle_db)
-                        await session.commit()
+                            await session.execute(stmt)
+                            await session.commit()
                         logger.info(f"Saved {len(fresh_candles)} candles to DB for {symbol} {timeframe}")
 
                         # Re-query

@@ -3,7 +3,7 @@ Tests for background worker jobs (`worker.py`).
 """
 import pytest
 from unittest.mock import patch, AsyncMock, MagicMock
-from app.worker import sync_market_summary, sync_market_snapshot, sync_analytics_cache
+from app.worker import sync_market_summary, sync_market_snapshot, sync_analytics_cache, _retry
 
 
 @pytest.fixture
@@ -43,17 +43,22 @@ async def test_sync_market_summary_success(mock_ctx):
 
 @pytest.mark.asyncio
 async def test_sync_market_summary_handles_provider_error(mock_ctx):
-    """Test that the job gracefully handles errors from the provider."""
+    """Test that the job gracefully handles errors from the provider after all retries."""
     mock_provider = AsyncMock()
     mock_provider.name = "binance"
     mock_provider.get_all_tickers.side_effect = Exception("Binance API down")
 
     # Should not raise an exception or crash the worker
     with patch("app.worker.get_active_provider", new_callable=AsyncMock, return_value=mock_provider):
-        with patch("app.worker.logger.error") as mock_logger:
-            await sync_market_summary(mock_ctx)
-            mock_logger.assert_called_once()
-            assert "Job Failed: sync_market_summary" in mock_logger.call_args[0][0]
+        with patch("asyncio.sleep", new_callable=AsyncMock):
+            with patch("app.worker.logger.error") as mock_logger:
+                await sync_market_summary(mock_ctx)
+                # _retry logs an error on final attempt, outer handler logs another
+                assert mock_logger.called
+                assert any(
+                    "Job Failed: sync_market_summary" in str(call)
+                    for call in mock_logger.call_args_list
+                )
 
 
 @pytest.mark.asyncio
@@ -100,3 +105,41 @@ async def test_sync_market_snapshot_success():
                 assert len(snapshot_data) == 1
                 assert snapshot_data[0]["symbol"] == "BTC/USDT"
                 assert snapshot_data[0]["price"] == 50000
+
+
+# --- Tests for _retry helper ---
+
+@pytest.mark.asyncio
+async def test_retry_succeeds_on_second_attempt():
+    """_retry should return the result when a callable fails once then succeeds."""
+    call_count = 0
+
+    async def flaky():
+        nonlocal call_count
+        call_count += 1
+        if call_count < 2:
+            raise ValueError("transient error")
+        return "ok"
+
+    with patch("asyncio.sleep", new_callable=AsyncMock):
+        result = await _retry(flaky, retries=3, delay=0.0, label="test")
+
+    assert result == "ok"
+    assert call_count == 2
+
+
+@pytest.mark.asyncio
+async def test_retry_raises_after_max_retries():
+    """_retry should raise the exception after exhausting all retry attempts."""
+    call_count = 0
+
+    async def always_fails():
+        nonlocal call_count
+        call_count += 1
+        raise ConnectionError("network down")
+
+    with patch("asyncio.sleep", new_callable=AsyncMock):
+        with pytest.raises(ConnectionError, match="network down"):
+            await _retry(always_fails, retries=3, delay=0.0, label="test")
+
+    assert call_count == 3
