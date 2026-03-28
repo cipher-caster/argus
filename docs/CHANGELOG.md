@@ -2,6 +2,38 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.9.9] - 2026-03-28 — Backend Audit & Hardening
+
+### Fixed
+
+- **Silent regime detection failure** — `except Exception: pass` on BTC weekly EMA50 computation in `best-setups` endpoint now logs a warning instead of swallowing the error silently.
+- **Raw error leaks in API responses** — 20+ endpoints were returning raw `str(e)` in HTTP 500/503 detail fields. All sanitised to generic messages; full errors logged server-side only.
+- **Wrong status code** — generic exceptions in `indicators/calculate` were mapped to 400 (Bad Request); corrected to 500.
+- **`apply_experiment` partial-apply risk** — multi-step Redis + DB config update now wrapped in try/except with Redis rollback on failure; previously a mid-flight failure left signal_log config and trading config out of sync.
+- **Orchestrator commit failures** — `check_pending_fills`, `check_open_positions`, and `check_circuit_breaker` now catch session commit exceptions, call rollback, and log errors; positions can no longer get permanently stuck in OPEN state on a DB error.
+- **N+1 candle inserts** — `session.merge()` loop in `market_data.py` replaced with a single bulk `pg_insert().on_conflict_do_update()` statement.
+- **Entry tolerance gate removed** — gate was rejecting valid PENDING positions when price temporarily drifted before the `execute_signals` job ran. LIMIT signals wait for their intended entry via `check_pending_fills` anyway. Removed entirely along with `entry_tolerance_pct` config key.
+
+### Added
+
+- **DB connection pool config** — `create_async_engine` now sets `pool_size=10`, `max_overflow=20`, `pool_recycle=3600`, `pool_pre_ping=True`; previously used SQLAlchemy defaults (pool_size=5).
+- **Real health check** — `GET /health` now pings Redis and verifies DB engine; returns 503 with `"degraded"` status if either is unavailable instead of always returning 200.
+- **Regime Redis cache** — BTC weekly EMA50 regime cached under `market:regime` with 1hr TTL, shared between `analytics.py` and `signal_log.py`; previously recomputed on every call.
+- **Dashboard indicators cache** — `GET /api/indicators/market/dashboard` now caches results in Redis for 300s; previously recomputed on every dashboard load.
+- **Worker retry helper** — lightweight `_retry()` async helper (no new deps) wraps exchange ticker fetches and HTTP calls in `worker.py` with 3 attempts and 2s linear delay.
+- **Input validation on analytics endpoints** — `timeframe` parameter now validated with regex pattern on `screener`, `contrarian-radar`, `best-setups`, and `titan-radar` endpoints; invalid values return 422.
+- **Bounds validation on `TradingConfigUpdate`** — Pydantic `Field` constraints added to all numeric config fields (`initial_capital gt=0`, `max_drawdown_pct le=100`, etc.).
+- **CORS whitelist** — `allow_methods` and `allow_headers` tightened from `["*"]` to explicit whitelists.
+- **Shared utilities** — `app/utils/trading_utils.py` with `calculate_conviction()` replacing 3 duplicated implementations; `app/constants.py` with `TIMEFRAME_MS` replacing 2 duplicated dicts.
+
+### Tests
+
+- +45 new test cases; **366 backend tests passing, 0 failures** (up from 321 at v0.9.8).
+- New test files: `test_trading_utils.py`, `test_constants.py`.
+- New test classes covering: regime cache hit/miss, dashboard cache, error sanitisation, timeframe validation, orchestrator commit failures, bulk candle upsert, worker retry, trading config bounds, apply_experiment rollback.
+
+---
+
 ## [0.9.8] - 2026-03-27 — Override Bug Fix + Test Suite Repairs
 
 ### Fixed

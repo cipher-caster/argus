@@ -139,7 +139,28 @@
 - [x] Phase B: E2E data rendering, trading page (15 tests) ✓
 - [x] Phase C: Analytics integration — signal-position join, dedup, rejected signals (32 tests) ✓
 - [x] 7 pre-existing `test_trading.py` failures resolved (RiskManager sizing, tiebreaker, LIMIT detection, event loop) — 53/53 passing ✓
-- **Total: 321 backend tests passing, 0 failures**
+- **Total: 366 backend tests passing, 0 failures** (updated v0.9.9)
+
+### Phase 17b: Backend Hardening (v0.9.9) ✓
+- [x] DB connection pool config (pool_size=10, pre_ping, recycle) ✓
+- [x] Real health check endpoint (Redis ping, 503 on degraded) ✓
+- [x] Regime Redis cache shared across analytics + signal_log (1hr TTL) ✓
+- [x] Dashboard indicators endpoint caching (5min TTL) ✓
+- [x] Worker retry helper for exchange/HTTP calls (3 attempts, no new deps) ✓
+- [x] Bulk candle upsert replacing N+1 session.merge() loop ✓
+- [x] Orchestrator commit error handling (rollback on check_pending_fills/open_positions/circuit_breaker) ✓
+- [x] Sanitised raw exception leaks from 20+ HTTP error responses ✓
+- [x] apply_experiment Redis rollback on partial failure ✓
+- [x] CORS whitelist, TradingConfigUpdate bounds, timeframe validation ✓
+- [x] Entry tolerance gate removed (caused false LIMIT signal rejections) ✓
+- [x] Shared utilities: calculate_conviction(), TIMEFRAME_MS constants ✓
+
+**Remaining backlog (see docs/backend/AUDIT_2026_03_28.md):**
+- [ ] 0 tests for providers/, notifier.py, storage.py, main.py
+- [ ] Orchestrator tests use heavy MagicMock — don't exercise real SQLAlchemy
+- [ ] Hardcoded DB credential fallback in storage.py
+- [ ] No startup validation (app starts with broken DB/Redis)
+- [ ] Semaphore on 40-concurrent analytics fetch calls
 
 ### Phase 18: Data Model for Learning from Trades
 - [x] Add `regime_at_resolution` + `btc_price_at_resolution` to SignalLog schema — capture market context when a signal resolves, not just when it fires ✓
