@@ -479,9 +479,10 @@ async def resolve_signal_outcomes(ctx):
                                 linked_pos.actual_exit = price
                                 linked_pos.status = "CLOSED"
                                 linked_pos.closed_at = now_ms
-                                linked_pos.pnl_usd = round(raw_pnl - (price * linked_pos.quantity * 0.001), 4)
-                                linked_pos.pnl_pct = round((raw_pnl / (entry * linked_pos.quantity)) * 100, 2)
-                                # Position outcome reflects actual PnL at fill price, not signal-level TP hit
+                                fee = linked_pos.quote_amount * 0.001
+                                linked_pos.pnl_usd = round(raw_pnl - fee, 4)
+                                linked_pos.pnl_pct = round((linked_pos.pnl_usd / linked_pos.quote_amount * 100), 2) if linked_pos.quote_amount > 0 else 0.0
+                                # Outcome based on actual PnL, not signal-level TP hit
                                 linked_pos.outcome = "WIN" if linked_pos.pnl_usd >= 0 else "LOSS"
                             
                             session.add(linked_pos)
@@ -683,7 +684,8 @@ async def resolve_outcomes_historical(ctx):
                                 pnl_usd = raw_pnl - fee
                                 pnl_pct = (pnl_usd / linked_pos.quote_amount * 100) if linked_pos.quote_amount > 0 else 0.0
                                 linked_pos.status = "CLOSED"
-                                linked_pos.outcome = new_outcome
+                                # Outcome based on actual PnL, not signal-level TP hit
+                                linked_pos.outcome = "WIN" if pnl_usd >= 0 else "LOSS"
                                 linked_pos.actual_exit = resolved_price
                                 linked_pos.pnl_usd = round(pnl_usd, 4)
                                 linked_pos.pnl_pct = round(pnl_pct, 2)

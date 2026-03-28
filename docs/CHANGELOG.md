@@ -2,6 +2,24 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.9.11] - 2026-03-28 — Outcome Resolution Audit & Hardening
+
+### Fixed
+
+- **Position outcome no longer copies signal outcome** — Historical resolution (`signal_log.py:686`) previously copied the signal's `WIN`/`LOSS` directly to the linked position, ignoring actual PnL. Position outcome is now always derived from `pnl_usd >= 0`, consistent with the fast-path. This was causing 4 positions to be labeled `WIN` despite negative PnL.
+- **Unified fee calculation** — Fast-path resolution used `price * quantity * 0.001` for fees while historical used `quote_amount * 0.001`. Both paths now use `quote_amount * FEE_PCT` consistently. Also fixed `pnl_pct` to subtract fee from numerator (`pnl_usd / quote_amount * 100`).
+- **Orchestrator uses 5-min tiebreaker** — When both TP and SL are hit in the same 4H candle, the orchestrator previously guessed based on candle direction (bullish=SL first, bearish=TP first). Now imports `_resolve_tiebreaker_5m` from `signal_log.py` to walk 5-min candles and determine which level was hit first, matching the signal log resolution logic.
+- **Manual close event type** — `manual_close()` always logged `SL_HIT` even for profitable closes. Now logs `TP_HIT` or `SL_HIT` based on the actual outcome.
+- **Pending order price check** — `check_pending_fills()` now checks if price has reached the intended entry before filling. LONG fills only when `current_price <= intended_entry`; SHORT fills only when `current_price >= intended_entry`. Previously filled at any price regardless of distance from limit.
+- **Order expiry default** — `check_pending_fills` fallback for missing `order_expiry_hours` was 8 hours instead of 24 (the `DEFAULT_TRADING_CONFIG` value). Aligned to 24 hours.
+
+### Data
+
+- **Historical data fix script** — `scripts/fix_historical_data.py` created to re-resolve all CLOSED position outcomes and PnL using the corrected consistent fee formula. Fixed 4 outcome flips (WIN→LOSS) and 5 PnL recalculations. Run with `--dry-run` to preview.
+- **Validation script** — `scripts/validate_outcomes.py` confirms all position outcomes match their PnL (0 mismatches after fix).
+
+---
+
 ## [0.9.10] - 2026-03-28 — Signal Resolution & Counter-Trend Assessment
 
 ### Fixed

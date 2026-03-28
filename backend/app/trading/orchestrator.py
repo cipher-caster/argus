@@ -218,7 +218,7 @@ class TradeOrchestrator:
 
         if prices is None:
             prices = await _get_prices()
-        expiry_ms = config.get("order_expiry_hours", 8) * 3_600_000
+        expiry_ms = config.get("order_expiry_hours", 24) * 3_600_000
         now_ms = int(time.time() * 1000)
 
         async with Database.get_session() as session:
@@ -245,6 +245,14 @@ class TradeOrchestrator:
 
                 if current_price is None:
                     continue
+
+                # Check if price has reached the intended entry level
+                if pos.direction == "LONG":
+                    if current_price > pos.intended_entry:
+                        continue  # Price hasn't dropped to limit yet
+                else:  # SHORT
+                    if current_price < pos.intended_entry:
+                        continue  # Price hasn't risen to limit yet
 
                 # Fill at current market price; intended_entry preserved for reference
                 pos.status = "OPEN"
@@ -325,6 +333,8 @@ class TradeOrchestrator:
                     c_low = float(candle.get("low", 0))
                     c_open = float(candle.get("open", 0))
                     c_close = float(candle.get("close", 0))
+                    c_ts = candle.get("timestamp", 0)
+                    c_time = int(c_ts.timestamp() * 1000) if hasattr(c_ts, "timestamp") else int(c_ts)
 
                     tp_hit = False
                     sl_hit = False
@@ -341,20 +351,16 @@ class TradeOrchestrator:
                             sl_hit = True
 
                     if tp_hit and sl_hit:
-                        # Both hit in same candle — use candle direction to infer which hit first.
-                        # Heuristic: candle direction shows where price *ended*, so the opposite
-                        # extreme was likely hit first (e.g. bullish LONG candle dipped to SL
-                        # before rallying to close above open).
-                        if pos.direction == "LONG":
-                            if c_close >= c_open:  # Bullish: dipped first → SL hit first
-                                outcome, exit_price = "LOSS", pos.intended_sl
-                            else:  # Bearish: rallied first → TP hit first
-                                outcome, exit_price = "WIN", pos.intended_tp
-                        else:
-                            if c_close <= c_open:  # Bearish: rallied first → SL hit first
-                                outcome, exit_price = "LOSS", pos.intended_sl
-                            else:  # Bullish: dipped first → TP hit first
-                                outcome, exit_price = "WIN", pos.intended_tp
+                        # Both hit in same 4H candle — fetch 5min candles
+                        # to determine which level was actually hit first.
+                        from app.jobs.signal_log import _resolve_tiebreaker_5m
+                        tiebreak = await _resolve_tiebreaker_5m(
+                            pos.symbol, pos.direction,
+                            pos.intended_tp, pos.intended_sl,
+                            c_time,
+                        )
+                        outcome = tiebreak["outcome"]
+                        exit_price = tiebreak["resolved_price"]
                     elif tp_hit:
                         outcome, exit_price = "WIN", pos.intended_tp
                     elif sl_hit:
@@ -506,7 +512,8 @@ class TradeOrchestrator:
                 pos.pnl_pct = round(pnl_pct, 2)
                 pos.closed_at = now_ms
                 session.add(pos)
-                await _log_event(session, pos.id, "SL_HIT", {
+                event_type = "TP_HIT" if outcome == "WIN" else "SL_HIT"
+                await _log_event(session, pos.id, event_type, {
                     "exit_price": exit_price,
                     "reason": "manual_close",
                     "pnl_usd": pos.pnl_usd,

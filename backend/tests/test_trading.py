@@ -904,14 +904,13 @@ class TestCandleWalkResolution:
         assert pos.actual_exit == 49000.0
 
     @pytest.mark.asyncio
-    async def test_both_hit_same_candle_long_bearish_means_win(self):
-        """LONG + bearish candle (close < open) → TP hit first → WIN."""
+    async def test_both_hit_same_candle_uses_5m_tiebreaker(self):
+        """When both TP and SL hit in same 4H candle, 5-min tiebreaker determines outcome."""
         from app.trading.orchestrator import TradeOrchestrator
         orch = TradeOrchestrator()
         pos = _make_position(direction="LONG", entry=50000, tp=52000, sl=49000)
-        # Bearish candle that hits both: high >= TP, low <= SL, close < open
         candles = _make_candles([
-            (1000, 51000, 52500, 48500, 49500),  # both hit, bearish
+            (1000, 51000, 52500, 48500, 49500),  # both hit
         ])
 
         mock_session = AsyncMock()
@@ -924,6 +923,7 @@ class TestCandleWalkResolution:
         mock_session.__aexit__ = AsyncMock(return_value=None)
 
         config = make_config(enabled=True)
+        tiebreak_result = {"outcome": "WIN", "resolved_price": 52000.0, "resolved_at_ms": 1500}
 
         with (
             patch("app.trading.orchestrator.get_trading_config", return_value=config),
@@ -931,11 +931,47 @@ class TestCandleWalkResolution:
             patch("app.routes.strategy.get_candles_df", new_callable=AsyncMock, return_value=candles),
             patch("app.trading.orchestrator.notifier.notify_position_closed", new_callable=AsyncMock),
             patch("app.trading.orchestrator.RedisClient.get_json", new_callable=AsyncMock, return_value={"market_state": "TRENDING"}),
+            patch("app.jobs.signal_log._resolve_tiebreaker_5m", new_callable=AsyncMock, return_value=tiebreak_result),
         ):
             await orch.check_open_positions(config=config)
 
         assert pos.outcome == "WIN"
         assert pos.actual_exit == 52000.0
+
+    @pytest.mark.asyncio
+    async def test_both_hit_same_candle_tiebreaker_fallback_is_loss(self):
+        """When tiebreaker has no 5m data, conservative fallback is LOSS."""
+        from app.trading.orchestrator import TradeOrchestrator
+        orch = TradeOrchestrator()
+        pos = _make_position(direction="LONG", entry=50000, tp=52000, sl=49000)
+        candles = _make_candles([
+            (1000, 51000, 52500, 48500, 49500),  # both hit
+        ])
+
+        mock_session = AsyncMock()
+        result_mock = MagicMock()
+        result_mock.scalars.return_value.all.return_value = [pos]
+        mock_session.execute = AsyncMock(return_value=result_mock)
+        mock_session.add = MagicMock()
+        mock_session.commit = AsyncMock()
+        mock_session.__aenter__ = AsyncMock(return_value=mock_session)
+        mock_session.__aexit__ = AsyncMock(return_value=None)
+
+        config = make_config(enabled=True)
+        fallback_result = {"outcome": "LOSS", "resolved_price": 49000.0, "resolved_at_ms": 1000}
+
+        with (
+            patch("app.trading.orchestrator.get_trading_config", return_value=config),
+            patch("app.trading.orchestrator.Database.get_session", return_value=mock_session),
+            patch("app.routes.strategy.get_candles_df", new_callable=AsyncMock, return_value=candles),
+            patch("app.trading.orchestrator.notifier.notify_position_closed", new_callable=AsyncMock),
+            patch("app.trading.orchestrator.RedisClient.get_json", new_callable=AsyncMock, return_value={"market_state": "TRENDING"}),
+            patch("app.jobs.signal_log._resolve_tiebreaker_5m", new_callable=AsyncMock, return_value=fallback_result),
+        ):
+            await orch.check_open_positions(config=config)
+
+        assert pos.outcome == "LOSS"
+        assert pos.actual_exit == 49000.0
 
     @pytest.mark.asyncio
     async def test_no_hit_position_stays_open(self):
