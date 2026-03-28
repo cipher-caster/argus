@@ -466,7 +466,10 @@ async def resolve_signal_outcomes(ctx):
         await provider.close()
 
     # 2. Historical Resolution (to catch hits that happened between scans)
-    await resolve_outcomes_historical(ctx)
+    # Only run the expensive candle-walk logic every 30 minutes
+    now = datetime.now(timezone.utc)
+    if now.minute in {0, 30}:
+        await resolve_outcomes_historical(ctx)
 
 
 # ---------------------------------------------------------------------------
