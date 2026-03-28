@@ -107,15 +107,23 @@ const TOOLS: ToolDefinition[] = [
 
 import { cn } from "@/lib/utils";
 
-function DrawingToolbarComponent() {
+interface DrawingToolbarProps {
+  symbol: string;
+}
+
+function DrawingToolbarComponent({ symbol }: DrawingToolbarProps) {
   const activeTool = useDrawingStore((s) => s.activeTool);
   const setActiveTool = useDrawingStore((s) => s.setActiveTool);
   const selectedDrawingId = useDrawingStore((s) => s.selectedDrawingId);
+  const drawings = useDrawingStore((s) => s.drawings);
   const deleteSelected = useDrawingStore((s) => s.deleteSelected);
+  const clearAllDrawings = useDrawingStore((s) => s.clearAllDrawings);
 
   const handleToolClick = (type: DrawingType) => {
     setActiveTool(activeTool === type ? null : type);
   };
+
+  const symbolDrawingCount = drawings.filter((d) => d.symbol === symbol).length;
 
   return (
     <div className="flex flex-col gap-1 p-2 bg-secondary border border-border rounded-xl shadow-sm h-full overflow-y-auto w-12 items-center">
@@ -152,6 +160,23 @@ function DrawingToolbarComponent() {
           <path d="M3 6h18M8 6V4a1 1 0 011-1h6a1 1 0 011 1v2M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6" />
           <line x1="10" y1="11" x2="10" y2="17" />
           <line x1="14" y1="11" x2="14" y2="17" />
+        </svg>
+      </button>
+
+      {/* Clear All */}
+      <button
+        className={cn(
+          "flex items-center justify-center w-9 h-9 rounded-lg transition-all duration-200",
+          "text-muted-foreground hover:bg-destructive/10 hover:text-destructive active:scale-95 disabled:opacity-20 disabled:cursor-not-allowed",
+          "bg-transparent"
+        )}
+        onClick={() => clearAllDrawings(symbol)}
+        disabled={symbolDrawingCount === 0}
+        title="Clear All Drawings"
+      >
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} className="w-5 h-5">
+          <path d="M3 6h18M8 6V4a1 1 0 011-1h6a1 1 0 011 1v2M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6" strokeLinecap="round" />
+          <line x1="4" y1="4" x2="20" y2="20" strokeWidth={2.5} />
         </svg>
       </button>
     </div>

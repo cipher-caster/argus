@@ -5,17 +5,18 @@
  * Canvas layer on top of chart for rendering and interacting with drawings
  */
 
-import { calculateFibLevels, ChartDimensions, getLineDash, pixelsToPoint, pointToPixels } from "@/lib/drawingUtils";
+import { ChartCoordinateAPI } from "@/components/features/chart/hooks/useChartCoordinates";
+import { calculateFibLevels, getLineDash } from "@/lib/drawingUtils";
 import { formatPrice } from "@/lib/formatters";
 import { Drawing, Point, useDrawingStore } from "@/stores/drawingStore";
 import { memo, useCallback, useEffect, useRef } from "react";
 
 interface DrawingCanvasProps {
-  dimensions: ChartDimensions | null;
+  coordinateAPI: ChartCoordinateAPI;
   symbol: string;
 }
 
-function DrawingCanvasComponent({ dimensions, symbol }: DrawingCanvasProps) {
+function DrawingCanvasComponent({ coordinateAPI, symbol }: DrawingCanvasProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
 
   const drawings = useDrawingStore((s) => s.drawings);
@@ -30,7 +31,6 @@ function DrawingCanvasComponent({ dimensions, symbol }: DrawingCanvasProps) {
   const updateDrawing = useDrawingStore((s) => s.updateDrawing);
   const finishDrawing = useDrawingStore((s) => s.finishDrawing);
   const cancelDrawing = useDrawingStore((s) => s.cancelDrawing);
-  const selectDrawing = useDrawingStore((s) => s.selectDrawing);
   const deleteSelected = useDrawingStore((s) => s.deleteSelected);
   const loadFromLocalStorage = useDrawingStore((s) => s.loadFromLocalStorage);
 
@@ -56,20 +56,18 @@ function DrawingCanvasComponent({ dimensions, symbol }: DrawingCanvasProps) {
   // Render all drawings
   const render = useCallback(() => {
     const canvas = canvasRef.current;
-    if (!canvas || !dimensions) return;
+    if (!canvas || !coordinateAPI.chartWidth || !coordinateAPI.chartHeight) return;
 
     const ctx = canvas.getContext("2d");
     if (!ctx) return;
 
-    // Clear canvas
     ctx.clearRect(0, 0, canvas.width, canvas.height);
 
     // Filter drawings for current symbol
     const symbolDrawings = drawings.filter((d) => d.symbol === symbol);
 
-    // Render each drawing
     symbolDrawings.forEach((drawing) => {
-      renderDrawing(ctx, drawing, dimensions, drawing.id === selectedDrawingId);
+      renderDrawing(ctx, drawing, coordinateAPI, drawing.id === selectedDrawingId);
     });
 
     // Render current drawing in progress
@@ -83,84 +81,88 @@ function DrawingCanvasComponent({ dimensions, symbol }: DrawingCanvasProps) {
         fibLevels: activeTool === "fib" ? defaultFibLevels : undefined,
         brushPath: activeTool === "brush" ? currentPoints : undefined,
       };
-      renderDrawing(ctx, tempDrawing, dimensions, false, true);
+      renderDrawing(ctx, tempDrawing, coordinateAPI, false, true);
     }
-  }, [drawings, dimensions, symbol, isDrawing, currentPoints, activeTool, selectedDrawingId, defaultStyle, defaultFibLevels]);
+  }, [drawings, coordinateAPI, symbol, isDrawing, currentPoints, activeTool, selectedDrawingId, defaultStyle, defaultFibLevels]);
 
-  // Re-render when state changes
+  // Re-render when state or chart view changes (coordinateAPI.renderTick triggers on scroll/zoom)
   useEffect(() => {
     render();
   }, [render]);
 
-  // Mouse handlers
+  const getPointFromEvent = useCallback(
+    (e: React.MouseEvent): Point | null => {
+      const rect = canvasRef.current?.getBoundingClientRect();
+      if (!rect) return null;
+      return coordinateAPI.pixelsToPoint(e.clientX - rect.left, e.clientY - rect.top);
+    },
+    [coordinateAPI]
+  );
+
+  // Mouse handlers — click-click model for 2-point tools (TradingView style)
   const handleMouseDown = useCallback(
     (e: React.MouseEvent) => {
-      if (!dimensions || !activeTool) return;
+      if (!coordinateAPI.chartWidth || !activeTool) return;
 
-      const rect = canvasRef.current?.getBoundingClientRect();
-      if (!rect) return;
+      const point = getPointFromEvent(e);
+      if (!point) return;
 
-      const x = e.clientX - rect.left;
-      const y = e.clientY - rect.top;
-      const point = pixelsToPoint(x, y, dimensions);
-
-      startDrawing(point);
+      if (!isDrawing) {
+        // First click: place starting point
+        startDrawing(point);
+      } else if (activeTool === "brush") {
+        // Brush continues accumulating in mousemove
+      } else {
+        // Second click for 2-point tools: snap endpoint to cursor and finish
+        updateDrawing(point);
+        finishDrawing(symbol);
+      }
     },
-    [dimensions, activeTool, startDrawing]
+    [coordinateAPI, activeTool, isDrawing, startDrawing, updateDrawing, finishDrawing, symbol, getPointFromEvent]
   );
 
   const handleMouseMove = useCallback(
     (e: React.MouseEvent) => {
-      if (!dimensions || !isDrawing) return;
+      if (!coordinateAPI.chartWidth || !isDrawing) return;
 
-      const rect = canvasRef.current?.getBoundingClientRect();
-      if (!rect) return;
-
-      const x = e.clientX - rect.left;
-      const y = e.clientY - rect.top;
-      const point = pixelsToPoint(x, y, dimensions);
+      const point = getPointFromEvent(e);
+      if (!point) return;
 
       updateDrawing(point);
     },
-    [dimensions, isDrawing, updateDrawing]
+    [coordinateAPI, isDrawing, updateDrawing, getPointFromEvent]
   );
 
   const handleMouseUp = useCallback(() => {
     if (!isDrawing) return;
 
-    // For single-click tools
     if (activeTool === "hline" || activeTool === "vline") {
+      // Single-click tools: finish on mouse release
       finishDrawing(symbol);
-    } else if (currentPoints.length >= 2) {
+    } else if (activeTool === "brush") {
+      // Brush: drag-to-draw, finish on release
       finishDrawing(symbol);
     }
-  }, [isDrawing, activeTool, currentPoints, symbol, finishDrawing]);
+    // 2-point tools (trendline, ray, rectangle, fib, text): finished in handleMouseDown on second click
+  }, [isDrawing, activeTool, symbol, finishDrawing]);
 
-  const handleClick = useCallback(
-    (e: React.MouseEvent) => {
-      if (activeTool) return; // Don't select while drawing
 
-      // TODO: Implement drawing selection on click
-    },
-    [activeTool]
-  );
-
-  if (!dimensions) return null;
+  if (!coordinateAPI.chartWidth || !coordinateAPI.chartHeight) return null;
 
   return (
     <canvas
       ref={canvasRef}
-      width={dimensions.width}
-      height={dimensions.height}
+      width={coordinateAPI.chartWidth}
+      height={coordinateAPI.chartHeight}
       className="drawing-canvas"
       onMouseDown={handleMouseDown}
       onMouseMove={handleMouseMove}
       onMouseUp={handleMouseUp}
-      onClick={handleClick}
       style={{
         position: "absolute",
         top: 0,
         left: 0,
+        zIndex: 10,
         pointerEvents: activeTool ? "auto" : "none",
         cursor: activeTool ? "crosshair" : "default",
       }}
@@ -171,9 +173,8 @@ function DrawingCanvasComponent({ dimensions, symbol }: DrawingCanvasProps) {
 /**
  * Render a single drawing to the canvas
  */
-function renderDrawing(ctx: CanvasRenderingContext2D, drawing: Drawing, dimensions: ChartDimensions, isSelected: boolean, isPreview: boolean = false) {
+function renderDrawing(ctx: CanvasRenderingContext2D, drawing: Drawing, api: ChartCoordinateAPI, isSelected: boolean, isPreview: boolean = false) {
   const { type, points, style } = drawing;
-
   if (points.length === 0) return;
 
   ctx.save();
@@ -182,25 +183,29 @@ function renderDrawing(ctx: CanvasRenderingContext2D, drawing: Drawing, dimensio
   ctx.setLineDash(getLineDash(style.lineStyle));
   ctx.globalAlpha = isPreview ? 0.6 : 1;
 
-  const pixelPoints = points.map((p) => pointToPixels(p, dimensions));
+  const pixelPoints = points.map((p) => api.pointToPixels(p)).filter((p): p is { x: number; y: number } => p !== null);
 
   switch (type) {
     case "trendline":
     case "ray":
       if (pixelPoints.length >= 2) {
-        renderTrendline(ctx, pixelPoints[0], pixelPoints[1], type === "ray", dimensions);
+        renderTrendline(ctx, pixelPoints[0], pixelPoints[1], type === "ray", api.chartWidth);
       }
       break;
 
     case "hline":
-      if (pixelPoints.length >= 1) {
-        renderHorizontalLine(ctx, pixelPoints[0].y, dimensions.width, points[0].price);
+      if (points.length >= 1) {
+        // For horizontal lines, we only need the y (price) coordinate — always renderable
+        const yCoord = api.pointToPixels(points[0]);
+        if (yCoord) {
+          renderHorizontalLine(ctx, yCoord.y, api.chartWidth, points[0].price);
+        }
       }
       break;
 
     case "vline":
       if (pixelPoints.length >= 1) {
-        renderVerticalLine(ctx, pixelPoints[0].x, dimensions.height);
+        renderVerticalLine(ctx, pixelPoints[0].x, api.chartHeight);
       }
       break;
 
@@ -211,17 +216,15 @@ function renderDrawing(ctx: CanvasRenderingContext2D, drawing: Drawing, dimensio
       break;
 
     case "fib":
-      if (pixelPoints.length >= 2 && drawing.fibLevels) {
-        renderFibRetracement(ctx, points[0], points[1], drawing.fibLevels, dimensions, style);
+      if (points.length >= 2 && drawing.fibLevels) {
+        renderFibRetracement(ctx, points[0], points[1], drawing.fibLevels, api, style);
       }
       break;
 
     case "brush":
       if (drawing.brushPath && drawing.brushPath.length > 1) {
-        renderBrush(
-          ctx,
-          drawing.brushPath.map((p) => pointToPixels(p, dimensions))
-        );
+        const brushPixels = drawing.brushPath.map((p) => api.pointToPixels(p)).filter((p): p is { x: number; y: number } => p !== null);
+        renderBrush(ctx, brushPixels);
       }
       break;
 
@@ -232,7 +235,6 @@ function renderDrawing(ctx: CanvasRenderingContext2D, drawing: Drawing, dimensio
       break;
   }
 
-  // Draw selection handles
   if (isSelected && !isPreview) {
     renderSelectionHandles(ctx, pixelPoints);
   }
@@ -240,15 +242,14 @@ function renderDrawing(ctx: CanvasRenderingContext2D, drawing: Drawing, dimensio
   ctx.restore();
 }
 
-function renderTrendline(ctx: CanvasRenderingContext2D, start: { x: number; y: number }, end: { x: number; y: number }, extendRight: boolean, dimensions: ChartDimensions) {
+function renderTrendline(ctx: CanvasRenderingContext2D, start: { x: number; y: number }, end: { x: number; y: number }, extendRight: boolean, width: number) {
   ctx.beginPath();
   ctx.moveTo(start.x, start.y);
 
   if (extendRight) {
-    // Extend ray to right edge
     const slope = (end.y - start.y) / (end.x - start.x);
-    const extendedY = start.y + slope * (dimensions.width - start.x);
-    ctx.lineTo(dimensions.width, extendedY);
+    const extendedY = start.y + slope * (width - start.x);
+    ctx.lineTo(width, extendedY);
   } else {
     ctx.lineTo(end.x, end.y);
   }
@@ -262,8 +263,7 @@ function renderHorizontalLine(ctx: CanvasRenderingContext2D, y: number, width: n
   ctx.lineTo(width, y);
   ctx.stroke();
 
-  // Price label
-  ctx.fillStyle = ctx.strokeStyle;
+  ctx.fillStyle = ctx.strokeStyle as string;
   ctx.font = "11px Inter, sans-serif";
   ctx.fillText(`$${formatPrice(price)}`, width - 70, y - 5);
 }
@@ -281,7 +281,6 @@ function renderRectangle(ctx: CanvasRenderingContext2D, corner1: { x: number; y:
   const w = Math.abs(corner2.x - corner1.x);
   const h = Math.abs(corner2.y - corner1.y);
 
-  // Fill
   if (style.fillColor) {
     ctx.globalAlpha = style.fillOpacity ?? 0.1;
     ctx.fillStyle = style.fillColor;
@@ -289,25 +288,31 @@ function renderRectangle(ctx: CanvasRenderingContext2D, corner1: { x: number; y:
     ctx.globalAlpha = 1;
   }
 
-  // Stroke
   ctx.strokeRect(x, y, w, h);
 }
 
-function renderFibRetracement(ctx: CanvasRenderingContext2D, startPoint: Point, endPoint: Point, fibLevels: { level: number; enabled: boolean; color?: string }[], dimensions: ChartDimensions, style: { color: string }) {
+function renderFibRetracement(
+  ctx: CanvasRenderingContext2D,
+  startPoint: Point,
+  endPoint: Point,
+  fibLevels: { level: number; enabled: boolean; color?: string }[],
+  api: ChartCoordinateAPI,
+  style: { color: string }
+) {
   const levels = calculateFibLevels(startPoint.price, endPoint.price, fibLevels);
 
   levels.forEach(({ level, price }) => {
-    const y = pointToPixels({ time: startPoint.time, price }, dimensions).y;
+    const coord = api.pointToPixels({ time: startPoint.time, price });
+    if (!coord) return;
 
     ctx.beginPath();
-    ctx.moveTo(0, y);
-    ctx.lineTo(dimensions.width, y);
+    ctx.moveTo(0, coord.y);
+    ctx.lineTo(api.chartWidth, coord.y);
     ctx.stroke();
 
-    // Level label
     ctx.fillStyle = style.color;
     ctx.font = "11px Inter, sans-serif";
-    ctx.fillText(`${(level * 100).toFixed(1)}% ($${price.toFixed(2)})`, 10, y - 5);
+    ctx.fillText(`${(level * 100).toFixed(1)}% ($${price.toFixed(2)})`, 10, coord.y - 5);
   });
 }
 

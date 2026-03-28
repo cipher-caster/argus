@@ -147,7 +147,8 @@ export const useDrawingStore = create<DrawingStore>((set, get) => ({
       drawings: [...state.drawings, newDrawing],
       isDrawing: false,
       currentPoints: [],
-      activeTool: null, // Deselect tool after drawing
+      activeTool: null,
+      selectedDrawingId: newDrawing.id, // Auto-select so popup appears immediately
     }));
 
     // Auto-save

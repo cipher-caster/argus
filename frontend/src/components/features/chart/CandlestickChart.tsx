@@ -8,8 +8,10 @@ import { ChartCanvas } from "./components/ChartCanvas";
 import { ChartHeader } from "./components/ChartHeader";
 import { ChartIndicators } from "./components/ChartIndicators";
 import { ChartPanes } from "./components/ChartPanes";
+import { DrawingOverlay } from "./components/DrawingOverlay";
 import { MainChartSeries } from "./components/MainChartSeries";
 import { ChartProvider, useChart } from "./context/ChartContext";
+import { DrawingToolbar } from "./DrawingToolbar";
 import { IndicatorModal } from "./IndicatorModal";
 
 interface CandlestickChartProps {
@@ -91,18 +93,25 @@ function CandlestickChartComponent({
         />
 
         {/* Main Chart Area */}
-        <div className="flex-1 w-full relative min-h-[400px]">
-          <ChartCanvas className="absolute inset-0 w-full h-full">
-            <MainChartSeries candles={candles} timeframe={timeframe} onLoadMore={onLoadMore} isLoadingMore={isLoadingMore} />
-            <ChartIndicators indicatorResults={indicatorResults} indicatorConfigs={indicatorConfigs} />
-            <ScrollToLatestRegistrar scrollToLatestRef={scrollToLatestRef} />
+        <div className="flex-1 w-full flex flex-row min-h-0">
+          {/* Left: Drawing Toolbar */}
+          <DrawingToolbar symbol={symbol} onScrollToLatest={() => scrollToLatestRef?.current?.()} />
 
-            {candles.length === 0 && !isLoading && (
-              <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-10 bg-background/50">
-                <span className="text-foreground text-lg font-bold">No chart data available</span>
-              </div>
-            )}
-          </ChartCanvas>
+          {/* Right: Chart Canvas */}
+          <div className="flex-1 relative min-h-[400px]">
+            <ChartCanvas className="absolute inset-0 w-full h-full">
+              <MainChartSeries candles={candles} timeframe={timeframe} onLoadMore={onLoadMore} isLoadingMore={isLoadingMore} />
+              <ChartIndicators indicatorResults={indicatorResults} indicatorConfigs={indicatorConfigs} />
+              <ScrollToLatestRegistrar scrollToLatestRef={scrollToLatestRef} />
+              <DrawingOverlay symbol={symbol} />
+
+              {candles.length === 0 && !isLoading && (
+                <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-10 bg-background/50">
+                  <span className="text-foreground text-lg font-bold">No chart data available</span>
+                </div>
+              )}
+            </ChartCanvas>
+          </div>
         </div>
 
         {/* Pane Indicators */}
