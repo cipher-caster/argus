@@ -2,27 +2,12 @@
 
 import { useTradeHistory } from "@/hooks/useTradingData";
 import { Position } from "@/lib/api";
+import { formatPriceCompact, duration } from "@/lib/formatters";
 import { cn } from "@/lib/utils";
 import { ChevronRight } from "lucide-react";
 import Link from "next/link";
 import { useState } from "react";
 import { TradeDetailModal } from "./TradeDetailModal";
-
-function formatPrice(p: number) {
-  if (p >= 1000) return p.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-  if (p >= 1) return p.toFixed(4);
-  return p.toFixed(6);
-}
-
-function duration(from: number | null, to: number | null): string {
-  if (!from || !to) return "—";
-  const ms = to - from;
-  const h = Math.floor(ms / 3_600_000);
-  const d = Math.floor(ms / 86_400_000);
-  if (d >= 1) return `${d}d ${h % 24}h`;
-  if (h >= 1) return `${h}h`;
-  return "< 1h";
-}
 
 const ROW_GRID = "grid grid-cols-6 items-center gap-0 py-2.5 px-4 border-b border-border/20 last:border-0";
 
@@ -56,10 +41,10 @@ function HistoryRow({ pos, onClick }: { pos: Position; onClick: () => void }) {
       </div>
 
       {/* Entry */}
-      <span className="text-[11px] font-mono text-muted-foreground">${formatPrice(entry)}</span>
+      <span className="text-[11px] font-mono text-muted-foreground">${formatPriceCompact(entry)}</span>
 
       {/* Exit */}
-      <span className="text-[11px] font-mono text-foreground">{exit > 0 ? `$${formatPrice(exit)}` : "—"}</span>
+      <span className="text-[11px] font-mono text-foreground">{exit > 0 ? `$${formatPriceCompact(exit)}` : "—"}</span>
 
       {/* PnL */}
       <span className={cn(

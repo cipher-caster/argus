@@ -2,25 +2,11 @@
 
 import { useSignalLog } from "@/hooks/useAnalyticsData";
 import { SignalLogItem } from "@/lib/api";
+import { formatPriceCompact, timeAgo } from "@/lib/formatters";
 import { cn } from "@/lib/utils";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { Radio, ChevronRight } from "lucide-react";
 import Link from "next/link";
-
-function formatPrice(p: number) {
-  if (p >= 1000) return p.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-  if (p >= 1) return p.toFixed(4);
-  return p.toFixed(6);
-}
-
-function timeAgo(ms: number) {
-  const diff = Date.now() - ms;
-  const h = Math.floor(diff / 3_600_000);
-  const d = Math.floor(diff / 86_400_000);
-  if (d >= 1) return `${d}d ago`;
-  if (h >= 1) return `${h}h ago`;
-  return "< 1h ago";
-}
 
 function SignalRow({ item }: { item: SignalLogItem }) {
   const base = item.symbol.replace("USDT", "");
@@ -40,9 +26,9 @@ function SignalRow({ item }: { item: SignalLogItem }) {
       </div>
       {/* Middle: entry / TP / SL */}
       <div className="flex items-center gap-3 text-[11px] font-mono">
-        <span className="text-muted-foreground">${formatPrice(item.entry)}</span>
-        <span className="text-emerald-500">${formatPrice(item.tp)}</span>
-        <span className="text-red-500">${formatPrice(item.sl)}</span>
+        <span className="text-muted-foreground">${formatPriceCompact(item.entry)}</span>
+        <span className="text-emerald-500">${formatPriceCompact(item.tp)}</span>
+        <span className="text-red-500">${formatPriceCompact(item.sl)}</span>
       </div>
       {/* Right: conviction + age */}
       <div className="flex items-center gap-3">

@@ -15,6 +15,7 @@ export function useMarketSummary() {
     queryKey: ["market-summary"],
     queryFn: fetchMarketSummary,
     refetchInterval: 60000, // Refresh every minute
+    staleTime: 45000,
   });
 }
 
@@ -26,5 +27,6 @@ export function useCoins(params: { page?: number; pageSize?: number; search?: st
     queryKey: ["coins", params],
     queryFn: () => fetchCoins(params),
     refetchInterval: 30000, // Refresh every 30s
+    staleTime: 20000,
   });
 }

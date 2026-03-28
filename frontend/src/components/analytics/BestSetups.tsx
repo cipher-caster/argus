@@ -2,24 +2,19 @@
 
 import { CoinIcon } from "@/components/features/dashboard/CoinIcon";
 import { Badge } from "@/components/ui/badge";
+import { DirectionBadge } from "@/components/ui/DirectionBadge";
 import { useBestSetups } from "@/hooks/useAnalyticsData";
-import { useCoinMeta } from "@/hooks/useCoinMeta";
+import { CoinMeta, useCoinMeta } from "@/hooks/useCoinMeta";
 import { BestSetupItem } from "@/lib/api";
-import { formatPriceCompact } from "@/lib/formatters";
+import { formatPriceCompact, formatPercentageChange } from "@/lib/formatters";
 import { cn } from "@/lib/utils";
 import { RefreshCw, TrendingDown, TrendingUp } from "lucide-react";
 import Link from "next/link";
 
-function pct(from: number, to: number) {
-  return (((to - from) / from) * 100).toFixed(1);
-}
-
-// formatPriceCompact imported from @/lib/formatters
-
-function SetupCard({ item, coinMeta }: { item: BestSetupItem; coinMeta: any }) {
+function SetupCard({ item, coinMeta }: { item: BestSetupItem; coinMeta: Map<string, CoinMeta> }) {
   const isLong = item.direction === "LONG";
-  const tpPct = isLong ? pct(item.entry, item.tp) : pct(item.tp, item.entry);
-  const slPct = isLong ? pct(item.entry, item.sl) : `-${pct(item.sl, item.entry)}`;
+  const tpPct = isLong ? formatPercentageChange(item.entry, item.tp) : formatPercentageChange(item.tp, item.entry, "SHORT");
+  const slPct = isLong ? formatPercentageChange(item.entry, item.sl) : formatPercentageChange(item.sl, item.entry, "SHORT");
   const isElite = item.conviction >= 95;
   const isCounterTrend = item.reason.startsWith("(counter)");
   const isWithTrend = item.reason.startsWith("(trend)");

@@ -6,7 +6,7 @@ import { CoinSignalIntel } from "@/components/features/chart/CoinSignalIntel";
 import { CoinDetailsPanel } from "@/components/features/dashboard/CoinDetailsPanel";
 import { WatchlistPanel } from "@/components/features/dashboard/WatchlistPanel";
 import { useAvailableIndicators, useCalculatedIndicators } from "@/hooks/useIndicators";
-import { useOHLCV, useProvider, useTicker } from "@/hooks/useMarketData";
+import { useOHLCV, useProviderInfo, useTicker } from "@/hooks/useMarketData";
 import { useIndicatorStore } from "@/stores/indicatorStore";
 import { useRef, useState } from "react";
 
@@ -24,7 +24,7 @@ export default function ChartPage({ params }: ChartPageProps) {
   const { data: ohlcvData, isLoading: isLoadingOHLCV, fetchNextPage, hasNextPage, isFetchingNextPage } = ohlcvQuery;
 
   const tickerQuery = useTicker(symbol);
-  const providerQuery = useProvider();
+  const providerQuery = useProviderInfo();
   const tickerData = tickerQuery.data;
   const providerData = providerQuery.data;
 

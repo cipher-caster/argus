@@ -1,28 +1,20 @@
 "use client";
 
 import { CoinIcon } from "@/components/features/dashboard/CoinIcon";
+import { DirectionBadge } from "@/components/ui/DirectionBadge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { useBestSetups } from "@/hooks/useAnalyticsData";
-import { useCoinMeta } from "@/hooks/useCoinMeta";
+import { CoinMeta, useCoinMeta } from "@/hooks/useCoinMeta";
 import { BestSetupItem } from "@/lib/api";
+import { formatPriceCompact, formatPercentageChange } from "@/lib/formatters";
 import { cn } from "@/lib/utils";
 import { ExternalLink, TrendingDown, TrendingUp, Zap } from "lucide-react";
 import Link from "next/link";
 
-function formatPrice(price: number) {
-  if (price >= 1000) return price.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-  if (price >= 1) return price.toFixed(4);
-  return price.toFixed(6);
-}
-
-function pct(from: number, to: number) {
-  return (((to - from) / from) * 100).toFixed(1);
-}
-
-function SetupRow({ item, coinMeta }: { item: BestSetupItem; coinMeta: any }) {
+function SetupRow({ item, coinMeta }: { item: BestSetupItem; coinMeta: Map<string, CoinMeta> }) {
   const isLong = item.direction === "LONG";
-  const tpPct = isLong ? pct(item.entry, item.tp) : pct(item.tp, item.entry);
+  const tpPct = isLong ? formatPercentageChange(item.entry, item.tp) : formatPercentageChange(item.tp, item.entry, "SHORT");
   const isCounterTrend = item.reason.startsWith("(counter)");
   const isWithTrend = item.reason.startsWith("(trend)");
 
@@ -39,15 +31,7 @@ function SetupRow({ item, coinMeta }: { item: BestSetupItem; coinMeta: any }) {
             <span className="font-black text-sm group-hover:text-primary transition-colors">
               {item.symbol.replace("/USDT", "").replace("USDT", "")}
             </span>
-            <span
-              className={cn(
-                "flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[9px] font-black uppercase tracking-wide",
-                isLong ? "bg-green-500/15 text-green-700 dark:text-green-400" : "bg-red-500/15 text-red-700 dark:text-red-400"
-              )}
-            >
-              {isLong ? <TrendingUp size={8} /> : <TrendingDown size={8} />}
-              {item.direction}
-            </span>
+            <DirectionBadge direction={item.direction} />
             {isWithTrend && (
               <span className="text-[8px] font-bold px-1 py-0.5 rounded bg-primary/10 text-primary">TREND</span>
             )}
@@ -61,13 +45,13 @@ function SetupRow({ item, coinMeta }: { item: BestSetupItem; coinMeta: any }) {
         </div>
 
         <div className="text-right shrink-0 mr-3">
-          <div className="text-xs font-mono font-medium">${formatPrice(item.entry)}</div>
+          <div className="text-xs font-mono font-medium">${formatPriceCompact(item.entry)}</div>
           <div className="flex gap-2 mt-0.5">
             <span className="text-[9px] font-medium font-mono text-green-600 dark:text-green-400">
-              TP ${formatPrice(item.tp)}
+              TP ${formatPriceCompact(item.tp)}
             </span>
             <span className="text-[9px] font-medium font-mono text-red-600 dark:text-red-400">
-              SL ${formatPrice(item.sl)}
+              SL ${formatPriceCompact(item.sl)}
             </span>
           </div>
         </div>

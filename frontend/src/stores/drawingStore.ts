@@ -216,7 +216,7 @@ export const useDrawingStore = create<DrawingStore>((set, get) => ({
       localStorage.setItem("magus-drawing-style", JSON.stringify(defaultStyle));
       localStorage.setItem("magus-fib-levels", JSON.stringify(defaultFibLevels));
     } catch (e) {
-      console.error("Failed to save drawings:", e);
+      if (process.env.NODE_ENV === "development") console.error("Failed to save drawings:", e);
     }
   },
 
@@ -237,7 +237,7 @@ export const useDrawingStore = create<DrawingStore>((set, get) => ({
         set({ defaultFibLevels: JSON.parse(storedFib) });
       }
     } catch (e) {
-      console.error("Failed to load drawings:", e);
+      if (process.env.NODE_ENV === "development") console.error("Failed to load drawings:", e);
     }
   },
 }));

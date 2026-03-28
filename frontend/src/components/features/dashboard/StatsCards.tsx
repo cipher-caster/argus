@@ -31,11 +31,19 @@ function StatsCardsComponent({ coins, isLoading }: StatsCardsProps) {
   const topLoser = sorted[sorted.length - 1];
   const volLeader = [...coins].sort((a, b) => (b.volume_24h || 0) - (a.volume_24h || 0))[0];
 
-  const StatCard = ({ title, value, subValue, trend, chartColor }: any) => (
+interface StatCardProps {
+  title: string;
+  value: string | undefined;
+  subValue: string;
+  trend: number | null | undefined;
+  chartColor: string;
+}
+
+  const StatCard = ({ title, value, subValue, trend, chartColor }: StatCardProps) => (
     <div className="bg-secondary border border-border rounded-xl p-4 flex-1 min-w-[240px] shadow-sm hover:shadow-md transition-shadow">
       <div className="flex justify-between mb-3">
         <span className="text-[13px] text-muted-foreground font-bold uppercase tracking-tight">{title}</span>
-        {trend !== null && <span className={cn("text-[12px] font-bold px-1.5 py-0.5 rounded", trend >= 0 ? "text-success bg-success/15" : "text-danger bg-danger/15")}>{formatChange(trend)}</span>}
+        {trend != null && <span className={cn("text-[12px] font-bold px-1.5 py-0.5 rounded", trend >= 0 ? "text-success bg-success/15" : "text-danger bg-danger/15")}>{formatChange(trend)}</span>}
       </div>
       <div className="flex justify-between items-end">
         <div className="flex flex-col gap-0.5">
@@ -43,7 +51,7 @@ function StatsCardsComponent({ coins, isLoading }: StatsCardsProps) {
           <span className="text-[12px] text-muted-foreground font-medium">{subValue}</span>
         </div>
         <div className="w-20 h-8 opacity-80">
-          <Sparkline data={getMockTrend(trend)} width={80} height={32} color={chartColor} />
+          <Sparkline data={getMockTrend(trend ?? null)} width={80} height={32} color={chartColor} />
         </div>
       </div>
     </div>

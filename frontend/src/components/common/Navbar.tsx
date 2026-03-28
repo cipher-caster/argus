@@ -10,7 +10,7 @@ import { ThemeToggle } from "./ThemeToggle";
 
 interface NavDropdownProps {
   label: string;
-  items: { label: string; icon: any; href: string }[];
+  items: { label: string; icon: React.ElementType; href: string }[];
   active?: boolean;
 }
 

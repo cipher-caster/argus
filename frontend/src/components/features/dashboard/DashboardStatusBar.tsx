@@ -1,9 +1,10 @@
 "use client";
 
-import { useMarketIndicators } from "@/hooks/useMarketIndicators";
-import { useRegime, useBestSetups } from "@/hooks/useAnalyticsData";
+import { useMarketIndicators, DashboardIndicators } from "@/hooks/useMarketIndicators";
+import { useRegime } from "@/hooks/useAnalyticsData";
+import { useAlignedSetups } from "@/hooks/useAlignedSetups";
 import { BestSetupItem, RegimeData } from "@/lib/api";
-import { formatVolume } from "@/lib/formatters";
+import { formatPriceCompact, formatVolume } from "@/lib/formatters";
 import { cn } from "@/lib/utils";
 import { useQueryClient } from "@tanstack/react-query";
 import { RefreshCcw, TrendingDown, TrendingUp, X, Target, Clock } from "lucide-react";
@@ -13,9 +14,8 @@ function Divider() {
   return <div className="h-4 w-px bg-border/50 shrink-0" />;
 }
 
-function RegimeModal({ regime, indicators, onClose }: { regime: RegimeData | null; indicators: any; onClose: () => void }) {
-  const { data: setupsData } = useBestSetups("4h", 20);
-  const setups = setupsData?.data || [];
+function RegimeModal({ regime, indicators, onClose }: { regime: RegimeData | null; indicators: DashboardIndicators | undefined; onClose: () => void }) {
+  const { aligned: alignedSetups, counter: counterSetups } = useAlignedSetups(regime?.regime);
 
   if (!regime) return null;
 
@@ -25,23 +25,6 @@ function RegimeModal({ regime, indicators, onClose }: { regime: RegimeData | nul
   const rsi = indicators?.average_rsi?.value;
   const cap = indicators?.total_market_cap?.value;
   const dom = indicators?.btc_dominance?.value;
-
-  // Top setups matching regime direction
-  const alignedSetups = setups.filter(s => {
-    const isLong = s.direction === "LONG";
-    return (isBull && isLong) || (isBear && !isLong);
-  }).slice(0, 3);
-
-  const counterSetups = setups.filter(s => {
-    const isLong = s.direction === "LONG";
-    return (isBull && !isLong) || (isBear && isLong);
-  }).slice(0, 2);
-
-  function formatPrice(p: number) {
-    if (p >= 1000) return p.toLocaleString("en-US", { maximumFractionDigits: 0 });
-    if (p >= 1) return p.toFixed(4);
-    return p.toFixed(6);
-  }
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm" onClick={onClose}>
@@ -79,12 +62,12 @@ function RegimeModal({ regime, indicators, onClose }: { regime: RegimeData | nul
             </h3>
             {isBear ? (
               <div className="space-y-2 text-sm">
-                <p>BTC at <strong>${formatPrice(regime.btc_price)}</strong> is <strong className="text-red-500">{Math.abs(regime.distance_pct)}% below</strong> the bull line at <strong>${formatPrice(regime.ema50)}</strong>.</p>
+                <p>BTC at <strong>${formatPriceCompact(regime.btc_price)}</strong> is <strong className="text-red-500">{Math.abs(regime.distance_pct)}% below</strong> the bull line at <strong>${formatPriceCompact(regime.ema50)}</strong>.</p>
                 <p>Trend is down. <strong>Short setups only</strong> right now. Don&apos;t buy spot and hold — you&apos;re fighting the trend.</p>
               </div>
             ) : (
               <div className="space-y-2 text-sm">
-                <p>BTC at <strong>${formatPrice(regime.btc_price)}</strong> is <strong className="text-green-500">+{regime.distance_pct}% above</strong> the bear line at <strong>${formatPrice(regime.ema50)}</strong>.</p>
+                <p>BTC at <strong>${formatPriceCompact(regime.btc_price)}</strong> is <strong className="text-green-500">+{regime.distance_pct}% above</strong> the bear line at <strong>${formatPriceCompact(regime.ema50)}</strong>.</p>
                 <p>Trend is up. <strong>HODL BTC, long alts</strong>. Shorts are counter-trend — higher risk.</p>
               </div>
             )}
@@ -102,10 +85,10 @@ function RegimeModal({ regime, indicators, onClose }: { regime: RegimeData | nul
                   <span className="text-green-500 font-black text-lg">↑</span>
                   <div>
                     <p className="text-sm font-bold">Bull regime starts</p>
-                    <p className="text-xs text-muted-foreground">Weekly close above <strong className="text-foreground">${formatPrice(regime.ema50)}</strong></p>
+                    <p className="text-xs text-muted-foreground">Weekly close above <strong className="text-foreground">${formatPriceCompact(regime.ema50)}</strong></p>
                   </div>
                 </div>
-                <p className="text-xs text-muted-foreground">Until then, only short. When BTC crosses above ${formatPrice(regime.ema50)} on a weekly close, switch to longs.</p>
+                <p className="text-xs text-muted-foreground">Until then, only short. When BTC crosses above ${formatPriceCompact(regime.ema50)} on a weekly close, switch to longs.</p>
               </div>
             ) : (
               <div className="space-y-2">
@@ -113,10 +96,10 @@ function RegimeModal({ regime, indicators, onClose }: { regime: RegimeData | nul
                   <span className="text-red-500 font-black text-lg">↓</span>
                   <div>
                     <p className="text-sm font-bold">Bear regime warning</p>
-                    <p className="text-xs text-muted-foreground">Weekly close below <strong className="text-foreground">${formatPrice(regime.ema50)}</strong></p>
+                    <p className="text-xs text-muted-foreground">Weekly close below <strong className="text-foreground">${formatPriceCompact(regime.ema50)}</strong></p>
                   </div>
                 </div>
-                <p className="text-xs text-muted-foreground">If BTC closes below ${formatPrice(regime.ema50)} on a weekly candle, shift to shorts and reduce spot exposure.</p>
+                <p className="text-xs text-muted-foreground">If BTC closes below ${formatPriceCompact(regime.ema50)} on a weekly candle, shift to shorts and reduce spot exposure.</p>
               </div>
             )}
           </div>
@@ -137,7 +120,7 @@ function RegimeModal({ regime, indicators, onClose }: { regime: RegimeData | nul
                       )}>{s.direction}</span>
                     </div>
                     <div className="text-right">
-                      <p className="text-xs font-mono font-medium">${formatPrice(s.entry)}</p>
+                      <p className="text-xs font-mono font-medium">${formatPriceCompact(s.entry)}</p>
                       <p className="text-[10px] text-muted-foreground">conviction {s.conviction}%</p>
                     </div>
                   </div>
@@ -160,7 +143,7 @@ function RegimeModal({ regime, indicators, onClose }: { regime: RegimeData | nul
                       <span className="ml-2 text-[9px] font-bold px-1.5 py-0.5 rounded bg-yellow-500/15 text-yellow-600 dark:text-yellow-400">{s.direction}</span>
                     </div>
                     <div className="text-right">
-                      <p className="text-xs font-mono font-medium">${formatPrice(s.entry)}</p>
+                      <p className="text-xs font-mono font-medium">${formatPriceCompact(s.entry)}</p>
                       <p className="text-[10px] text-muted-foreground">conviction {s.conviction}%</p>
                     </div>
                   </div>
@@ -215,11 +198,11 @@ function RegimeModal({ regime, indicators, onClose }: { regime: RegimeData | nul
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <p className="text-[10px] text-muted-foreground uppercase font-bold">BTC Price</p>
-                <p className="text-xl font-medium font-mono">${formatPrice(regime.btc_price)}</p>
+                <p className="text-xl font-medium font-mono">${formatPriceCompact(regime.btc_price)}</p>
               </div>
               <div>
                 <p className="text-[10px] text-muted-foreground uppercase font-bold">EMA50 (Weekly)</p>
-                <p className="text-xl font-medium font-mono">${formatPrice(regime.ema50)}</p>
+                <p className="text-xl font-medium font-mono">${formatPriceCompact(regime.ema50)}</p>
               </div>
             </div>
             <div className="space-y-1">
@@ -286,7 +269,7 @@ export function DashboardStatusBar() {
   const queryClient = useQueryClient();
   const { data: indicators, refetch: refetchIndicators } = useMarketIndicators();
   const { data: regime, isLoading: loading, refetch: refetchRegime } = useRegime("4h");
-  
+
   const [modalOpen, setModalOpen] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
 

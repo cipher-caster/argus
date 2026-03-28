@@ -9,16 +9,6 @@ interface TimeframeSelectorProps {
   onChange: (timeframe: string) => void;
 }
 
-const FAVORITES = [
-  { value: "15m", label: "15m" },
-  { value: "1h", label: "1H" },
-  { value: "4h", label: "4H" },
-  { value: "12h", label: "12H" },
-  { value: "1d", label: "1D" },
-  { value: "3d", label: "3D" },
-  { value: "1w", label: "1W" },
-];
-
 const ALL_INTERVALS = [
   {
     label: "Minutes",
@@ -77,7 +67,7 @@ function TimeframeSelectorComponent({ selected, onChange }: TimeframeSelectorPro
         setFavorites(JSON.parse(saved));
       }
     } catch (e) {
-      console.error("Failed to load favorite timeframes", e);
+      if (process.env.NODE_ENV === "development") console.error("Failed to load favorite timeframes", e);
     }
   }, []);
 

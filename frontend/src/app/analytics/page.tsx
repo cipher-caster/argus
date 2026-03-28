@@ -15,7 +15,7 @@ const SignalLog = dynamic(() => import("@/components/analytics").then((mod) => (
 
 type ChartType = "best-setups" | "signal-log";
 
-const MENU_ITEMS: { id: ChartType; label: string; icon: any }[] = [
+const MENU_ITEMS: { id: ChartType; label: string; icon: React.ElementType }[] = [
   { id: "best-setups", label: "Best Setups", icon: Sparkles },
   { id: "signal-log", label: "Signal Log", icon: History },
 ];

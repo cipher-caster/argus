@@ -3,22 +3,11 @@
 import { useState } from "react";
 import { useBacktestStats, useSignalLog } from "@/hooks/useAnalyticsData";
 import { CoinBacktestStats, SignalLogItem } from "@/lib/api";
+import { formatPriceCompact, formatDateTime } from "@/lib/formatters";
 import { cn } from "@/lib/utils";
 import { BarChart3, ArrowUpDown, Trophy, Target, TrendingUp, TrendingDown, ChevronRight } from "lucide-react";
 
 type SortKey = "profit_r" | "win_rate" | "total";
-
-function formatPrice(p: number) {
-  if (p >= 1000) return p.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-  if (p >= 1) return p.toFixed(4);
-  return p.toFixed(6);
-}
-
-function formatDate(ms: number) {
-  const d = new Date(ms);
-  const mon = d.toLocaleString("en-US", { month: "short" });
-  return `${mon} ${d.getDate()}, ${d.getFullYear()} ${d.getHours().toString().padStart(2, "0")}:${d.getMinutes().toString().padStart(2, "0")}`;
-}
 
 function SignalDetail({ symbol }: { symbol: string }) {
   const { data, isLoading } = useSignalLog(symbol, "backtest", 200);
@@ -54,7 +43,7 @@ function SignalDetail({ symbol }: { symbol: string }) {
                     "text-sky-500 bg-sky-500/10";
                   return (
                     <tr key={s.id} className="border-b border-border/10 text-[11px] hover:bg-secondary/10">
-                      <td className="py-2 px-3 text-muted-foreground whitespace-nowrap">{formatDate(s.fired_at)}</td>
+                      <td className="py-2 px-3 text-muted-foreground whitespace-nowrap">{formatDateTime(s.fired_at)}</td>
                       <td className="py-2 px-3">
                         <span className={cn("font-black text-[10px] px-1.5 py-0.5 rounded",
                           isLong ? "bg-emerald-500/10 text-emerald-500" : "bg-red-500/10 text-red-500"
@@ -62,9 +51,9 @@ function SignalDetail({ symbol }: { symbol: string }) {
                           {s.direction}
                         </span>
                       </td>
-                      <td className="py-2 px-3 font-mono text-muted-foreground">${formatPrice(s.entry)}</td>
-                      <td className="py-2 px-3 font-mono text-emerald-600 dark:text-emerald-400">${formatPrice(s.tp)}</td>
-                      <td className="py-2 px-3 font-mono text-red-600 dark:text-red-400">${formatPrice(s.sl)}</td>
+                      <td className="py-2 px-3 font-mono text-muted-foreground">${formatPriceCompact(s.entry)}</td>
+                      <td className="py-2 px-3 font-mono text-emerald-600 dark:text-emerald-400">${formatPriceCompact(s.tp)}</td>
+                      <td className="py-2 px-3 font-mono text-red-600 dark:text-red-400">${formatPriceCompact(s.sl)}</td>
                       <td className="py-2 px-3 font-bold text-muted-foreground">{s.conviction}</td>
                       <td className="py-2 px-3">
                         <span className={cn("text-[10px] font-black px-1.5 py-0.5 rounded-md", outcomeStyle)}>
@@ -72,7 +61,7 @@ function SignalDetail({ symbol }: { symbol: string }) {
                         </span>
                       </td>
                       <td className="py-2 px-3 font-mono text-muted-foreground">
-                        {s.resolved_price ? `$${formatPrice(s.resolved_price)}` : "—"}
+                        {s.resolved_price ? `$${formatPriceCompact(s.resolved_price)}` : "—"}
                       </td>
                     </tr>
                   );

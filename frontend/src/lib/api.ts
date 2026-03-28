@@ -44,69 +44,39 @@ export async function fetchOHLCV(symbol: string, timeframe: string = "1h", limit
     params.append("end_timestamp", end_timestamp.toString());
   }
 
-  const response = await fetch(`${API_URL}/api/ohlcv/${encodeURIComponent(symbol)}?${params}`);
-
-  if (!response.ok) {
-    throw new Error(`Failed to fetch OHLCV: ${response.statusText}`);
-  }
-
-  return response.json();
+  return apiFetch<OHLCVResponse>(`${API_URL}/api/ohlcv/${encodeURIComponent(symbol)}?${params}`);
 }
 
 /**
  * Fetch available trading symbols
  */
 export async function fetchSymbols(): Promise<SymbolInfo[]> {
-  const response = await fetch(`${API_URL}/api/symbols`);
-
-  if (!response.ok) {
-    throw new Error(`Failed to fetch symbols: ${response.statusText}`);
-  }
-
-  return response.json();
+  return apiFetch<SymbolInfo[]>(`${API_URL}/api/symbols`);
 }
 
 /**
  * Fetch current ticker price
  */
 export async function fetchTicker(symbol: string): Promise<TickerResponse> {
-  const response = await fetch(`${API_URL}/api/ticker/${encodeURIComponent(symbol)}`);
-
-  if (!response.ok) {
-    throw new Error(`Failed to fetch ticker: ${response.statusText}`);
-  }
-
-  return response.json();
+  return apiFetch<TickerResponse>(`${API_URL}/api/ticker/${encodeURIComponent(symbol)}`);
 }
 
 /**
  * Fetch current provider info
  */
 export async function fetchProviderInfo(): Promise<{ provider: string }> {
-  const response = await fetch(`${API_URL}/api/provider`);
-
-  if (!response.ok) {
-    throw new Error(`Failed to fetch provider: ${response.statusText}`);
-  }
-
-  return response.json();
+  return apiFetch<{ provider: string }>(`${API_URL}/api/provider`);
 }
 
 /**
  * Switch the active data provider
  */
 export async function setProvider(provider: string): Promise<{ provider: string }> {
-  const response = await fetch(`${API_URL}/api/provider`, {
+  return apiFetch<{ provider: string }>(`${API_URL}/api/provider`, {
     method: "PUT",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ provider }),
   });
-
-  if (!response.ok) {
-    throw new Error(`Failed to switch provider: ${response.statusText}`);
-  }
-
-  return response.json();
 }
 
 // --- Analytics Types ---
@@ -183,40 +153,28 @@ export interface TitanRadarResponse {
  * Fetch supported analytics symbols
  */
 export async function fetchAnalyticsSymbols(limit: number = 20): Promise<AnalyticsSymbolsResponse> {
-  const response = await fetch(`${API_URL}/api/analytics/symbols?limit=${limit}`);
-
-  if (!response.ok) {
-    throw new Error(`Failed to fetch analytics symbols: ${response.statusText}`);
-  }
-
-  return response.json();
+  return apiFetch<AnalyticsSymbolsResponse>(`${API_URL}/api/analytics/symbols?limit=${limit}`);
 }
 
 /**
  * Fetch Oracle Screener results
  */
 export async function fetchOracleScreener(timeframe: string = "1h", limit: number = 50): Promise<ScreenerResponse> {
-  const response = await fetch(`${API_URL}/api/analytics/screener?timeframe=${timeframe}&limit=${limit}`);
-  if (!response.ok) throw new Error("Failed to fetch screener");
-  return response.json();
+  return apiFetch<ScreenerResponse>(`${API_URL}/api/analytics/screener?timeframe=${timeframe}&limit=${limit}`);
 }
 
 /**
  * Fetch Mean Reversion (Contrarian Radar) data
  */
 export async function fetchMeanReversion(timeframe: string = "1h", limit: number = 50): Promise<MeanReversionResponse> {
-  const response = await fetch(`${API_URL}/api/analytics/contrarian-radar?timeframe=${timeframe}&limit=${limit}`);
-  if (!response.ok) throw new Error("Failed to fetch contrarian radar");
-  return response.json();
+  return apiFetch<MeanReversionResponse>(`${API_URL}/api/analytics/contrarian-radar?timeframe=${timeframe}&limit=${limit}`);
 }
 
 /**
  * Fetch Oracle Signal Summary for Dashboard
  */
 export async function fetchOracleSignalSummary(): Promise<OracleSignalSummaryResponse> {
-  const response = await fetch(`${API_URL}/api/analytics/signal-summary`);
-  if (!response.ok) throw new Error("Failed to fetch signal summary");
-  return response.json();
+  return apiFetch<OracleSignalSummaryResponse>(`${API_URL}/api/analytics/signal-summary`);
 }
 
 export interface BestSetupItem {
@@ -251,18 +209,14 @@ export interface BestSetupsResponse {
  * Fetch Best Setups (Oracle + Titan combined, high-conviction only)
  */
 export async function fetchBestSetups(timeframe: string = "4h", limit: number = 50): Promise<BestSetupsResponse> {
-  const response = await fetch(`${API_URL}/api/analytics/best-setups?timeframe=${timeframe}&limit=${limit}`);
-  if (!response.ok) throw new Error("Failed to fetch best setups");
-  return response.json();
+  return apiFetch<BestSetupsResponse>(`${API_URL}/api/analytics/best-setups?timeframe=${timeframe}&limit=${limit}`);
 }
 
 /**
  * Fetch Titan Radar
  */
 export async function fetchTitanRadar(limit: number = 50, timeframe: string = "4h"): Promise<TitanRadarResponse> {
-  const response = await fetch(`${API_URL}/api/analytics/titan-radar?limit=${limit}&timeframe=${timeframe}`);
-  if (!response.ok) throw new Error("Failed to fetch titan radar");
-  return response.json();
+  return apiFetch<TitanRadarResponse>(`${API_URL}/api/analytics/titan-radar?limit=${limit}&timeframe=${timeframe}`);
 }
 
 export interface RegimeData {
@@ -367,9 +321,7 @@ export interface TitanStrategyResponse {
  * Fetch Titan Strategy analysis for a single symbol
  */
 export async function fetchTitanStrategy(symbol: string, timeframe: string = "4h"): Promise<TitanStrategyResponse> {
-  const response = await fetch(`${API_URL}/api/strategy/titan/${encodeURIComponent(symbol)}?timeframe=${timeframe}`);
-  if (!response.ok) throw new Error(`Failed to fetch titan strategy: ${response.statusText}`);
-  return response.json();
+  return apiFetch<TitanStrategyResponse>(`${API_URL}/api/strategy/titan/${encodeURIComponent(symbol)}?timeframe=${timeframe}`);
 }
 
 /**
@@ -431,19 +383,15 @@ export interface SignalLogConfig {
 }
 
 export async function fetchSignalLogConfig(): Promise<SignalLogConfig> {
-  const response = await fetch(`${API_URL}/api/analytics/signal-log/config`);
-  if (!response.ok) throw new Error("Failed to fetch signal log config");
-  return response.json();
+  return apiFetch<SignalLogConfig>(`${API_URL}/api/analytics/signal-log/config`);
 }
 
 export async function updateSignalLogConfig(config: SignalLogConfig): Promise<SignalLogConfig> {
-  const response = await fetch(`${API_URL}/api/analytics/signal-log/config`, {
+  return apiFetch<SignalLogConfig>(`${API_URL}/api/analytics/signal-log/config`, {
     method: "PUT",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(config),
   });
-  if (!response.ok) throw new Error("Failed to update signal log config");
-  return response.json();
 }
 
 export async function fetchSignalLog(symbol?: string, source?: string, limit: number = 50, offset: number = 0, provider?: string): Promise<SignalLogResponse> {
@@ -451,9 +399,7 @@ export async function fetchSignalLog(symbol?: string, source?: string, limit: nu
   if (symbol) params.append("symbol", symbol);
   if (source) params.append("source", source);
   if (provider) params.append("provider", provider);
-  const response = await fetch(`${API_URL}/api/analytics/signal-log?${params}`);
-  if (!response.ok) throw new Error(`Failed to fetch signal log: ${response.statusText}`);
-  return response.json();
+  return apiFetch<SignalLogResponse>(`${API_URL}/api/analytics/signal-log?${params}`);
 }
 
 export interface CoinBacktestStats {
@@ -483,9 +429,7 @@ export interface BacktestStatsResponse {
 }
 
 export async function fetchBacktestStats(): Promise<BacktestStatsResponse> {
-  const response = await fetch(`${API_URL}/api/analytics/signal-log/stats?source=backtest`);
-  if (!response.ok) throw new Error("Failed to fetch backtest stats");
-  return response.json();
+  return apiFetch<BacktestStatsResponse>(`${API_URL}/api/analytics/signal-log/stats?source=backtest`);
 }
 
 // --- Trading Types ---
@@ -589,72 +533,48 @@ export interface TradingConfig {
 }
 
 export async function fetchTradingPortfolio(): Promise<TradingPortfolio> {
-  const response = await fetch(`${API_URL}/api/trading/portfolio`);
-  if (!response.ok) throw new Error("Failed to fetch portfolio");
-  return response.json();
+  return apiFetch<TradingPortfolio>(`${API_URL}/api/trading/portfolio`);
 }
 
 export async function fetchPositions(status?: string, symbol?: string): Promise<PositionsResponse> {
   const params = new URLSearchParams();
   if (status) params.append("status", status);
   if (symbol) params.append("symbol", symbol);
-  const response = await fetch(`${API_URL}/api/trading/positions?${params}`);
-  if (!response.ok) throw new Error("Failed to fetch positions");
-  return response.json();
-}
-
-export async function fetchPositionDetail(id: number): Promise<PositionDetail> {
-  const response = await fetch(`${API_URL}/api/trading/positions/${id}`);
-  if (!response.ok) throw new Error("Failed to fetch position");
-  return response.json();
+  return apiFetch<PositionsResponse>(`${API_URL}/api/trading/positions?${params}`);
 }
 
 export async function fetchTradeHistory(limit = 50, offset = 0, symbol?: string): Promise<HistoryResponse> {
   const params = new URLSearchParams({ limit: limit.toString(), offset: offset.toString() });
   if (symbol) params.append("symbol", symbol);
-  const response = await fetch(`${API_URL}/api/trading/history?${params}`);
-  if (!response.ok) throw new Error("Failed to fetch trade history");
-  return response.json();
+  return apiFetch<HistoryResponse>(`${API_URL}/api/trading/history?${params}`);
 }
 
 export async function fetchTradingConfig(): Promise<TradingConfig> {
-  const response = await fetch(`${API_URL}/api/trading/config`);
-  if (!response.ok) throw new Error("Failed to fetch trading config");
-  return response.json();
+  return apiFetch<TradingConfig>(`${API_URL}/api/trading/config`);
 }
 
 export async function updateTradingConfig(patch: Partial<TradingConfig>): Promise<TradingConfig> {
-  const response = await fetch(`${API_URL}/api/trading/config`, {
+  return apiFetch<TradingConfig>(`${API_URL}/api/trading/config`, {
     method: "PUT",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(patch),
   });
-  if (!response.ok) throw new Error("Failed to update trading config");
-  return response.json();
 }
 
 export async function fetchTradingStats(): Promise<TradingStats> {
-  const response = await fetch(`${API_URL}/api/trading/stats`);
-  if (!response.ok) throw new Error("Failed to fetch trading stats");
-  return response.json();
+  return apiFetch<TradingStats>(`${API_URL}/api/trading/stats`);
 }
 
 export async function closePosition(id: number): Promise<Position> {
-  const response = await fetch(`${API_URL}/api/trading/close/${id}`, { method: "POST" });
-  if (!response.ok) throw new Error("Failed to close position");
-  return response.json();
+  return apiFetch<Position>(`${API_URL}/api/trading/close/${id}`, { method: "POST" });
 }
 
 export async function closeAllPositions(): Promise<{ closed: number; position_ids: number[] }> {
-  const response = await fetch(`${API_URL}/api/trading/close-all`, { method: "POST" });
-  if (!response.ok) throw new Error("Failed to close all positions");
-  return response.json();
+  return apiFetch<{ closed: number; position_ids: number[] }>(`${API_URL}/api/trading/close-all`, { method: "POST" });
 }
 
 export async function pauseTrading(): Promise<{ enabled: boolean; message: string }> {
-  const response = await fetch(`${API_URL}/api/trading/pause`, { method: "POST" });
-  if (!response.ok) throw new Error("Failed to pause trading");
-  return response.json();
+  return apiFetch<{ enabled: boolean; message: string }>(`${API_URL}/api/trading/pause`, { method: "POST" });
 }
 
 // --- Activity Log Types ---
@@ -670,9 +590,7 @@ export interface ActivityLogItem {
 export async function fetchActivityLog(limit = 50, offset = 0, eventType?: string): Promise<{ data: ActivityLogItem[] }> {
   const params = new URLSearchParams({ limit: String(limit), offset: String(offset) });
   if (eventType) params.set("event_type", eventType);
-  const response = await fetch(`${API_URL}/api/system/activity-log?${params}`);
-  if (!response.ok) throw new Error(`Failed to fetch activity log: ${response.statusText}`);
-  return response.json();
+  return apiFetch<{ data: ActivityLogItem[] }>(`${API_URL}/api/system/activity-log?${params}`);
 }
 
 // --- End Trading API ---
@@ -683,11 +601,5 @@ export async function fetchOracleStrategy(symbol: string, micro_tf: string = "1h
     macro_tf,
   });
 
-  const response = await fetch(`${API_URL}/api/strategy/oracle/${encodeURIComponent(symbol)}?${params}`);
-
-  if (!response.ok) {
-    throw new Error(`Failed to fetch oracle strategy: ${response.statusText}`);
-  }
-
-  return response.json();
+  return apiFetch<OracleStrategyResponse>(`${API_URL}/api/strategy/oracle/${encodeURIComponent(symbol)}?${params}`);
 }

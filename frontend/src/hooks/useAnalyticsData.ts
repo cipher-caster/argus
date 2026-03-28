@@ -109,6 +109,9 @@ export function useUpdateSignalLogConfig() {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["signal-log-config"] });
     },
+    onError: (error: Error) => {
+      console.error("Failed to update signal log config:", error.message);
+    },
   });
 }
 

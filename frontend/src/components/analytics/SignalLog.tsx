@@ -4,7 +4,8 @@ import { useState, useEffect } from "react";
 import Link from "next/link";
 import { useSignalLog, useSignalLogConfig, useUpdateSignalLogConfig } from "@/hooks/useAnalyticsData";
 import { SignalLogItem, SignalLogConfig } from "@/lib/api";
-import { formatPriceCompact, formatDateTime } from "@/lib/formatters";
+import { formatPriceCompact, formatDateTime, formatPercentageChange } from "@/lib/formatters";
+import { OUTCOME_CONFIG } from "@/lib/outcomeConfig";
 import { cn } from "@/lib/utils";
 import { RefreshCw, Settings2, Save, Check, ChevronDown } from "lucide-react";
 import { SignalDetailModal } from "./SignalDetailModal";
@@ -12,20 +13,7 @@ import { SignalDetailModal } from "./SignalDetailModal";
 const SYMBOLS = ["All", "BTC", "ETH", "BNB", "TRX", "XRP", "FET", "NEAR", "ARB", "ATOM", "DOGE", "APT"];
 const SOURCES = ["All", "Live", "Scanner", "Backtest", "Counter"];
 
-const OUTCOME_CONFIG = {
-  WIN:      { label: "WIN",      emoji: "✅", cls: "text-emerald-500 dark:text-emerald-400 bg-emerald-500/10" },
-  LOSS:     { label: "LOSS",     emoji: "❌", cls: "text-red-500 dark:text-red-400 bg-red-500/10" },
-  REVIEW:   { label: "REVIEW",   emoji: "👀", cls: "text-amber-500 dark:text-amber-400 bg-amber-500/10" },
-  OPEN:     { label: "OPEN",     emoji: "🔄", cls: "text-sky-500 dark:text-sky-400 bg-sky-500/10" },
-  REJECTED: { label: "REJECTED", emoji: "🚫", cls: "text-zinc-500 dark:text-zinc-400 bg-zinc-500/10" },
-} as const;
-
 // formatPriceCompact and formatDateTime imported from @/lib/formatters
-
-function pct(from: number, to: number, dir: "LONG" | "SHORT") {
-  const raw = dir === "LONG" ? ((to - from) / from) * 100 : ((from - to) / from) * 100;
-  return (raw >= 0 ? "+" : "") + raw.toFixed(1) + "%";
-}
 
 function SignalRow({ item, onClick }: { item: SignalLogItem; onClick: () => void }) {
   const cfg = OUTCOME_CONFIG[item.outcome] ?? OUTCOME_CONFIG.OPEN;
@@ -57,11 +45,11 @@ function SignalRow({ item, onClick }: { item: SignalLogItem; onClick: () => void
       <td className="py-3 px-4 font-mono text-muted-foreground">${formatPriceCompact(item.entry)}</td>
       <td className="py-3 px-4 font-mono text-emerald-600 dark:text-emerald-400">
         ${formatPriceCompact(item.tp)}
-        <span className="ml-1 text-[10px] opacity-60">{pct(item.entry, item.tp, item.direction)}</span>
+        <span className="ml-1 text-[10px] opacity-60">{formatPercentageChange(item.entry, item.tp, item.direction)}</span>
       </td>
       <td className="py-3 px-4 font-mono text-red-600 dark:text-red-400">
         ${formatPriceCompact(item.sl)}
-        <span className="ml-1 text-[10px] opacity-60">{pct(item.entry, item.sl, item.direction)}</span>
+        <span className="ml-1 text-[10px] opacity-60">{formatPercentageChange(item.entry, item.sl, item.direction)}</span>
       </td>
       <td className="py-3 px-4">
         <div className="flex items-center gap-1">

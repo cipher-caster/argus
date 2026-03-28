@@ -85,3 +85,36 @@ export function formatDateTime(ms: number): string {
   const mm = d.getMinutes().toString().padStart(2, "0");
   return `${mon} ${day}, ${yr} ${hh}:${mm}`;
 }
+
+/**
+ * Relative time string from a unix-ms timestamp.
+ */
+export function timeAgo(ms: number): string {
+  const diff = Date.now() - ms;
+  const h = Math.floor(diff / 3_600_000);
+  const d = Math.floor(diff / 86_400_000);
+  if (d >= 1) return `${d}d ago`;
+  if (h >= 1) return `${h}h ago`;
+  return "< 1h ago";
+}
+
+/**
+ * Duration string between two unix-ms timestamps.
+ */
+export function duration(from: number | null, to: number | null): string {
+  if (!from || !to) return "—";
+  const ms = to - from;
+  const h = Math.floor(ms / 3_600_000);
+  const d = Math.floor(ms / 86_400_000);
+  if (d >= 1) return `${d}d ${h % 24}h`;
+  if (h >= 1) return `${h}h`;
+  return "< 1h";
+}
+
+/**
+ * Percentage change between two values with sign.
+ */
+export function formatPercentageChange(from: number, to: number, dir: "LONG" | "SHORT" = "LONG"): string {
+  const raw = dir === "LONG" ? ((to - from) / from) * 100 : ((from - to) / from) * 100;
+  return (raw >= 0 ? "+" : "") + raw.toFixed(1) + "%";
+}

@@ -3,22 +3,11 @@
 import { useActivePositions, useClosePosition } from "@/hooks/useTradingData";
 import { Position } from "@/lib/api";
 import { cn } from "@/lib/utils";
-import { formatPriceCompact } from "@/lib/formatters";
+import { formatPriceCompact, timeAgo } from "@/lib/formatters";
 import { X } from "lucide-react";
 import Link from "next/link";
 import { useState } from "react";
 import { TradeDetailModal } from "./TradeDetailModal";
-
-// formatPriceCompact imported from @/lib/formatters
-
-function timeAgo(ms: number) {
-  const diff = Date.now() - ms;
-  const h = Math.floor(diff / 3_600_000);
-  const d = Math.floor(diff / 86_400_000);
-  if (d >= 1) return `${d}d`;
-  if (h >= 1) return `${h}h`;
-  return "< 1h";
-}
 
 function StatusBadge({ status }: { status: Position["status"] }) {
   return (

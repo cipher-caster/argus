@@ -1,6 +1,7 @@
 "use client";
 
 import { Position } from "@/lib/api";
+import { formatPriceCompact, formatDateTime, duration } from "@/lib/formatters";
 import { cn } from "@/lib/utils";
 import { X, Target, DollarSign, Layers, Clock, BarChart2 } from "lucide-react";
 import { useEffect } from "react";
@@ -10,34 +11,6 @@ interface TradeDetailModalProps {
   isOpen: boolean;
   onClose: () => void;
   position: Position | null;
-}
-
-/* ── Helpers ─────────────────────────────────────────────── */
-
-function formatPrice(p: number) {
-  if (p >= 1000) return p.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-  if (p >= 1) return p.toFixed(4);
-  return p.toFixed(6);
-}
-
-function formatDateTime(ms: number) {
-  const d = new Date(ms);
-  const mon = d.toLocaleString("en-US", { month: "short" });
-  const day = d.getDate();
-  const yr = d.getFullYear();
-  const hh = d.getHours().toString().padStart(2, "0");
-  const mm = d.getMinutes().toString().padStart(2, "0");
-  return `${mon} ${day}, ${yr} ${hh}:${mm}`;
-}
-
-function duration(from: number | null, to: number | null): string {
-  if (!from || !to) return "\u2014";
-  const ms = to - from;
-  const h = Math.floor(ms / 3_600_000);
-  const d = Math.floor(ms / 86_400_000);
-  if (d >= 1) return `${d}d ${h % 24}h`;
-  if (h >= 1) return `${h}h`;
-  return "< 1h";
 }
 
 /* ── Tiny sub-components ─────────────────────────────────── */
@@ -151,20 +124,20 @@ export function TradeDetailModal({ isOpen, onClose, position }: TradeDetailModal
             <div className="grid grid-cols-3 gap-2">
               <InfoCard>
                 <Label>Intended Entry</Label>
-                <div><Value>${formatPrice(pos.intended_entry)}</Value></div>
+                <div><Value>${formatPriceCompact(pos.intended_entry)}</Value></div>
               </InfoCard>
               <InfoCard>
                 <Label>Actual Entry</Label>
-                <div><Value>{pos.actual_entry ? `$${formatPrice(pos.actual_entry)}` : "Pending"}</Value></div>
+                <div><Value>{pos.actual_entry ? `$${formatPriceCompact(pos.actual_entry)}` : "Pending"}</Value></div>
               </InfoCard>
               <InfoCard>
                 <Label>Actual Exit</Label>
-                <div><Value>{pos.actual_exit ? `$${formatPrice(pos.actual_exit)}` : "\u2014"}</Value></div>
+                <div><Value>{pos.actual_exit ? `$${formatPriceCompact(pos.actual_exit)}` : "\u2014"}</Value></div>
               </InfoCard>
               <InfoCard>
                 <Label>Take Profit</Label>
                 <div>
-                  <Value className="text-emerald-500">${formatPrice(pos.intended_tp)}</Value>
+                  <Value className="text-emerald-500">${formatPriceCompact(pos.intended_tp)}</Value>
                   <span className="text-[10px] text-emerald-500/60 ml-1">
                     {tpDist >= 0 ? "+" : ""}{tpDist.toFixed(2)}%
                   </span>
@@ -173,7 +146,7 @@ export function TradeDetailModal({ isOpen, onClose, position }: TradeDetailModal
               <InfoCard>
                 <Label>Stop Loss</Label>
                 <div>
-                  <Value className="text-red-500">${formatPrice(pos.intended_sl)}</Value>
+                  <Value className="text-red-500">${formatPriceCompact(pos.intended_sl)}</Value>
                   <span className="text-[10px] text-red-500/60 ml-1">
                     {slDist.toFixed(2)}%
                   </span>
@@ -187,7 +160,7 @@ export function TradeDetailModal({ isOpen, onClose, position }: TradeDetailModal
             {pos.current_price !== undefined && (
               <InfoCard className="mt-2">
                 <Label>Current Price</Label>
-                <div><Value>${formatPrice(pos.current_price)}</Value></div>
+                <div><Value>${formatPriceCompact(pos.current_price)}</Value></div>
               </InfoCard>
             )}
           </div>

@@ -5,6 +5,8 @@ import { createPortal } from "react-dom";
 import { X, Target, Zap, Clock, BarChart2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { SignalLogItem } from "@/lib/api";
+import { formatPriceCompact, formatDateTime } from "@/lib/formatters";
+import { OUTCOME_STYLE, OUTCOME_EMOJI } from "@/lib/outcomeConfig";
 
 // ─── Props ──────────────────────────────────────────────────────────────────
 
@@ -16,41 +18,9 @@ interface SignalDetailModalProps {
 
 // ─── Helpers ────────────────────────────────────────────────────────────────
 
-function formatPrice(p: number) {
-  if (p >= 1000) return p.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-  if (p >= 1) return p.toFixed(4);
-  return p.toFixed(6);
-}
-
-function formatDateTime(ms: number) {
-  const d = new Date(ms);
-  const mon = d.toLocaleString("en-US", { month: "short" });
-  const day = d.getDate();
-  const yr = d.getFullYear();
-  const hh = d.getHours().toString().padStart(2, "0");
-  const mm = d.getMinutes().toString().padStart(2, "0");
-  return `${mon} ${day}, ${yr} ${hh}:${mm}`;
-}
-
 function pctDistance(from: number, to: number) {
   return ((Math.abs(to - from) / from) * 100).toFixed(2);
 }
-
-const OUTCOME_EMOJI: Record<string, string> = {
-  WIN: "\u2705",
-  LOSS: "\u274C",
-  REVIEW: "\uD83D\uDC40",
-  OPEN: "\uD83D\uDD04",
-  REJECTED: "\uD83D\uDEAB",
-};
-
-const OUTCOME_STYLE: Record<string, string> = {
-  WIN: "text-emerald-500 bg-emerald-500/10 border-emerald-500/20",
-  LOSS: "text-red-500 bg-red-500/10 border-red-500/20",
-  REVIEW: "text-amber-500 bg-amber-500/10 border-amber-500/20",
-  OPEN: "text-sky-500 bg-sky-500/10 border-sky-500/20",
-  REJECTED: "text-zinc-500 bg-zinc-500/10 border-zinc-500/20",
-};
 
 const SOURCE_STYLE: Record<string, string> = {
   live: "text-sky-500 bg-sky-500/10 border-sky-500/20",
@@ -105,9 +75,9 @@ function DetailBody({ signal }: { signal: SignalLogItem }) {
         <SectionTitle icon={<Target size={13} />}>Price Levels</SectionTitle>
 
         <div className="grid grid-cols-3 gap-2">
-          <StatCard label="Entry" value={`$${formatPrice(signal.entry)}`} />
-          <StatCard label={`TP (${tpDist}%)`} value={`$${formatPrice(signal.tp)}`} valueClass="text-emerald-600 dark:text-emerald-400" />
-          <StatCard label={`SL (${slDist}%)`} value={`$${formatPrice(signal.sl)}`} valueClass="text-red-600 dark:text-red-400" />
+          <StatCard label="Entry" value={`$${formatPriceCompact(signal.entry)}`} />
+          <StatCard label={`TP (${tpDist}%)`} value={`$${formatPriceCompact(signal.tp)}`} valueClass="text-emerald-600 dark:text-emerald-400" />
+          <StatCard label={`SL (${slDist}%)`} value={`$${formatPriceCompact(signal.sl)}`} valueClass="text-red-600 dark:text-red-400" />
         </div>
 
         <div className="flex items-center gap-3">
@@ -121,7 +91,7 @@ function DetailBody({ signal }: { signal: SignalLogItem }) {
           {signal.resolved_price !== null && (
             <div className="bg-muted/30 border border-border/50 rounded-lg px-3 py-1.5">
               <span className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground mr-2">Resolved @</span>
-              <span className="text-xs font-mono font-medium text-foreground">${formatPrice(signal.resolved_price)}</span>
+              <span className="text-xs font-mono font-medium text-foreground">${formatPriceCompact(signal.resolved_price)}</span>
             </div>
           )}
         </div>
@@ -197,7 +167,7 @@ function DetailBody({ signal }: { signal: SignalLogItem }) {
           <StatCard label="Regime at Resolution" value={signal.regime_at_resolution || "\u2014"} />
           <StatCard
             label="BTC Price at Resolution"
-            value={signal.btc_price_at_resolution ? `$${formatPrice(signal.btc_price_at_resolution)}` : "\u2014"}
+            value={signal.btc_price_at_resolution ? `$${formatPriceCompact(signal.btc_price_at_resolution)}` : "\u2014"}
           />
           <div className="bg-muted/30 border border-border/50 rounded-lg p-2">
             <div className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground mb-0.5">Source</div>

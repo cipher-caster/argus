@@ -77,6 +77,9 @@ export function useUpdateTradingConfig() {
       qc.invalidateQueries({ queryKey: ["trading", "config"] });
       qc.invalidateQueries({ queryKey: ["trading", "portfolio"] });
     },
+    onError: (error: Error) => {
+      console.error("Failed to update trading config:", error.message);
+    },
   });
 }
 
@@ -86,6 +89,9 @@ export function useClosePosition() {
     mutationFn: (id: number) => closePosition(id),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["trading"] });
+    },
+    onError: (error: Error) => {
+      console.error("Failed to close position:", error.message);
     },
   });
 }
@@ -97,6 +103,9 @@ export function useCloseAllPositions() {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["trading"] });
     },
+    onError: (error: Error) => {
+      console.error("Failed to close all positions:", error.message);
+    },
   });
 }
 
@@ -107,6 +116,9 @@ export function usePauseTrading() {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["trading", "config"] });
       qc.invalidateQueries({ queryKey: ["trading", "portfolio"] });
+    },
+    onError: (error: Error) => {
+      console.error("Failed to pause trading:", error.message);
     },
   });
 }

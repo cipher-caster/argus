@@ -78,11 +78,5 @@ export async function fetchCoins(params: { page?: number; pageSize?: number; sea
   if (params.sortBy) searchParams.set("sort_by", params.sortBy);
   if (params.sortOrder) searchParams.set("sort_order", params.sortOrder);
 
-  const response = await fetch(`${API_URL}/api/market/coins?${searchParams}`);
-
-  if (!response.ok) {
-    throw new Error(`Failed to fetch coins: ${response.statusText}`);
-  }
-
-  return response.json();
+  return apiFetch<CoinsResponse>(`${API_URL}/api/market/coins?${searchParams}`);
 }

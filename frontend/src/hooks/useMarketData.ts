@@ -27,8 +27,10 @@ export function useSetProvider() {
   return useMutation({
     mutationFn: setProvider,
     onSuccess: () => {
-      // Invalidate provider info and everything dependent on the exchange
-      qc.invalidateQueries();
+      qc.invalidateQueries({ queryKey: ["providerInfo"] });
+      qc.invalidateQueries({ queryKey: ["ohlcv"] });
+      qc.invalidateQueries({ queryKey: ["tickers"] });
+      qc.invalidateQueries({ queryKey: ["symbols"] });
     },
   });
 }
@@ -96,17 +98,9 @@ export function useTicker(symbol: string) {
     queryKey: ["ticker", symbol],
     queryFn: () => fetchTicker(symbol),
     refetchInterval: 5000, // Refetch every 5 seconds
+    staleTime: 3000,
     enabled: !!symbol,
   });
 }
 
-/**
- * Hook for fetching provider info
- */
-export function useProvider() {
-  return useQuery({
-    queryKey: ["provider"],
-    queryFn: fetchProviderInfo,
-    staleTime: Infinity, // Provider doesn't change
-  });
-}
+
