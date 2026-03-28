@@ -78,7 +78,7 @@ class TestRedisHelpers:
     async def test_get_market_state_cache_miss(self, mock_redis):
         mock_redis.get_json = AsyncMock(return_value=None)
         result = await _get_market_state()
-        assert result == ""
+        assert result == "UNKNOWN"
 
     @pytest.mark.asyncio
     @patch("app.jobs.signal_log.RedisClient")
@@ -385,9 +385,14 @@ class TestResolveOutcomes:
 
     @pytest.mark.asyncio
     @patch("app.jobs.signal_log.resolve_outcomes_historical", new_callable=AsyncMock)
-    async def test_delegates_to_historical(self, mock_historical):
-        """resolve_signal_outcomes should call resolve_outcomes_historical."""
+    @patch("app.jobs.signal_log.datetime")
+    async def test_delegates_to_historical(self, mock_dt, mock_historical):
+        """resolve_signal_outcomes should call resolve_outcomes_historical at :00 or :30."""
         from app.jobs.signal_log import resolve_signal_outcomes
+        # Freeze time at a :00 minute so the throttle gate is open
+        mock_now = MagicMock()
+        mock_now.minute = 0
+        mock_dt.now.return_value = mock_now
         ctx = self._make_ctx()
         await resolve_signal_outcomes(ctx)
         mock_historical.assert_awaited_once_with(ctx)

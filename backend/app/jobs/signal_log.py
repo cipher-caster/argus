@@ -9,6 +9,7 @@ combinations — consistently negative. Trend-following strategy doesn't
 fit SOL's mean-reverting character on 4H.
 """
 import logging
+import math
 import time
 from datetime import datetime, timezone
 
@@ -54,6 +55,19 @@ async def _get_config() -> dict:
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
+
+def _price_round(value: float) -> float:
+    """Round a price to enough decimal places to preserve precision.
+
+    Uses dynamic precision so low-price tokens (SHIB, PEPE) don't lose
+    meaningful digits when `round(..., 6)` collapses TP/SL to the entry price.
+    """
+    if value == 0:
+        return 0.0
+    magnitude = math.floor(math.log10(abs(value)))
+    places = max(6, -magnitude + 4)
+    return round(value, places)
+
 
 async def _get_market_state() -> str:
     """Return current market_state (STRONG BULL/BEAR etc) or fallback to regime (BULL/BEAR)."""
@@ -247,9 +261,9 @@ async def log_watchlist_setups(ctx):
                     symbol=symbol,
                     direction="LONG" if is_long else "SHORT",
                     timeframe="4h",
-                    entry=round(float(targets.get("entry", price)), 6),
-                    tp=round(float(targets.get("tp", 0)), 6),
-                    sl=round(float(targets.get("sl", 0)), 6),
+                    entry=_price_round(float(targets.get("entry", price))),
+                    tp=_price_round(float(targets.get("tp", 0))),
+                    sl=_price_round(float(targets.get("sl", 0))),
                     conviction=conviction,
                     oracle_signal="N/A",
                     titan_signal=t_signal,
@@ -467,7 +481,8 @@ async def resolve_signal_outcomes(ctx):
                                 linked_pos.closed_at = now_ms
                                 linked_pos.pnl_usd = round(raw_pnl - (price * linked_pos.quantity * 0.001), 4)
                                 linked_pos.pnl_pct = round((raw_pnl / (entry * linked_pos.quantity)) * 100, 2)
-                                linked_pos.outcome = new_outcome
+                                # Position outcome reflects actual PnL at fill price, not signal-level TP hit
+                                linked_pos.outcome = "WIN" if linked_pos.pnl_usd >= 0 else "LOSS"
                             
                             session.add(linked_pos)
 
@@ -778,9 +793,9 @@ async def log_contrarian_signals(ctx):
                 symbol=sym,
                 direction=direction,
                 timeframe="1h",
-                entry=round(price, 6),
-                tp=round(tp, 6),
-                sl=round(sl, 6),
+                entry=_price_round(price),
+                tp=_price_round(tp),
+                sl=_price_round(sl),
                 conviction=70,  # Base conviction for contrarian
                 oracle_signal="N/A",
                 titan_signal="CONTRARIAN",
