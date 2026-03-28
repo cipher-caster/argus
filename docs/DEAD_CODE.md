@@ -12,6 +12,8 @@ Oracle is no longer used as a signal source in the UI. See `docs/CHANGELOG.md` v
 |------|----------|---------|
 | `GET /api/strategy/oracle/{symbol}` | `backend/app/routes/strategy.py` | Slash command `/read` (legacy fallback), signal_log screener warming |
 | `OracleStrategy` class | `backend/app/strategies/oracle.py` | Strategy route, signal_log job |
+| `detect_mean_reversion` | `backend/app/indicators/mean_reversion.py` | Used by `log_contrarian_signals` job and `contrarian-radar` endpoint |
+| `GET /api/analytics/contrarian-radar` | `backend/app/routes/analytics.py` | Frontend Contrarian Radar component |
 
 ### Dead Code (Can Be Removed)
 
@@ -64,16 +66,6 @@ One-off scripts from the BTC/ETH analysis. Not part of the core system.
 |--------|--------|
 | `tests/verify_refactor.py` | Manual smoke test, not automated |
 | `tests/verify_freshness.py` | Manual smoke test, not automated |
-
-## Removed Components (No Backtest Proof)
-
-| Component | File | Why Removed |
-|-----------|------|-------------|
-| **ContrarianRadar** | `frontend/src/components/analytics/ContrarianRadar.tsx` | No backtest data. Mean reversion opposite of trend following. Zero evidence of profitability. |
-| `useContrarianRadar` hook | `frontend/src/hooks/useAnalyticsData.ts` | Only consumer was ContrarianRadar |
-| `fetchMeanReversion` API fn | `frontend/src/lib/api.ts` | Only consumer was useContrarianRadar |
-| `detect_mean_reversion` | `backend/app/indicators/mean_reversion.py` | Only used by dead contrarian-radar endpoint |
-| `GET /api/analytics/contrarian-radar` | `backend/app/routes/analytics.py` | No frontend calls after removal |
 
 ## Naming Inconsistencies (Fixed)
 

@@ -378,12 +378,94 @@ async def log_best_setups(ctx):
 
 async def resolve_signal_outcomes(ctx):
     """
-    Runs every 30min. Resolves all OPEN signals using candle high/low data.
-    Walks candles chronologically from fired_at to check TP/SL ordering.
+    Runs every 30min. 
+    1. Fast-path: Check current ticker price for all OPEN signals.
+    2. Historical: Walk candles chronologically from fired_at to catch hits during downtime.
     - WIN   — TP hit before SL
     - LOSS  — SL hit before TP
     - REVIEW — fired_at > 7 days ago, neither hit
     """
+    from app.providers import get_provider
+    from app.schemas.trading import Position
+
+    logger.info("Job: resolve_signal_outcomes — checking ticker prices and historical candles...")
+    
+    # 1. Fast-path: Current Ticker Resolution
+    provider = get_provider()
+    try:
+        tickers = await provider.get_all_tickers()
+        if tickers:
+            async with Database.get_session() as session:
+                stmt = select(SignalLog).where(SignalLog.outcome == "OPEN")
+                res = await session.execute(stmt)
+                open_signals = res.scalars().all()
+                
+                now_ms = int(time.time() * 1000)
+                fast_resolved = 0
+                
+                # Create a normalized ticker map (no slashes)
+                ticker_map = {s.replace("/", ""): t for s, t in tickers.items()}
+                
+                for sig in open_signals:
+                    ticker = ticker_map.get(sig.symbol.replace("/", ""))
+                    if not ticker or "last" not in ticker:
+                        continue
+                        
+                    price = float(ticker["last"])
+                    new_outcome = None
+                    
+                    if sig.direction == "LONG":
+                        if sig.tp > 0 and price >= sig.tp:
+                            new_outcome = "WIN"
+                        elif sig.sl > 0 and price <= sig.sl:
+                            new_outcome = "LOSS"
+                    else:  # SHORT
+                        if sig.tp > 0 and price <= sig.tp:
+                            new_outcome = "WIN"
+                        elif sig.sl > 0 and price >= sig.sl:
+                            new_outcome = "LOSS"
+                            
+                    if new_outcome:
+                        sig.outcome = new_outcome
+                        sig.resolved_at = now_ms
+                        sig.resolved_price = price
+                        sig.regime_at_resolution = await _get_market_state()
+                        sig.time_to_resolution_ms = now_ms - sig.fired_at
+                        session.add(sig)
+                        fast_resolved += 1
+                        
+                        # Bridge to Position
+                        pos_stmt = select(Position).where(
+                            Position.signal_log_id == sig.id,
+                            Position.status.in_(["PENDING", "OPEN"])
+                        )
+                        pos_res = await session.execute(pos_stmt)
+                        linked_pos = pos_res.scalars().first()
+                        if linked_pos:
+                            # Close linked position logic (same as historical)
+                            entry = linked_pos.actual_entry or linked_pos.intended_entry
+                            if linked_pos.direction == "LONG":
+                                raw_pnl = (price - entry) * linked_pos.quantity
+                            else:
+                                raw_pnl = (entry - price) * linked_pos.quantity
+                            
+                            linked_pos.actual_exit = price
+                            linked_pos.status = "CLOSED"
+                            linked_pos.closed_at = now_ms
+                            linked_pos.pnl_usd = raw_pnl - (price * linked_pos.quantity * 0.001)
+                            linked_pos.pnl_pct = (raw_pnl / (entry * linked_pos.quantity)) * 100
+                            linked_pos.outcome = new_outcome
+                            session.add(linked_pos)
+
+                if fast_resolved:
+                    await session.commit()
+                    logger.info(f"Fast-path resolution: {fast_resolved} signal(s) resolved via ticker")
+    except Exception as e:
+        logger.warning(f"Ticker resolution failed: {e}")
+    finally:
+        await provider.close()
+
+    # 2. Historical Resolution (to catch hits that happened between scans)
     await resolve_outcomes_historical(ctx)
 
 
@@ -611,3 +693,86 @@ async def resolve_outcomes_historical(ctx):
             await session.commit()
 
     logger.info(f"Job: resolve_outcomes_historical complete — {resolved} signal(s) resolved")
+
+
+# ---------------------------------------------------------------------------
+# Job E: log_contrarian_signals
+# ---------------------------------------------------------------------------
+
+async def log_contrarian_signals(ctx):
+    """
+    Identifies overextended coins (3x ATR from EMA200) and logs them to SignalLog.
+    Runs every hour.
+    """
+    from app.services.market_data import MarketDataService
+    from app.routes.analytics import fetch_all_candles
+    from app.indicators.mean_reversion import detect_mean_reversion
+    from sqlalchemy.dialects.postgresql import insert as pg_insert
+    
+    logger.info("Job: log_contrarian_signals — scanning for extensions...")
+    
+    # 1. Fetch top 50 symbols
+    symbols = await MarketDataService.get_top_symbols(limit=50)
+    
+    # 2. Fetch 1H candles
+    df_data = await fetch_all_candles(symbols, timeframe="1h")
+    
+    rows_to_insert = []
+    now_ms = int(time.time() * 1000)
+    
+    for sym, df in df_data.items():
+        if df is None or df.empty:
+            continue
+            
+        rev = detect_mean_reversion(df)
+        if rev.get('is_extended'):
+            direction = "LONG" if rev['opportunity'] == "SPOT_BUY" else "SHORT"
+            
+            # Use 1.5 ATR for SL, Reversion to mean for TP
+            price = rev['price']
+            mean = rev['mean']
+            # Calculate ATR for SL
+            import pandas_ta as ta
+            atr_series = ta.atr(df['high'], df['low'], df['close'], length=14)
+            if atr_series is None or atr_series.empty:
+                continue
+            atr = float(atr_series.iloc[-1])
+            
+            sl = price - (1.5 * atr) if direction == "LONG" else price + (1.5 * atr)
+            tp = mean
+            
+            rows_to_insert.append(dict(
+                symbol=sym,
+                direction=direction,
+                timeframe="1h",
+                entry=round(price, 6),
+                tp=round(tp, 6),
+                sl=round(sl, 6),
+                conviction=70,  # Base conviction for contrarian
+                oracle_signal="N/A",
+                titan_signal="CONTRARIAN",
+                oracle_score=0,
+                titan_confidence=int(rev['extension_atr'] * 10), # Pseudo-confidence
+                market_state=await _get_market_state(),
+                fired_reason=f"(contrarian) {rev['extension_atr']}x ATR extension",
+                fired_at=now_ms,
+                source="counter",
+                provider="binance",
+                outcome="OPEN",
+            ))
+
+    if rows_to_insert:
+        async with Database.get_session() as session:
+            for row in rows_to_insert:
+                stmt = (
+                    pg_insert(SignalLog)
+                    .values(**row)
+                    .on_conflict_do_nothing(
+                        index_elements=["symbol", "direction"],
+                        index_where=text("outcome = 'OPEN'"),
+                    )
+                )
+                await session.execute(stmt)
+            await session.commit()
+            logger.info(f"Job: log_contrarian_signals — {len(rows_to_insert)} logged")
+

@@ -494,7 +494,7 @@ async def sync_analytics_cache(ctx):
 from arq.connections import RedisSettings
 import os
 from urllib.parse import urlparse
-from app.jobs.signal_log import log_watchlist_setups, log_best_setups, resolve_signal_outcomes
+from app.jobs.signal_log import log_watchlist_setups, log_best_setups, resolve_signal_outcomes, log_contrarian_signals
 from app.trading.orchestrator import TradeOrchestrator, get_trading_config, _get_prices
 
 _trade_orchestrator = TradeOrchestrator()
@@ -580,6 +580,7 @@ class WorkerSettings:
         sync_market_summary, sync_market_snapshot, sync_analytics_cache,
         log_watchlist_setups, log_best_setups, resolve_signal_outcomes,
         execute_signals, manage_positions, sync_trading_balance,
+        log_contrarian_signals,
     ]
     on_startup = startup
     on_shutdown = shutdown
@@ -605,6 +606,7 @@ class WorkerSettings:
         cron(sync_analytics_cache, minute={2, 7, 12, 17, 22, 27, 32, 37, 42, 47, 52, 57}),  # Analytics every 5m (offset)
         cron(log_watchlist_setups, hour={0, 4, 8, 12, 16, 20}, minute={3}),  # Signal log at each 4H candle close (+3m for data)
         cron(log_best_setups, minute={3, 8, 13, 18, 23, 28, 33, 38, 43, 48, 53, 58}),  # Scanner signals → signal_log
+        cron(log_contrarian_signals, minute={10, 40}),  # Contrarian radar every 30m
         cron(resolve_signal_outcomes, minute={0, 30}),  # Resolve signal outcomes every 30min
         cron(execute_signals, minute={5, 15, 25, 35, 45, 55}),  # Execute signals every 10min (catches scanner + live)
         cron(manage_positions, minute={0, 5, 10, 15, 20, 25, 30, 35, 40, 45, 50, 55}),  # Check fills/TP/SL every 5min

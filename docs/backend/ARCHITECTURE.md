@@ -94,7 +94,8 @@ All background jobs are registered with the arq worker (`backend/app/worker.py`)
 | `sync_analytics_cache` | Every 5min (offset +2min) | Pre-warm `best-setups` cache so dashboard loads instantly. |
 | `log_watchlist_setups` | 4H candle closes +3min (00:03, 04:03, …, 20:03 UTC) | Run Titan on watchlist (BTC/ETH/BNB), filter by regime (BULL→LONG, BEAR→SHORT), log to `signal_log` table with `source='live'`. Deduplicates via partial unique index. |
 | `log_best_setups` | Every 5min (+3min offset) | Read cached best-setups, persist qualifying signals (conviction >= 50) as `source='scanner'`. Cheap Redis read + batch insert. |
-| `resolve_signal_outcomes` | Every 30min | Walk 4H candles from `fired_at` to resolve OPEN signals as WIN/LOSS/REVIEW. Uses candle high/low for TP/SL ordering. When both hit in same 4H candle, fetches 5min candles to determine exact ordering. |
+| `log_contrarian_signals` | Every 30min | Scan top 50 symbols for overextensions (3x ATR from EMA200), log to `signal_log` with `source='counter'`. |
+| `resolve_signal_outcomes` | Every 30min | Resolves OPEN signals via **Fast-path** (live tickers) + **Historical** (candle walk). Checks TP/SL hits in near real-time. |
 | `execute_signals` | Every 10min | Pick up unprocessed OPEN signals (live + scanner) and create PENDING paper trade positions via TradeOrchestrator. |
 | `manage_positions` | Every 5min | Check pending fills (price reached entry?), check TP/SL hits via candle walk, run circuit breaker. |
 | `sync_trading_balance` | Every 10min | Cache portfolio balance in Redis for quick API access. |

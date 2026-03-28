@@ -46,7 +46,7 @@ async def get_candles_df(symbol: str, timeframe: str, limit: int = 500, provider
     
     # 2. Check sufficiency
     # We need enough candles AND they must be fresh
-    now_ms = pd.Timestamp.now().timestamp() * 1000
+    now_ms = int(time.time() * 1000)
     
     # Calculate timeframe in ms
     tf_ms = TIMEFRAME_MS.get(timeframe, DEFAULT_TIMEFRAME_MS)

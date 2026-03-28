@@ -2,7 +2,21 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.9.10] - 2026-03-28 — Signal Resolution & Counter-Trend Assessment
+
+### Fixed
+
+- **Clock-drift sensitive candle fetching** — `get_candles_df` now uses UTC epoch (`time.time()`) for freshness checks instead of local system time. This prevents the worker from skipping data updates when the container clock drifts (e.g. 16-hour drift previously caused stale data to be marked as "fresh").
+- **Resolution Lag** — OPEN signals now undergo a "Fast-path" resolution check against live ticker prices every 30 minutes. Previously, signals only resolved on 4H candle closes, causing significant delays in assessing trade performance.
+- **Symbol Normalization** — Resolution engine now handles both slash and no-slash symbol formats (`BTC/USDT` vs `BTCUSDT`) seamlessly when mapping exchange ticker data.
+
+### Added
+
+- **Automated Contrarian Logging** — New `log_contrarian_signals` background job scans the top 50 symbols for mean-reversion opportunities (3x ATR extension from EMA200). These are now automatically logged to the Signal Log (source: `counter`) for performance tracking.
+- **Counter-regime Assessment** — The "Counter" tab in Signal Log is now actively populated and assessed, providing near real-time WIN/LOSS data for overextended setups.
+
 ## [0.9.9] - 2026-03-28 — Backend Audit & Hardening
+
 
 ### Fixed
 
