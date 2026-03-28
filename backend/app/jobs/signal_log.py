@@ -449,20 +449,43 @@ async def resolve_signal_outcomes(ctx):
                         pos_res = await session.execute(pos_stmt)
                         linked_pos = pos_res.scalars().first()
                         if linked_pos:
-                            # Close linked position logic (same as historical)
-                            entry = linked_pos.actual_entry or linked_pos.intended_entry
-                            if linked_pos.direction == "LONG":
-                                raw_pnl = (price - entry) * linked_pos.quantity
+                            if linked_pos.status == "PENDING":
+                                # If it was still PENDING, we missed the entry (price teleported to TP/SL)
+                                linked_pos.status = "CANCELLED"
+                                linked_pos.outcome = "EXPIRED"
+                                linked_pos.closed_at = now_ms
                             else:
-                                raw_pnl = (entry - price) * linked_pos.quantity
+                                # OPEN position — close with PnL
+                                entry = linked_pos.actual_entry or linked_pos.intended_entry
+                                if linked_pos.direction == "LONG":
+                                    raw_pnl = (price - entry) * linked_pos.quantity
+                                else:
+                                    raw_pnl = (entry - price) * linked_pos.quantity
+                                
+                                linked_pos.actual_exit = price
+                                linked_pos.status = "CLOSED"
+                                linked_pos.closed_at = now_ms
+                                linked_pos.pnl_usd = round(raw_pnl - (price * linked_pos.quantity * 0.001), 4)
+                                linked_pos.pnl_pct = round((raw_pnl / (entry * linked_pos.quantity)) * 100, 2)
+                                linked_pos.outcome = new_outcome
                             
-                            linked_pos.actual_exit = price
-                            linked_pos.status = "CLOSED"
-                            linked_pos.closed_at = now_ms
-                            linked_pos.pnl_usd = raw_pnl - (price * linked_pos.quantity * 0.001)
-                            linked_pos.pnl_pct = (raw_pnl / (entry * linked_pos.quantity)) * 100
-                            linked_pos.outcome = new_outcome
                             session.add(linked_pos)
+
+                            # Log trade event
+                            import json as _json
+                            event_type = "TP_HIT" if new_outcome == "WIN" else "SL_HIT"
+                            event = TradeEvent(
+                                position_id=linked_pos.id,
+                                event_type=event_type,
+                                details=_json.dumps({
+                                    "exit_price": price,
+                                    "pnl_usd": linked_pos.pnl_usd,
+                                    "pnl_pct": linked_pos.pnl_pct,
+                                    "source": "fast_resolution",
+                                }),
+                                timestamp=now_ms,
+                            )
+                            session.add(event)
 
                 if fast_resolved:
                     await session.commit()
