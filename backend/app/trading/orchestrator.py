@@ -384,8 +384,15 @@ class TradeOrchestrator:
                 pos.closed_at = now_ms
                 # Capture market state at close for learning
                 summary = await RedisClient.get_json("analytics:signal-summary")
-                if summary:
-                    pos.market_state_at_close = summary.get("market_state", "")
+                if summary and summary.get("market_state"):
+                    pos.market_state_at_close = summary.get("market_state")
+                else:
+                    # Fallback to broad BTC regime
+                    regime_data = await RedisClient.get_json("market:regime")
+                    if regime_data:
+                        pos.market_state_at_close = regime_data.get("regime", "UNKNOWN")
+                    else:
+                        pos.market_state_at_close = "UNKNOWN"
                 session.add(pos)
 
                 event_type = "TP_HIT" if outcome == "WIN" else "SL_HIT"
