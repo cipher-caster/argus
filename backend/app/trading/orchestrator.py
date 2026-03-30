@@ -505,6 +505,14 @@ class TradeOrchestrator:
                 pnl_pct = (pnl_usd / pos.quote_amount * 100) if pos.quote_amount > 0 else 0.0
                 outcome = "WIN" if pnl_usd >= 0 else "LOSS"
 
+                summary = await RedisClient.get_json("analytics:signal-summary")
+                if summary and summary.get("market_state"):
+                    pos.market_state_at_close = summary.get("market_state")
+                else:
+                    regime_data = await RedisClient.get_json("market:regime")
+                    if regime_data:
+                        pos.market_state_at_close = regime_data.get("regime", "UNKNOWN")
+
                 pos.status = "CLOSED"
                 pos.outcome = outcome
                 pos.actual_exit = exit_price

@@ -165,9 +165,9 @@
 ### Phase 18: Data Model for Learning from Trades
 - [x] Add `regime_at_resolution` + `btc_price_at_resolution` to SignalLog schema — capture market context when a signal resolves, not just when it fires ✓
 - [x] Log rejected signals — persist to signal_log with `outcome: "REJECTED"` and `rejection_reason` field (low_conviction, exposure_cap, stablecoin_vol_gate, etc.) ✓
-- [ ] Add `market_state_at_close` to Position schema — regime may change between open and close
-- [ ] Expand TradeEvent types — add FILLED, PENDING, RISK_REJECTED alongside existing TP_HIT/SL_HIT
-- [ ] Add `time_to_resolution_ms` to SignalLog — fast resolution = strong signal, useful for learning
+- [x] Add `market_state_at_close` to Position schema — regime may change between open and close ✓ (field existed; populated in `check_open_positions()` and now also `manual_close()`)
+- [x] Expand TradeEvent types — FILLED emitted on fill/market-order; RISK_REJECTED captured in signal_log (`outcome=REJECTED`, `rejection_reason`) instead of TradeEvent (no Position exists at rejection time) ✓
+- [x] Add `time_to_resolution_ms` to SignalLog — fast resolution = strong signal, useful for learning ✓ (computed in both fast-path and historical resolution)
 - [x] Build signal→position analytics — join signal outcomes to actual position P&L for "did the signal win AND did we make money?" ✓
 
 ### Phase 19: Analytics Page Redesign — Trading Performance Intelligence

@@ -2,6 +2,14 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.9.13] - 2026-03-30 — Phase 18 Complete: Learning Data Model
+
+### Fixed
+
+- **`market_state_at_close` in manual close** — `manual_close()` in `trading/orchestrator.py` was setting positions to CLOSED without capturing the current market regime. Now fetches regime from Redis (`analytics:signal-summary` → `market:regime` fallback), matching the pattern already used by the automated `check_open_positions()` path. Manually-closed trades will now correctly show regime context in analytics.
+
+---
+
 ## [0.9.12] - 2026-03-30 — Signal Log Config, 4H Screener Fix & ActiveSignals Widget
 
 ### Fixed
