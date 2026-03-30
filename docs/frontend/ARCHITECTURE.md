@@ -1,6 +1,6 @@
 # Frontend Architecture
 
-**Last Updated**: 2026-01-31
+**Last Updated**: 2026-03-30
 
 ---
 
@@ -47,14 +47,15 @@ frontend/src/
 ├── components/            # React components
 │   ├── analytics/         # Analytics-specific components
 │   │   ├── BestSetups.tsx
-│   │   ├── SignalLog.tsx
+│   │   ├── SignalLog.tsx          # Includes inline settings panel (gear icon)
 │   │   ├── BacktestPerformance.tsx
 │   │   └── ...
 │   ├── features/          # Feature-specific components
 │   │   └── dashboard/     # Dashboard components
 │   │       ├── CoinTable.tsx
 │   │       ├── MarketIndicators.tsx
-│   │       └── TopCoinsWidgets.tsx
+│   │       ├── TopCoinsWidgets.tsx
+│   │       └── ActiveSignals.tsx  # Open live signals from signal log
 │   └── ui/                # Reusable UI components (Shadcn)
 │       ├── button.tsx
 │       ├── skeleton.tsx

@@ -2,6 +2,22 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.9.12] - 2026-03-30 — Signal Log Config, 4H Screener Fix & ActiveSignals Widget
+
+### Fixed
+
+- **4H Oracle cache key** — `signal_log.py` was reading screener results from `analytics:screener:1h:*` keys instead of `analytics:screener:4h:*`. The 4H candle-close scanner was therefore running Titan against 1H screener data, silently producing mismatched signals. Cache key corrected to `analytics:screener:4h:{symbol}`.
+
+### Added
+
+- **Configurable signal log settings (backend)** — `signal_log.py:_get_config()` now reads live config from Redis key `signal_log:config` instead of using a hard-coded dict. Two new REST endpoints in `routes/analytics.py`:
+  - `GET /api/analytics/signal-log/config` — returns current config (regime filter, conviction threshold, max signals, etc.)
+  - `PUT /api/analytics/signal-log/config` — updates config fields; changes take effect on the next worker cycle without a restart.
+- **Signal Log settings UI** — gear icon in the Signal Log tab header opens an inline settings panel. Users can adjust conviction threshold and regime filter mode directly from the analytics page without touching Redis or the API manually.
+- **ActiveSignals dashboard widget** — `ActiveSignals` component wired into `frontend/src/app/page.tsx`. Displays currently open live signals from the signal log (source: `live`) on the main dashboard, giving at-a-glance visibility of active trade setups alongside the existing BestSetups and DashboardWatchlist widgets.
+
+---
+
 ## [0.9.11] - 2026-03-28 — Outcome Resolution Audit & Hardening
 
 ### Fixed

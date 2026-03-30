@@ -79,7 +79,7 @@ graph TD
 | `market.py` | `/api/market` | Tickers, OHLCV candles, market summary |
 | `indicators.py` | `/api/indicators` | Technical indicator endpoints |
 | `strategy.py` | `/api/strategy` | Titan signal + regime detection endpoints (Oracle deprecated from UI) |
-| `analytics.py` | `/api/analytics` | Screener, signal log, best setups |
+| `analytics.py` | `/api/analytics` | Screener, signal log, best setups; `GET /signal-log/config` + `PUT /signal-log/config` for live config management |
 | `trading.py` | `/api/trading` | Paper trading — positions, trade events, portfolio, config |
 | `optimization.py` | `/api/optimization`, `/api/trading/analysis` | Experiment log, best config, apply; live vs backtest recommendations |
 
@@ -102,7 +102,9 @@ All background jobs are registered with the arq worker (`backend/app/worker.py`)
 
 **On startup**, the worker also runs: initial signal scan, position recovery, missed candle close recovery (regime-based), and signal execution.
 
-**Direction filtering**: Regime-based (BTC weekly EMA50). BEAR regime → SHORT signals only, BULL → LONG only, UNKNOWN → all. Configured via Redis key `signal_log:config`.
+**Direction filtering**: Regime-based (BTC weekly EMA50). BEAR regime → SHORT signals only, BULL → LONG only, UNKNOWN → all. Configured via Redis key `signal_log:config` (readable/writable via `GET /api/analytics/signal-log/config` and `PUT /api/analytics/signal-log/config`; changes take effect on the next worker cycle without restart).
+
+**4H screener keys**: The 4H candle-close scanner (`log_watchlist_setups`) reads Titan screener results from `analytics:screener:4h:{symbol}` Redis keys.
 
 ### `backend/app/trading/`
 

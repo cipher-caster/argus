@@ -1,6 +1,6 @@
 # Argus Codebase Guide for AI Agents
 
-**Last Updated:** 2026-03-27
+**Last Updated:** 2026-03-30
 **Purpose**: Help AI agents quickly understand the Argus cryptocurrency analytics platform
 
 ---
@@ -390,7 +390,14 @@ npm run build
 
 ---
 
-## 📊 Recent Improvements (2026-03-27)
+## 📊 Recent Improvements
+
+### v0.9.12 — Signal Log Config, 4H Screener Fix & ActiveSignals Widget (2026-03-30)
+
+- **4H Oracle cache key fix** — `signal_log.py` now reads `analytics:screener:4h:*` keys (was `1h`) so the 4H candle-close scanner uses correct timeframe data.
+- **Configurable signal log settings** — `_get_config()` reads from Redis `signal_log:config`. New `GET /api/analytics/signal-log/config` and `PUT /api/analytics/signal-log/config` endpoints let settings be changed live without a worker restart.
+- **Signal Log settings UI** — gear icon in the Signal Log tab opens an inline settings panel for conviction threshold and regime filter mode.
+- **ActiveSignals dashboard widget** — wired into `frontend/src/app/page.tsx`; shows open live signals from the signal log on the main dashboard.
 
 ### v0.9.4 — Counter-Regime Signal Tracking (2026-03-27)
 - Added `counter` signal source for tracking shorts-in-uptrend / longs-in-downtrend
