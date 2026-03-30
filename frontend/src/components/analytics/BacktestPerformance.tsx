@@ -171,7 +171,8 @@ function CoinRow({ coin, rank, expanded, onToggle }: { coin: CoinBacktestStats; 
 }
 
 export function BacktestPerformance() {
-  const { data, isLoading, isError } = useBacktestStats();
+  const [provider, setProvider] = useState<"binance" | "okx">("binance");
+  const { data, isLoading, isError } = useBacktestStats(provider);
   const [sortBy, setSortBy] = useState<SortKey>("profit_r");
   const [expandedCoin, setExpandedCoin] = useState<string | null>(null);
 
@@ -195,7 +196,24 @@ export function BacktestPerformance() {
           <h2 className="text-base font-black tracking-tight uppercase">Backtest Performance</h2>
           <span className="text-[10px] text-muted-foreground font-bold bg-secondary/50 px-2 py-0.5 rounded-md">4H / 1 YEAR</span>
         </div>
-        <div className="flex items-center gap-1.5">
+        <div className="flex items-center gap-3">
+          <div className="flex gap-1">
+            {(["binance", "okx"] as const).map((p) => (
+              <button
+                key={p}
+                onClick={() => setProvider(p)}
+                className={cn(
+                  "px-2 py-1 text-xs rounded capitalize transition-all",
+                  provider === p
+                    ? "bg-zinc-700 text-white"
+                    : "text-zinc-400 hover:text-zinc-200"
+                )}
+              >
+                {p}
+              </button>
+            ))}
+          </div>
+          <div className="w-px h-5 bg-border/50" />
           <ArrowUpDown size={11} className="text-muted-foreground" />
           {(["profit_r", "win_rate", "total"] as SortKey[]).map((key) => (
             <button

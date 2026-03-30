@@ -94,10 +94,10 @@ export function useSignalLogConfig() {
   });
 }
 
-export function useBacktestStats() {
+export function useBacktestStats(provider?: string) {
   return useQuery({
-    queryKey: ["analytics", "backtest-stats"],
-    queryFn: fetchBacktestStats,
+    queryKey: ["analytics", "backtest-stats", provider],
+    queryFn: () => fetchBacktestStats(provider),
     staleTime: 10 * 60_000, // 10 min — backtest data rarely changes
   });
 }

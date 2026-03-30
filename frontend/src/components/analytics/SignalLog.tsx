@@ -243,10 +243,13 @@ function SettingsPanel({ config, onSave, isSaving, saved }: {
   );
 }
 
+const PROVIDERS = ["All", "Binance", "OKX"];
+
 export function SignalLog() {
   const PAGE_SIZE = 50;
   const [activeSymbol, setActiveSymbol] = useState("All");
   const [activeSource, setActiveSource] = useState("All");
+  const [activeProvider, setActiveProvider] = useState("All");
   const [page, setPage] = useState(1);
   const [showSettings, setShowSettings] = useState(false);
   const [saved, setSaved] = useState(false);
@@ -258,7 +261,8 @@ export function SignalLog() {
     activeSymbol === "All" ? undefined : activeSymbol,
     activeSource === "All" ? undefined : activeSource.toLowerCase(),
     PAGE_SIZE,
-    offset
+    offset,
+    activeProvider === "All" ? undefined : activeProvider.toLowerCase()
   );
 
   const totalPages = data ? Math.ceil(data.total / PAGE_SIZE) : 1;
@@ -307,6 +311,21 @@ export function SignalLog() {
               )}
             >
               {src}
+            </button>
+          ))}
+          <div className="w-px h-6 bg-border/50" />
+          {PROVIDERS.map((p) => (
+            <button
+              key={p}
+              onClick={() => { setActiveProvider(p); setPage(1); }}
+              className={cn(
+                "px-2 py-1 text-xs rounded capitalize transition-all",
+                activeProvider === p
+                  ? "bg-zinc-700 text-white"
+                  : "text-zinc-400 hover:text-zinc-200"
+              )}
+            >
+              {p}
             </button>
           ))}
         </div>

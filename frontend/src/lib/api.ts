@@ -517,8 +517,10 @@ export interface BacktestStatsResponse {
   } | null;
 }
 
-export async function fetchBacktestStats(): Promise<BacktestStatsResponse> {
-  return apiFetch<BacktestStatsResponse>(`${API_URL}/api/analytics/signal-log/stats?source=backtest`);
+export async function fetchBacktestStats(provider?: string): Promise<BacktestStatsResponse> {
+  const params = new URLSearchParams({ source: "backtest" });
+  if (provider) params.append("provider", provider);
+  return apiFetch<BacktestStatsResponse>(`${API_URL}/api/analytics/signal-log/stats?${params}`);
 }
 
 // --- Trading Types ---

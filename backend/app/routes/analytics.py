@@ -414,10 +414,11 @@ async def get_titan_radar(limit: int = 50, timeframe: str = Query(default="4h", 
 
 
 @router.get("/signal-log/stats")
-async def get_signal_log_stats(source: str = "backtest"):
+async def get_signal_log_stats(source: str = "backtest", provider: Optional[str] = None):
     """
     Return per-coin aggregated performance stats from signal log.
     Used by the Backtest Performance dashboard.
+    Filter by provider='binance' or 'okx' when provided.
     """
     from sqlalchemy import select as sa_select, func, case
     from app.schemas.signal_log import SignalLog
@@ -425,6 +426,8 @@ async def get_signal_log_stats(source: str = "backtest"):
 
     async with Database.get_session() as session:
         stmt = sa_select(SignalLog).where(SignalLog.source == source)
+        if provider is not None:
+            stmt = stmt.where(SignalLog.provider == provider)
         result = await session.execute(stmt)
         rows = result.scalars().all()
 
