@@ -4,6 +4,7 @@ import { BTCCard } from "@/components/features/dashboard/BTCCard";
 import { DashboardStatusBar } from "@/components/features/dashboard/DashboardStatusBar";
 import { DashboardWatchlist } from "@/components/features/dashboard/DashboardWatchlist";
 import { ActiveSetups } from "@/components/features/dashboard/ActiveSetups";
+import { ActiveSignals } from "@/components/features/dashboard/ActiveSignals";
 import { TopMovers } from "@/components/features/dashboard/TopMovers";
 import { TradingWidget } from "@/components/features/dashboard/TradingWidget";
 import { BarChart2, ChevronRight } from "lucide-react";
@@ -33,6 +34,11 @@ export default function Dashboard() {
         {/* Trading Widget */}
         <section className="animate-in fade-in slide-in-from-bottom-4 duration-700 delay-75">
           <TradingWidget />
+        </section>
+
+        {/* Active Signals */}
+        <section className="animate-in fade-in slide-in-from-bottom-4 duration-700 delay-75">
+          <ActiveSignals />
         </section>
 
         {/* Top Movers */}
