@@ -15,7 +15,6 @@ import Link from "next/link";
 function SetupRow({ item, coinMeta }: { item: BestSetupItem; coinMeta: Map<string, CoinMeta> }) {
   const isLong = item.direction === "LONG";
   const tpPct = isLong ? formatPercentageChange(item.entry, item.tp) : formatPercentageChange(item.tp, item.entry, "SHORT");
-  const isCounterTrend = item.reason.startsWith("(counter)");
   const isWithTrend = item.reason.startsWith("(trend)");
 
   // Strip the regime tag prefix from reason text
@@ -34,9 +33,6 @@ function SetupRow({ item, coinMeta }: { item: BestSetupItem; coinMeta: Map<strin
             <DirectionBadge direction={item.direction} />
             {isWithTrend && (
               <span className="text-[8px] font-bold px-1 py-0.5 rounded bg-primary/10 text-primary">TREND</span>
-            )}
-            {isCounterTrend && (
-              <span className="text-[8px] font-bold px-1 py-0.5 rounded bg-yellow-500/15 text-yellow-600 dark:text-yellow-400">COUNTER</span>
             )}
           </div>
           <p className="text-[10px] text-muted-foreground truncate mt-0.5 max-w-[260px]">

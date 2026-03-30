@@ -16,7 +16,6 @@ function SetupCard({ item, coinMeta }: { item: BestSetupItem; coinMeta: Map<stri
   const tpPct = isLong ? formatPercentageChange(item.entry, item.tp) : formatPercentageChange(item.tp, item.entry, "SHORT");
   const slPct = isLong ? formatPercentageChange(item.entry, item.sl) : formatPercentageChange(item.sl, item.entry, "SHORT");
   const isElite = item.conviction >= 95;
-  const isCounterTrend = item.reason.startsWith("(counter)");
   const isWithTrend = item.reason.startsWith("(trend)");
 
   return (
@@ -55,9 +54,6 @@ function SetupCard({ item, coinMeta }: { item: BestSetupItem; coinMeta: Map<stri
             </span>
             {isWithTrend && (
               <span className="text-[8px] font-bold px-1.5 py-0.5 rounded bg-primary/15 text-primary uppercase tracking-wider">with trend</span>
-            )}
-            {isCounterTrend && (
-              <span className="text-[8px] font-bold px-1.5 py-0.5 rounded bg-yellow-500/15 text-yellow-600 dark:text-yellow-400 uppercase tracking-wider">counter</span>
             )}
           </div>
         </div>

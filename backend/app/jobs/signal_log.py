@@ -8,6 +8,11 @@ SOL removed from watchlist (2026-03-17): backtested across 7+ parameter
 combinations — consistently negative. Trend-following strategy doesn't
 fit SOL's mean-reverting character on 4H.
 """
+
+# Counter-regime signal generation is disabled.
+# Data: 13.6% win rate vs 60.2% overall (59 resolved, 8 wins) — negative EV.
+# Set to True to re-enable counter signal logging.
+COUNTER_REGIME_ENABLED: bool = False
 import logging
 import math
 import time
@@ -349,6 +354,10 @@ async def log_best_setups(ctx):
                 rejected += 1
                 continue
 
+            is_counter = reason.startswith("(counter)")
+            if is_counter and not COUNTER_REGIME_ENABLED:
+                continue
+
             row = dict(
                 symbol=symbol,
                 direction=direction,
@@ -364,7 +373,7 @@ async def log_best_setups(ctx):
                 market_state="scanner",
                 fired_reason=item.get("reason", ""),
                 fired_at=now_ms,
-                source="counter" if reason.startswith("(counter)") else "scanner",
+                source="counter" if is_counter else "scanner",
                 outcome="OPEN",
             )
 
@@ -754,6 +763,9 @@ async def log_contrarian_signals(ctx):
     Identifies overextended coins (3x ATR from EMA200) and logs them to SignalLog.
     Runs every hour.
     """
+    if not COUNTER_REGIME_ENABLED:
+        return
+
     from app.services.market_data import MarketDataService
     from app.routes.analytics import fetch_all_candles
     from app.indicators.mean_reversion import detect_mean_reversion

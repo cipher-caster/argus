@@ -15,7 +15,7 @@ function Divider() {
 }
 
 function RegimeModal({ regime, indicators, onClose }: { regime: RegimeData | null; indicators: DashboardIndicators | undefined; onClose: () => void }) {
-  const { aligned: alignedSetups, counter: counterSetups } = useAlignedSetups(regime?.regime);
+  const { aligned: alignedSetups } = useAlignedSetups(regime?.regime);
 
   if (!regime) return null;
 
@@ -126,30 +126,6 @@ function RegimeModal({ regime, indicators, onClose }: { regime: RegimeData | nul
                   </div>
                 ))}
               </div>
-            </div>
-          )}
-
-          {/* Counter-trend setups (warning) */}
-          {counterSetups.length > 0 && (
-            <div className="bg-yellow-500/5 rounded-xl p-4 space-y-3 border border-yellow-500/15">
-              <h3 className="text-xs font-black uppercase tracking-widest text-yellow-600 dark:text-yellow-400">
-                Counter-Trend (Higher Risk)
-              </h3>
-              <div className="space-y-2">
-                {counterSetups.map((s: BestSetupItem) => (
-                  <div key={s.symbol} className="flex items-center justify-between p-2.5 rounded-lg bg-background border border-border/50 opacity-70">
-                    <div>
-                      <span className="font-black text-sm">{s.symbol.replace("/USDT", "")}</span>
-                      <span className="ml-2 text-[9px] font-bold px-1.5 py-0.5 rounded bg-yellow-500/15 text-yellow-600 dark:text-yellow-400">{s.direction}</span>
-                    </div>
-                    <div className="text-right">
-                      <p className="text-xs font-mono font-medium">${formatPriceCompact(s.entry)}</p>
-                      <p className="text-[10px] text-muted-foreground">conviction {s.conviction}%</p>
-                    </div>
-                  </div>
-                ))}
-              </div>
-              <p className="text-[10px] text-muted-foreground">These go against the regime. Only take if you have a strong reason.</p>
             </div>
           )}
 
