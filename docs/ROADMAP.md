@@ -192,15 +192,15 @@
 
 ### Phase 21: OKX Backtesting UI Integration, Configuration & Strategy
 
-#### Phase 21A: UI Integration & Infrastructure
+#### Phase 21A: UI Integration & Infrastructure ✓
 - [x] OKXProvider fully integrated & merged to master ✓
 - [x] `okx_backtest.py` script available for backfill + backtest ✓
 - [x] OKX_BACKTEST_REPORT with 8.3mo historical data ✓
-- [ ] Backtest UI: add provider selector (Binance vs OKX)
-- [ ] Analytics endpoint: `GET /api/analytics/provider-comparison` — show signal WR by exchange
-- [ ] Dashboard widget: provider-specific coin recommendations (ETH, FET, ATOM for OKX)
-- [ ] Paper trading: add `TRADING_PROVIDER` config (default: binance, option: okx)
-- [ ] Periodic OKX data backfill schedule (daily updates)
+- [x] Backtest UI: provider selector (Binance vs OKX) in BacktestPerformance + SignalLog ✓
+- [x] Analytics endpoint: `GET /api/analytics/provider-comparison` — side-by-side WR, avg R, top coins ✓
+- [x] Chart provider decoupling: local toggle in chart header, no longer flips paper trading engine ✓
+- [x] Paper trading: `TRADING_PROVIDER` config (default: binance, option: okx) ✓
+- [x] Periodic OKX data backfill: `backfill_okx_candles` cron at 02:00 UTC daily ✓
 
 #### Phase 21B: OKX Config Analysis & Optimization (After 21A)
 - [ ] Analyze OKX_BACKTEST_REPORT: coin divergence (FET/ATOM OKX winners vs Binance)
@@ -211,7 +211,7 @@
 - [ ] Strategic recommendation: Single provider (OKX), Dual (Binance+OKX), or Selective split
 - [ ] Deliverable: `docs/OKX_CONFIG_OPTIMIZATION.md` with analysis + go/no-go recommendation
 
-**Status:** Infrastructure live on master — UI + strategic analysis pending
+**Status:** Phase 21A complete — strategic analysis pending
 
 **Key Findings (from OKX_BACKTEST_REPORT.md):**
 - OKX watchlist: ETH (68% WR), FET (61%), ATOM (58%) — strong relative to Binance
