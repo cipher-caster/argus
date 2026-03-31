@@ -202,6 +202,9 @@
 - [x] Paper trading: `TRADING_PROVIDER` config (default: binance, option: okx) ✓
 - [x] Periodic OKX data backfill: `backfill_okx_candles` cron at 02:00 UTC daily ✓
 
+#### Phase 21A: Remaining Backlog
+- [ ] OKX past candles pagination — scrolling back in time on OKX chart doesn't load historical data (end_timestamp pagination needs to carry provider through infinite query)
+
 #### Phase 21B: OKX Config Analysis & Optimization (After 21A)
 - [ ] Analyze OKX_BACKTEST_REPORT: coin divergence (FET/ATOM OKX winners vs Binance)
 - [ ] Watchlist recommendation: OKX-specific coins vs current Binance 11-coin list
