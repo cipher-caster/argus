@@ -6,7 +6,7 @@ import { CoinSignalIntel } from "@/components/features/chart/CoinSignalIntel";
 import { CoinDetailsPanel } from "@/components/features/dashboard/CoinDetailsPanel";
 import { WatchlistPanel } from "@/components/features/dashboard/WatchlistPanel";
 import { useAvailableIndicators, useCalculatedIndicators } from "@/hooks/useIndicators";
-import { useOHLCV, useTicker, useSymbolProviders } from "@/hooks/useMarketData";
+import { useOHLCV, useTicker, useSymbolProviders, useProviderInfo } from "@/hooks/useMarketData";
 import { useIndicatorStore } from "@/stores/indicatorStore";
 import { Candle } from "@/lib/api";
 import { useRef, useState, useEffect } from "react";
@@ -24,6 +24,15 @@ export default function ChartPage({ params }: ChartPageProps) {
 
   const { data: providersData } = useSymbolProviders(symbol);
   const availableProviders = providersData?.providers ?? ["binance"];
+
+  const { data: providerInfo } = useProviderInfo();
+  const globalProvider = providerInfo?.provider ?? null;
+
+  useEffect(() => {
+    if (globalProvider && globalProvider !== chartProvider) {
+      setChartProvider(globalProvider);
+    }
+  }, [globalProvider]);
 
   useEffect(() => {
     if (availableProviders.length === 1 && availableProviders[0] !== chartProvider) {
