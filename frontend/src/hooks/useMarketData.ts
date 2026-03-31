@@ -38,11 +38,11 @@ export function useSetProvider() {
 /**
  * Hook for fetching OHLCV candlestick data with infinite scrolling
  */
-export function useOHLCV(symbol: string, timeframe: string = "1h", limit: number = 1000) {
+export function useOHLCV(symbol: string, timeframe: string = "1h", limit: number = 1000, provider?: string) {
   return useInfiniteQuery({
-    queryKey: ["ohlcv", symbol, timeframe, limit] as const,
+    queryKey: ["ohlcv", symbol, timeframe, limit, provider ?? "binance"] as const,
     queryFn: async ({ pageParam }) => {
-      const result = await fetchOHLCV(symbol, timeframe, limit, pageParam);
+      const result = await fetchOHLCV(symbol, timeframe, limit, pageParam, provider);
       return result;
     },
     getNextPageParam: (lastPage) => {

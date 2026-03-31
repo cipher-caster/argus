@@ -41,6 +41,7 @@ DEFAULT_TRADING_CONFIG = {
     "min_conviction": 50,
     "max_total_exposure_pct": 300.0,
     "order_expiry_hours": 24,
+    "trading_provider": "binance",
     "correlation_groups": {
         "btc_correlated": [
             "BTCUSDT", "ETHUSDT", "BNBUSDT",
@@ -300,12 +301,15 @@ class TradeOrchestrator:
             if not open_positions:
                 return
 
-            # Fetch candles for each unique symbol
+            # Fetch candles for each unique symbol using the configured provider
             from app.routes.strategy import get_candles_df
+            from app.providers import BinanceProvider, OKXProvider
+            provider_name = config.get("trading_provider", "binance")
+            candle_provider = OKXProvider() if provider_name == "okx" else BinanceProvider()
             candle_cache = {}
             unique_symbols = {pos.symbol for pos in open_positions}
             for sym in unique_symbols:
-                df = await get_candles_df(sym, timeframe="4h", limit=100)
+                df = await get_candles_df(sym, timeframe="4h", limit=100, provider=candle_provider)
                 if df is not None and not df.empty:
                     candle_cache[sym] = df
 

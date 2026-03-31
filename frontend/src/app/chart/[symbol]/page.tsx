@@ -6,8 +6,9 @@ import { CoinSignalIntel } from "@/components/features/chart/CoinSignalIntel";
 import { CoinDetailsPanel } from "@/components/features/dashboard/CoinDetailsPanel";
 import { WatchlistPanel } from "@/components/features/dashboard/WatchlistPanel";
 import { useAvailableIndicators, useCalculatedIndicators } from "@/hooks/useIndicators";
-import { useOHLCV, useProviderInfo, useTicker } from "@/hooks/useMarketData";
+import { useOHLCV, useTicker } from "@/hooks/useMarketData";
 import { useIndicatorStore } from "@/stores/indicatorStore";
+import { Candle } from "@/lib/api";
 import { useRef, useState } from "react";
 
 interface ChartPageProps {
@@ -18,17 +19,16 @@ export default function ChartPage({ params }: ChartPageProps) {
   const symbol = params.symbol.replace("-", "/");
   const [timeframe, setTimeframe] = useState("4h");
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+  const [chartProvider, setChartProvider] = useState<string>("binance");
   const scrollToLatestRef = useRef<(() => void) | null>(null);
 
-  const ohlcvQuery = useOHLCV(symbol, timeframe, 1000);
+  const ohlcvQuery = useOHLCV(symbol, timeframe, 1000, chartProvider);
   const { data: ohlcvData, isLoading: isLoadingOHLCV, fetchNextPage, hasNextPage, isFetchingNextPage } = ohlcvQuery;
 
   const tickerQuery = useTicker(symbol);
-  const providerQuery = useProviderInfo();
   const tickerData = tickerQuery.data;
-  const providerData = providerQuery.data;
 
-  const allCandles = ohlcvData?.pages.flatMap((page: { candles: any[] }) => page.candles) || [];
+  const allCandles = ohlcvData?.pages.flatMap((page: { candles: Candle[] }) => page.candles) || [];
   const sortedCandles = [...allCandles].sort((a, b) => a.timestamp - b.timestamp);
 
   const totalCandles = allCandles.length;
@@ -67,7 +67,8 @@ export default function ChartPage({ params }: ChartPageProps) {
             scrollToLatestRef={scrollToLatestRef}
             price={currentPrice ?? undefined}
             priceChangePercent={priceChangePercent}
-            provider={providerData?.provider}
+            provider={chartProvider}
+            onProviderChange={setChartProvider}
             onOpenSettings={() => setIsSettingsOpen(true)}
             onRefresh={handleRefresh}
             isRefreshing={isRefreshing}
@@ -78,7 +79,7 @@ export default function ChartPage({ params }: ChartPageProps) {
         {/* Right: Watchlist + Coin Signal Panel */}
         <aside className="bg-secondary border-l border-border flex flex-col overflow-hidden overflow-y-auto scrollbar-thin scrollbar-thumb-muted">
           <WatchlistPanel currentSymbol={symbol} />
-          <CoinDetailsPanel symbol={symbol} timeframe={timeframe} />
+          <CoinDetailsPanel symbol={symbol} timeframe={timeframe} provider={chartProvider} />
           <CoinSignalIntel symbol={symbol} currentPrice={currentPrice ?? undefined} />
         </aside>
       </main>

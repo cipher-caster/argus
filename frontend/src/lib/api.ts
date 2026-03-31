@@ -35,13 +35,16 @@ export interface TickerResponse {
 /**
  * Fetch OHLCV candlestick data
  */
-export async function fetchOHLCV(symbol: string, timeframe: string = "1h", limit: number = 100, end_timestamp?: number): Promise<OHLCVResponse> {
+export async function fetchOHLCV(symbol: string, timeframe: string = "1h", limit: number = 100, end_timestamp?: number, provider?: string): Promise<OHLCVResponse> {
   const params = new URLSearchParams({
     timeframe,
     limit: limit.toString(),
   });
   if (end_timestamp) {
     params.append("end_timestamp", end_timestamp.toString());
+  }
+  if (provider) {
+    params.append("provider", provider);
   }
 
   return apiFetch<OHLCVResponse>(`${API_URL}/api/ohlcv/${encodeURIComponent(symbol)}?${params}`);
@@ -320,8 +323,10 @@ export interface TitanStrategyResponse {
 /**
  * Fetch Titan Strategy analysis for a single symbol
  */
-export async function fetchTitanStrategy(symbol: string, timeframe: string = "4h"): Promise<TitanStrategyResponse> {
-  return apiFetch<TitanStrategyResponse>(`${API_URL}/api/strategy/titan/${encodeURIComponent(symbol)}?timeframe=${timeframe}`);
+export async function fetchTitanStrategy(symbol: string, timeframe: string = "4h", provider?: string): Promise<TitanStrategyResponse> {
+  const params = new URLSearchParams({ timeframe });
+  if (provider) params.append("provider", provider);
+  return apiFetch<TitanStrategyResponse>(`${API_URL}/api/strategy/titan/${encodeURIComponent(symbol)}?${params}`);
 }
 
 // ---------------------------------------------------------------------------
@@ -523,6 +528,27 @@ export async function fetchBacktestStats(provider?: string): Promise<BacktestSta
   return apiFetch<BacktestStatsResponse>(`${API_URL}/api/analytics/signal-log/stats?${params}`);
 }
 
+export interface ProviderCoinStat {
+  symbol: string;
+  win_rate: number;
+  total: number;
+}
+
+export interface ProviderStats {
+  win_rate: number;
+  total: number;
+  wins: number;
+  losses: number;
+  avg_r_profit: number;
+  top_coins: ProviderCoinStat[];
+}
+
+export type ProviderComparisonResponse = Partial<Record<"binance" | "okx", ProviderStats>>;
+
+export async function fetchProviderComparison(): Promise<ProviderComparisonResponse> {
+  return apiFetch<ProviderComparisonResponse>(`${API_URL}/api/analytics/provider-comparison`);
+}
+
 // --- Trading Types ---
 
 export interface TradingPortfolio {
@@ -620,6 +646,7 @@ export interface TradingConfig {
   max_drawdown_pct: number;
   min_conviction: number;
   order_expiry_hours: number;
+  trading_provider: "binance" | "okx";
   correlation_groups: Record<string, string[]>;
 }
 

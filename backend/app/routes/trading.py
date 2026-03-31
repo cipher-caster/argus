@@ -8,6 +8,7 @@ from typing import Optional
 
 from fastapi import APIRouter, HTTPException, Query
 from pydantic import BaseModel, Field
+from typing import Literal
 from sqlalchemy import select, desc
 
 from app.storage import Database, RedisClient
@@ -41,6 +42,7 @@ class TradingConfigUpdate(BaseModel):
     max_total_exposure_pct: Optional[float] = Field(None, gt=0, le=1000)
     order_expiry_hours: Optional[int] = Field(None, ge=1, le=168)
     enabled: Optional[bool] = None
+    trading_provider: Optional[Literal["binance", "okx"]] = None
 
 
 # ------------------------------------------------------------------

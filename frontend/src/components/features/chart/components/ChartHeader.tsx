@@ -8,6 +8,9 @@ import { BarChart2, ChevronDown, ChevronLeft, Edit2, Eye, EyeOff, Loader2, Refre
 import Link from "next/link";
 import { TimeframeSelector } from "../TimeframeSelector";
 
+const CHART_PROVIDERS = ["binance", "okx"] as const;
+type ChartProvider = (typeof CHART_PROVIDERS)[number];
+
 interface ChartHeaderProps {
   symbol: string;
   price?: number;
@@ -22,9 +25,10 @@ interface ChartHeaderProps {
   onOpenSettings?: () => void;
   onRefresh?: () => void;
   provider?: string;
+  onProviderChange?: (provider: string) => void;
 }
 
-export function ChartHeader({ symbol, price, priceChangePercent, isLoading, isRefreshing, timeframe, onTimeframeChange, indicatorConfigs, onAddIndicator, onEditIndicator, onOpenSettings, onRefresh }: ChartHeaderProps) {
+export function ChartHeader({ symbol, price, priceChangePercent, isLoading, isRefreshing, timeframe, onTimeframeChange, indicatorConfigs, onAddIndicator, onEditIndicator, onOpenSettings, onRefresh, provider, onProviderChange }: ChartHeaderProps) {
   const toggleVisibility = useIndicatorStore((s) => s.toggleVisibility);
   const removeIndicator = useIndicatorStore((s) => s.removeIndicator);
 
@@ -131,6 +135,24 @@ export function ChartHeader({ symbol, price, priceChangePercent, isLoading, isRe
 
       {/* Right side */}
       <div className="ml-auto flex items-center gap-1">
+        {onProviderChange && (
+          <div className="flex items-center rounded-md border border-border bg-muted/40 overflow-hidden mr-1">
+            {CHART_PROVIDERS.map((p) => (
+              <button
+                key={p}
+                onClick={() => onProviderChange(p)}
+                className={cn(
+                  "px-2 h-5 text-[10px] font-bold uppercase tracking-wider transition-colors border-none cursor-pointer",
+                  (provider ?? "binance") === p
+                    ? "bg-primary text-primary-foreground"
+                    : "bg-transparent text-muted-foreground hover:text-foreground"
+                )}
+              >
+                {p}
+              </button>
+            ))}
+          </div>
+        )}
         {isLoading && <Loader2 size={14} className="animate-spin text-primary mr-1" />}
         {onRefresh && (
           <button

@@ -16,14 +16,15 @@ import { useStrategyTitan } from "@/hooks/useStrategyTitan";
 interface CoinDetailsPanelProps {
   symbol: string;
   timeframe?: string;
+  provider?: string;
 }
 
-export function CoinDetailsPanel({ symbol, timeframe = "4h" }: CoinDetailsPanelProps) {
+export function CoinDetailsPanel({ symbol, timeframe = "4h", provider }: CoinDetailsPanelProps) {
   const { data: tickersResponse, isLoading } = useTickers();
   const details = tickersResponse?.tickers?.find(t => t.symbol === symbol);
 
   const { coinMeta } = useCoinMeta();
-  const { data: titan, isLoading: titanLoading } = useStrategyTitan(symbol, timeframe);
+  const { data: titan, isLoading: titanLoading } = useStrategyTitan(symbol, timeframe, provider);
   const { data: regimeData } = useRegime(timeframe);
   const [isAnalysisOpen, setIsAnalysisOpen] = useState(false);
 

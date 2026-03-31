@@ -580,13 +580,102 @@ async def sync_trading_balance(ctx):
         logger.error(f"Job Failed: sync_trading_balance: {e}")
 
 
+_OKX_BACKFILL_TIMEFRAMES = ["15m", "1h", "4h", "1d"]
+_OKX_BACKFILL_DAYS = 7
+
+
+async def backfill_okx_candles(ctx) -> None:
+    """
+    Backfill last 7 days of OKX OHLCV data for all watchlist symbols.
+    Runs daily at 02:00 UTC to keep candle history current.
+    """
+    from app.jobs.signal_log import _get_config
+    from app.schemas.activity_log import log_activity
+    from app.schemas.candle import Candle
+
+    logger.info("Job: backfill_okx_candles — starting daily OKX backfill...")
+
+    config = await _get_config()
+    watchlist = config.get("watchlist", [])
+    symbols = [f"{s.replace('USDT', '')}/USDT" for s in watchlist]
+
+    since_ms = int((datetime.now(timezone.utc) - timedelta(days=_OKX_BACKFILL_DAYS)).timestamp() * 1000)
+    limit = _OKX_BACKFILL_DAYS * 24 * 4  # generous upper bound (covers 15m candles for 7d)
+
+    okx = OKXProvider()
+    total = 0
+    errors = 0
+
+    try:
+        for symbol in symbols:
+            for timeframe in _OKX_BACKFILL_TIMEFRAMES:
+                try:
+                    candles_data = await _retry(
+                        lambda s=symbol, tf=timeframe: okx.get_ohlcv(s, timeframe=tf, limit=limit, since=since_ms),
+                        retries=3,
+                        delay=2.0,
+                        label=f"backfill_okx_candles:{symbol}:{timeframe}",
+                    )
+
+                    if not candles_data:
+                        continue
+
+                    async with Database.get_session() as session:
+                        for c in candles_data:
+                            candle_db = Candle(
+                                symbol=symbol,
+                                provider="okx",
+                                timeframe=timeframe,
+                                timestamp=c.timestamp,
+                                open=c.open,
+                                high=c.high,
+                                low=c.low,
+                                close=c.close,
+                                volume=c.volume,
+                            )
+                            await session.merge(candle_db)
+                        await session.commit()
+
+                    total += len(candles_data)
+
+                except Exception as e:
+                    errors += 1
+                    logger.warning(f"backfill_okx_candles: {symbol} {timeframe} failed: {e}")
+
+                await asyncio.sleep(0.3)
+
+    except Exception as e:
+        logger.error(f"Job Failed: backfill_okx_candles: {e}", exc_info=True)
+    finally:
+        await okx.close()
+
+    if errors:
+        logger.warning(f"Job: backfill_okx_candles — complete with {errors} error(s), {total} candles stored")
+        await log_activity(
+            "OKX_BACKFILL",
+            severity="WARN",
+            candles_stored=total,
+            errors=errors,
+            symbols=len(symbols),
+            message=f"OKX backfill complete with {errors} error(s)",
+        )
+    else:
+        logger.info(f"Job: backfill_okx_candles — complete, {total} candles stored across {len(symbols)} symbols")
+        await log_activity(
+            "OKX_BACKFILL",
+            candles_stored=total,
+            symbols=len(symbols),
+            message=f"OKX backfill complete",
+        )
+
+
 class WorkerSettings:
     # Market data and analytics cache jobs
     functions = [
         sync_market_summary, sync_market_snapshot, sync_analytics_cache,
         log_watchlist_setups, log_best_setups, resolve_signal_outcomes,
         execute_signals, manage_positions, sync_trading_balance,
-        log_contrarian_signals,
+        log_contrarian_signals, backfill_okx_candles,
     ]
     on_startup = startup
     on_shutdown = shutdown
@@ -617,6 +706,7 @@ class WorkerSettings:
         cron(execute_signals, minute={5, 15, 25, 35, 45, 55}),  # Execute signals every 10min
         cron(manage_positions, minute={0, 5, 10, 15, 20, 25, 30, 35, 40, 45, 50, 55}),  # Check fills/TP/SL every 5min
         cron(sync_trading_balance, minute={1, 11, 21, 31, 41, 51}),  # Cache balance every 10min
+        cron(backfill_okx_candles, hour={2}, minute={0}),  # Daily OKX candle backfill at 02:00 UTC
     ]
 
 if __name__ == "__main__":

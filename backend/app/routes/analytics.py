@@ -607,6 +607,80 @@ async def get_signal_log(symbol: Optional[str] = None, source: Optional[str] = N
     )
 
 
+@router.get("/provider-comparison")
+async def get_provider_comparison():
+    """
+    Side-by-side win rate comparison for Binance vs OKX signals.
+    Only resolved signals (WIN/LOSS) are included in rate calculations.
+    Top 5 coins per provider ranked by win rate (min 3 signals).
+    """
+    from sqlalchemy import select as sa_select
+    from app.schemas.signal_log import SignalLog
+    from app.storage import Database
+    from collections import defaultdict
+
+    async with Database.get_session() as session:
+        result = await session.execute(
+            sa_select(SignalLog).where(SignalLog.outcome.in_(["WIN", "LOSS"]))
+        )
+        rows = result.scalars().all()
+
+    if not rows:
+        return {}
+
+    by_provider: dict[str, list] = defaultdict(list)
+    for row in rows:
+        by_provider[row.provider].append(row)
+
+    def _build_provider_stats(signals: list) -> dict:
+        wins = sum(1 for s in signals if s.outcome == "WIN")
+        losses = len(signals) - wins
+        total = len(signals)
+        win_rate = round(wins / total, 4) if total > 0 else 0.0
+
+        r_profits: list[float] = []
+        for s in signals:
+            if s.outcome == "WIN":
+                risk = abs(s.entry - s.sl)
+                reward = abs(s.tp - s.entry)
+                r_profits.append(reward / risk if risk > 0 else 0.0)
+            else:
+                r_profits.append(-1.0)
+        avg_r = round(sum(r_profits) / len(r_profits), 4) if r_profits else 0.0
+
+        by_coin: dict[str, list] = defaultdict(list)
+        for s in signals:
+            by_coin[s.symbol].append(s)
+
+        top_coins = []
+        for symbol, coin_sigs in by_coin.items():
+            if len(coin_sigs) < 3:
+                continue
+            c_wins = sum(1 for s in coin_sigs if s.outcome == "WIN")
+            c_total = len(coin_sigs)
+            top_coins.append({
+                "symbol": symbol,
+                "win_rate": round(c_wins / c_total, 4),
+                "total": c_total,
+            })
+        top_coins.sort(key=lambda x: x["win_rate"], reverse=True)
+        top_coins = top_coins[:5]
+
+        return {
+            "win_rate": win_rate,
+            "total": total,
+            "wins": wins,
+            "losses": losses,
+            "avg_r_profit": avg_r,
+            "top_coins": top_coins,
+        }
+
+    return {
+        provider: _build_provider_stats(signals)
+        for provider, signals in by_provider.items()
+    }
+
+
 @router.get("/signal-outcomes")
 async def get_signal_outcomes():
     """

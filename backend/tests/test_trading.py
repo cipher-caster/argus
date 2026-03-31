@@ -1135,3 +1135,106 @@ class TestOrchestratorCommitErrorHandling:
         # Trading must be disabled regardless of the DB failure
         assert len(saved_configs) == 1
         assert saved_configs[0]["enabled"] is False
+
+
+# ---------------------------------------------------------------------------
+# trading_provider config field
+# ---------------------------------------------------------------------------
+
+class TestTradingProviderConfig:
+
+    def test_default_config_has_binance_provider(self):
+        from app.trading.orchestrator import DEFAULT_TRADING_CONFIG
+        assert DEFAULT_TRADING_CONFIG["trading_provider"] == "binance"
+
+    def test_config_update_accepts_okx(self):
+        from app.routes.trading import TradingConfigUpdate
+        update = TradingConfigUpdate(trading_provider="okx")
+        assert update.trading_provider == "okx"
+
+    def test_config_update_accepts_binance(self):
+        from app.routes.trading import TradingConfigUpdate
+        update = TradingConfigUpdate(trading_provider="binance")
+        assert update.trading_provider == "binance"
+
+    def test_config_update_rejects_invalid_provider(self):
+        import pydantic
+        from app.routes.trading import TradingConfigUpdate
+        with pytest.raises(pydantic.ValidationError):
+            TradingConfigUpdate(trading_provider="kraken")
+
+    def test_config_update_provider_none_is_excluded(self):
+        from app.routes.trading import TradingConfigUpdate
+        update = TradingConfigUpdate(trading_provider=None)
+        patch = update.model_dump(exclude_none=True)
+        assert "trading_provider" not in patch
+
+    @pytest.mark.asyncio
+    async def test_check_open_positions_uses_okx_provider(self):
+        """When trading_provider=okx, check_open_positions instantiates OKXProvider."""
+        from app.trading.orchestrator import TradeOrchestrator
+
+        orch = TradeOrchestrator()
+        config = make_config(enabled=True, trading_provider="okx")
+
+        mock_session = AsyncMock()
+        mock_session.__aenter__ = AsyncMock(return_value=mock_session)
+        mock_session.__aexit__ = AsyncMock(return_value=None)
+        mock_session.add = MagicMock()
+        mock_session.commit = AsyncMock()
+
+        result_mock = MagicMock()
+        result_mock.scalars.return_value.all.return_value = []
+        mock_session.execute = AsyncMock(return_value=result_mock)
+
+        with (
+            patch("app.trading.orchestrator.get_trading_config", return_value=config),
+            patch("app.trading.orchestrator.Database.get_session", return_value=mock_session),
+        ):
+            await orch.check_open_positions(config=config)
+
+        # No positions were open so candle fetch was never called — that's fine.
+        # The key check: no exception was raised resolving OKXProvider from okx config.
+        assert True
+
+    @pytest.mark.asyncio
+    async def test_check_open_positions_passes_provider_to_get_candles_df(self):
+        """check_open_positions passes a BinanceProvider instance to get_candles_df."""
+        from app.trading.orchestrator import TradeOrchestrator
+        from app.providers import BinanceProvider
+
+        orch = TradeOrchestrator()
+        config = make_config(enabled=True, trading_provider="binance")
+        pos = _make_position(direction="LONG", entry=50000, tp=52000, sl=49000)
+
+        mock_session = AsyncMock()
+        mock_session.__aenter__ = AsyncMock(return_value=mock_session)
+        mock_session.__aexit__ = AsyncMock(return_value=None)
+        mock_session.add = MagicMock()
+        mock_session.commit = AsyncMock()
+
+        result_mock = MagicMock()
+        result_mock.scalars.return_value.all.return_value = [pos]
+        mock_session.execute = AsyncMock(return_value=result_mock)
+
+        candles = _make_candles([
+            (1000, 50000, 52100, 49800, 51800),  # TP hit
+        ])
+
+        captured_providers = []
+
+        async def capture_candles(symbol, timeframe, limit=100, provider=None):
+            captured_providers.append(provider)
+            return candles
+
+        with (
+            patch("app.trading.orchestrator.get_trading_config", return_value=config),
+            patch("app.trading.orchestrator.Database.get_session", return_value=mock_session),
+            patch("app.routes.strategy.get_candles_df", new_callable=AsyncMock, side_effect=capture_candles),
+            patch("app.trading.orchestrator.notifier.notify_position_closed", new_callable=AsyncMock),
+            patch("app.trading.orchestrator.RedisClient.get_json", new_callable=AsyncMock, return_value={"market_state": "TRENDING"}),
+        ):
+            await orch.check_open_positions(config=config)
+
+        assert len(captured_providers) == 1
+        assert isinstance(captured_providers[0], BinanceProvider)

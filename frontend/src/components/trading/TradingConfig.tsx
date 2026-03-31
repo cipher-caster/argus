@@ -70,6 +70,45 @@ function Field({
   );
 }
 
+function ProviderToggle({
+  value,
+  onChange,
+}: {
+  value: "binance" | "okx";
+  onChange: (key: keyof TradingConfig, val: string) => void;
+}) {
+  return (
+    <div className="flex items-center justify-between py-2.5 border-b border-border/20 last:border-0">
+      <div>
+        <div className="text-[12px] font-bold">Data Provider</div>
+        <div className="text-[10px] text-muted-foreground">Exchange used for new signal prices</div>
+      </div>
+      <div className="flex rounded-lg overflow-hidden border border-border text-[11px] font-bold">
+        <button
+          type="button"
+          onClick={() => onChange("trading_provider", "binance")}
+          className={cn(
+            "px-2.5 py-1 transition-colors",
+            value === "binance" ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground hover:bg-muted/80"
+          )}
+        >
+          Binance
+        </button>
+        <button
+          type="button"
+          onClick={() => onChange("trading_provider", "okx")}
+          className={cn(
+            "px-2.5 py-1 transition-colors",
+            value === "okx" ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground hover:bg-muted/80"
+          )}
+        >
+          OKX
+        </button>
+      </div>
+    </div>
+  );
+}
+
 export function TradingConfigPanel() {
   const { data: config, isLoading } = useTradingConfig();
   const update = useUpdateTradingConfig();
@@ -121,6 +160,7 @@ export function TradingConfigPanel() {
         <Field label="Max Drawdown (%)" name="max_drawdown_pct" value={local.max_drawdown_pct ?? 15} onChange={handleChange} min={5} max={50} step={1} hint="Circuit breaker threshold" />
         <Field label="Min Conviction" name="min_conviction" value={local.min_conviction ?? 65} onChange={handleChange} min={0} max={100} hint="Minimum signal conviction score" />
         <Field label="Order Expiry (hours)" name="order_expiry_hours" value={local.order_expiry_hours ?? 8} onChange={handleChange} min={1} max={48} hint="Cancel unfilled PENDING orders after this" />
+        <ProviderToggle value={local.trading_provider ?? "binance"} onChange={handleChange} />
       </div>
     </div>
   );

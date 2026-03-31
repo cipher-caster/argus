@@ -5,7 +5,7 @@
  * Optimized with stale-while-revalidate for better UX
  */
 
-import { fetchAnalyticsSymbols, fetchBacktestStats, fetchBestSetups, fetchMeanReversion, fetchOracleScreener, fetchOracleSignalSummary, fetchSignalLog, fetchSignalLogConfig, fetchTitanRadar, updateSignalLogConfig, fetchRegime, SignalLogConfig } from "@/lib/api";
+import { fetchAnalyticsSymbols, fetchBacktestStats, fetchBestSetups, fetchMeanReversion, fetchOracleScreener, fetchOracleSignalSummary, fetchSignalLog, fetchSignalLogConfig, fetchTitanRadar, updateSignalLogConfig, fetchRegime, fetchProviderComparison, SignalLogConfig } from "@/lib/api";
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 /**
@@ -112,6 +112,16 @@ export function useUpdateSignalLogConfig() {
     onError: (error: Error) => {
       console.error("Failed to update signal log config:", error.message);
     },
+  });
+}
+
+export function useProviderComparison() {
+  return useQuery({
+    queryKey: ["analytics", "provider-comparison"],
+    queryFn: fetchProviderComparison,
+    staleTime: 10 * 60_000,
+    gcTime: 15 * 60_000,
+    refetchOnWindowFocus: false,
   });
 }
 

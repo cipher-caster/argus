@@ -28,6 +28,7 @@ interface CandlestickChartProps {
   price?: number;
   priceChangePercent?: number;
   provider?: string;
+  onProviderChange?: (provider: string) => void;
   onOpenSettings?: () => void;
   onRefresh?: () => void;
   isRefreshing?: boolean;
@@ -47,6 +48,7 @@ function CandlestickChartComponent({
   price,
   priceChangePercent,
   provider,
+  onProviderChange,
   onOpenSettings,
   onRefresh,
   isRefreshing,
@@ -75,6 +77,7 @@ function CandlestickChartComponent({
           price={price}
           priceChangePercent={priceChangePercent}
           provider={provider}
+          onProviderChange={onProviderChange}
           onOpenSettings={onOpenSettings}
           onRefresh={onRefresh}
           isRefreshing={isRefreshing}

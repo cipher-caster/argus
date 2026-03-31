@@ -2,8 +2,8 @@
 Tests for background worker jobs (`worker.py`).
 """
 import pytest
-from unittest.mock import patch, AsyncMock, MagicMock
-from app.worker import sync_market_summary, sync_market_snapshot, sync_analytics_cache, _retry
+from unittest.mock import patch, AsyncMock, MagicMock, call
+from app.worker import sync_market_summary, sync_market_snapshot, sync_analytics_cache, _retry, backfill_okx_candles
 
 
 @pytest.fixture
@@ -143,3 +143,63 @@ async def test_retry_raises_after_max_retries():
             await _retry(always_fails, retries=3, delay=0.0, label="test")
 
     assert call_count == 3
+
+
+# --- Tests for backfill_okx_candles ---
+
+@pytest.fixture
+def mock_candle():
+    c = MagicMock()
+    c.timestamp = 1700000000000
+    c.open = 100.0
+    c.high = 110.0
+    c.low = 90.0
+    c.close = 105.0
+    c.volume = 1000.0
+    return c
+
+
+@pytest.mark.asyncio
+async def test_backfill_okx_candles_uses_okx_provider(mock_candle):
+    """backfill_okx_candles should fetch candles via OKXProvider for each watchlist symbol."""
+    mock_okx = AsyncMock()
+    mock_okx.get_ohlcv = AsyncMock(return_value=[mock_candle])
+    mock_okx.close = AsyncMock()
+
+    mock_session = AsyncMock()
+    mock_session.__aenter__ = AsyncMock(return_value=mock_session)
+    mock_session.__aexit__ = AsyncMock(return_value=False)
+    mock_session.merge = AsyncMock()
+    mock_session.commit = AsyncMock()
+
+    mock_config = {"watchlist": ["BTCUSDT", "ETHUSDT"]}
+
+    with patch("app.worker.OKXProvider", return_value=mock_okx):
+        with patch("app.worker.Database.get_session", return_value=mock_session):
+            with patch("app.jobs.signal_log._get_config", new_callable=AsyncMock, return_value=mock_config):
+                with patch("app.worker.asyncio.sleep", new_callable=AsyncMock):
+                    with patch("app.schemas.activity_log.log_activity", new_callable=AsyncMock):
+                        with patch("app.worker._retry", new_callable=AsyncMock, return_value=[mock_candle]) as mock_retry:
+                            await backfill_okx_candles({})
+
+    mock_okx.close.assert_awaited_once()
+    assert mock_retry.call_count == len(mock_config["watchlist"]) * 4  # 4 timeframes
+
+
+@pytest.mark.asyncio
+async def test_backfill_okx_candles_handles_provider_error():
+    """backfill_okx_candles should not propagate exceptions when OKX is unreachable."""
+    mock_okx = AsyncMock()
+    mock_okx.close = AsyncMock()
+
+    mock_config = {"watchlist": ["BTCUSDT"]}
+
+    with patch("app.worker.OKXProvider", return_value=mock_okx):
+        with patch("app.worker.asyncio.sleep", new_callable=AsyncMock):
+            with patch("app.jobs.signal_log._get_config", new_callable=AsyncMock, return_value=mock_config):
+                with patch("app.schemas.activity_log.log_activity", new_callable=AsyncMock):
+                    with patch("app.worker._retry", new_callable=AsyncMock, side_effect=Exception("OKX unreachable")):
+                        # Must not raise
+                        await backfill_okx_candles({})
+
+    mock_okx.close.assert_awaited_once()

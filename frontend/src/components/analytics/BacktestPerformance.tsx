@@ -1,8 +1,8 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { useBacktestStats, useSignalLog } from "@/hooks/useAnalyticsData";
-import { CoinBacktestStats, SignalLogItem } from "@/lib/api";
+import { useBacktestStats, useSignalLog, useProviderComparison } from "@/hooks/useAnalyticsData";
+import { CoinBacktestStats, SignalLogItem, ProviderStats } from "@/lib/api";
 import { formatPriceCompact, formatDateTime } from "@/lib/formatters";
 import { cn } from "@/lib/utils";
 import { BarChart3, ArrowUpDown, Trophy, Target, TrendingUp, TrendingDown, ChevronRight } from "lucide-react";
@@ -170,9 +170,56 @@ function CoinRow({ coin, rank, expanded, onToggle }: { coin: CoinBacktestStats; 
   );
 }
 
+function ProviderComparisonBanner({ binance, okx }: { binance: ProviderStats; okx: ProviderStats }) {
+  const cols: { label: string; binance: string; okx: string; binanceCls?: string; okxCls?: string }[] = [
+    {
+      label: "Win Rate",
+      binance: `${(binance.win_rate * 100).toFixed(1)}%`,
+      okx: `${(okx.win_rate * 100).toFixed(1)}%`,
+      binanceCls: binance.win_rate >= okx.win_rate ? "text-emerald-500 dark:text-emerald-400" : "text-muted-foreground",
+      okxCls: okx.win_rate > binance.win_rate ? "text-emerald-500 dark:text-emerald-400" : "text-muted-foreground",
+    },
+    {
+      label: "Signals",
+      binance: binance.total.toString(),
+      okx: okx.total.toString(),
+    },
+    {
+      label: "Avg R",
+      binance: `${binance.avg_r_profit >= 0 ? "+" : ""}${binance.avg_r_profit.toFixed(2)}R`,
+      okx: `${okx.avg_r_profit >= 0 ? "+" : ""}${okx.avg_r_profit.toFixed(2)}R`,
+      binanceCls: binance.avg_r_profit > 0 ? "text-emerald-500 dark:text-emerald-400" : binance.avg_r_profit < 0 ? "text-red-500 dark:text-red-400" : "text-muted-foreground",
+      okxCls: okx.avg_r_profit > 0 ? "text-emerald-500 dark:text-emerald-400" : okx.avg_r_profit < 0 ? "text-red-500 dark:text-red-400" : "text-muted-foreground",
+    },
+    {
+      label: "W / L",
+      binance: `${binance.wins}W / ${binance.losses}L`,
+      okx: `${okx.wins}W / ${okx.losses}L`,
+    },
+  ];
+
+  return (
+    <div className="rounded-xl border border-border/40 bg-secondary/20 overflow-hidden">
+      <div className="grid grid-cols-[1fr_auto_1fr] text-[10px] font-black uppercase tracking-widest">
+        <div className="px-4 py-2 text-center text-zinc-400 bg-zinc-800/30">Binance</div>
+        <div className="px-4 py-2 text-center text-muted-foreground/50 bg-secondary/30"></div>
+        <div className="px-4 py-2 text-center text-sky-400 bg-sky-900/20">OKX</div>
+      </div>
+      {cols.map(({ label, binance: bVal, okx: oVal, binanceCls, okxCls }) => (
+        <div key={label} className="grid grid-cols-[1fr_auto_1fr] border-t border-border/20">
+          <div className={cn("px-4 py-2.5 text-right text-[13px] font-black", binanceCls ?? "text-foreground")}>{bVal}</div>
+          <div className="px-4 py-2.5 text-center text-[10px] font-bold uppercase tracking-widest text-muted-foreground/60 min-w-[80px]">{label}</div>
+          <div className={cn("px-4 py-2.5 text-left text-[13px] font-black", okxCls ?? "text-foreground")}>{oVal}</div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
 export function BacktestPerformance() {
   const [provider, setProvider] = useState<"binance" | "okx">("binance");
   const { data, isLoading, isError } = useBacktestStats(provider);
+  const { data: comparison } = useProviderComparison();
   const [sortBy, setSortBy] = useState<SortKey>("profit_r");
   const [expandedCoin, setExpandedCoin] = useState<string | null>(null);
 
@@ -261,6 +308,11 @@ export function BacktestPerformance() {
             </div>
           ))}
         </div>
+      )}
+
+      {/* Provider comparison banner — only when both providers have data */}
+      {comparison?.binance && comparison?.okx && (
+        <ProviderComparisonBanner binance={comparison.binance} okx={comparison.okx} />
       )}
 
       {/* Table */}
