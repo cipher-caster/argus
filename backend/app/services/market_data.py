@@ -22,10 +22,11 @@ logger = logging.getLogger(__name__)
 class MarketDataService:
     @staticmethod
     async def fetch_and_sync_ohlcv(
-        symbol: str, 
-        timeframe: str, 
-        limit: int = 100, 
-        end_timestamp: Optional[int] = None
+        symbol: str,
+        timeframe: str,
+        limit: int = 100,
+        end_timestamp: Optional[int] = None,
+        provider: Optional[str] = None,
     ) -> Tuple[List[ProviderCandle], str]:
         """
         Fetch OHLCV candlestick data with intelligent DB caching and provider fallback.
@@ -54,7 +55,7 @@ class MarketDataService:
         """
         from app.providers import get_provider, owns_provider
 
-        active_provider = os.getenv("DATA_PROVIDER", "binance").lower()
+        active_provider = provider or os.getenv("DATA_PROVIDER", "binance").lower()
 
         async with Database.get_session() as session:
             # Base query — filter by active provider to avoid duplicate timestamps
@@ -91,7 +92,13 @@ class MarketDataService:
             if not db_candles or len(db_candles) < limit // 2 or is_stale:
                 logger.info(f"Fetching from exchange for {symbol} {timeframe}. Reason: Missing={not db_candles}, Sparse={len(db_candles) < limit//2 if db_candles else False}, Stale={is_stale}")
                 try:
-                    provider = get_provider()
+                    if active_provider == "okx":
+                        from app.providers.okx_provider import OKXProvider
+                        fetch_provider = OKXProvider()
+                        _owns_fetch_provider = True
+                    else:
+                        fetch_provider = get_provider()
+                        _owns_fetch_provider = owns_provider(fetch_provider)
                     try:
                         # Calculate 'since' timestamp
                         if end_timestamp:
@@ -100,7 +107,7 @@ class MarketDataService:
                             since_ts = None  # Fetch latest
 
                         logger.debug(f"Fetching from exchange with since={since_ts}")
-                        fresh_candles = await provider.get_ohlcv(symbol, timeframe=timeframe, limit=1000, since=since_ts)
+                        fresh_candles = await fetch_provider.get_ohlcv(symbol, timeframe=timeframe, limit=1000, since=since_ts)
 
                         # Save to DB
                         if fresh_candles:
@@ -114,7 +121,7 @@ class MarketDataService:
                                     "low": c.low,
                                     "close": c.close,
                                     "volume": c.volume,
-                                    "provider": provider.name,
+                                    "provider": fetch_provider.name,
                                 }
                                 for c in fresh_candles
                             ]
@@ -138,11 +145,11 @@ class MarketDataService:
                         db_candles = results.scalars().all()
 
                     finally:
-                        if owns_provider(provider):
-                            await provider.close()
-                        
+                        if _owns_fetch_provider:
+                            await fetch_provider.close()
+
                 except Exception as e:
-                    logger.error(f"Failed to fetch from Binance for {symbol} {timeframe}: {e}", exc_info=True)
+                    logger.error(f"Failed to fetch from {active_provider} for {symbol} {timeframe}: {e}", exc_info=True)
             
             # Sort ascending for frontend
             db_candles = sorted(db_candles, key=lambda x: x.timestamp)

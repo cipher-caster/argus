@@ -42,7 +42,8 @@ async def get_ohlcv(
     symbol: str,
     timeframe: str = Query(default="1h", pattern="^(1m|5m|15m|30m|1h|4h|12h|1d|3d|1w)$"),
     limit: int = Query(default=100, ge=1, le=1000),
-    end_timestamp: Optional[int] = Query(default=None, description="Fetch candles before this timestamp (ms)")
+    end_timestamp: Optional[int] = Query(default=None, description="Fetch candles before this timestamp (ms)"),
+    provider: Optional[str] = Query(default=None, description="Data provider override: 'binance' or 'okx'")
 ):
     """
     Fetch OHLCV candlestick data.
@@ -53,7 +54,8 @@ async def get_ohlcv(
             symbol=symbol,
             timeframe=timeframe,
             limit=limit,
-            end_timestamp=end_timestamp
+            end_timestamp=end_timestamp,
+            provider=provider
         )
         
         logger.info(f"Fetched {len(candles)} candles for {symbol} {timeframe}")
