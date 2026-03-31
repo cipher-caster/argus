@@ -47,7 +47,7 @@ async def get_symbol_providers(symbol: str = Query(..., description="Symbol to c
             select(distinct(DbCandle.provider)).where(DbCandle.symbol == symbol)
         )
         providers = [row[0] for row in result.fetchall()]
-    return {"providers": providers if providers else ["binance"]}
+    return {"providers": providers if providers else ["binance", "okx"]}
 
 
 @router.get("/ohlcv/{symbol:path}", response_model=OHLCVResponse)
