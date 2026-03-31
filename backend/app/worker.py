@@ -706,7 +706,7 @@ class WorkerSettings:
         cron(execute_signals, minute={5, 15, 25, 35, 45, 55}),  # Execute signals every 10min
         cron(manage_positions, minute={0, 5, 10, 15, 20, 25, 30, 35, 40, 45, 50, 55}),  # Check fills/TP/SL every 5min
         cron(sync_trading_balance, minute={1, 11, 21, 31, 41, 51}),  # Cache balance every 10min
-        cron(backfill_okx_candles, hour={2}, minute={0}),  # Daily OKX candle backfill at 02:00 UTC
+        cron(backfill_okx_candles, minute={0, 30}),  # OKX candle backfill every 30 min
     ]
 
 if __name__ == "__main__":
