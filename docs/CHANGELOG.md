@@ -2,6 +2,22 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.9.15] - 2026-03-31 — Signal Resolution Bug Fix
+
+### Fixed
+
+- **Signal resolution used ticker price instead of TP/SL level** — When resolving WIN/LOSS outcomes via fast-path (current ticker price), the code was using the current market price as `resolved_price` instead of the actual TP/SL target. This caused two issues:
+  1. `signal_log.resolved_price` didn't match `tp` for SHORT signals where ticker was slightly below TP (e.g., 1.17 vs TP 1.170254)
+  2. Linked positions were closed at ticker price instead of TP level, resulting in incorrect PnL calculations
+- **Positions linked to WIN signals fixed** — 10 positions across scanner/live sources had their `actual_exit`, `pnl_usd`, `pnl_pct`, and `outcome` corrected to reflect closing at the TP level instead of the (lower) ticker price. This increased reported PnL by ~$1,000 total.
+
+### Code Changes
+
+- `signal_log.py` fast-path resolution: now sets `resolved_price = sig.tp` (or `sig.sl` for LOSS) instead of current ticker price
+- `signal_log.py` historical resolution: uses `sig.tp`/`sig.sl` directly for exit price when closing linked positions
+
+---
+
 ## [0.9.14] - 2026-03-31 — Phase 21A Complete: OKX Integration
 
 ### Added

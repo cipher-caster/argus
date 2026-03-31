@@ -458,7 +458,7 @@ async def resolve_signal_outcomes(ctx):
                     if new_outcome:
                         sig.outcome = new_outcome
                         sig.resolved_at = now_ms
-                        sig.resolved_price = price
+                        sig.resolved_price = sig.tp if new_outcome == "WIN" else sig.sl
                         sig.regime_at_resolution = await _get_market_state()
                         sig.time_to_resolution_ms = now_ms - sig.fired_at
                         session.add(sig)
@@ -478,20 +478,20 @@ async def resolve_signal_outcomes(ctx):
                                 linked_pos.outcome = "EXPIRED"
                                 linked_pos.closed_at = now_ms
                             else:
-                                # OPEN position — close with PnL
+                                # OPEN position — close with PnL at TP/SL level
                                 entry = linked_pos.actual_entry or linked_pos.intended_entry
+                                exit_price = sig.tp if new_outcome == "WIN" else sig.sl
                                 if linked_pos.direction == "LONG":
-                                    raw_pnl = (price - entry) * linked_pos.quantity
+                                    raw_pnl = (exit_price - entry) * linked_pos.quantity
                                 else:
-                                    raw_pnl = (entry - price) * linked_pos.quantity
+                                    raw_pnl = (entry - exit_price) * linked_pos.quantity
                                 
-                                linked_pos.actual_exit = price
+                                linked_pos.actual_exit = exit_price
                                 linked_pos.status = "CLOSED"
                                 linked_pos.closed_at = now_ms
                                 fee = linked_pos.quote_amount * 0.001
                                 linked_pos.pnl_usd = round(raw_pnl - fee, 4)
                                 linked_pos.pnl_pct = round((linked_pos.pnl_usd / linked_pos.quote_amount * 100), 2) if linked_pos.quote_amount > 0 else 0.0
-                                # Outcome based on actual PnL, not signal-level TP hit
                                 linked_pos.outcome = "WIN" if linked_pos.pnl_usd >= 0 else "LOSS"
                             
                             session.add(linked_pos)
@@ -682,20 +682,20 @@ async def resolve_outcomes_historical(ctx):
                                 linked_pos.status = "CANCELLED"
                                 linked_pos.outcome = "EXPIRED"
                             else:
-                                # OPEN position — close with PnL
+                                # OPEN position — close with PnL at TP/SL level
                                 FEE_PCT = 0.001
                                 entry = linked_pos.actual_entry or linked_pos.intended_entry
+                                exit_price = sig.tp if new_outcome == "WIN" else sig.sl
                                 if linked_pos.direction == "LONG":
-                                    raw_pnl = (resolved_price - entry) * linked_pos.quantity
+                                    raw_pnl = (exit_price - entry) * linked_pos.quantity
                                 else:
-                                    raw_pnl = (entry - resolved_price) * linked_pos.quantity
+                                    raw_pnl = (entry - exit_price) * linked_pos.quantity
                                 fee = linked_pos.quote_amount * FEE_PCT
                                 pnl_usd = raw_pnl - fee
                                 pnl_pct = (pnl_usd / linked_pos.quote_amount * 100) if linked_pos.quote_amount > 0 else 0.0
                                 linked_pos.status = "CLOSED"
-                                # Outcome based on actual PnL, not signal-level TP hit
                                 linked_pos.outcome = "WIN" if pnl_usd >= 0 else "LOSS"
-                                linked_pos.actual_exit = resolved_price
+                                linked_pos.actual_exit = exit_price
                                 linked_pos.pnl_usd = round(pnl_usd, 4)
                                 linked_pos.pnl_pct = round(pnl_pct, 2)
                                 linked_pos.market_state_at_close = sig.regime_at_resolution or ""
