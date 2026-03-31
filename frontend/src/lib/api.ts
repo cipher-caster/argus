@@ -32,6 +32,11 @@ export interface TickerResponse {
   provider: string;
 }
 
+export async function fetchSymbolProviders(symbol: string): Promise<{ providers: string[] }> {
+  const params = new URLSearchParams({ symbol });
+  return apiFetch<{ providers: string[] }>(`${API_URL}/api/ohlcv-providers?${params}`);
+}
+
 /**
  * Fetch OHLCV candlestick data
  */

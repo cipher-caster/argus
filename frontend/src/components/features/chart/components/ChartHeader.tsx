@@ -25,10 +25,11 @@ interface ChartHeaderProps {
   onOpenSettings?: () => void;
   onRefresh?: () => void;
   provider?: string;
+  availableProviders?: string[];
   onProviderChange?: (provider: string) => void;
 }
 
-export function ChartHeader({ symbol, price, priceChangePercent, isLoading, isRefreshing, timeframe, onTimeframeChange, indicatorConfigs, onAddIndicator, onEditIndicator, onOpenSettings, onRefresh, provider, onProviderChange }: ChartHeaderProps) {
+export function ChartHeader({ symbol, price, priceChangePercent, isLoading, isRefreshing, timeframe, onTimeframeChange, indicatorConfigs, onAddIndicator, onEditIndicator, onOpenSettings, onRefresh, provider, availableProviders, onProviderChange }: ChartHeaderProps) {
   const toggleVisibility = useIndicatorStore((s) => s.toggleVisibility);
   const removeIndicator = useIndicatorStore((s) => s.removeIndicator);
 
@@ -135,9 +136,9 @@ export function ChartHeader({ symbol, price, priceChangePercent, isLoading, isRe
 
       {/* Right side */}
       <div className="ml-auto flex items-center gap-1">
-        {onProviderChange && (
+        {onProviderChange && (availableProviders ?? CHART_PROVIDERS).length > 1 && (
           <div className="flex items-center rounded-md border border-border bg-muted/40 overflow-hidden mr-1">
-            {CHART_PROVIDERS.map((p) => (
+            {(availableProviders ?? CHART_PROVIDERS).map((p) => (
               <button
                 key={p}
                 onClick={() => onProviderChange(p)}

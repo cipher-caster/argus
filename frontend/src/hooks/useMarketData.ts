@@ -4,7 +4,7 @@
  * React Query hooks for market data
  */
 
-import { fetchOHLCV, fetchProviderInfo, fetchSymbols, fetchTicker, setProvider } from "@/lib/api";
+import { fetchOHLCV, fetchProviderInfo, fetchSymbols, fetchTicker, fetchSymbolProviders, setProvider } from "@/lib/api";
 import { fetchTickers } from "@/lib/marketApi";
 import { keepPreviousData, useInfiniteQuery, useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 
@@ -32,6 +32,14 @@ export function useSetProvider() {
       qc.invalidateQueries({ queryKey: ["tickers"] });
       qc.invalidateQueries({ queryKey: ["symbols"] });
     },
+  });
+}
+
+export function useSymbolProviders(symbol: string) {
+  return useQuery({
+    queryKey: ["symbolProviders", symbol] as const,
+    queryFn: () => fetchSymbolProviders(symbol),
+    staleTime: 5 * 60 * 1000,
   });
 }
 

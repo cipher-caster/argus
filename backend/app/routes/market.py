@@ -8,7 +8,7 @@ from fastapi import APIRouter, HTTPException, Query
 from typing import List, Optional
 
 from app.providers import SymbolInfo
-from app.storage import RedisClient
+from app.storage import RedisClient, Database
 from app.services.market_data import MarketDataService
 from app.schemas.market_data import (
     OHLCVResponse, TickerResponse, CoinInfo, CoinsResponse, 
@@ -35,6 +35,19 @@ def get_provider():
     if _provider is None:
         raise HTTPException(status_code=500, detail="Data provider not initialized")
     return _provider
+
+
+@router.get("/ohlcv-providers")
+async def get_symbol_providers(symbol: str = Query(..., description="Symbol to check, e.g. BTC/USDT")):
+    """Return which providers have candle data for a symbol in the DB."""
+    from sqlalchemy import select, distinct
+    from app.schemas.market_data import DbCandle
+    async with Database.get_session() as session:
+        result = await session.execute(
+            select(distinct(DbCandle.provider)).where(DbCandle.symbol == symbol)
+        )
+        providers = [row[0] for row in result.fetchall()]
+    return {"providers": providers if providers else ["binance"]}
 
 
 @router.get("/ohlcv/{symbol:path}", response_model=OHLCVResponse)

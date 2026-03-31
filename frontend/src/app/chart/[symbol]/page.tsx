@@ -6,10 +6,10 @@ import { CoinSignalIntel } from "@/components/features/chart/CoinSignalIntel";
 import { CoinDetailsPanel } from "@/components/features/dashboard/CoinDetailsPanel";
 import { WatchlistPanel } from "@/components/features/dashboard/WatchlistPanel";
 import { useAvailableIndicators, useCalculatedIndicators } from "@/hooks/useIndicators";
-import { useOHLCV, useTicker } from "@/hooks/useMarketData";
+import { useOHLCV, useTicker, useSymbolProviders } from "@/hooks/useMarketData";
 import { useIndicatorStore } from "@/stores/indicatorStore";
 import { Candle } from "@/lib/api";
-import { useRef, useState } from "react";
+import { useRef, useState, useEffect } from "react";
 
 interface ChartPageProps {
   params: { symbol: string };
@@ -21,6 +21,15 @@ export default function ChartPage({ params }: ChartPageProps) {
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [chartProvider, setChartProvider] = useState<string>("binance");
   const scrollToLatestRef = useRef<(() => void) | null>(null);
+
+  const { data: providersData } = useSymbolProviders(symbol);
+  const availableProviders = providersData?.providers ?? ["binance"];
+
+  useEffect(() => {
+    if (availableProviders.length === 1 && availableProviders[0] !== chartProvider) {
+      setChartProvider(availableProviders[0]);
+    }
+  }, [availableProviders.join(",")]);
 
   const ohlcvQuery = useOHLCV(symbol, timeframe, 1000, chartProvider);
   const { data: ohlcvData, isLoading: isLoadingOHLCV, fetchNextPage, hasNextPage, isFetchingNextPage } = ohlcvQuery;
@@ -68,6 +77,7 @@ export default function ChartPage({ params }: ChartPageProps) {
             price={currentPrice ?? undefined}
             priceChangePercent={priceChangePercent}
             provider={chartProvider}
+            availableProviders={availableProviders}
             onProviderChange={setChartProvider}
             onOpenSettings={() => setIsSettingsOpen(true)}
             onRefresh={handleRefresh}
