@@ -7,9 +7,14 @@ All notable changes to this project will be documented in this file.
 ### Added
 
 - **Chart provider decoupling** — Chart page now has a local Binance/OKX toggle in the chart header. Switching to OKX for chart viewing no longer calls `PUT /api/provider` or affects the paper trading engine. Provider resets to Binance on navigation.
+- **Chart-global provider sync** — Chart page now syncs with global provider from navbar. When you switch provider in navbar, the chart automatically uses the selected provider for fetching candles.
 - **`GET /api/analytics/provider-comparison`** — New endpoint comparing signal performance by exchange. Returns win rate, total signals, wins/losses, avg R-profit, and top 5 coins per provider. Only WIN/LOSS outcomes included (REVIEW/REJECTED/OPEN excluded). Surfaced as a summary banner in BacktestPerformance above the coin table.
 - **`TRADING_PROVIDER` config** — `trading_provider` field added to `DEFAULT_TRADING_CONFIG` (default: `"binance"`). Validates to `"binance"` or `"okx"` at the API boundary. Orchestrator uses the configured provider when opening new positions. Toggle added to trading config UI.
 - **Daily OKX backfill cron** — `backfill_okx_candles` worker job runs at 02:00 UTC daily, backfilling 7 days of OHLCV data across all 4 timeframes (15m/1h/4h/1d) for all watchlist symbols. Uses retry helper with graceful error handling.
+
+### Fixed
+
+- **OKX past candles pagination** — Fixed import error in `/api/ohlcv-providers` endpoint. Pagination with `end_timestamp` now correctly carries provider through infinite query, allowing users to scroll back in time on OKX charts.
 
 ---
 
