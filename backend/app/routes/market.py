@@ -41,7 +41,7 @@ def get_provider():
 async def get_symbol_providers(symbol: str = Query(..., description="Symbol to check, e.g. BTC/USDT")):
     """Return which providers have candle data for a symbol in the DB."""
     from sqlalchemy import select, distinct
-    from app.schemas.market_data import DbCandle
+    from app.schemas.candle import Candle as DbCandle
     async with Database.get_session() as session:
         result = await session.execute(
             select(distinct(DbCandle.provider)).where(DbCandle.symbol == symbol)
