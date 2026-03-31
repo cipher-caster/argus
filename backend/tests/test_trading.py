@@ -753,6 +753,7 @@ def _make_position(symbol="BTCUSDT", direction="LONG", entry=50000.0,
     pos.status = "OPEN"
     pos.outcome = None
     pos.id = 1
+    pos.provider = "binance"
     return pos
 
 
@@ -1238,3 +1239,131 @@ class TestTradingProviderConfig:
 
         assert len(captured_providers) == 1
         assert isinstance(captured_providers[0], BinanceProvider)
+
+
+# ---------------------------------------------------------------------------
+# Per-position provider: check_open_positions uses position's stamped provider
+# ---------------------------------------------------------------------------
+
+class TestCheckOpenPositionsProvider:
+    """Verify that check_open_positions uses each position's stamped provider,
+    not the current global trading_provider config value."""
+
+    def _make_session_with_positions(self, positions: list):
+        mock_session = AsyncMock()
+        mock_session.__aenter__ = AsyncMock(return_value=mock_session)
+        mock_session.__aexit__ = AsyncMock(return_value=None)
+        mock_session.add = MagicMock()
+        mock_session.commit = AsyncMock()
+        result_mock = MagicMock()
+        result_mock.scalars.return_value.all.return_value = positions
+        mock_session.execute = AsyncMock(return_value=result_mock)
+        return mock_session
+
+    @pytest.mark.asyncio
+    async def test_binance_position_uses_binance_provider(self):
+        """A position stamped with provider='binance' causes BinanceProvider to be used."""
+        from app.trading.orchestrator import TradeOrchestrator
+        from app.providers import BinanceProvider
+
+        orch = TradeOrchestrator()
+        config = make_config(enabled=True, trading_provider="okx")
+        pos = _make_position(direction="LONG", entry=50000, tp=52000, sl=49000)
+        pos.provider = "binance"
+
+        mock_session = self._make_session_with_positions([pos])
+        candles = _make_candles([(1000, 50000, 49800, 49800, 50200)])  # no hit
+
+        captured_providers = []
+
+        async def capture_candles(symbol, timeframe, limit=100, provider=None):
+            captured_providers.append(provider)
+            return candles
+
+        with (
+            patch("app.trading.orchestrator.get_trading_config", return_value=config),
+            patch("app.trading.orchestrator.Database.get_session", return_value=mock_session),
+            patch("app.routes.strategy.get_candles_df", new_callable=AsyncMock, side_effect=capture_candles),
+            patch("app.trading.orchestrator.notifier.notify_position_closed", new_callable=AsyncMock),
+            patch("app.trading.orchestrator.RedisClient.get_json", new_callable=AsyncMock, return_value={}),
+        ):
+            await orch.check_open_positions(config=config)
+
+        assert len(captured_providers) == 1
+        assert isinstance(captured_providers[0], BinanceProvider)
+
+    @pytest.mark.asyncio
+    async def test_okx_position_uses_okx_provider(self):
+        """A position stamped with provider='okx' causes OKXProvider to be used."""
+        from app.trading.orchestrator import TradeOrchestrator
+        from app.providers import OKXProvider
+
+        orch = TradeOrchestrator()
+        config = make_config(enabled=True, trading_provider="binance")
+        pos = _make_position(direction="LONG", entry=50000, tp=52000, sl=49000)
+        pos.provider = "okx"
+
+        mock_session = self._make_session_with_positions([pos])
+        candles = _make_candles([(1000, 50000, 49800, 49800, 50200)])  # no hit
+
+        captured_providers = []
+
+        async def capture_candles(symbol, timeframe, limit=100, provider=None):
+            captured_providers.append(provider)
+            return candles
+
+        with (
+            patch("app.trading.orchestrator.get_trading_config", return_value=config),
+            patch("app.trading.orchestrator.Database.get_session", return_value=mock_session),
+            patch("app.routes.strategy.get_candles_df", new_callable=AsyncMock, side_effect=capture_candles),
+            patch("app.trading.orchestrator.notifier.notify_position_closed", new_callable=AsyncMock),
+            patch("app.trading.orchestrator.RedisClient.get_json", new_callable=AsyncMock, return_value={}),
+        ):
+            await orch.check_open_positions(config=config)
+
+        assert len(captured_providers) == 1
+        assert isinstance(captured_providers[0], OKXProvider)
+
+    @pytest.mark.asyncio
+    async def test_mixed_provider_positions_each_get_own_candle_fetch(self):
+        """Two positions with different providers for different symbols each trigger
+        a separate get_candles_df call with the correct provider instance."""
+        from app.trading.orchestrator import TradeOrchestrator
+        from app.providers import BinanceProvider, OKXProvider
+
+        orch = TradeOrchestrator()
+        config = make_config(enabled=True, trading_provider="binance")
+
+        pos_binance = _make_position(symbol="BTCUSDT", direction="LONG",
+                                     entry=50000, tp=52000, sl=49000)
+        pos_binance.provider = "binance"
+
+        pos_okx = _make_position(symbol="ETHUSDT", direction="LONG",
+                                  entry=3000, tp=3200, sl=2900)
+        pos_okx.provider = "okx"
+
+        mock_session = self._make_session_with_positions([pos_binance, pos_okx])
+        candles = _make_candles([(1000, 50000, 49800, 49800, 50200)])  # no hit
+
+        captured: list[tuple[str, object]] = []
+
+        async def capture_candles(symbol, timeframe, limit=100, provider=None):
+            captured.append((symbol, provider))
+            return candles
+
+        with (
+            patch("app.trading.orchestrator.get_trading_config", return_value=config),
+            patch("app.trading.orchestrator.Database.get_session", return_value=mock_session),
+            patch("app.routes.strategy.get_candles_df", new_callable=AsyncMock, side_effect=capture_candles),
+            patch("app.trading.orchestrator.notifier.notify_position_closed", new_callable=AsyncMock),
+            patch("app.trading.orchestrator.RedisClient.get_json", new_callable=AsyncMock, return_value={}),
+        ):
+            await orch.check_open_positions(config=config)
+
+        assert len(captured) == 2
+        symbols_fetched = {sym for sym, _ in captured}
+        assert symbols_fetched == {"BTCUSDT", "ETHUSDT"}
+
+        provider_by_symbol = {sym: prov for sym, prov in captured}
+        assert isinstance(provider_by_symbol["BTCUSDT"], BinanceProvider)
+        assert isinstance(provider_by_symbol["ETHUSDT"], OKXProvider)

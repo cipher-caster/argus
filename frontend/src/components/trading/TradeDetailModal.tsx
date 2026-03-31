@@ -294,6 +294,10 @@ export function TradeDetailModal({ isOpen, onClose, position }: TradeDetailModal
               </InfoCard>
             </div>
             <InfoCard className="mt-2">
+              <Label>Provider</Label>
+              <div><Value>{pos.provider.toUpperCase()}</Value></div>
+            </InfoCard>
+            <InfoCard className="mt-2">
               <Label>Fired Reason</Label>
               <div className="mt-0.5"><Value>{pos.fired_reason}</Value></div>
             </InfoCard>

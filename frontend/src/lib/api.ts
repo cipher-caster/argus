@@ -585,6 +585,7 @@ export interface Position {
   conviction: number;
   market_state: string;
   fired_reason: string;
+  provider: "binance" | "okx";
   created_at: number;
   filled_at: number | null;
   closed_at: number | null;

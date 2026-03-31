@@ -169,6 +169,7 @@ class TradeOrchestrator:
                 market_state=signal.market_state,
                 fired_reason=signal.fired_reason,
                 created_at=now_ms,
+                provider=config.get("trading_provider", "binance"),
             )
             session.add(position)
 
@@ -301,23 +302,27 @@ class TradeOrchestrator:
             if not open_positions:
                 return
 
-            # Fetch candles for each unique symbol using the configured provider
             from app.routes.strategy import get_candles_df
             from app.providers import BinanceProvider, OKXProvider
-            provider_name = config.get("trading_provider", "binance")
-            candle_provider = OKXProvider() if provider_name == "okx" else BinanceProvider()
-            candle_cache = {}
-            unique_symbols = {pos.symbol for pos in open_positions}
-            for sym in unique_symbols:
-                df = await get_candles_df(sym, timeframe="4h", limit=100, provider=candle_provider)
-                if df is not None and not df.empty:
-                    candle_cache[sym] = df
+
+            def _provider_instance(name: str):
+                return OKXProvider() if name == "okx" else BinanceProvider()
+
+            candle_cache: dict[tuple[str, str], object] = {}
+            for pos in open_positions:
+                pos_provider = getattr(pos, "provider", "binance") or "binance"
+                cache_key = (pos.symbol, pos_provider)
+                if cache_key not in candle_cache:
+                    provider_obj = _provider_instance(pos_provider)
+                    df = await get_candles_df(pos.symbol, timeframe="4h", limit=100, provider=provider_obj)
+                    candle_cache[cache_key] = df if (df is not None and not df.empty) else None
 
             for pos in open_positions:
                 if pos.actual_entry is None:
                     continue
 
-                df = candle_cache.get(pos.symbol)
+                pos_provider = getattr(pos, "provider", "binance") or "binance"
+                df = candle_cache.get((pos.symbol, pos_provider))
                 if df is None or df.empty:
                     continue
 
@@ -362,6 +367,7 @@ class TradeOrchestrator:
                             pos.symbol, pos.direction,
                             pos.intended_tp, pos.intended_sl,
                             c_time,
+                            provider=_provider_instance(pos_provider),
                         )
                         outcome = tiebreak["outcome"]
                         exit_price = tiebreak["resolved_price"]

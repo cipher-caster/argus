@@ -38,6 +38,11 @@ function PositionRow({ pos, onClose, onClick }: { pos: Position; onClose: (id: n
           "text-[9px] font-black px-1 py-0.5 rounded",
           isLong ? "bg-emerald-500/10 text-emerald-500" : "bg-red-500/10 text-red-500"
         )}>{pos.direction}</span>
+        {pos.provider !== "binance" && (
+          <span className="text-[8px] font-bold px-1 py-0.5 rounded bg-purple-500/10 text-purple-400 uppercase">
+            {pos.provider}
+          </span>
+        )}
       </div>
 
       {/* Status */}

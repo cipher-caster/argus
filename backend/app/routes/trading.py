@@ -81,6 +81,7 @@ def _serialize_position(pos: Position) -> dict:
         "conviction": pos.conviction,
         "market_state": pos.market_state,
         "fired_reason": pos.fired_reason,
+        "provider": getattr(pos, "provider", "binance") or "binance",
         "created_at": pos.created_at,
         "filled_at": pos.filled_at,
         "closed_at": pos.closed_at,
