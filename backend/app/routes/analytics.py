@@ -256,8 +256,8 @@ async def get_best_setups(timeframe: str = Query(default="4h", pattern="^(1m|5m|
             t_signal = t["signal"]
             t_confidence = t["confidence"]
 
-            is_long = t_signal in ("BUY", "BUY_LIMIT")
-            is_short = t_signal in ("SELL", "SELL_LIMIT")
+            is_long = t_signal in ("BUY", "BUY_LIMIT", "STRONG_BUY")
+            is_short = t_signal in ("SELL", "SELL_LIMIT", "STRONG_SELL")
             if not (is_long or is_short) or t_confidence < 55:
                 continue
 
@@ -268,7 +268,7 @@ async def get_best_setups(timeframe: str = Query(default="4h", pattern="^(1m|5m|
             conviction = calculate_conviction(
                 confidence=t_confidence,
                 regime_aligned=regime_aligned,
-                is_market_signal=t_signal in ("BUY", "SELL"),
+                is_market_signal=t_signal in ("BUY", "SELL", "STRONG_BUY", "STRONG_SELL"),
             )
 
             targets = t.get("targets", {})
@@ -336,8 +336,8 @@ async def get_best_setups(timeframe: str = Query(default="4h", pattern="^(1m|5m|
                         t = titan.analyze(df, symbol=item.symbol)
                         sig = t.get("signal", "")
                         tf_confirmation[tf] = (
-                            sig in ("BUY", "BUY_LIMIT") if is_long
-                            else sig in ("SELL", "SELL_LIMIT")
+                            sig in ("BUY", "BUY_LIMIT", "STRONG_BUY") if is_long
+                            else sig in ("SELL", "SELL_LIMIT", "STRONG_SELL")
                         )
                     except Exception:
                         tf_confirmation[tf] = False
