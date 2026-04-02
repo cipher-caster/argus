@@ -2,6 +2,19 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.9.16] - 2026-04-02 — Regime Lag Analysis & Monitoring
+
+### Added
+
+- **`/regime-check` slash command** — Diagnostic tool that pulls current regime, 7-day trade performance, and checks for timeframe disagreement between weekly EMA50 and 4H EMA200. Flags regime lag (3+ consecutive losses in same direction) and repeat exposure (pending orders matching losing direction).
+
+### Documented
+
+- **Regime lag incident** — Logged in `docs/trading/knowledge.md`. Weekly EMA50 stayed BEAR while BTC pumped on 4H → 9/10 shorts stopped out (-$688). Root cause: hard regime gate + lagging weekly indicator.
+- **Option D planned** — Multi-timeframe confirmation (require 4H EMA200 + weekly EMA50 agreement before firing). To be implemented after backtesting.
+
+---
+
 ## [0.9.15] - 2026-03-31 — Signal Resolution Bug Fix
 
 ### Fixed

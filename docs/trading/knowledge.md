@@ -100,4 +100,27 @@ Updated: 2026-03-27
 
 ---
 
+### 2026-04-02 — Regime Lag Incident (Live Trade Review)
+
+**Problem**: BTC weekly EMA50 remained in BEAR regime while BTC pumped on 4H timeframe. Hard regime gate (`signal_log.py:244-248`) forced shorts only → 9/10 trades stopped out at SL.
+
+**Impact**: -$688.10 across 10 closed trades (1 WIN, 9 LOSS). All were SHORT positions.
+- SOL SHORT: +$217.42 (+5.05%) — only winner
+- Losses ranged from -$13.50 (ADA, instant SL) to -$183.87 (ADA, 30min hold)
+- BTC SHORT: -$94.76, XRP: -$97.10, DOGE: -$97.97, NEAR: -$98.86, SUI: -$128.99, ATOM: -$84.80, BCH: -$105.67
+
+**Root Cause**: Weekly EMA50 is a lagging indicator. During intra-week trend reversals, it stays in the old regime for days while 4H EMA200 (used by Titan) has already flipped. The hard gate blocks all longs in BEAR regime, so the system shorts into a rising market.
+
+**Planned Fix (Option D — Multi-Timeframe Confirmation)**:
+- Require 4H EMA200 trend (from Titan) to **agree** with weekly EMA50 regime before firing signals
+- If 4H says BULLISH but weekly says BEAR → no trades (sit on hands)
+- Prevents trading during regime transition periods when timeframes disagree
+- Also consider a consecutive-loss circuit breaker (3-4 SL hits → auto-pause that direction)
+
+**Monitoring**: `/regime-check` slash command created to detect this condition early.
+
+**Decision**: Log and monitor for now. Implement Option D after backtesting against historical regime transitions.
+
+---
+
 *Append new runs below this line.*

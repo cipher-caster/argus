@@ -337,6 +337,27 @@ These won't show in the `/read` report but are important context on the chart:
 
 ---
 
+## Regime Check (`/regime-check`)
+
+Diagnostic tool for monitoring the regime lag problem — when the weekly EMA50 regime hasn't caught up to shorter-timeframe price action.
+
+**When to use**: After a string of losses in the same direction, or when you suspect BTC has reversed but the system is still trading the old regime.
+
+**What it checks**:
+1. Current BTC weekly EMA50 regime (BULL/BEAR)
+2. Last 7 days of trade performance (win/loss counts, avg PnL)
+3. Last 5 closed trades for consecutive-loss patterns
+4. Pending orders for repeat exposure risk
+
+**Flags**:
+- **REGIME LAG DETECTED** — 3+ consecutive losses in same direction
+- **REPEAT EXPOSURE** — pending orders match the losing direction
+- **ALIGNED** — mixed wins/losses, system operating normally
+
+**Background**: On 2026-04-02, weekly EMA50 stayed BEAR while BTC pumped on 4H. The hard regime gate forced shorts only → 9/10 trades stopped out (-$688). This command catches that condition early. See `docs/trading/knowledge.md` for the full incident log.
+
+---
+
 ## Related Documents
 
 - [API Reference](./backend/API.md) — full endpoint documentation
