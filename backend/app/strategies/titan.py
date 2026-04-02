@@ -14,6 +14,44 @@ from app.indicators.calculator import _mss_to_list, _sweep_to_list
 SYMBOL_OVERRIDES: Dict[str, Dict[str, float]] = {}
 
 
+def calculate_risk_levels(
+    row: "pd.Series",
+    signal_type: str,
+    entry_price: float = None,
+    symbol: str = None,
+    sl_mult: float = 1.5,
+    tp_mult: float = 2.0,
+) -> Dict[str, float]:
+    """
+    Shared TP/SL calculator used by both Titan and the backtest engine.
+    Per-symbol overrides from SYMBOL_OVERRIDES are applied on top of caller defaults.
+    """
+    atr = row.get("atr", 0)
+    price = entry_price if entry_price else row["close"]
+
+    if atr == 0:
+        return {"entry": price, "tp": 0, "sl": 0}
+
+    overrides = SYMBOL_OVERRIDES.get(symbol, {}) if symbol else {}
+    sl_mult = overrides.get("sl_mult", sl_mult)
+    tp_override = overrides.get("tp_mult", None)
+    tp_mult = tp_override if tp_override is not None else tp_mult
+
+    rr = round(tp_mult / sl_mult, 2)
+
+    if "BUY" in signal_type or signal_type == "STRONG_BUY":
+        sl = price - (atr * sl_mult)
+        tp = price + (atr * tp_mult)
+        return {"entry": price, "sl": sl, "tp": tp, "r_r": rr}
+
+    elif "SELL" in signal_type or signal_type == "STRONG_SELL":
+        sl = price + (atr * sl_mult)
+        tp = price - (atr * tp_mult)
+        return {"entry": price, "sl": sl, "tp": tp, "r_r": rr}
+
+    return {"entry": price, "sl": 0, "tp": 0}
+
+
 class TitanStrategy:
     """
     Titan Unified Crypto Trading System
@@ -344,40 +382,15 @@ class TitanStrategy:
         }
 
     def _calculate_risk_levels(self, row: pd.Series, signal_type: str, entry_price: float = None, adx: float = None, symbol: str = None) -> Dict[str, float]:
-        """
-        Calculates TP/SL based on ATR with fixed targets.
-        - Default TP = 2.0x ATR (backtested optimal across alts)
-        - Per-symbol overrides for BTC/ETH (TP = 4.0x ATR)
-        - SL default 1.5x ATR (overridable per-symbol)
-        """
-        atr = row.get('atr', 0)
-        price = entry_price if entry_price else row['close']
-
-        if atr == 0:
-            return {"entry": price, "tp": 0, "sl": 0}
-
-        # Per-symbol overrides (e.g. BTC needs wider stops)
-        overrides = SYMBOL_OVERRIDES.get(symbol, {}) if symbol else {}
-        sl_mult = overrides.get("sl_mult", self.default_sl_mult)
-        tp_override = overrides.get("tp_mult", None)
-
-        # TP multiplier: use per-symbol override if set, else fixed default
-        tp_mult = tp_override if tp_override is not None else self.default_tp_mult
-        rr = round(tp_mult / sl_mult, 2)
-
-        # Long Logic
-        if "BUY" in signal_type or signal_type == "STRONG_BUY":
-            sl = price - (atr * sl_mult)
-            tp = price + (atr * tp_mult)
-            return {"entry": price, "sl": sl, "tp": tp, "r_r": rr}
-
-        # Short Logic
-        elif "SELL" in signal_type or signal_type == "STRONG_SELL":
-            sl = price + (atr * sl_mult)
-            tp = price - (atr * tp_mult)
-            return {"entry": price, "sl": sl, "tp": tp, "r_r": rr}
-
-        return {"entry": price, "sl": 0, "tp": 0}
+        """Delegates to module-level calculate_risk_levels with instance defaults."""
+        return calculate_risk_levels(
+            row=row,
+            signal_type=signal_type,
+            entry_price=entry_price if entry_price is not None else row["close"],
+            symbol=symbol,
+            sl_mult=self.default_sl_mult,
+            tp_mult=self.default_tp_mult,
+        )
 
     def _calculate_sizing(self, confidence: int) -> str:
         """Returns Kelly Criterion based sizing advice."""

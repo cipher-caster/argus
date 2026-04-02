@@ -236,8 +236,8 @@ async def log_watchlist_setups(ctx):
                 t_signal = t.get("signal", "")
                 t_confidence = t.get("confidence", 0)
 
-                is_long = t_signal in ("BUY", "BUY_LIMIT")
-                is_short = t_signal in ("SELL", "SELL_LIMIT")
+                is_long = t_signal in ("BUY", "BUY_LIMIT", "STRONG_BUY")
+                is_short = t_signal in ("SELL", "SELL_LIMIT", "STRONG_SELL")
                 if not (is_long or is_short) or t_confidence < config["min_titan_confidence"]:
                     continue
 
@@ -251,7 +251,7 @@ async def log_watchlist_setups(ctx):
                 conviction = calculate_conviction(
                     confidence=t_confidence,
                     regime_aligned=regime_aligned,
-                    is_market_signal=t_signal in ("BUY", "SELL"),
+                    is_market_signal=t_signal in ("BUY", "SELL", "STRONG_BUY", "STRONG_SELL"),
                 )
 
                 # Regime tag for reason

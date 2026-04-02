@@ -29,7 +29,7 @@ from sqlmodel import select
 from app.storage import Database
 from app.schemas.candle import Candle as DbCandle
 from app.strategies.oracle import OracleStrategy
-from app.strategies.titan import TitanStrategy
+from app.strategies.titan import TitanStrategy, calculate_risk_levels
 
 oracle = OracleStrategy()
 titan = TitanStrategy()
@@ -405,8 +405,8 @@ async def backtest_symbol(
         t_signal = t_result["type"]
         t_confidence = t_result["confidence"]
 
-        is_long = t_signal in ("BUY", "BUY_LIMIT") and "BUY" in o_signal
-        is_short = t_signal in ("SELL", "SELL_LIMIT") and "SELL" in o_signal
+        is_long = t_signal in ("BUY", "BUY_LIMIT", "STRONG_BUY") and "BUY" in o_signal
+        is_short = t_signal in ("SELL", "SELL_LIMIT", "STRONG_SELL") and "SELL" in o_signal
 
         if not (is_long or is_short) or t_confidence < config.min_titan_confidence:
             continue
@@ -416,38 +416,31 @@ async def backtest_symbol(
         if active_signal and active_signal["direction"] == direction:
             continue
 
-        # --- Compute targets (per-symbol overrides apply if config allows) ---
+        # --- Compute targets via shared calculator ---
         atr = float(row.get("atr", 0))
         if atr <= 0:
             continue
 
-        # Check for per-symbol overrides (e.g. BTC wider stops)
-        # symbol is in "BTC/USDT" format here; SYMBOL_OVERRIDES has both formats
-        from app.strategies.titan import SYMBOL_OVERRIDES
-        overrides = SYMBOL_OVERRIDES.get(symbol, {})
-        sl_mult = overrides.get("sl_mult", config.sl_mult)
-        tp_override = overrides.get("tp_mult", None)
-
-        if is_long:
-            sl = round(price - (atr * sl_mult), 6)
-        else:
-            sl = round(price + (atr * sl_mult), 6)
-
-        if tp_override is not None:
-            tp_mult = tp_override
-        elif config.tp_mult > 0:
-            tp_mult = config.tp_mult
+        # Resolve effective TP multiplier (preserve adaptive path for optimization)
+        if config.tp_mult > 0:
+            effective_tp_mult = config.tp_mult
         elif config.tp_adaptive:
-            tp_mult = 3.0 if btc_state == "SUPER TREND" else 2.0
+            effective_tp_mult = 3.0 if btc_state == "SUPER TREND" else 2.0
         else:
-            tp_mult = 3.0
+            effective_tp_mult = 2.0
 
-        if is_long:
-            tp = round(price + (atr * tp_mult), 6)
-        else:
-            tp = round(price - (atr * tp_mult), 6)
+        targets = calculate_risk_levels(
+            row=row,
+            signal_type=t_signal,
+            entry_price=price,
+            symbol=symbol,
+            sl_mult=config.sl_mult,
+            tp_mult=effective_tp_mult,
+        )
 
-        entry = round(price, 6)
+        sl = round(targets["sl"], 6)
+        tp = round(targets["tp"], 6)
+        entry = round(targets["entry"], 6)
         if tp == 0 or sl == 0:
             continue
 
@@ -455,7 +448,7 @@ async def backtest_symbol(
         # All backtest signals pass the btc_state regime gate, so regime_bonus always applies.
         base_pts = (t_confidence / 100) * 60
         regime_bonus = 20
-        signal_bonus = 10 if t_signal in ("BUY", "SELL") else 0
+        signal_bonus = 10 if t_signal in ("BUY", "SELL", "STRONG_BUY", "STRONG_SELL") else 0
         conviction = int(min(100, base_pts + regime_bonus + signal_bonus))
 
         # --- Resolve outcome ---
