@@ -314,10 +314,11 @@ class TestLogBestSetups:
 
         from app.jobs.signal_log import log_best_setups
         await log_best_setups(self._make_ctx())
-        # Low conviction signals are no longer persisted — DB should not be called
-        mock_db.get_session.assert_not_called()
+        # Cooldown pre-fetch runs (1 DB call), but no rows qualify → no insert, no commit
+        assert mock_db.get_session.call_count == 1
 
     @pytest.mark.asyncio
+    @patch("app.jobs.signal_log.COUNTER_REGIME_ENABLED", True)
     @patch("app.jobs.signal_log.Database")
     @patch("app.jobs.signal_log._get_market_state", new_callable=AsyncMock, return_value="TRENDING")
     @patch("app.jobs.signal_log._get_config", new_callable=AsyncMock)
@@ -340,7 +341,8 @@ class TestLogBestSetups:
 
         from app.jobs.signal_log import log_best_setups
         await log_best_setups(self._make_ctx())
-        mock_db.get_session.assert_called_once()
+        # 2 DB calls: cooldown pre-fetch + insert
+        assert mock_db.get_session.call_count == 2
         mock_session.execute.assert_awaited()
         mock_session.commit.assert_awaited_once()
 
@@ -368,7 +370,8 @@ class TestLogBestSetups:
         from app.jobs.signal_log import log_best_setups
         await log_best_setups(self._make_ctx())
 
-        mock_db.get_session.assert_called_once()
+        # 2 DB calls: cooldown pre-fetch + insert
+        assert mock_db.get_session.call_count == 2
         mock_session.execute.assert_awaited()
         mock_session.commit.assert_awaited_once()
 

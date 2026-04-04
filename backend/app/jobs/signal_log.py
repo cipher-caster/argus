@@ -337,7 +337,18 @@ async def log_best_setups(ctx):
     rejected = 0
 
     # Collect all qualified rows first
+    CANDLE_4H_MS = 14_400_000  # 4H cooldown — one candle width per symbol+direction
     rows_to_insert = []
+
+    # Pre-fetch recently fired symbols to apply cooldown filter
+    cooldown_cutoff_ms = now_ms - CANDLE_4H_MS
+    async with Database.get_session() as session:
+        recent_stmt = select(SignalLog.symbol, SignalLog.direction).where(
+            SignalLog.fired_at >= cooldown_cutoff_ms,
+            SignalLog.source.in_(["scanner", "counter"]),
+        )
+        result = await session.execute(recent_stmt)
+        recently_fired = set((row.symbol, row.direction) for row in result)
 
     for item in items:
         try:
@@ -356,6 +367,11 @@ async def log_best_setups(ctx):
 
             is_counter = reason.startswith("(counter)")
             if is_counter and not COUNTER_REGIME_ENABLED:
+                continue
+
+            if (symbol, direction) in recently_fired:
+                logger.debug(f"log_best_setups: skipping {symbol} {direction} — fired within last 4H")
+                rejected += 1
                 continue
 
             row = dict(
