@@ -1,8 +1,10 @@
 "use client";
 
-import { useQuery } from "@tanstack/react-query";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { fetchActivityLog, type ActivityLogItem } from "@/lib/api";
 import { Activity, AlertTriangle, CheckCircle, Power, RefreshCw, Zap } from "lucide-react";
+
+const PAGE_SIZE = 30;
 
 const EVENT_CONFIG: Record<string, { icon: React.ElementType; color: string; label: string }> = {
   STARTUP: { icon: Power, color: "text-green-400", label: "System Start" },
@@ -71,20 +73,65 @@ function DetailsSummary({ event }: { event: ActivityLogItem }) {
 }
 
 export function ActivityFeed() {
-  const { data, isLoading } = useQuery({
-    queryKey: ["activity-log"],
-    queryFn: () => fetchActivityLog(30),
-    staleTime: 60_000,
-    refetchInterval: 60_000,
-  });
+  const [events, setEvents] = useState<ActivityLogItem[]>([]);
+  const [total, setTotal] = useState(0);
+  const [offset, setOffset] = useState(0);
+  const [isLoading, setIsLoading] = useState(true);
+  const [isFetchingMore, setIsFetchingMore] = useState(false);
+  const sentinelRef = useRef<HTMLDivElement>(null);
+  const hasMore = events.length < total;
 
-  const events = data?.data ?? [];
+  const loadPage = useCallback(async (pageOffset: number, replace: boolean) => {
+    if (replace) setIsLoading(true);
+    else setIsFetchingMore(true);
+    try {
+      const res = await fetchActivityLog(PAGE_SIZE, pageOffset);
+      setTotal(res.total);
+      setEvents(prev => replace ? res.data : [...prev, ...res.data]);
+      setOffset(pageOffset + res.data.length);
+    } finally {
+      if (replace) setIsLoading(false);
+      else setIsFetchingMore(false);
+    }
+  }, []);
+
+  // Initial load
+  useEffect(() => {
+    loadPage(0, true);
+  }, [loadPage]);
+
+  // Refresh every 60s (only first page — prepend new items)
+  useEffect(() => {
+    const id = setInterval(() => loadPage(0, true), 60_000);
+    return () => clearInterval(id);
+  }, [loadPage]);
+
+  // Infinite scroll sentinel
+  useEffect(() => {
+    const sentinel = sentinelRef.current;
+    if (!sentinel) return;
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0].isIntersecting && hasMore && !isFetchingMore) {
+          loadPage(offset, false);
+        }
+      },
+      { threshold: 0.1 }
+    );
+    observer.observe(sentinel);
+    return () => observer.disconnect();
+  }, [hasMore, isFetchingMore, offset, loadPage]);
 
   return (
     <div className="space-y-3">
-      <div className="flex items-center gap-2">
-        <Activity size={16} className="text-primary" />
-        <h3 className="text-xs font-black uppercase tracking-widest">System Activity</h3>
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <Activity size={16} className="text-primary" />
+          <h3 className="text-xs font-black uppercase tracking-widest">System Activity</h3>
+        </div>
+        {total > 0 && (
+          <span className="text-[10px] text-muted-foreground">{total} events</span>
+        )}
       </div>
 
       {isLoading ? (
@@ -119,6 +166,16 @@ export function ActivityFeed() {
               </div>
             );
           })}
+
+          {/* Sentinel for infinite scroll */}
+          <div ref={sentinelRef} className="h-4 flex items-center justify-center">
+            {isFetchingMore && (
+              <span className="text-[10px] text-muted-foreground">Loading more...</span>
+            )}
+            {!hasMore && events.length > PAGE_SIZE && (
+              <span className="text-[10px] text-muted-foreground/40">All events loaded</span>
+            )}
+          </div>
         </div>
       )}
     </div>

@@ -711,10 +711,10 @@ export interface ActivityLogItem {
   details: string | null;
 }
 
-export async function fetchActivityLog(limit = 50, offset = 0, eventType?: string): Promise<{ data: ActivityLogItem[] }> {
+export async function fetchActivityLog(limit = 30, offset = 0, eventType?: string): Promise<{ data: ActivityLogItem[]; total: number }> {
   const params = new URLSearchParams({ limit: String(limit), offset: String(offset) });
   if (eventType) params.set("event_type", eventType);
-  return apiFetch<{ data: ActivityLogItem[] }>(`${API_URL}/api/system/activity-log?${params}`);
+  return apiFetch<{ data: ActivityLogItem[]; total: number }>(`${API_URL}/api/system/activity-log?${params}`);
 }
 
 // --- End Trading API ---

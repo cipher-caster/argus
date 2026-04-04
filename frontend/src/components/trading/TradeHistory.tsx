@@ -68,7 +68,7 @@ function HistoryRow({ pos, onClick }: { pos: Position; onClick: () => void }) {
 }
 
 export function TradeHistory() {
-  const PAGE_SIZE = 50;
+  const PAGE_SIZE = 20;
   const [page, setPage] = useState(1);
   const [selectedPosition, setSelectedPosition] = useState<Position | null>(null);
   const offset = (page - 1) * PAGE_SIZE;
