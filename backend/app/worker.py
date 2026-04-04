@@ -537,9 +537,12 @@ async def execute_signals(ctx):
         new_signals = result.scalars().all()
 
     logger.info(f"Job: execute_signals — {len(new_signals)} unprocessed signal(s) found")
+    batch_positions = []
     for signal in new_signals:
         try:
-            await _trade_orchestrator.process_signal(signal)
+            pos = await _trade_orchestrator.process_signal(signal, batch_positions=batch_positions)
+            if pos is not None:
+                batch_positions.append(pos)
         except Exception as e:
             logger.warning(f"execute_signals error for {signal.symbol}: {e}")
 

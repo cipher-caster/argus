@@ -139,7 +139,7 @@
 - [x] Phase B: E2E data rendering, trading page (15 tests) ✓
 - [x] Phase C: Analytics integration — signal-position join, dedup, rejected signals (32 tests) ✓
 - [x] 7 pre-existing `test_trading.py` failures resolved (RiskManager sizing, tiebreaker, LIMIT detection, event loop) — 53/53 passing ✓
-- **Total: 366 backend tests passing, 0 failures** (updated v0.9.9)
+- **Total: 392 backend tests passing, 0 failures** (updated v0.9.6)
 
 ### Phase 17b: Backend Hardening (v0.9.9) ✓
 - [x] DB connection pool config (pool_size=10, pre_ping, recycle) ✓
@@ -154,6 +154,19 @@
 - [x] CORS whitelist, TradingConfigUpdate bounds, timeframe validation ✓
 - [x] Entry tolerance gate removed (caused false LIMIT signal rejections) ✓
 - [x] Shared utilities: calculate_conviction(), TIMEFRAME_MS constants ✓
+
+### Phase 17c: Pre-Production Hardening (v0.9.6) ✓
+- [x] Batch race condition fix — `process_signal()` accepts `batch_positions`, positions visible within same scan cycle
+- [x] Risk parameters tightened — 3% risk/trade, 2x leverage, 200% exposure cap, 12% drawdown, 16h expiry
+- [x] ADX(14) added to Titan `_add_indicators()` — observe-only, no gate
+- [x] Pre-production audit completed — `docs/market-reports/2026-04-04-pre-prod-audit.md`
+- [x] 392 backend tests passing (3 new batch race tests)
+
+### 7-Day Paper Trading Observation (Apr 4–11) — IN PROGRESS
+- $200 starting capital, 3% risk per trade ($6 max loss per position)
+- Go criteria: net profitable, WR >= 45%, max drawdown < 12%, min 10 trades
+- No code changes during observation — assess only
+- Production deployment is next milestone pending observation results
 
 **Remaining backlog (see docs/backend/AUDIT_2026_03_28.md):**
 - [ ] 0 tests for providers/, notifier.py, storage.py, main.py

@@ -2,6 +2,34 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.9.6] - 2026-04-04 — Pre-Production Hardening
+
+### Added
+
+- **Batch race condition fix** — `process_signal()` now accepts `batch_positions` parameter; positions created in the same scan cycle are visible to risk gates (orchestrator.py, worker.py)
+- **ADX(14) indicator added to Titan strategy** — previously referenced but never calculated (titan.py)
+- **ADX value logged with each signal fired** — observe-only for 7-day observation period (signal_log.py)
+- **3 new batch race condition tests** — in test_trading.py (392 total tests passing)
+- **Pre-production audit report** — `docs/market-reports/2026-04-04-pre-prod-audit.md`
+- **Trading data backup before reset** — `docs/trading/position_backup_2026-04-04.csv`, `trade_event_backup_2026-04-04.csv`, `signal_log_backup_2026-04-04.csv`
+
+### Changed
+
+- **Risk parameters tightened for $200 paper trading observation:**
+  - initial_capital: 1000 → 200
+  - max_position_size_pct: 10% → 3% ($6 risk per trade)
+  - max_leverage: 3.0 → 2.0
+  - max_total_exposure_pct: 300% → 200%
+  - max_drawdown_pct: 15% → 12% (floor at $176)
+  - order_expiry_hours: 24 → 16
+- **Paper trading balance reset** — to $200 for 7-day observation period (Apr 4–11)
+
+### Fixed
+
+- **Batch signal processing race condition** — multiple signals in same scan cycle could bypass exposure and concurrency gates because each `process_signal()` opened independent DB sessions
+
+---
+
 ## [0.9.16] - 2026-04-02 — Regime Lag Analysis & Monitoring
 
 ### Added

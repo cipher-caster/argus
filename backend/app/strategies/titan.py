@@ -176,6 +176,11 @@ class TitanStrategy:
         # ATR
         df['atr'] = ta.atr(df['high'], df['low'], df['close'], length=self.atr_len)
 
+        # ADX (Trend Strength — observed, not gated)
+        adx = ta.adx(df['high'], df['low'], df['close'], length=14)
+        if adx is not None and 'ADX_14' in adx.columns:
+            df['adx'] = adx['ADX_14']
+
         # SuperTrend (Trend Direction)
         st = ta.supertrend(df['high'], df['low'], df['close'], length=self.st_len, multiplier=self.st_mult)
         if st is not None:

@@ -32,15 +32,15 @@ FEE_PCT = 0.001  # 0.1% simulated round-trip fee per side (0.05% * 2)
 
 DEFAULT_TRADING_CONFIG = {
     "enabled": False,
-    "initial_capital": 1000.0,
-    "max_position_size_pct": 10.0,
+    "initial_capital": 200.0,
+    "max_position_size_pct": 3.0,
     "max_concurrent_positions": 3,
     "max_correlated_positions": 2,
-    "max_drawdown_pct": 15.0,
-    "max_leverage": 3.0,
+    "max_drawdown_pct": 12.0,
+    "max_leverage": 2.0,
     "min_conviction": 50,
-    "max_total_exposure_pct": 300.0,
-    "order_expiry_hours": 24,
+    "max_total_exposure_pct": 200.0,
+    "order_expiry_hours": 16,
     "trading_provider": "binance",
     "correlation_groups": {
         "btc_correlated": [
@@ -102,7 +102,7 @@ class TradeOrchestrator:
     # ------------------------------------------------------------------
     # process_signal: called by execute_signals job
     # ------------------------------------------------------------------
-    async def process_signal(self, signal: SignalLog) -> Optional[Position]:
+    async def process_signal(self, signal: SignalLog, batch_positions: list | None = None) -> Optional[Position]:
         config = await get_trading_config()
         if not config.get("enabled", False):
             return None
@@ -116,6 +116,8 @@ class TradeOrchestrator:
                 return None
 
             active = await _get_active_positions(session)
+            if batch_positions:
+                active = active + [p for p in batch_positions if p.status in ("PENDING", "OPEN")]
             portfolio = await self._get_portfolio(config)
             balance = await portfolio.get_balance()
 

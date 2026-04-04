@@ -282,7 +282,9 @@ async def log_watchlist_setups(ctx):
 
                 rows_to_insert.append(row)
                 logged += 1
-                logger.info(f"Signal log: {symbol} {row['direction']} conviction={conviction} regime={regime}")
+                adx_val = t.get("indicators", {}).get("adx")
+                adx_str = f" ADX={adx_val:.1f}" if adx_val is not None else ""
+                logger.info(f"Signal log: {symbol} {row['direction']} conviction={conviction} regime={regime}{adx_str}")
 
             except Exception as e:
                 logger.warning(f"log_watchlist_setups error for {symbol}: {e}")

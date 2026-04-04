@@ -419,10 +419,10 @@ class TestDefaultConfig:
         from app.trading.orchestrator import DEFAULT_TRADING_CONFIG
         assert DEFAULT_TRADING_CONFIG["min_conviction"] == 50
 
-    def test_order_expiry_24_hours(self):
-        """Order expiry should be 24h to give LIMIT orders a full daily cycle."""
+    def test_order_expiry_16_hours(self):
+        """Order expiry should be 16h to avoid dead capital in low-vol."""
         from app.trading.orchestrator import DEFAULT_TRADING_CONFIG
-        assert DEFAULT_TRADING_CONFIG["order_expiry_hours"] == 24
+        assert DEFAULT_TRADING_CONFIG["order_expiry_hours"] == 16
 
 
 # ---------------------------------------------------------------------------
@@ -1367,3 +1367,58 @@ class TestCheckOpenPositionsProvider:
         provider_by_symbol = {sym: prov for sym, prov in captured}
         assert isinstance(provider_by_symbol["BTCUSDT"], BinanceProvider)
         assert isinstance(provider_by_symbol["ETHUSDT"], OKXProvider)
+
+
+# ---------------------------------------------------------------------------
+# Batch Race Condition — verify batch positions are visible to risk gates
+# ---------------------------------------------------------------------------
+
+class TestBatchRaceCondition:
+    """Positions created earlier in the same signal batch must be
+    visible to risk gates for subsequent signals."""
+
+    @pytest.mark.asyncio
+    async def test_batch_positions_counted_in_max_concurrent(self):
+        """If 2 positions already exist in the batch, a 3rd signal
+        with max_concurrent_positions=2 must be rejected."""
+        rm = RiskManager()
+        config = make_config(max_concurrent_positions=2, max_total_exposure_pct=9999)
+        batch = [make_position("ETHUSDT", "SHORT", "OPEN"),
+                 make_position("BNBUSDT", "SHORT", "OPEN")]
+        ok, reason, sizing = await rm.check_all(
+            symbol="XRPUSDT", direction="SHORT", conviction=70,
+            entry=1.40, sl=1.45, config=config,
+            open_positions=batch, balance=200.0,
+        )
+        assert ok is False
+        assert "Max positions" in reason
+
+    @pytest.mark.asyncio
+    async def test_batch_positions_counted_in_exposure(self):
+        """Batch positions' quote_amount must count toward the exposure cap."""
+        rm = RiskManager()
+        config = make_config(max_total_exposure_pct=200, max_concurrent_positions=99)
+        p1 = make_position("ETHUSDT", "SHORT", "OPEN")
+        p1.quote_amount = 100.0
+        p2 = make_position("BNBUSDT", "SHORT", "OPEN")
+        p2.quote_amount = 100.0
+        ok, reason = rm.check_total_exposure(
+            open_positions=[p1, p2], quote_amount=10.0,
+            balance=100.0, config=config,
+        )
+        assert ok is False
+        assert "exposure" in reason.lower()
+
+    @pytest.mark.asyncio
+    async def test_batch_under_limit_still_approved(self):
+        """With only 1 batch position and room for more, signal should pass."""
+        rm = RiskManager()
+        config = make_config(max_concurrent_positions=3, max_total_exposure_pct=9999)
+        p1 = make_position("ETHUSDT", "SHORT", "OPEN")
+        p1.quote_amount = 10.0
+        ok, reason, sizing = await rm.check_all(
+            symbol="XRPUSDT", direction="SHORT", conviction=70,
+            entry=1.40, sl=1.45, config=config,
+            open_positions=[p1], balance=200.0,
+        )
+        assert ok is True

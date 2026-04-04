@@ -1,0 +1,260 @@
+id,position_id,event_type,details,timestamp
+1,1,CREATED,"{""balance"": 100.0, ""entry"": 661.461817, ""tp"": 643.774269, ""sl"": 674.727478, ""quantity"": 0.7538259872613948, ""quote_amount"": 498.62710723574105, ""risk_amount"": 10.0}",1773900221084
+2,2,CREATED,"{""balance"": 100.0, ""entry"": 0.098199, ""tp"": 0.094974, ""sl"": 0.100618, ""quantity"": 4133.939644481183, ""quote_amount"": 405.94873914840764, ""risk_amount"": 10.0}",1773900221095
+3,3,CREATED,"{""balance"": 100.0, ""entry"": 0.002024, ""tp"": 0.001903, ""sl"": 0.002114, ""quantity"": 111111.11111111136, ""quote_amount"": 224.8888888888894, ""risk_amount"": 10.0}",1773900221103
+4,1,CANCELLED,"{""reason"": ""manual_close""}",1773900406497
+5,2,CANCELLED,"{""reason"": ""manual_close""}",1773900406516
+6,3,CANCELLED,"{""reason"": ""manual_close""}",1773900406522
+7,4,CREATED,"{""balance"": 1000.0, ""entry"": 3.650264, ""tp"": 3.384321, ""sl"": 3.84972, ""quantity"": 501.36370928926664, ""quote_amount"": 1830.1098989250756, ""risk_amount"": 100.0}",1773900424067
+8,5,CREATED,"{""balance"": 1000.0, ""entry"": 0.301679, ""tp"": 0.306306, ""sl"": 0.298209, ""quantity"": 28818.443804034807, ""quote_amount"": 8693.919308357416, ""risk_amount"": 100.0}",1773900424086
+9,6,CREATED,"{""balance"": 1000.0, ""entry"": 0.27842, ""tp"": 0.265627, ""sl"": 0.288016, ""quantity"": 10421.00875364736, ""quote_amount"": 2901.417257190498, ""risk_amount"": 100.0}",1773900556108
+10,4,CANCELLED,"{""reason"": ""manual_close""}",1773901530198
+11,5,CANCELLED,"{""reason"": ""manual_close""}",1773901530217
+12,6,CANCELLED,"{""reason"": ""manual_close""}",1773901530222
+13,7,CREATED,"{""balance"": 1000.0, ""entry"": 0.097473, ""tp"": 0.093049, ""sl"": 0.100791, ""quantity"": 30138.63773357443, ""quote_amount"": 2937.7034358047003, ""risk_amount"": 100.0}",1773901590696
+14,8,CREATED,"{""balance"": 1000.0, ""entry"": 0.999859, ""tp"": 0.999378, ""sl"": 1.000219, ""quantity"": 3000.4230596514108, ""quote_amount"": 3000.0, ""risk_amount"": 1.0801523014742556}",1773901590712
+15,9,CREATED,"{""balance"": 1000.0, ""entry"": 0.07244, ""tp"": 0.077071, ""sl"": 0.068967, ""quantity"": 28793.550244745144, ""quote_amount"": 2085.8047797293384, ""risk_amount"": 100.0}",1773901590719
+16,8,FILLED,"{""actual_entry"": 0.999859, ""current_price"": 0.9999}",1773901717160
+17,9,FILLED,"{""actual_entry"": 0.07244, ""current_price"": 0.0715}",1773901717160
+18,7,CANCELLED,"{""reason"": ""manual_close""}",1773901805047
+19,8,SL_HIT,"{""exit_price"": 1.0, ""reason"": ""manual_close"", ""pnl_usd"": -3.4231}",1773901805061
+20,9,SL_HIT,"{""exit_price"": 0.07137, ""reason"": ""manual_close"", ""pnl_usd"": -32.8949}",1773901805067
+21,10,CREATED,"{""balance"": 963.682, ""entry"": 1.009188, ""tp"": 0.962325, ""sl"": 1.044335, ""quantity"": 2741.861325290918, ""quote_amount"": 2767.053547147691, ""risk_amount"": 96.3682}",1773902031194
+22,10,CANCELLED,"{""reason"": ""order_expiry"", ""age_hours"": 8.019208333333333}",1773930900352
+23,11,CREATED,"{""balance"": 963.682, ""entry"": 0.710335, ""tp"": 0.673319, ""sl"": 0.738097, ""quantity"": 3471.2268568546992, ""quote_amount"": 2465.733929363883, ""risk_amount"": 96.3682}",1773989698568
+24,11,CANCELLED,"{""reason"": ""order_expiry"", ""age_hours"": 49.5156275}",1774167954826
+25,12,CREATED,"{""balance"": 963.682, ""entry"": 56.37932, ""tp"": 54.725944, ""sl"": 57.619352, ""quantity"": 51.27848296148304, ""quote_amount"": 2891.0460000000003, ""risk_amount"": 63.58695978369371}",1774167994201
+26,13,CREATED,"{""balance"": 963.682, ""entry"": 71406.878668, ""actual_entry"": null, ""tp"": 66998.918857, ""sl"": 73335.361085, ""quantity"": 0.040486939828887694, ""quote_amount"": 2891.0460000000003, ""risk_amount"": 78.07835157814658, ""market_fill"": false}",1774170597950
+27,14,FILLED,"{""balance"": 963.682, ""entry"": 467.0, ""actual_entry"": 467.5, ""tp"": 453.184173, ""sl"": 477.36187, ""quantity"": 6.190676659528909, ""quote_amount"": 2891.0460000000003, ""risk_amount"": 64.14698675807287, ""market_fill"": true}",1774170597962
+28,15,CREATED,"{""balance"": 963.682, ""entry"": 641.515736, ""actual_entry"": null, ""tp"": 627.111813, ""sl"": 652.318678, ""quantity"": 4.506586257768743, ""quote_amount"": 2891.0460000000003, ""risk_amount"": 48.68438996067291, ""market_fill"": false}",1774170597972
+29,16,CREATED,"{""balance"": 963.682, ""entry"": 1.436066, ""actual_entry"": null, ""tp"": 1.391832, ""sl"": 1.469241, ""quantity"": 2013.1707038534441, ""quote_amount"": 2891.0460000000003, ""risk_amount"": 66.78693810033792, ""market_fill"": false}",1774170597979
+30,17,CREATED,"{""balance"": 963.682, ""entry"": 1.827839, ""actual_entry"": null, ""tp"": 1.766776, ""sl"": 1.873636, ""quantity"": 1581.6743159545235, ""quote_amount"": 2891.0460000000003, ""risk_amount"": 72.43593864776945, ""market_fill"": false}",1774170597986
+31,18,CREATED,"{""balance"": 963.682, ""entry"": 0.093731, ""actual_entry"": null, ""tp"": 0.090262, ""sl"": 0.096334, ""quantity"": 30844.075065880024, ""quote_amount"": 2891.0460000000003, ""risk_amount"": 80.28712739648596, ""market_fill"": false}",1774170597992
+32,16,TP_HIT,"{""exit_price"": 1.391832, ""pnl_usd"": null, ""pnl_pct"": null, ""source"": ""signal_resolution""}",1774180800000
+33,19,CREATED,"{""balance"": 963.682, ""entry"": 1.431325, ""actual_entry"": null, ""tp"": 1.389229, ""sl"": 1.462898, ""quantity"": 2019.8389604038218, ""quote_amount"": 2891.0460000000003, ""risk_amount"": 63.772375496830016, ""market_fill"": false}",1774181100345
+34,19,TP_HIT,"{""exit_price"": 1.389229, ""pnl_usd"": null, ""pnl_pct"": null, ""source"": ""signal_resolution""}",1774195200000
+35,15,TP_HIT,"{""exit_price"": 627.111813, ""pnl_usd"": null, ""pnl_pct"": null, ""source"": ""signal_resolution""}",1774195200000
+37,18,TP_HIT,"{""exit_price"": 0.090262, ""pnl_usd"": null, ""pnl_pct"": null, ""source"": ""signal_resolution""}",1774195200000
+36,17,TP_HIT,"{""exit_price"": 1.766776, ""pnl_usd"": null, ""pnl_pct"": null, ""source"": ""signal_resolution""}",1774209600000
+44,23,SL_HIT,"{""exit_price"": 0.094797, ""pnl_usd"": null, ""pnl_pct"": null, ""source"": ""signal_resolution""}",1774252800000
+39,13,CANCELLED,"{""reason"": ""order_expiry"", ""age_hours"": 25.132458333333332}",1774261074799
+38,12,CANCELLED,"{""reason"": ""order_expiry"", ""age_hours"": 25.855723333333334}",1774261074799
+40,20,CREATED,"{""balance"": 963.682, ""entry"": 0.096291, ""actual_entry"": null, ""tp"": 0.092179, ""sl"": 0.099375, ""quantity"": 30024.052092095837, ""quote_amount"": 2891.0460000000003, ""risk_amount"": 92.59417665202366, ""market_fill"": false}",1774261083504
+41,21,CREATED,"{""balance"": 963.682, ""entry"": 2142.935804, ""actual_entry"": null, ""tp"": 1984.452187, ""sl"": 2202.36716, ""quantity"": 1.349105276323994, ""quote_amount"": 2891.0460000000003, ""risk_amount"": 80.17915595868911, ""market_fill"": false}",1774261083513
+42,22,CREATED,"{""balance"": 963.682, ""entry"": 1.804173, ""actual_entry"": null, ""tp"": 1.744979, ""sl"": 1.848569, ""quantity"": 1602.4217189814947, ""quote_amount"": 2891.0460000000003, ""risk_amount"": 71.14111463590224, ""market_fill"": false}",1774261083524
+43,23,CREATED,"{""balance"": 963.682, ""entry"": 0.092304, ""actual_entry"": null, ""tp"": 0.088981, ""sl"": 0.094797, ""quantity"": 31320.917836713474, ""quote_amount"": 2891.0460000000003, ""risk_amount"": 78.08304816692697, ""market_fill"": false}",1774261083534
+45,20,CANCELLED,"{""reason"": ""order_expiry"", ""age_hours"": 25.851325555555555}",1774354148276
+46,21,CANCELLED,"{""reason"": ""order_expiry"", ""age_hours"": 25.8513225}",1774354148276
+47,22,CANCELLED,"{""reason"": ""order_expiry"", ""age_hours"": 25.85131972222222}",1774354148276
+48,24,CREATED,"{""balance"": 963.682, ""entry"": 1.420183, ""actual_entry"": null, ""tp"": 1.369029, ""sl"": 1.458549, ""quantity"": 2035.6855419336807, ""quote_amount"": 2891.0460000000003, ""risk_amount"": 78.10111150182784, ""market_fill"": false}",1774354157882
+49,24,FILLED,"{""actual_entry"": 1.420183, ""current_price"": 1.421}",1774354500317
+50,25,CREATED,"{""balance"": 963.682, ""entry"": 636.6432, ""actual_entry"": null, ""tp"": 619.987562, ""sl"": 649.134928, ""quantity"": 4.541077325572629, ""quote_amount"": 2891.0460000000003, ""risk_amount"": 56.72590277802057, ""market_fill"": false}",1774359128271
+51,24,SL_HIT,"{""exit_price"": 1.403, ""reason"": ""manual_close"", ""pnl_usd"": 32.0881}",1774360936745
+52,25,SL_HIT,"{""exit_price"": 649.134928, ""pnl_usd"": null, ""pnl_pct"": null, ""source"": ""signal_resolution""}",1774425600000
+53,26,FILLED,"{""balance"": 995.7701, ""entry"": 0.001883, ""actual_entry"": 0.001889, ""tp"": 0.001787, ""sl"": 0.001955, ""quantity"": 1383014.0277777733, ""quote_amount"": 2604.2154143055473, ""risk_amount"": 99.57701, ""market_fill"": true}",1774445700583
+54,27,FILLED,"{""balance"": 995.7701, ""entry"": 0.0972, ""actual_entry"": 0.0975, ""tp"": 0.093945, ""sl"": 0.099641, ""quantity"": 30733.6450617284, ""quote_amount"": 2987.3103, ""risk_amount"": 75.02082759567898, ""market_fill"": true}",1774445700596
+55,28,FILLED,"{""balance"": 995.7701, ""entry"": 3.368, ""actual_entry"": 3.357, ""tp"": 3.215324, ""sl"": 3.482507, ""quantity"": 869.6150453684044, ""quote_amount"": 2928.863472800786, ""risk_amount"": 99.57701, ""market_fill"": true}",1774445700605
+57,27,SL_HIT,"{""exit_price"": 0.099641, ""pnl_usd"": -68.788, ""pnl_pct"": -2.3, ""source"": ""signal_resolution""}",1774454400000
+58,28,TP_HIT,"{""exit_price"": 3.215324, ""pnl_usd"": 120.2747, ""pnl_pct"": 4.11, ""source"": ""signal_resolution""}",1774483200000
+56,26,TP_HIT,"{""exit_price"": 0.001787, ""pnl_usd"": 138.4632, ""pnl_pct"": 5.32, ""source"": ""signal_resolution""}",1774512000000
+59,29,CREATED,"{""balance"": 1185.72, ""entry"": 1.27932, ""actual_entry"": null, ""tp"": 1.224694, ""sl"": 1.320289, ""quantity"": 2780.508395084889, ""quote_amount"": 3557.16, ""risk_amount"": 113.9146484382329, ""market_fill"": false}",1774524784173
+60,30,CREATED,"{""balance"": 1185.72, ""entry"": 1.407725, ""actual_entry"": null, ""tp"": 1.360149, ""sl"": 1.443407, ""quantity"": 2526.8855777939584, ""quote_amount"": 3557.16, ""risk_amount"": 90.16433118684456, ""market_fill"": false}",1774524784181
+64,30,TP_HIT,"{""exit_price"": 1.360149, ""pnl_usd"": null, ""pnl_pct"": null, ""source"": ""signal_resolution""}",1774526400000
+61,29,TP_HIT,"{""exit_price"": 1.224694, ""pnl_usd"": null, ""pnl_pct"": null, ""source"": ""signal_resolution""}",1774526400000
+62,31,CREATED,"{""balance"": 1185.72, ""entry"": 1.274405, ""actual_entry"": null, ""tp"": 1.223538, ""sl"": 1.312555, ""quantity"": 2791.2319866918288, ""quote_amount"": 3557.16, ""risk_amount"": 106.48550029229301, ""market_fill"": false}",1774526700617
+63,32,CREATED,"{""balance"": 1185.72, ""entry"": 1.764234, ""actual_entry"": null, ""tp"": 1.713559, ""sl"": 1.80224, ""quantity"": 2016.2631487659798, ""quote_amount"": 3557.16, ""risk_amount"": 76.6300972319998, ""market_fill"": false}",1774526700637
+65,31,TP_HIT,"{""exit_price"": 1.223538, ""pnl_usd"": null, ""pnl_pct"": null, ""source"": ""signal_resolution""}",1774540800000
+66,32,TP_HIT,"{""exit_price"": 1.713559, ""pnl_usd"": null, ""pnl_pct"": null, ""source"": ""signal_resolution""}",1774540800000
+67,33,CREATED,"{""balance"": 1185.72, ""entry"": 633.076162, ""actual_entry"": null, ""tp"": 617.566946, ""sl"": 644.708074, ""quantity"": 5.618850011288216, ""quote_amount"": 3557.16, ""risk_amount"": 65.35796887250385, ""market_fill"": false}",1774602424451
+68,34,CREATED,"{""balance"": 1185.72, ""entry"": 0.095591, ""actual_entry"": null, ""tp"": 0.091793, ""sl"": 0.098441, ""quantity"": 37212.28985992405, ""quote_amount"": 3557.16, ""risk_amount"": 106.05502610078373, ""market_fill"": false}",1774602424459
+69,35,CREATED,"{""balance"": 1185.72, ""entry"": 0.093074, ""actual_entry"": null, ""tp"": 0.08971, ""sl"": 0.095598, ""quantity"": 38218.62174183982, ""quote_amount"": 3557.16, ""risk_amount"": 96.46380127640366, ""market_fill"": false}",1774602424466
+71,34,FILLED,"{""actual_entry"": 0.0928, ""intended_entry"": 0.095591, ""current_price"": 0.0928}",1774603180311
+70,33,FILLED,"{""actual_entry"": 620.03, ""intended_entry"": 633.076162, ""current_price"": 620.03}",1774603180311
+72,35,FILLED,"{""actual_entry"": 0.09131, ""intended_entry"": 0.093074, ""current_price"": 0.09131}",1774603180312
+73,36,FILLED,"{""balance"": 1185.72, ""entry"": 1.384146, ""actual_entry"": 1.3436, ""tp"": 1.338395, ""sl"": 1.418459, ""quantity"": 2569.931206679064, ""quote_amount"": 3557.16, ""risk_amount"": 88.18204949477825, ""market_fill"": true}",1774603180359
+74,37,FILLED,"{""balance"": 1185.72, ""entry"": 1.739917, ""actual_entry"": 1.702, ""tp"": 1.685745, ""sl"": 1.780546, ""quantity"": 2044.4423498362278, ""quote_amount"": 3557.16, ""risk_amount"": 83.06364823149615, ""market_fill"": true}",1774603180377
+75,38,FILLED,"{""balance"": 1185.72, ""entry"": 467.603752, ""actual_entry"": 466.4, ""tp"": 453.778686, ""sl"": 477.97255, ""quantity"": 0.25357367106840495, ""quote_amount"": 118.572, ""risk_amount"": 2.629254173426742, ""market_fill"": true}",1774604098259
+76,39,CREATED,"{""balance"": 1185.72, ""entry"": 88.383678, ""actual_entry"": null, ""tp"": 84.946172, ""sl"": 90.961807, ""quantity"": 1.341559920147247, ""quote_amount"": 118.572, ""risk_amount"": 3.458714535369288, ""market_fill"": true}",1774611588112
+77,40,CREATED,"{""balance"": 1185.72, ""entry"": 0.259744, ""actual_entry"": null, ""tp"": 0.249897, ""sl"": 0.267129, ""quantity"": 456.495626462979, ""quote_amount"": 118.572, ""risk_amount"": 3.3712202014291135, ""market_fill"": true}",1774611588122
+78,41,CREATED,"{""balance"": 1185.72, ""entry"": 9.306507, ""actual_entry"": null, ""tp"": 8.967161, ""sl"": 9.561016, ""quantity"": 12.74076299518176, ""quote_amount"": 118.572, ""risk_amount"": 3.242638849140721, ""market_fill"": true}",1774611588129
+79,39,FILLED,"{""actual_entry"": 83.44, ""intended_entry"": 88.383678, ""current_price"": 83.44}",1774611900470
+80,40,FILLED,"{""actual_entry"": 0.2476, ""intended_entry"": 0.259744, ""current_price"": 0.2476}",1774611900470
+81,41,FILLED,"{""actual_entry"": 8.74, ""intended_entry"": 9.306507, ""current_price"": 8.74}",1774611900470
+87,40,SL_HIT,"{""exit_price"": 0.249897, ""pnl_usd"": -1.1671, ""pnl_pct"": -0.98, ""source"": ""signal_resolution""}",1774612800000
+82,33,TP_HIT,"{""exit_price"": 617.566946, ""pnl_usd"": 10.2824, ""pnl_pct"": 0.29, ""source"": ""signal_resolution""}",1774612800000
+83,34,TP_HIT,"{""exit_price"": 0.091793, ""pnl_usd"": 33.9156, ""pnl_pct"": 0.95, ""source"": ""signal_resolution""}",1774612800000
+84,36,TP_HIT,"{""exit_price"": 1.338395, ""pnl_usd"": 9.8193, ""pnl_pct"": 0.28, ""source"": ""signal_resolution""}",1774612800000
+85,37,TP_HIT,"{""exit_price"": 1.685745, ""pnl_usd"": 29.6753, ""pnl_pct"": 0.83, ""source"": ""signal_resolution""}",1774612800000
+96,35,TP_HIT,"{""exit_price"": 0.08971, ""pnl_usd"": 57.5926, ""pnl_pct"": 1.62, ""source"": ""signal_resolution""}",1774612800000
+88,41,SL_HIT,"{""exit_price"": 8.967161, ""pnl_usd"": -3.0128, ""pnl_pct"": -2.54, ""source"": ""signal_resolution""}",1774612800000
+86,39,SL_HIT,"{""exit_price"": 84.946172, ""pnl_usd"": -2.1392, ""pnl_pct"": -1.8, ""source"": ""signal_resolution""}",1774612800000
+89,33,TP_HIT,"{""exit_price"": 617.566946, ""pnl_usd"": 10.2824, ""pnl_pct"": 0.29}",1774612812268
+90,34,TP_HIT,"{""exit_price"": 0.091793, ""pnl_usd"": 33.9156, ""pnl_pct"": 0.95}",1774612812269
+91,36,TP_HIT,"{""exit_price"": 1.338395, ""pnl_usd"": 9.8193, ""pnl_pct"": 0.28}",1774612812272
+92,37,TP_HIT,"{""exit_price"": 1.685745, ""pnl_usd"": 29.6753, ""pnl_pct"": 0.83}",1774612812274
+93,39,SL_HIT,"{""exit_price"": 84.946172, ""pnl_usd"": -2.1392, ""pnl_pct"": -1.8}",1774612812278
+94,40,SL_HIT,"{""exit_price"": 0.249897, ""pnl_usd"": -1.1671, ""pnl_pct"": -0.98}",1774612812280
+95,41,SL_HIT,"{""exit_price"": 8.967161, ""pnl_usd"": -3.0128, ""pnl_pct"": -2.54}",1774612812281
+97,42,CREATED,"{""balance"": 1320.6861, ""entry"": 69549.492419, ""actual_entry"": null, ""tp"": 65427.927351, ""sl"": 71352.677137, ""quantity"": 0.05696746535734052, ""quote_amount"": 3962.0582999999997, ""risk_amount"": 102.72286295555107, ""market_fill"": false}",1774657295696
+98,43,CREATED,"{""balance"": 1320.6861, ""entry"": 2103.226098, ""actual_entry"": null, ""tp"": 1948.9595, ""sl"": 2161.076072, ""quantity"": 1.8838004643283954, ""quote_amount"": 3962.0582999999997, ""risk_amount"": 108.97780788258513, ""market_fill"": false}",1774657295704
+99,44,CREATED,"{""balance"": 1320.6861, ""entry"": 0.092034, ""actual_entry"": null, ""tp"": 0.088918, ""sl"": 0.094371, ""quantity"": 43049.94132603168, ""quote_amount"": 3962.0582999999997, ""risk_amount"": 100.60771287893569, ""market_fill"": false}",1774657295710
+100,42,FILLED,"{""actual_entry"": 66355.89, ""intended_entry"": 69549.492419, ""current_price"": 66355.89}",1774657500418
+102,44,FILLED,"{""actual_entry"": 0.09012, ""intended_entry"": 0.092034, ""current_price"": 0.09012}",1774657500419
+101,43,FILLED,"{""actual_entry"": 1991.44, ""intended_entry"": 2103.226098, ""current_price"": 1991.44}",1774657500419
+103,45,CREATED,"{""balance"": 1320.6861, ""entry"": 1.365147, ""actual_entry"": null, ""tp"": 1.322366, ""sl"": 1.397232, ""quantity"": 2902.294258420521, ""quote_amount"": 3962.0582999999997, ""risk_amount"": 93.12011128142218, ""market_fill"": false}",1774659292700
+104,46,CREATED,"{""balance"": 1320.6861, ""entry"": 86.5057, ""actual_entry"": null, ""tp"": 83.238012, ""sl"": 88.956466, ""quantity"": 45.80112408777687, ""quote_amount"": 3962.0582999999997, ""risk_amount"": 112.24783767610464, ""market_fill"": false}",1774659292718
+105,47,CREATED,"{""balance"": 1320.6861, ""entry"": 0.255206, ""actual_entry"": null, ""tp"": 0.245943, ""sl"": 0.262153, ""quantity"": 15524.94181171289, ""quote_amount"": 3962.0582999999997, ""risk_amount"": 107.85177076597002, ""market_fill"": false}",1774659292727
+106,48,CREATED,"{""balance"": 1320.6861, ""entry"": 8.868358, ""actual_entry"": null, ""tp"": 8.537517, ""sl"": 9.116488, ""quantity"": 446.76345948145075, ""quote_amount"": 3962.0582999999997, ""risk_amount"": 110.85541720113225, ""market_fill"": false}",1774659292736
+107,49,CREATED,"{""balance"": 1320.6861, ""entry"": 1.716721, ""actual_entry"": null, ""tp"": 1.664263, ""sl"": 1.756065, ""quantity"": 2307.92207935943, ""quote_amount"": 3962.0582999999997, ""risk_amount"": 90.80288629031752, ""market_fill"": false}",1774659292746
+110,47,FILLED,"{""actual_entry"": 0.2466, ""intended_entry"": 0.255206, ""current_price"": 0.2466}",1774659300304
+112,49,FILLED,"{""actual_entry"": 1.674, ""intended_entry"": 1.716721, ""current_price"": 1.674}",1774659300304
+111,48,FILLED,"{""actual_entry"": 8.56, ""intended_entry"": 8.868358, ""current_price"": 8.56}",1774659300304
+108,45,FILLED,"{""actual_entry"": 1.3262, ""intended_entry"": 1.365147, ""current_price"": 1.3262}",1774659300304
+109,46,FILLED,"{""actual_entry"": 82.82, ""intended_entry"": 86.5057, ""current_price"": 82.82}",1774659300304
+113,50,CREATED,"{""balance"": 1314.6005046424566, ""entry"": 86.5057, ""actual_entry"": null, ""tp"": 83.238012, ""sl"": 88.956466, ""quantity"": 45.59007688426739, ""quote_amount"": 3943.80151392737, ""risk_amount"": 111.73061036534853, ""market_fill"": false}",1774664100329
+114,51,CREATED,"{""balance"": 1509.5586218203937, ""entry"": 86.5057, ""actual_entry"": null, ""tp"": 83.238012, ""sl"": 88.956466, ""quantity"": 52.351184551551874, ""quote_amount"": 4528.675865461181, ""risk_amount"": 128.30050315866868, ""market_fill"": false}",1774664700616
+115,52,CREATED,"{""balance"": 1509.5586218203937, ""entry"": 0.255206, ""actual_entry"": null, ""tp"": 0.245943, ""sl"": 0.262153, ""quantity"": 17745.177877719103, ""quote_amount"": 4528.675865461181, ""risk_amount"": 123.27575071651526, ""market_fill"": false}",1774664700665
+116,53,CREATED,"{""balance"": 1509.5586218203937, ""entry"": 8.868358, ""actual_entry"": null, ""tp"": 8.537517, ""sl"": 9.116488, ""quantity"": 510.6555086591205, ""quote_amount"": 4528.675865461181, ""risk_amount"": 126.70895136358745, ""market_fill"": false}",1774664700687
+117,51,FILLED,"{""actual_entry"": 82.52, ""intended_entry"": 86.5057, ""current_price"": 82.52}",1774665000181
+118,52,FILLED,"{""actual_entry"": 0.2455, ""intended_entry"": 0.255206, ""current_price"": 0.2455}",1774665000182
+119,53,FILLED,"{""actual_entry"": 8.51, ""intended_entry"": 8.868358, ""current_price"": 8.51}",1774665000182
+121,52,TP_HIT,"{""exit_price"": 0.2452, ""pnl_usd"": 0.9724, ""pnl_pct"": 0.12, ""source"": ""fast_resolution""}",1774666433813
+120,51,TP_HIT,"{""exit_price"": 82.58, ""pnl_usd"": -7.4642, ""pnl_pct"": -0.07, ""source"": ""fast_resolution""}",1774666433813
+122,53,TP_HIT,"{""exit_price"": 8.52, ""pnl_usd"": -9.4573, ""pnl_pct"": -0.12, ""source"": ""fast_resolution""}",1774666433813
+123,54,CREATED,"{""balance"": 1318.4013855449277, ""entry"": 86.5057, ""actual_entry"": null, ""tp"": 83.238012, ""sl"": 88.956466, ""quantity"": 45.72189065731834, ""quote_amount"": 3955.2041566347834, ""risk_amount"": 112.05365507867351, ""market_fill"": false}",1774667100478
+124,55,CREATED,"{""balance"": 1318.4013855449277, ""entry"": 0.255206, ""actual_entry"": null, ""tp"": 0.245943, ""sl"": 0.262153, ""quantity"": 15498.084514606959, ""quote_amount"": 3955.2041566347834, ""risk_amount"": 107.66519312297511, ""market_fill"": false}",1774667100504
+125,56,CREATED,"{""balance"": 1318.4013855449277, ""entry"": 8.868358, ""actual_entry"": null, ""tp"": 8.537517, ""sl"": 9.116488, ""quantity"": 445.9905832212438, ""quote_amount"": 3955.2041566347834, ""risk_amount"": 110.66364341468712, ""market_fill"": false}",1774667100516
+127,55,FILLED,"{""actual_entry"": 0.2451, ""intended_entry"": 0.255206, ""current_price"": 0.2451}",1774667400536
+126,54,FILLED,"{""actual_entry"": 82.57, ""intended_entry"": 86.5057, ""current_price"": 82.57}",1774667400536
+128,56,FILLED,"{""actual_entry"": 8.51, ""intended_entry"": 8.868358, ""current_price"": 8.51}",1774667400537
+129,54,TP_HIT,"{""exit_price"": 83.15, ""pnl_usd"": -30.4739, ""pnl_pct"": -0.77, ""source"": ""fast_resolution""}",1774689277997
+130,38,SL_HIT,"{""exit_price"": 477.97255, ""pnl_usd"": -3.0531, ""pnl_pct"": -2.57}",1774689283158
+131,49,TP_HIT,"{""exit_price"": 1.664263, ""pnl_usd"": 18.5102, ""pnl_pct"": 0.47}",1774689283160
+132,55,TP_HIT,"{""exit_price"": 0.245943, ""pnl_usd"": -17.0201, ""pnl_pct"": -0.43}",1774689283162
+133,56,TP_HIT,"{""exit_price"": 8.537517, ""pnl_usd"": -16.2275, ""pnl_pct"": -0.41}",1774689283164
+134,57,FILLED,"{""balance"": 1269.1108, ""entry"": 476.6, ""actual_entry"": 477.6, ""tp"": 462.50062, ""sl"": 487.174535, ""quantity"": 7.988527906000838, ""quote_amount"": 3807.3324, ""risk_amount"": 84.47496794048233, ""market_fill"": true}",1774689900411
+135,58,CREATED,"{""balance"": 1269.1108, ""entry"": 85.909389, ""actual_entry"": null, ""tp"": 82.77854, ""sl"": 88.257526, ""quantity"": 44.318001144205546, ""quote_amount"": 3807.3324, ""risk_amount"": 104.06473825275111, ""market_fill"": false}",1774689900547
+136,59,CREATED,"{""balance"": 1269.1108, ""entry"": 0.276708, ""actual_entry"": null, ""tp"": 0.256615, ""sl"": 0.291778, ""quantity"": 8421.438619774402, ""quote_amount"": 2330.2794376005354, ""risk_amount"": 126.91108, ""market_fill"": false}",1774689900572
+137,60,CREATED,"{""balance"": 1269.1108, ""entry"": 221.88532, ""actual_entry"": null, ""tp"": 209.15783, ""sl"": 231.430938, ""quantity"": 13.295218811395985, ""quote_amount"": 2950.013880436618, ""risk_amount"": 126.91108, ""market_fill"": false}",1774689900586
+138,61,CREATED,"{""balance"": 1269.1108, ""entry"": 0.253752, ""actual_entry"": null, ""tp"": 0.244771, ""sl"": 0.260488, ""quantity"": 15004.147356474037, ""quote_amount"": 3807.3324, ""risk_amount"": 101.06793659320941, ""market_fill"": false}",1774690500533
+139,62,CREATED,"{""balance"": 1269.1108, ""entry"": 8.810064, ""actual_entry"": null, ""tp"": 8.492422, ""sl"": 9.048295, ""quantity"": 432.1571784268536, ""quote_amount"": 3807.3324, ""risk_amount"": 102.95323677380732, ""market_fill"": false}",1774690500551
+140,58,TP_HIT,"{""exit_price"": 82.76, ""pnl_usd"": null, ""pnl_pct"": null, ""source"": ""fast_resolution""}",1774694403057
+141,63,CREATED,"{""balance"": 1269.1108, ""entry"": 85.909389, ""actual_entry"": null, ""tp"": 82.77854, ""sl"": 88.257526, ""quantity"": 44.318001144205546, ""quote_amount"": 3807.3324, ""risk_amount"": 104.06473825275111, ""market_fill"": false}",1774694700317
+142,64,CREATED,"{""balance"": 1269.1108, ""entry"": 1.711866, ""actual_entry"": null, ""tp"": 1.658958, ""sl"": 1.751547, ""quantity"": 2224.0831934275225, ""quote_amount"": 3807.3324, ""risk_amount"": 88.2538451983972, ""market_fill"": false}",1774698908721
+143,65,CREATED,"{""balance"": 1269.1108, ""entry"": 4586.627664, ""actual_entry"": null, ""tp"": 4480.669074, ""sl"": 4666.096606, ""quantity"": 0.8300940645091788, ""quote_amount"": 3807.3324, ""risk_amount"": 65.96669706702454, ""market_fill"": false}",1774699500680
+144,63,TP_HIT,"{""exit_price"": 82.71, ""pnl_usd"": null, ""pnl_pct"": null, ""source"": ""fast_resolution""}",1774701602364
+145,66,CREATED,"{""balance"": 1269.1108, ""entry"": 85.608495, ""actual_entry"": null, ""tp"": 82.637298, ""sl"": 87.836893, ""quantity"": 44.473768637096114, ""quote_amount"": 3807.3324, ""risk_amount"": 99.10525708336765, ""market_fill"": false}",1774701900470
+146,60,FILLED,"{""actual_entry"": 222.16, ""intended_entry"": 221.88532, ""current_price"": 222.16}",1774705500219
+147,57,TP_HIT,"{""exit_price"": 457.2, ""pnl_usd"": 159.1586, ""pnl_pct"": 4.18, ""source"": ""fast_resolution""}",1774841203624
+148,59,CANCELLED,"{""reason"": ""order_expiry"", ""age_hours"": 42.028715}",1774841203945
+149,61,CANCELLED,"{""reason"": ""order_expiry"", ""age_hours"": 41.86205888888889}",1774841203945
+150,62,CANCELLED,"{""reason"": ""order_expiry"", ""age_hours"": 41.86205388888889}",1774841203946
+151,64,CANCELLED,"{""reason"": ""order_expiry"", ""age_hours"": 39.526453333333336}",1774841203946
+152,65,CANCELLED,"{""reason"": ""order_expiry"", ""age_hours"": 39.36201861111111}",1774841203946
+153,66,CANCELLED,"{""reason"": ""order_expiry"", ""age_hours"": 38.695410277777775}",1774841203946
+154,45,TP_HIT,"{""exit_price"": 1.322366, ""pnl_usd"": 7.1653, ""pnl_pct"": 0.18}",1774841205708
+155,42,TP_HIT,"{""exit_price"": 65427.927351, ""pnl_usd"": 48.9016, ""pnl_pct"": 1.23}",1774841205709
+156,43,TP_HIT,"{""exit_price"": 1948.9595, ""pnl_usd"": 76.0627, ""pnl_pct"": 1.92}",1774841205711
+157,44,SL_HIT,"{""exit_price"": 0.094371, ""pnl_usd"": -186.9674, ""pnl_pct"": -4.72}",1774841205713
+158,60,TP_HIT,"{""exit_price"": 209.15783, ""pnl_usd"": 169.9167, ""pnl_pct"": 5.76}",1774841205714
+159,67,CREATED,"{""balance"": 1543.3482999999999, ""entry"": 1.187157, ""actual_entry"": null, ""tp"": 1.140938, ""sl"": 1.221822, ""quantity"": 3900.111695420235, ""quote_amount"": 4630.0449, ""risk_amount"": 135.19737192174222, ""market_fill"": false}",1774841262408
+160,68,CREATED,"{""balance"": 1543.3482999999999, ""entry"": 67160.845942, ""actual_entry"": null, ""tp"": 65314.164787, ""sl"": 68545.856809, ""quantity"": 0.06893964534035946, ""quote_amount"": 4630.0449, ""risk_amount"": 95.48215796352407, ""market_fill"": false}",1774842300190
+161,69,CREATED,"{""balance"": 1543.3482999999999, ""entry"": 1.344792, ""actual_entry"": null, ""tp"": 1.304788, ""sl"": 1.374795, ""quantity"": 3442.945005621687, ""quote_amount"": 4630.0449, ""risk_amount"": 103.29867900366747, ""market_fill"": false}",1774842300213
+162,70,CREATED,"{""balance"": 1543.3482999999999, ""entry"": 83.721485, ""actual_entry"": null, ""tp"": 80.447535, ""sl"": 86.176948, ""quantity"": 55.30294762449567, ""quote_amount"": 4630.0449, ""risk_amount"": 135.7943416828867, ""market_fill"": false}",1774842300226
+163,71,CREATED,"{""balance"": 1543.3482999999999, ""entry"": 0.091519, ""actual_entry"": null, ""tp"": 0.087978, ""sl"": 0.094175, ""quantity"": 50591.078355314196, ""quote_amount"": 4630.0449, ""risk_amount"": 134.36990411171408, ""market_fill"": false}",1774842300235
+164,72,CREATED,"{""balance"": 1543.3482999999999, ""entry"": 469.309312, ""actual_entry"": null, ""tp"": 453.54218, ""sl"": 481.13466, ""quantity"": 9.865657428080183, ""quote_amount"": 4630.0449, ""risk_amount"": 116.66483233583334, ""market_fill"": false}",1774842300246
+165,73,CREATED,"{""balance"": 1543.3482999999999, ""entry"": 0.247699, ""actual_entry"": null, ""tp"": 0.238059, ""sl"": 0.25493, ""quantity"": 18692.22281882446, ""quote_amount"": 4630.0449, ""risk_amount"": 135.16346320291942, ""market_fill"": false}",1774842300258
+166,74,CREATED,"{""balance"": 1543.3482999999999, ""entry"": 8.619802, ""actual_entry"": null, ""tp"": 8.289989, ""sl"": 8.867161, ""quantity"": 537.140516684722, ""quote_amount"": 4630.0449, ""risk_amount"": 132.86654106661584, ""market_fill"": false}",1774842300270
+167,75,CREATED,"{""balance"": 1543.3482999999999, ""entry"": 54.109195, ""actual_entry"": null, ""tp"": 52.578516, ""sl"": 55.257204, ""quantity"": 85.56854153901199, ""quote_amount"": 4630.0449, ""risk_amount"": 98.23345580365977, ""market_fill"": false}",1774842300281
+168,67,FILLED,"{""actual_entry"": 1.188, ""intended_entry"": 1.187157, ""current_price"": 1.188}",1774842600626
+169,69,FILLED,"{""actual_entry"": 1.3525, ""intended_entry"": 1.344792, ""current_price"": 1.3525}",1774842600626
+170,71,FILLED,"{""actual_entry"": 0.09233, ""intended_entry"": 0.091519, ""current_price"": 0.09233}",1774842600626
+171,74,FILLED,"{""actual_entry"": 8.63, ""intended_entry"": 8.619802, ""current_price"": 8.63}",1774842600626
+172,68,FILLED,"{""actual_entry"": 67238.46, ""intended_entry"": 67160.845942, ""current_price"": 67238.46}",1774842900398
+173,75,FILLED,"{""actual_entry"": 54.14, ""intended_entry"": 54.109195, ""current_price"": 54.14}",1774842900398
+174,76,CREATED,"{""balance"": 1543.3482999999999, ""entry"": 1.677009, ""actual_entry"": null, ""tp"": 1.630873, ""sl"": 1.71161, ""quantity"": 2760.8944853605435, ""quote_amount"": 4630.0449, ""risk_amount"": 95.52971008796045, ""market_fill"": false}",1774843500635
+175,73,FILLED,"{""actual_entry"": 0.2479, ""intended_entry"": 0.247699, ""current_price"": 0.2479}",1774843800583
+176,70,CANCELLED,"{""reason"": ""order_expiry"", ""age_hours"": 31.770568611111113}",1774956674272
+177,72,CANCELLED,"{""reason"": ""order_expiry"", ""age_hours"": 31.770562777777776}",1774956674272
+178,76,CANCELLED,"{""reason"": ""order_expiry"", ""age_hours"": 31.437120833333335}",1774956674272
+179,67,SL_HIT,"{""exit_price"": 1.221822, ""pnl_usd"": -136.5396, ""pnl_pct"": -2.95}",1774956681168
+180,69,TP_HIT,"{""exit_price"": 1.304788, ""pnl_usd"": 159.6397, ""pnl_pct"": 3.45}",1774956681171
+181,74,SL_HIT,"{""exit_price"": 8.867161, ""pnl_usd"": -132.0188, ""pnl_pct"": -2.85}",1774956681176
+182,77,CREATED,"{""balance"": 1434.4296, ""entry"": 83.283324, ""actual_entry"": null, ""tp"": 79.7489, ""sl"": 85.934142, ""quantity"": 51.67047367129584, ""quote_amount"": 4303.2888, ""risk_amount"": 136.96902167639715, ""market_fill"": false}",1774956900721
+183,78,CREATED,"{""balance"": 1434.4296, ""entry"": 1.336464, ""actual_entry"": null, ""tp"": 1.295857, ""sl"": 1.366919, ""quantity"": 3219.906260101282, ""quote_amount"": 4303.2888, ""risk_amount"": 98.06224515138422, ""market_fill"": false}",1774956900766
+184,79,CREATED,"{""balance"": 1434.4296, ""entry"": 614.015874, ""actual_entry"": null, ""tp"": 598.63054, ""sl"": 625.554875, ""quantity"": 7.008432488831714, ""quote_amount"": 4303.2888, ""risk_amount"": 80.87030949706153, ""market_fill"": false}",1774956900787
+185,80,CREATED,"{""balance"": 1434.4296, ""entry"": 4532.053224, ""actual_entry"": null, ""tp"": 4434.973916, ""sl"": 4604.862704, ""quantity"": 0.9495230058666231, ""quote_amount"": 4303.2888, ""risk_amount"": 69.13427630518568, ""market_fill"": false}",1774956900803
+186,81,CREATED,"{""balance"": 1434.4296, ""entry"": 0.874293, ""actual_entry"": null, ""tp"": 0.836375, ""sl"": 0.902732, ""quantity"": 4922.021336096709, ""quote_amount"": 4303.2888, ""risk_amount"": 139.97736477725428, ""market_fill"": false}",1774956900822
+187,80,FILLED,"{""actual_entry"": 4570.99, ""intended_entry"": 4532.053224, ""current_price"": 4570.99}",1774957200616
+188,82,CREATED,"{""balance"": 1434.4296, ""entry"": 466.084554, ""actual_entry"": null, ""tp"": 450.75826, ""sl"": 477.579274, ""quantity"": 9.232850054928017, ""quote_amount"": 4303.2888, ""risk_amount"": 106.12902618338192, ""market_fill"": false}",1774957500360
+189,82,FILLED,"{""actual_entry"": 466.6, ""intended_entry"": 466.084554, ""current_price"": 466.6}",1774957800522
+204,73,TP_HIT,"{""exit_price"": 0.238059, ""pnl_usd"": 179.3201, ""pnl_pct"": 3.87, ""source"": ""signal_resolution""}",1774958400000
+190,83,CREATED,"{""balance"": 1434.4296, ""entry"": 1.680165, ""actual_entry"": null, ""tp"": 1.630482, ""sl"": 1.717428, ""quantity"": 2561.2298792082925, ""quote_amount"": 4303.2888, ""risk_amount"": 95.43910898893871, ""market_fill"": false}",1774958700362
+191,84,CREATED,"{""balance"": 1434.4296, ""entry"": 1.2323, ""actual_entry"": null, ""tp"": 1.198355, ""sl"": 1.257759, ""quantity"": 3492.07887689686, ""quote_amount"": 4303.2888, ""risk_amount"": 88.90483612691759, ""market_fill"": false}",1774959300354
+197,83,FILLED,"{""actual_entry"": 1.686, ""intended_entry"": 1.680165, ""current_price"": 1.686}",1774965300418
+198,80,SL_HIT,"{""exit_price"": 4604.862704, ""pnl_usd"": -36.4662, ""pnl_pct"": -0.85}",1774965902303
+200,79,FILLED,"{""actual_entry"": 615.9, ""intended_entry"": 614.015874, ""current_price"": 615.9}",1774966800399
+199,78,FILLED,"{""actual_entry"": 1.3381, ""intended_entry"": 1.336464, ""current_price"": 1.3381}",1774966800399
+201,81,FILLED,"{""actual_entry"": 0.8774, ""intended_entry"": 0.874293, ""current_price"": 0.8774}",1774966800400
+205,82,SL_HIT,"{""exit_price"": 477.579274, ""pnl_usd"": -105.6733, ""pnl_pct"": -2.46, ""source"": ""signal_resolution""}",1774972800000
+203,83,SL_HIT,"{""exit_price"": 1.72, ""pnl_usd"": -84.7976, ""pnl_pct"": -1.97, ""source"": ""fast_resolution""}",1775021327285
+202,68,SL_HIT,"{""exit_price"": 68598.33, ""pnl_usd"": -94.7615, ""pnl_pct"": -2.05, ""source"": ""fast_resolution""}",1775021327285
+207,88,CREATED,"{""balance"": 2608.8540999999996, ""entry"": 1.182875, ""actual_entry"": null, ""tp"": 1.13503, ""sl"": 1.218759, ""quantity"": 6616.559061608369, ""quote_amount"": 7826.562299999999, ""risk_amount"": 237.4286053667549, ""market_fill"": false}",1775021397616
+208,88,FILLED,"{""actual_entry"": 1.205, ""intended_entry"": 1.182875, ""current_price"": 1.205}",1775021700319
+209,77,FILLED,"{""actual_entry"": 84.04, ""intended_entry"": 83.283324, ""current_price"": 84.04}",1775021700319
+210,89,FILLED,"{""balance"": 2608.8540999999996, ""entry"": 0.09369, ""actual_entry"": 0.09369, ""tp"": 0.090246, ""sl"": 0.096273, ""quantity"": 83536.79474863912, ""quote_amount"": 7826.562299999999, ""risk_amount"": 215.775540835735, ""market_fill"": true}",1775021700330
+211,90,CREATED,"{""balance"": 2608.8540999999996, ""entry"": 466.16584, ""actual_entry"": null, ""tp"": 451.385005, ""sl"": 477.251467, ""quantity"": 16.789223122826844, ""quote_amount"": 7826.562299999999, ""risk_amount"": 186.11906515943338, ""market_fill"": false}",1775021700368
+212,91,CREATED,"{""balance"": 2608.8540999999996, ""entry"": 0.245095, ""actual_entry"": null, ""tp"": 0.23507, ""sl"": 0.252613, ""quantity"": 31932.770150349857, ""quote_amount"": 7826.562299999999, ""risk_amount"": 240.07056599032924, ""market_fill"": false}",1775021700380
+213,92,CREATED,"{""balance"": 2608.8540999999996, ""entry"": 0.070756, ""actual_entry"": null, ""tp"": 0.069164, ""sl"": 0.07195, ""quantity"": 110613.40805020067, ""quote_amount"": 7826.562299999999, ""risk_amount"": 132.07240921193966, ""market_fill"": false}",1775021700393
+214,91,FILLED,"{""actual_entry"": 0.2471, ""intended_entry"": 0.245095, ""current_price"": 0.2471}",1775022000430
+215,92,FILLED,"{""actual_entry"": 0.07104, ""intended_entry"": 0.070756, ""current_price"": 0.07104}",1775022000430
+216,91,SL_HIT,"{""exit_price"": 0.2537, ""pnl_usd"": -183.8719, ""pnl_pct"": -2.35, ""source"": ""fast_resolution""}",1775023818969
+217,93,CREATED,"{""balance"": 2424.9821999999995, ""entry"": 0.245295, ""actual_entry"": null, ""tp"": 0.234875, ""sl"": 0.25311, ""quantity"": 29657.949000183446, ""quote_amount"": 7274.946599999998, ""risk_amount"": 231.77687143643328, ""market_fill"": false}",1775024100541
+218,93,FILLED,"{""actual_entry"": 0.2529, ""intended_entry"": 0.245295, ""current_price"": 0.2529}",1775024400539
+219,93,SL_HIT,"{""exit_price"": 0.2535, ""pnl_usd"": -13.5031, ""pnl_pct"": -0.19, ""source"": ""fast_resolution""}",1775024402635
+220,94,CREATED,"{""balance"": 2411.4790999999996, ""entry"": 0.245295, ""actual_entry"": null, ""tp"": 0.234875, ""sl"": 0.25311, ""quantity"": 29492.803766892917, ""quote_amount"": 7234.437299999999, ""risk_amount"": 230.4862614382678, ""market_fill"": false}",1775024700309
+221,94,FILLED,"{""actual_entry"": 0.2523, ""intended_entry"": 0.245295, ""current_price"": 0.2523}",1775025000480
+222,90,TP_HIT,"{""exit_price"": 449.8, ""pnl_usd"": null, ""pnl_pct"": null, ""source"": ""fast_resolution""}",1775094836323
+223,77,TP_HIT,"{""exit_price"": 79.27, ""pnl_usd"": 217.4199, ""pnl_pct"": 5.05, ""source"": ""fast_resolution""}",1775094836323
+224,84,CANCELLED,"{""reason"": ""order_expiry"", ""age_hours"": 37.64896611111111}",1775094836630
+225,88,SL_HIT,"{""exit_price"": 1.218759, ""pnl_usd"": -98.8638, ""pnl_pct"": -1.26}",1775094842844
+226,71,SL_HIT,"{""exit_price"": 0.094175, ""pnl_usd"": -97.9706, ""pnl_pct"": -2.12}",1775094842847
+227,78,SL_HIT,"{""exit_price"": 1.366919, ""pnl_usd"": -97.0978, ""pnl_pct"": -2.26}",1775094842850
+228,81,SL_HIT,"{""exit_price"": 0.902732, ""pnl_usd"": -128.9879, ""pnl_pct"": -3.0}",1775094842852
+229,95,CREATED,"{""balance"": 2205.978899999999, ""entry"": 0.907506, ""actual_entry"": null, ""tp"": 0.864799, ""sl"": 0.939536, ""quantity"": 6887.227286918511, ""quote_amount"": 6250.20008624227, ""risk_amount"": 220.59788999999992, ""market_fill"": false}",1775094852667
+230,96,CREATED,"{""balance"": 2205.978899999999, ""entry"": 1.341843, ""actual_entry"": null, ""tp"": 1.299059, ""sl"": 1.373931, ""quantity"": 4931.9754248447825, ""quote_amount"": 6617.9366999999975, ""risk_amount"": 158.25722743241997, ""market_fill"": false}",1775095500651
+231,97,CREATED,"{""balance"": 2205.978899999999, ""entry"": 82.729589, ""actual_entry"": null, ""tp"": 78.814001, ""sl"": 85.666279, ""quantity"": 75.11786739492422, ""quote_amount"": 6214.470296138582, ""risk_amount"": 220.59788999999992, ""market_fill"": false}",1775095500682
+232,98,CREATED,"{""balance"": 2205.978899999999, ""entry"": 0.09197, ""actual_entry"": null, ""tp"": 0.08847, ""sl"": 0.094596, ""quantity"": 71957.55898662606, ""quote_amount"": 6617.9366999999975, ""risk_amount"": 188.96054989888026, ""market_fill"": false}",1775095500702
+233,99,CREATED,"{""balance"": 2205.978899999999, ""entry"": 461.888637, ""actual_entry"": null, ""tp"": 448.202261, ""sl"": 472.15342, ""quantity"": 14.327992009034848, ""quote_amount"": 6617.9366999999975, ""risk_amount"": 147.07372879847625, ""market_fill"": false}",1775095500721
+234,100,CREATED,"{""balance"": 2205.978899999999, ""entry"": 1.264938, ""actual_entry"": null, ""tp"": 1.21112, ""sl"": 1.305302, ""quantity"": 5231.826935391298, ""quote_amount"": 6617.9366999999975, ""risk_amount"": 211.1774624201347, ""market_fill"": false}",1775095500735
+235,101,CREATED,"{""balance"": 2205.978899999999, ""entry"": 98.356428, ""actual_entry"": null, ""tp"": 93.918052, ""sl"": 101.685211, ""quantity"": 66.26983194759161, ""quote_amount"": 6518.0639545253935, ""risk_amount"": 220.59788999999992, ""market_fill"": false}",1775095500759
+236,95,TP_HIT,"{""exit_price"": 0.864, ""pnl_usd"": null, ""pnl_pct"": null, ""source"": ""fast_resolution""}",1775096102333
+237,97,TP_HIT,"{""exit_price"": 78.65, ""pnl_usd"": null, ""pnl_pct"": null, ""source"": ""fast_resolution""}",1775096102333
+241,89,TP_HIT,"{""exit_price"": 0.09, ""pnl_usd"": 279.8742, ""pnl_pct"": 3.58, ""source"": ""fast_resolution""}",1775097910339
+242,75,TP_HIT,"{""exit_price"": 52.51, ""pnl_usd"": 128.9839, ""pnl_pct"": 2.79, ""source"": ""fast_resolution""}",1775097910339
+243,79,TP_HIT,"{""exit_price"": 596.35, ""pnl_usd"": 116.7286, ""pnl_pct"": 2.71, ""source"": ""fast_resolution""}",1775097910339
+244,99,TP_HIT,"{""exit_price"": 447.5, ""pnl_usd"": null, ""pnl_pct"": null, ""source"": ""fast_resolution""}",1775097910339
+246,96,CANCELLED,"{""reason"": ""order_expiry"", ""age_hours"": 49.255475555555556}",1775272820352
+247,101,CANCELLED,"{""reason"": ""order_expiry"", ""age_hours"": 49.25544416666666}",1775272820353
+248,98,CANCELLED,"{""reason"": ""order_expiry"", ""age_hours"": 49.25545888888889}",1775272820353
+249,100,CANCELLED,"{""reason"": ""order_expiry"", ""age_hours"": 49.255449166666665}",1775272820353
+250,94,TP_HIT,"{""exit_price"": 0.234875, ""pnl_usd"": 506.6777, ""pnl_pct"": 7.0}",1775272822904
+251,104,CREATED,"{""balance"": 3238.243299999999, ""entry"": 593.993691, ""actual_entry"": null, ""tp"": 580.759204, ""sl"": 603.919557, ""quantity"": 16.35493785067828, ""quote_amount"": 9714.729899999998, ""risk_amount"": 162.3369215441613, ""market_fill"": false}",1775272844028
+252,105,CREATED,"{""balance"": 3238.243299999999, ""entry"": 1.685831, ""actual_entry"": null, ""tp"": 1.632722, ""sl"": 1.725662, ""quantity"": 5762.5763792456055, ""quote_amount"": 9714.729899999998, ""risk_amount"": 229.52917976173143, ""market_fill"": false}",1775272844037
+253,106,CREATED,"{""balance"": 3238.243299999999, ""entry"": 0.870804, ""actual_entry"": null, ""tp"": 0.837236, ""sl"": 0.89598, ""quantity"": 11156.046481182904, ""quote_amount"": 9714.729899999998, ""risk_amount"": 280.86462621026055, ""market_fill"": false}",1775272844044
+254,105,FILLED,"{""actual_entry"": 1.689, ""intended_entry"": 1.685831, ""current_price"": 1.689}",1775273100247
+255,107,CREATED,"{""balance"": 3238.243299999999, ""entry"": 1.323254, ""actual_entry"": null, ""tp"": 1.287269, ""sl"": 1.350243, ""quantity"": 7341.545840783401, ""quote_amount"": 9714.729899999998, ""risk_amount"": 198.14098069690434, ""market_fill"": false}",1775273170848
+256,108,CREATED,"{""balance"": 3238.243299999999, ""entry"": 80.65759, ""actual_entry"": null, ""tp"": 77.698399, ""sl"": 82.876984, ""quantity"": 120.4440883988723, ""quote_amount"": 9714.729899999998, ""risk_amount"": 267.31288712792605, ""market_fill"": false}",1775273700635
+257,109,CREATED,"{""balance"": 3238.243299999999, ""entry"": 0.244299, ""actual_entry"": null, ""tp"": 0.234658, ""sl"": 0.251529, ""quantity"": 39765.73747743543, ""quote_amount"": 9714.729899999998, ""risk_amount"": 287.50628196185875, ""market_fill"": false}",1775273700652
+258,110,CREATED,"{""balance"": 3238.243299999999, ""entry"": 448.62345, ""actual_entry"": null, ""tp"": 437.73162, ""sl"": 456.792323, ""quantity"": 21.65452987354985, ""quote_amount"": 9714.729899999998, ""risk_amount"": 176.8931044117352, ""market_fill"": false}",1775273700664
+259,111,CREATED,"{""balance"": 3238.243299999999, ""entry"": 0.165104, ""actual_entry"": null, ""tp"": 0.159297, ""sl"": 0.169459, ""quantity"": 58840.06383855024, ""quote_amount"": 9714.729899999998, ""risk_amount"": 256.24847801688617, ""market_fill"": false}",1775273700680
+260,112,CREATED,"{""balance"": 3238.243299999999, ""entry"": 53.07969, ""actual_entry"": null, ""tp"": 51.82601, ""sl"": 54.01995, ""quantity"": 183.02160204778886, ""quote_amount"": 9714.729899999998, ""risk_amount"": 172.08789154145433, ""market_fill"": false}",1775273700706
+261,113,CREATED,"{""balance"": 3238.243299999999, ""entry"": 1.234936, ""actual_entry"": null, ""tp"": 1.201957, ""sl"": 1.259669, ""quantity"": 7866.585717802379, ""quote_amount"": 9714.729899999998, ""risk_amount"": 194.5642645584054, ""market_fill"": false}",1775273700724
+262,114,CREATED,"{""balance"": 3238.243299999999, ""entry"": 1.246299, ""actual_entry"": null, ""tp"": 1.20235, ""sl"": 1.279261, ""quantity"": 7794.862950223019, ""quote_amount"": 9714.729899999998, ""risk_amount"": 256.93427256525064, ""market_fill"": false}",1775273700741
+263,109,FILLED,"{""actual_entry"": 0.2459, ""intended_entry"": 0.244299, ""current_price"": 0.2459}",1775274000308
+264,112,FILLED,"{""actual_entry"": 53.15, ""intended_entry"": 53.07969, ""current_price"": 53.15}",1775274000309
+265,115,CREATED,"{""balance"": 3238.243299999999, ""entry"": 4634.204422, ""actual_entry"": null, ""tp"": 4555.427391, ""sl"": 4693.287195, ""quantity"": 2.0963101786967306, ""quote_amount"": 9714.729899999998, ""risk_amount"": 123.85581842552855, ""market_fill"": false}",1775274300584
+266,115,FILLED,"{""actual_entry"": 4636.39, ""intended_entry"": 4634.204422, ""current_price"": 4636.39}",1775281800719
+267,116,CREATED,"{""balance"": 3238.243299999999, ""entry"": 0.141549, ""actual_entry"": null, ""tp"": 0.12485, ""sl"": 0.154074, ""quantity"": 25854.23792415173, ""quote_amount"": 3659.6415239257535, ""risk_amount"": 323.8243299999999, ""market_fill"": false}",1775282100628
+268,117,CREATED,"{""balance"": 3238.243299999999, ""entry"": 3.281312, ""actual_entry"": null, ""tp"": 3.136246, ""sl"": 3.390112, ""quantity"": 2960.62364688271, ""quote_amount"": 9714.729899999998, ""risk_amount"": 322.1158527808389, ""market_fill"": false}",1775282100641
+269,118,CREATED,"{""balance"": 3238.243299999999, ""entry"": 0.320229, ""actual_entry"": null, ""tp"": 0.292482, ""sl"": 0.341039, ""quantity"": 15560.996155694378, ""quote_amount"": 4983.082237941855, ""risk_amount"": 323.8243299999999, ""market_fill"": false}",1775282100655
