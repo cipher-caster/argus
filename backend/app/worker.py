@@ -514,12 +514,18 @@ async def execute_signals(ctx):
     from sqlalchemy import select
     from app.schemas.signal_log import SignalLog
     from app.schemas.trading import Position
+    from app.jobs.signal_log import _get_config as _get_signal_config
 
     config = await get_trading_config()
     if not config.get("enabled", False):
         return
 
     logger.info("Job: execute_signals — processing new signals...")
+
+    # Only trade watchlist coins — scanner logs everything for scouting,
+    # but only watchlist-approved symbols get passed to the orchestrator.
+    signal_config = await _get_signal_config()
+    watchlist = set(signal_config["watchlist"])
 
     async with Database.get_session() as session:
         # Signals that are OPEN and have no Position yet (live + scanner sources)
@@ -536,9 +542,15 @@ async def execute_signals(ctx):
         )
         new_signals = result.scalars().all()
 
-    logger.info(f"Job: execute_signals — {len(new_signals)} unprocessed signal(s) found")
+    # Filter to watchlist only — non-watchlist scanner signals are tracked but not traded
+    tradeable = [s for s in new_signals if s.symbol in watchlist]
+    skipped = len(new_signals) - len(tradeable)
+    if skipped:
+        logger.info(f"Job: execute_signals — {skipped} signal(s) skipped (not in watchlist)")
+
+    logger.info(f"Job: execute_signals — {len(tradeable)} tradeable signal(s) found")
     batch_positions = []
-    for signal in new_signals:
+    for signal in tradeable:
         try:
             pos = await _trade_orchestrator.process_signal(signal, batch_positions=batch_positions)
             if pos is not None:

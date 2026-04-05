@@ -2,6 +2,23 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.9.7] - 2026-04-05 — Scanner Signal Scoping
+
+### Changed
+
+- **Scanner logs all top-50 coins for scouting** — `log_best_setups` no longer filters to watchlist. Non-watchlist signals appear in the Signal Log Scanner tab with full outcome tracking (WIN/LOSS/REVIEW) but are never paper traded.
+- **Trading gated at `execute_signals`** — Only watchlist coins are passed to the orchestrator. Non-watchlist scanner signals are logged and resolved but skipped for position creation.
+
+### Fixed
+
+- **Non-watchlist coins were being paper traded via scanner** — `log_best_setups` read from the `analytics:best-setups` cache which scans top 50 Binance coins, not the watchlist. This caused coins like SOL, ADA, LINK etc. to appear in paper trading positions.
+
+### Data
+
+- **Cleaned 101 non-watchlist scanner signals** (34 coins) and 3 linked positions / 5 trade events from the database.
+
+---
+
 ## [0.9.6] - 2026-04-04 — Pre-Production Hardening
 
 ### Added
