@@ -67,7 +67,7 @@ class RiskManager:
     ) -> tuple[bool, str]:
         """Reject if total portfolio exposure would exceed cap."""
         max_exposure_pct = config.get("max_total_exposure_pct", 300.0)
-        current_exposure = sum(p.quote_amount for p in open_positions if p.status in ("PENDING", "OPEN"))
+        current_exposure = sum(p.quote_amount for p in open_positions if p.status == "OPEN")
         total = current_exposure + quote_amount
         cap = balance * (max_exposure_pct / 100)
         if total > cap:

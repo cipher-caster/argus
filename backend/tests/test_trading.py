@@ -1410,6 +1410,19 @@ class TestBatchRaceCondition:
         assert "exposure" in reason.lower()
 
     @pytest.mark.asyncio
+    async def test_pending_positions_excluded_from_exposure_cap(self):
+        """PENDING (unfilled limit orders) must not consume the exposure cap."""
+        rm = RiskManager()
+        config = make_config(max_total_exposure_pct=200, max_concurrent_positions=99)
+        pending = make_position("BNBUSDT", "SHORT", "PENDING")
+        pending.quote_amount = 350.0  # large notional, unfilled
+        ok, reason = rm.check_total_exposure(
+            open_positions=[pending], quote_amount=10.0,
+            balance=100.0, config=config,
+        )
+        assert ok is True, f"PENDING should not block new trades, got: {reason}"
+
+    @pytest.mark.asyncio
     async def test_batch_under_limit_still_approved(self):
         """With only 1 batch position and room for more, signal should pass."""
         rm = RiskManager()
