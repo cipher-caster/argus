@@ -4,11 +4,49 @@ import { useTradingPortfolio, useTradingStats } from "@/hooks/useTradingData";
 import { cn } from "@/lib/utils";
 import { TrendingUp, TrendingDown, DollarSign, ChevronRight } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { Skeleton } from "@/components/ui/skeleton";
+import { CardError } from "@/components/ui/CardError";
 import Link from "next/link";
 
 export function TradingWidget() {
-  const { data: portfolio } = useTradingPortfolio();
+  const { data: portfolio, isLoading, isError } = useTradingPortfolio();
   const { data: stats } = useTradingStats();
+
+  if (isLoading) {
+    return (
+      <div className="bg-secondary/30 border border-border/50 rounded-2xl overflow-hidden w-full">
+        <div className="flex items-center justify-between px-4 py-3 border-b border-border/30">
+          <Skeleton className="w-32 h-4" />
+          <Skeleton className="w-16 h-3" />
+        </div>
+        <div className="px-4 py-3 flex items-center justify-between">
+          <div className="space-y-2">
+            <Skeleton className="w-16 h-3" />
+            <Skeleton className="w-28 h-6" />
+            <Skeleton className="w-20 h-3" />
+          </div>
+          <div className="flex gap-4">
+            <div className="space-y-1.5">
+              <Skeleton className="w-14 h-3" />
+              <Skeleton className="w-10 h-5" />
+            </div>
+            <div className="space-y-1.5">
+              <Skeleton className="w-14 h-3" />
+              <Skeleton className="w-10 h-5" />
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (isError) {
+    return (
+      <div className="bg-secondary/30 border border-border/50 rounded-2xl overflow-hidden w-full flex items-center justify-center py-10">
+        <CardError />
+      </div>
+    );
+  }
 
   // Don't render if backend isn't available or trading never started
   if (!portfolio) return null;

@@ -9,6 +9,7 @@ import { CoinInfo } from "@/lib/marketApi";
 import { cn } from "@/lib/utils";
 import { TrendingDown, TrendingUp } from "lucide-react";
 import Link from "next/link";
+import { CardError } from "@/components/ui/CardError";
 
 function MoverChip({ coin, type, coinMeta }: { coin: CoinInfo; type: "gain" | "loss"; coinMeta: any }) {
   const isGain = type === "gain";
@@ -49,7 +50,7 @@ function MoverRow({ label, coins, type, coinMeta }: { label: string; coins: Coin
 }
 
 export function TopMovers() {
-  const { data, isLoading } = useMarketSummary();
+  const { data, isLoading, isError } = useMarketSummary();
   const { coinMeta } = useCoinMeta();
 
   if (isLoading) {
@@ -69,6 +70,14 @@ export function TopMovers() {
 
   const gainers = (data?.top_gainers ?? []).slice(0, 10);
   const losers = (data?.top_losers ?? []).slice(0, 10);
+
+  if (isError) {
+    return (
+      <div className="bg-secondary/20 border border-border/30 rounded-xl px-4 py-3 flex items-center justify-center">
+        <CardError />
+      </div>
+    );
+  }
 
   if (gainers.length === 0 && losers.length === 0) return null;
 

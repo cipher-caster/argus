@@ -11,6 +11,7 @@ import { formatPriceCompact, formatPercentageChange } from "@/lib/formatters";
 import { cn } from "@/lib/utils";
 import { ChevronRight, TrendingDown, TrendingUp, Zap } from "lucide-react";
 import Link from "next/link";
+import { CardError } from "@/components/ui/CardError";
 
 function SetupRow({ item, coinMeta }: { item: BestSetupItem; coinMeta: Map<string, CoinMeta> }) {
   const isLong = item.direction === "LONG";
@@ -72,7 +73,7 @@ function SetupRow({ item, coinMeta }: { item: BestSetupItem; coinMeta: Map<strin
 
 export function ActiveSetups() {
   const { coinMeta } = useCoinMeta();
-  const { data, isLoading } = useBestSetups("4h");
+  const { data, isLoading, isError } = useBestSetups("4h");
   const items = (data?.data ?? []).slice(0, 5);
 
   return (
@@ -115,6 +116,8 @@ export function ActiveSetups() {
               <Skeleton className="w-14 h-5 rounded-full" />
             </div>
           ))
+        ) : isError ? (
+          <div className="py-12 flex justify-center"><CardError /></div>
         ) : items.length === 0 ? (
           <div className="py-12 text-center px-4">
             <p className="text-sm font-black text-muted-foreground/50 uppercase tracking-widest">No setups right now</p>

@@ -7,13 +7,22 @@ import { formatChange, formatPrice } from "@/lib/formatters";
 import { cn } from "@/lib/utils";
 import { useTickers } from "@/hooks/useMarketData";
 import { Bitcoin } from "lucide-react";
+import { CardError } from "@/components/ui/CardError";
 import Link from "next/link";
 
 export function BTCCard() {
-  const { data: tickersResponse, isLoading } = useTickers();
+  const { data: tickersResponse, isLoading, isError } = useTickers();
   
   // Find BTC ticker instead of casting map index to any
   const btc = tickersResponse?.tickers?.find(t => t.symbol === "BTC/USDT");
+
+  if (isError) {
+    return (
+      <div className="bg-secondary/30 border border-border/50 rounded-2xl p-4 flex items-center justify-center h-[120px]">
+        <CardError />
+      </div>
+    );
+  }
 
   if (isLoading && !btc) {
     return (

@@ -36,7 +36,18 @@ export function DashboardWatchlist() {
 
       {/* Items */}
       <div className="divide-y divide-border/20">
-        {items.length === 0 ? (
+        {tickersLoading && items.length > 0 ? (
+          Array.from({ length: items.length }).map((_, i) => (
+            <div key={i} className="flex items-center gap-3 px-4 py-3 border-b border-border/20 last:border-0">
+              <Skeleton className="w-7 h-7 rounded-full shrink-0" />
+              <Skeleton className="flex-1 h-3" />
+              <div className="space-y-1 text-right">
+                <Skeleton className="w-14 h-3 ml-auto" />
+                <Skeleton className="w-10 h-2.5 ml-auto" />
+              </div>
+            </div>
+          ))
+        ) : items.length === 0 ? (
           <div className="py-12 text-center px-4">
             <Star size={20} className="opacity-10 mx-auto mb-3" />
             <p className="text-xs text-muted-foreground/50 mb-3">Star coins from the market table to track them here</p>

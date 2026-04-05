@@ -2,6 +2,24 @@
 
 All notable changes to this project will be documented in this file.
 
+## [v1.0.0-alpha] - 2026-04-05 — Dashboard Polish & Error Handling
+
+### Added
+
+- **Shared `CardError` component** — consistent `WifiOff` error state used across all dashboard cards; replaces silent nulls and misleading empty states when backend is offline
+- **TradingWidget skeleton** — proper loading skeleton while portfolio data is fetching (previously returned null silently)
+- **ActiveSignals skeleton rows** — 3 skeleton rows with matching column layout (previously showed plain "Loading..." text)
+- **DashboardWatchlist full skeleton** — full row skeletons while tickers load, matching watchlist item count
+
+### Fixed
+
+- **TradingWidget** — no longer disappears when backend is down; shows error card and preserves layout
+- **TopMovers** — no longer disappears silently on error
+- **BTCCard** — no longer renders with `$0` on fetch failure; shows error card
+- **Best Setups / Active Signals** — no longer show misleading "no data" empty states on error
+
+---
+
 ## [0.9.9] - 2026-04-05 — Dashboard Layout Redesign
 
 ### Changed

@@ -6,6 +6,8 @@ import { formatPriceCompact, timeAgo } from "@/lib/formatters";
 import { cn } from "@/lib/utils";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { Radio, ChevronRight } from "lucide-react";
+import { Skeleton } from "@/components/ui/skeleton";
+import { CardError } from "@/components/ui/CardError";
 import Link from "next/link";
 
 function SignalRow({ item }: { item: SignalLogItem }) {
@@ -45,7 +47,7 @@ function SignalRow({ item }: { item: SignalLogItem }) {
 }
 
 export function ActiveSignals() {
-  const { data, isLoading } = useSignalLog(undefined, "live", 50);
+  const { data, isLoading, isError } = useSignalLog(undefined, "live", 50);
   const openSignals = data?.data.filter(s => s.outcome === "OPEN") ?? [];
 
   return (
@@ -94,7 +96,27 @@ export function ActiveSignals() {
       )}
       {/* Body */}
       {isLoading ? (
-        <div className="h-24 flex items-center justify-center text-muted-foreground text-xs">Loading...</div>
+        <div className="divide-y divide-border/20">
+          {Array.from({ length: 3 }).map((_, i) => (
+            <div key={i} className="flex items-center justify-between py-2.5 px-4">
+              <div className="flex items-center gap-2 min-w-[90px]">
+                <Skeleton className="w-10 h-3.5" />
+                <Skeleton className="w-8 h-4 rounded" />
+              </div>
+              <div className="flex items-center gap-3">
+                <Skeleton className="w-[52px] h-3" />
+                <Skeleton className="w-[52px] h-3" />
+                <Skeleton className="w-[52px] h-3" />
+              </div>
+              <div className="flex items-center gap-3">
+                <Skeleton className="w-[52px] h-3" />
+                <Skeleton className="w-[45px] h-3" />
+              </div>
+            </div>
+          ))}
+        </div>
+      ) : isError ? (
+        <div className="h-24 flex items-center justify-center"><CardError /></div>
       ) : openSignals.length === 0 ? (
         <div className="h-24 flex items-center justify-center text-muted-foreground text-xs">
           No active signals — waiting for setups
