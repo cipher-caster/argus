@@ -564,6 +564,8 @@ export interface TradingPortfolio {
     total_usdt: number;
     pct_of_balance: number;
     positions: number;
+    open: number;
+    pending: number;
   };
   initial_capital: number;
   enabled: boolean;

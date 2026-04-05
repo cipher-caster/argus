@@ -78,11 +78,15 @@ class PortfolioTracker:
         total_exposure = sum(p.quote_amount for p in active)
         balance = await self.get_balance()
         exposure_pct = (total_exposure / balance * 100) if balance > 0 else 0.0
+        open_count = sum(1 for p in active if p.status == "OPEN")
+        pending_count = sum(1 for p in active if p.status == "PENDING")
 
         return {
             "total_usdt": round(total_exposure, 2),
             "pct_of_balance": round(exposure_pct, 1),
             "positions": len(active),
+            "open": open_count,
+            "pending": pending_count,
         }
 
     async def get_stats(self) -> dict:

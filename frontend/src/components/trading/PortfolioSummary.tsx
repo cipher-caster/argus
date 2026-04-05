@@ -119,7 +119,13 @@ export function PortfolioSummary() {
         <StatCard
           label="Exposure"
           value={`$${data.exposure.total_usdt.toFixed(0)}`}
-          sub={`${data.exposure.pct_of_balance.toFixed(0)}% of balance • ${data.exposure.positions} positions`}
+          sub={
+            data.exposure.open === 0 && data.exposure.pending > 0
+              ? `${data.exposure.pct_of_balance.toFixed(0)}% potential • ${data.exposure.pending} pending`
+              : data.exposure.pending > 0
+              ? `${data.exposure.pct_of_balance.toFixed(0)}% of balance • ${data.exposure.open} open + ${data.exposure.pending} pending`
+              : `${data.exposure.pct_of_balance.toFixed(0)}% of balance • ${data.exposure.open} open`
+          }
         />
       </div>
 
