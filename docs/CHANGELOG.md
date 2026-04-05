@@ -2,6 +2,21 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.9.9] - 2026-04-05 — Dashboard Layout Redesign
+
+### Changed
+
+- **Dashboard layout restructured** — new row order: Status Bar → Best Setups + BTC + Watchlist → Active Signals + Paper Trading → Top Movers
+- **Active Signals and Paper Trading share one row** — Active Signals (60%) left, Paper Trading (40%) right; aligned with the grid columns above
+- **Top Movers moved to bottom** — gainers/losers strip is supplementary context, no longer interrupts the main flow
+- **Gainers/Losers back to two rows** — each on its own row with up to 10 coins, hidden scrollbar
+- **Paper Trading widget** — added tooltip, "Trading →" chevron link, `Pending` label (was `Open`), card style unified with Best Setups (`bg-secondary/30 border-border/50`)
+- **Active Signals** — added column headers (Entry, TP, SL, Conv., Age), left-aligned columns with fixed widths, card style unified
+- **Best Setups** — fixed center column spacing with proper flex layout and fixed-width price column; analytics link changed to chevron style
+- **Tooltip positioning** — all dashboard tooltips now use `side="bottom" align="start"` (lower-right of trigger)
+
+---
+
 ## [0.9.8] - 2026-04-05 — Paper Trading Config & UI Fixes
 
 ### Changed

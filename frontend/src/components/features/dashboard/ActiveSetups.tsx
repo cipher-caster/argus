@@ -9,7 +9,7 @@ import { CoinMeta, useCoinMeta } from "@/hooks/useCoinMeta";
 import { BestSetupItem } from "@/lib/api";
 import { formatPriceCompact, formatPercentageChange } from "@/lib/formatters";
 import { cn } from "@/lib/utils";
-import { ExternalLink, TrendingDown, TrendingUp, Zap } from "lucide-react";
+import { ChevronRight, TrendingDown, TrendingUp, Zap } from "lucide-react";
 import Link from "next/link";
 
 function SetupRow({ item, coinMeta }: { item: BestSetupItem; coinMeta: Map<string, CoinMeta> }) {
@@ -25,6 +25,7 @@ function SetupRow({ item, coinMeta }: { item: BestSetupItem; coinMeta: Map<strin
       <div className="flex items-center gap-3 px-4 py-3.5 hover:bg-muted/50 transition-colors">
         <CoinIcon symbol={item.symbol} coinMeta={coinMeta} size={32} />
 
+        {/* Symbol + reason */}
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2">
             <span className="font-black text-sm group-hover:text-primary transition-colors">
@@ -35,24 +36,22 @@ function SetupRow({ item, coinMeta }: { item: BestSetupItem; coinMeta: Map<strin
               <span className="text-[8px] font-bold px-1 py-0.5 rounded bg-primary/10 text-primary">TREND</span>
             )}
           </div>
-          <p className="text-[10px] text-muted-foreground truncate mt-0.5 max-w-[260px]">
+          <p className="text-[10px] text-muted-foreground truncate mt-0.5">
             {reason.length > 55 ? reason.slice(0, 55) + "…" : reason}
           </p>
         </div>
 
-        <div className="text-right shrink-0 mr-3">
+        {/* Entry / TP / SL */}
+        <div className="shrink-0 w-[140px] text-right">
           <div className="text-xs font-mono font-medium">${formatPriceCompact(item.entry)}</div>
-          <div className="flex gap-2 mt-0.5">
-            <span className="text-[9px] font-medium font-mono text-green-600 dark:text-green-400">
-              TP ${formatPriceCompact(item.tp)}
-            </span>
-            <span className="text-[9px] font-medium font-mono text-red-600 dark:text-red-400">
-              SL ${formatPriceCompact(item.sl)}
-            </span>
+          <div className="flex gap-2 mt-0.5 justify-end">
+            <span className="text-[9px] font-mono text-green-600 dark:text-green-400">TP ${formatPriceCompact(item.tp)}</span>
+            <span className="text-[9px] font-mono text-red-600 dark:text-red-400">SL ${formatPriceCompact(item.sl)}</span>
           </div>
         </div>
 
-        <div className="w-14 shrink-0">
+        {/* Conviction */}
+        <div className="shrink-0 w-14">
           <div className="flex justify-between text-[9px] mb-1">
             <span className="text-muted-foreground">Conv.</span>
             <span className={cn("font-bold", item.conviction >= 80 ? "text-green-600 dark:text-green-400" : item.conviction >= 65 ? "text-yellow-600 dark:text-yellow-400" : "text-muted-foreground")}>
@@ -86,7 +85,7 @@ export function ActiveSetups() {
               <TooltipTrigger asChild>
                 <span className="text-xs font-black uppercase tracking-widest cursor-help">Best Setups</span>
               </TooltipTrigger>
-              <TooltipContent side="bottom" className="max-w-[240px] text-xs">
+              <TooltipContent side="bottom" align="start" className="max-w-[240px] text-xs">
                 Titan signals filtered by market regime. BULL → longs prioritized. BEAR → shorts prioritized.
               </TooltipContent>
             </Tooltip>
@@ -95,8 +94,8 @@ export function ActiveSetups() {
             <span className="bg-primary/20 text-primary text-[10px] font-bold px-1.5 py-0.5 rounded-md">{items.length}</span>
           )}
         </div>
-        <Link href="/analytics" className="flex items-center gap-1 text-[10px] text-muted-foreground hover:text-foreground transition-colors">
-          Full analytics <ExternalLink size={10} />
+        <Link href="/analytics" className="flex items-center gap-1 text-[10px] text-muted-foreground hover:text-foreground transition-colors font-bold">
+          Analytics <ChevronRight size={10} />
         </Link>
       </div>
 

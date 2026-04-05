@@ -26,19 +26,19 @@ function SignalRow({ item }: { item: SignalLogItem }) {
       </div>
       {/* Middle: entry / TP / SL */}
       <div className="flex items-center gap-3 text-[11px] font-mono">
-        <span className="text-muted-foreground">${formatPriceCompact(item.entry)}</span>
-        <span className="text-emerald-500">${formatPriceCompact(item.tp)}</span>
-        <span className="text-red-500">${formatPriceCompact(item.sl)}</span>
+        <span className="text-muted-foreground w-[52px]">${formatPriceCompact(item.entry)}</span>
+        <span className="text-emerald-500 w-[52px]">${formatPriceCompact(item.tp)}</span>
+        <span className="text-red-500 w-[52px]">${formatPriceCompact(item.sl)}</span>
       </div>
       {/* Right: conviction + age */}
       <div className="flex items-center gap-3">
-        <div className="flex items-center gap-1">
+        <div className="flex items-center gap-1 w-[52px]">
           <div className="h-1.5 rounded-full bg-primary/30 w-10 overflow-hidden">
             <div className="h-full bg-primary rounded-full" style={{ width: `${item.conviction}%` }} />
           </div>
           <span className="text-[10px] font-bold text-muted-foreground">{item.conviction}</span>
         </div>
-        <span className="text-[10px] text-muted-foreground min-w-[45px] text-right">{timeAgo(item.fired_at)}</span>
+        <span className="text-[10px] text-muted-foreground w-[45px]">{timeAgo(item.fired_at)}</span>
       </div>
     </div>
   );
@@ -49,7 +49,7 @@ export function ActiveSignals() {
   const openSignals = data?.data.filter(s => s.outcome === "OPEN") ?? [];
 
   return (
-    <div className="bg-card/60 backdrop-blur-md rounded-2xl border border-border/40 overflow-hidden">
+    <div className="bg-secondary/30 border border-border/50 rounded-2xl overflow-hidden w-full">
       {/* Header */}
       <div className="flex items-center justify-between px-4 py-3 border-b border-border/30">
         <div className="flex items-center gap-2">
@@ -59,7 +59,7 @@ export function ActiveSignals() {
               <TooltipTrigger asChild>
                 <h3 className="text-sm font-black tracking-tight cursor-help">Active Signals</h3>
               </TooltipTrigger>
-              <TooltipContent side="bottom" className="max-w-[240px] text-xs">
+              <TooltipContent side="bottom" align="start" className="max-w-[240px] text-xs">
                 Tracked positions — logged setups being monitored until TP, SL, or review deadline
               </TooltipContent>
             </Tooltip>
@@ -77,6 +77,21 @@ export function ActiveSignals() {
           Signal Log <ChevronRight size={10} />
         </Link>
       </div>
+      {/* Column headers */}
+      {!isLoading && openSignals.length > 0 && (
+        <div className="flex items-center justify-between px-4 py-1.5 border-b border-border/20 bg-secondary/20">
+          <span className="text-[9px] font-black uppercase tracking-widest text-muted-foreground/50 min-w-[90px]">Symbol</span>
+          <div className="flex items-center gap-3 text-[9px] font-black uppercase tracking-widest">
+            <span className="text-muted-foreground/50 w-[52px]">Entry</span>
+            <span className="text-emerald-500/50 w-[52px]">TP</span>
+            <span className="text-red-500/50 w-[52px]">SL</span>
+          </div>
+          <div className="flex items-center gap-3 text-[9px] font-black uppercase tracking-widest">
+            <span className="text-muted-foreground/50 w-[52px]">Conv.</span>
+            <span className="text-muted-foreground/50 w-[45px]">Age</span>
+          </div>
+        </div>
+      )}
       {/* Body */}
       {isLoading ? (
         <div className="h-24 flex items-center justify-center text-muted-foreground text-xs">Loading...</div>

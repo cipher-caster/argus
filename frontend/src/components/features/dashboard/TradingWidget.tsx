@@ -2,7 +2,9 @@
 
 import { useTradingPortfolio, useTradingStats } from "@/hooks/useTradingData";
 import { cn } from "@/lib/utils";
-import { TrendingUp, TrendingDown, DollarSign } from "lucide-react";
+import { TrendingUp, TrendingDown, DollarSign, ChevronRight } from "lucide-react";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import Link from "next/link";
 
 export function TradingWidget() {
   const { data: portfolio } = useTradingPortfolio();
@@ -16,21 +18,38 @@ export function TradingWidget() {
   const isPositive = pnlFromStart >= 0;
 
   return (
-    <div className="bg-card/60 backdrop-blur-md rounded-2xl border border-border/40 overflow-hidden">
+    <div className="bg-secondary/30 border border-border/50 rounded-2xl overflow-hidden w-full">
       <div className="flex items-center justify-between px-4 py-3 border-b border-border/30">
         <div className="flex items-center gap-2">
           <DollarSign size={14} className="text-primary" />
-          <h3 className="text-sm font-black tracking-tight">Paper Trading</h3>
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <h3 className="text-sm font-black tracking-tight cursor-help">Paper Trading</h3>
+              </TooltipTrigger>
+              <TooltipContent side="bottom" align="start" className="max-w-[240px] text-xs">
+                Simulated portfolio tracking signal performance — balance, P&L, win rate, and open positions
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
           <div className={cn(
             "w-1.5 h-1.5 rounded-full",
             portfolio.enabled ? "bg-emerald-500 animate-pulse" : "bg-muted-foreground"
           )} />
         </div>
-        {portfolio.enabled ? (
-          <span className="text-[10px] font-bold text-emerald-500">ACTIVE</span>
-        ) : (
-          <span className="text-[10px] font-bold text-muted-foreground">PAUSED</span>
-        )}
+        <div className="flex items-center gap-2">
+          {portfolio.enabled ? (
+            <span className="text-[10px] font-bold text-emerald-500">ACTIVE</span>
+          ) : (
+            <span className="text-[10px] font-bold text-muted-foreground">PAUSED</span>
+          )}
+          <Link
+            href="/trading"
+            className="flex items-center gap-1 text-[10px] text-muted-foreground hover:text-foreground transition-colors font-bold"
+          >
+            Trading <ChevronRight size={10} />
+          </Link>
+        </div>
       </div>
 
       <div className="px-4 py-3 flex items-center justify-between">
@@ -68,7 +87,7 @@ export function TradingWidget() {
 
           {portfolio.exposure.positions > 0 && (
             <div>
-              <div className="text-[10px] text-muted-foreground font-bold">Open</div>
+              <div className="text-[10px] text-muted-foreground font-bold">Pending</div>
               <div className="text-[14px] font-black text-primary">{portfolio.exposure.positions}</div>
             </div>
           )}

@@ -7,8 +7,6 @@ import { ActiveSetups } from "@/components/features/dashboard/ActiveSetups";
 import { ActiveSignals } from "@/components/features/dashboard/ActiveSignals";
 import { TopMovers } from "@/components/features/dashboard/TopMovers";
 import { TradingWidget } from "@/components/features/dashboard/TradingWidget";
-import { BarChart2, ChevronRight } from "lucide-react";
-import Link from "next/link";
 
 export default function Dashboard() {
   return (
@@ -31,31 +29,19 @@ export default function Dashboard() {
           </div>
         </section>
 
-        {/* Trading Widget */}
-        <section className="animate-in fade-in slide-in-from-bottom-4 duration-700 delay-75">
-          <TradingWidget />
-        </section>
-
-        {/* Active Signals */}
-        <section className="animate-in fade-in slide-in-from-bottom-4 duration-700 delay-75">
-          <ActiveSignals />
+        {/* Active Signals (60%) + Trading Widget (40%) */}
+        <section className="grid grid-cols-1 lg:grid-cols-5 gap-5 items-stretch animate-in fade-in slide-in-from-bottom-4 duration-700 delay-75">
+          <div className="lg:col-span-3 flex">
+            <ActiveSignals />
+          </div>
+          <div className="lg:col-span-2 flex">
+            <TradingWidget />
+          </div>
         </section>
 
         {/* Top Movers */}
-        <section className="animate-in fade-in slide-in-from-bottom-5 duration-700 delay-75">
+        <section className="animate-in fade-in slide-in-from-bottom-3 duration-600 delay-100">
           <TopMovers />
-        </section>
-
-        {/* Footer link */}
-        <section className="flex justify-center pb-4 animate-in fade-in duration-700 delay-100">
-          <Link
-            href="/markets"
-            className="flex items-center gap-2 text-xs font-bold text-muted-foreground hover:text-foreground transition-colors group"
-          >
-            <BarChart2 size={13} />
-            View full market table
-            <ChevronRight size={11} className="group-hover:translate-x-0.5 transition-transform" />
-          </Link>
         </section>
 
       </main>
