@@ -33,7 +33,7 @@ FEE_PCT = 0.001  # 0.1% simulated round-trip fee per side (0.05% * 2)
 DEFAULT_TRADING_CONFIG = {
     "enabled": False,
     "initial_capital": 200.0,
-    "max_position_size_pct": 3.0,
+    "max_position_size_pct": 7.0,
     "max_concurrent_positions": 3,
     "max_correlated_positions": 2,
     "max_drawdown_pct": 12.0,

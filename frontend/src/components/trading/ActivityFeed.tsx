@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { fetchActivityLog, type ActivityLogItem } from "@/lib/api";
-import { Activity, AlertTriangle, CheckCircle, Power, RefreshCw, Zap } from "lucide-react";
+import { Activity, AlertTriangle, CheckCircle, Database, Power, RefreshCw, Zap } from "lucide-react";
 
 const PAGE_SIZE = 30;
 
@@ -14,6 +14,7 @@ const EVENT_CONFIG: Record<string, { icon: React.ElementType; color: string; lab
   SIGNAL_RECOVERED: { icon: Zap, color: "text-violet-400", label: "Signal Recovered" },
   OUTCOME_RESOLVED: { icon: CheckCircle, color: "text-emerald-400", label: "Outcome Resolved" },
   POSITION_RECOVERED: { icon: RefreshCw, color: "text-cyan-400", label: "Position Recovered" },
+  OKX_BACKFILL: { icon: Database, color: "text-blue-400", label: "OKX Backfill" },
   ERROR: { icon: AlertTriangle, color: "text-red-400", label: "Error" },
 };
 
@@ -62,6 +63,12 @@ function DetailsSummary({ event }: { event: ActivityLogItem }) {
         <span>
           {d.symbol as string} {d.direction as string} → {d.outcome as string} @{" "}
           ${(d.resolved_price as number)?.toLocaleString()}
+        </span>
+      );
+    case "OKX_BACKFILL":
+      return (
+        <span>
+          {d.candles_stored as number} candles stored across {d.symbols as number} symbol(s)
         </span>
       );
     case "STARTUP":
