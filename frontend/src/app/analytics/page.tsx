@@ -20,14 +20,20 @@ const MENU_ITEMS: { id: ChartType; label: string; icon: React.ElementType }[] = 
   { id: "signal-log", label: "Signal Log", icon: History },
 ];
 
-const CHART_INFO: Record<ChartType, { title: string; description: string }> = {
+const CHART_INFO: Record<ChartType, { title: string; description: string | string[] }> = {
   "best-setups": {
     title: "Best Setups",
     description: "Titan signals filtered by market regime. In BULL: longs prioritized. In BEAR: shorts prioritized. Conviction based on Titan confidence + regime alignment.",
   },
   "signal-log": {
     title: "Signal Log",
-    description: "Track record for all logged signals across 3 sources: Live (4H candle close), Scanner (best-setups snapshots), Backtest (historical replay). Each resolves as WIN, LOSS, REVIEW (7d), or REJECTED. Shows fired/resolved timestamps, regime changes, and BTC price at resolution.",
+    description: [
+      "Live — 4H candle close, watchlist coins only.",
+      "Scanner — best-setups snapshots, top 100 coins.",
+      "Backtest — historical replay.",
+      "Resolves as WIN, LOSS, REVIEW (7d), or REJECTED.",
+      "Shows fired/resolved timestamps, regime changes, and BTC price at resolution.",
+    ],
   },
 };
 
@@ -101,7 +107,18 @@ export default function AnalyticsPage() {
               <Info size={16} />
               <h3 className="text-xs font-black uppercase tracking-widest">{info.title}</h3>
             </div>
-            <p className="text-[11px] text-muted-foreground leading-relaxed font-medium">{info.description}</p>
+            {Array.isArray(info.description) ? (
+              <ul className="space-y-1.5">
+                {info.description.map((line, i) => (
+                  <li key={i} className="text-[11px] text-muted-foreground leading-relaxed font-medium flex gap-2">
+                    <span className="text-primary/50 mt-px">•</span>
+                    <span>{line}</span>
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <p className="text-[11px] text-muted-foreground leading-relaxed font-medium">{info.description}</p>
+            )}
           </div>
         </aside>
 

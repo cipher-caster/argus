@@ -93,7 +93,7 @@ All background jobs are registered with the arq worker (`backend/app/worker.py`)
 | `sync_market_snapshot` | Every 5min | Fetch top 250 coins from CoinGecko (mcap, sparklines, 1h/7d change). Cached 10min TTL. |
 | `sync_analytics_cache` | Every 5min (offset +2min) | Pre-warm `best-setups` cache so dashboard loads instantly. |
 | `log_watchlist_setups` | 4H candle closes +3min (00:03, 04:03, …, 20:03 UTC) | Run Titan on watchlist (BTC/ETH/BNB), filter by regime (BULL→LONG, BEAR→SHORT), log to `signal_log` table with `source='live'`. Deduplicates via partial unique index. |
-| `log_best_setups` | Every 5min (+3min offset) | Read cached best-setups, persist qualifying signals (conviction >= 50) as `source='scanner'`. Cheap Redis read + batch insert. |
+| `log_best_setups` | Every 5min (+3min offset) | Read cached best-setups (top 100 by volume), persist qualifying signals (conviction >= 50) as `source='scanner'`. Cheap Redis read + batch insert. |
 | `log_contrarian_signals` | Every 10min | Scan top 50 symbols for overextensions (3x ATR from EMA200), log to `signal_log` with `source='counter'`. |
 | `resolve_signal_outcomes` | Every 5min | Resolves OPEN signals via **Fast-path** (live tickers) every 5m + **Historical** (candle walk) every 30m. |
 | `execute_signals` | Every 10min | Pick up unprocessed OPEN signals (live + scanner) and create PENDING paper trade positions via TradeOrchestrator. |
@@ -105,6 +105,41 @@ All background jobs are registered with the arq worker (`backend/app/worker.py`)
 **Direction filtering**: Regime-based (BTC weekly EMA50). BEAR regime → SHORT signals only, BULL → LONG only, UNKNOWN → all. Configured via Redis key `signal_log:config` (readable/writable via `GET /api/analytics/signal-log/config` and `PUT /api/analytics/signal-log/config`; changes take effect on the next worker cycle without restart).
 
 **4H screener keys**: The 4H candle-close scanner (`log_watchlist_setups`) reads Titan screener results from `analytics:screener:4h:{symbol}` Redis keys.
+
+---
+
+### Signal Sources — What Each One Means
+
+There are three `source` values in the `signal_log` table. They serve different purposes and have different scopes:
+
+| Source | Job | Universe | Schedule | Traded? |
+|--------|-----|----------|----------|---------|
+| `live` | `log_watchlist_setups` | **Watchlist only** (BTC/ETH/BNB + configured coins) | 4H candle closes — 6x/day | ✅ Yes |
+| `scanner` | `log_best_setups` | **Top 100 by volume** (all logged, watchlist filtered for trading) | Every 5 min | ✅ Watchlist coins only |
+| `counter` | `log_contrarian_signals` | Top 50 by volume | Every 10 min | ❌ No — observation only |
+
+**`live` (Signal Log → Live tab)**
+- Runs Titan strategy directly on each watchlist coin at every 4H candle close.
+- Most deliberate signal type — based on completed candle data, not a cache snapshot.
+- Regime-filtered: BULL→LONG only, BEAR→SHORT only, UNKNOWN→all.
+- Conviction threshold: configurable (default 55).
+
+**`scanner` (Signal Log → Scanner tab)**
+- Reads the `best-setups` Redis cache (pre-warmed every 5 min by `sync_analytics_cache`).
+- Logs signals from all top-50 coins for scouting — even non-watchlist coins appear in Signal Log.
+- **Trading gate**: `execute_signals` filters to watchlist-only before passing to the orchestrator. Non-watchlist scanner signals are tracked for outcome learning but never traded.
+- Conviction threshold: configurable (default 50).
+
+**Paper Trading**
+- `execute_signals` (every 10 min) picks up OPEN signals from `live` + `scanner` sources with no existing position.
+- Watchlist filter applied — only watchlist coins are sent to `TradeOrchestrator`.
+- Risk gates in sequence: drawdown circuit breaker → max concurrent positions → correlated-pair limit → conviction gate → position sizing.
+- Positions follow: `PENDING → OPEN → CLOSED / EXPIRED / CANCELLED`.
+- Current config: 7% risk per trade, 2x leverage, 200% max exposure, 12% drawdown stop, 16h expiry.
+
+**Key distinction**: Scanner logs broadly (scouting), live trades precisely (watchlist only). Paper trading is the execution layer on top of both — it only acts on watchlist-approved signals regardless of source.
+
+---
 
 ### `backend/app/trading/`
 
