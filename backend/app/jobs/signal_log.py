@@ -323,7 +323,7 @@ async def log_best_setups(ctx):
     and persists qualifying signals to signal_log with source='scanner'.
     This ensures signals shown in ActiveSetups/BestSetups are tracked for outcomes.
     """
-    cache_key = "analytics:best-setups:4h:50"
+    cache_key = "analytics:best-setups:4h:100"
     cached = await RedisClient.get_json(cache_key)
     if not cached:
         logger.info("Job: log_best_setups — no cached best-setups, skipping")

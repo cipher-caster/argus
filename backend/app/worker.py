@@ -484,7 +484,7 @@ async def sync_analytics_cache(ctx):
             label="sync_analytics_cache:get_oracle_signal_summary",
         )
         await _retry(
-            lambda: get_best_setups(timeframe="4h", limit=50),
+            lambda: get_best_setups(timeframe="4h", limit=100),
             retries=3,
             delay=2.0,
             label="sync_analytics_cache:get_best_setups",
