@@ -2,6 +2,19 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.9.8] - 2026-04-05 — Paper Trading Config & UI Fixes
+
+### Changed
+
+- **Paper trading defaults updated for testing** — `initial_capital`: $200 → $1,000, `max_position_size_pct`: 7% → 3%, `max_drawdown_pct`: 12% → 15% (floor at $850)
+- **Default config aligned with live Redis config** — `orchestrator.py` fallback defaults now match production settings; Redis flush no longer reverts to aggressive values
+
+### Fixed
+
+- **Max Leverage missing from UI** — `max_leverage` field added to Risk Settings panel with hint "Notional size cap per trade (× balance)"; also added to `TradingConfig` TypeScript interface
+
+---
+
 ## [0.9.7] - 2026-04-05 — Scanner Signal Scoping
 
 ### Changed

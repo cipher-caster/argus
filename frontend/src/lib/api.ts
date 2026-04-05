@@ -650,6 +650,7 @@ export interface TradingConfig {
   max_concurrent_positions: number;
   max_correlated_positions: number;
   max_drawdown_pct: number;
+  max_leverage: number;
   min_conviction: number;
   order_expiry_hours: number;
   trading_provider: "binance" | "okx";

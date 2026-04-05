@@ -158,6 +158,7 @@ export function TradingConfigPanel() {
         <Field label="Max Positions" name="max_concurrent_positions" value={local.max_concurrent_positions ?? 3} onChange={handleChange} min={1} max={10} hint="Max simultaneous open + pending" />
         <Field label="Max Correlated" name="max_correlated_positions" value={local.max_correlated_positions ?? 2} onChange={handleChange} min={1} max={5} hint="Max BTC-correlated coins at once" />
         <Field label="Max Drawdown (%)" name="max_drawdown_pct" value={local.max_drawdown_pct ?? 15} onChange={handleChange} min={5} max={50} step={1} hint="Circuit breaker threshold" />
+        <Field label="Max Leverage" name="max_leverage" value={local.max_leverage ?? 2} onChange={handleChange} min={1} max={10} step={0.5} hint="Notional size cap per trade (× balance)" />
         <Field label="Min Conviction" name="min_conviction" value={local.min_conviction ?? 65} onChange={handleChange} min={0} max={100} hint="Minimum signal conviction score" />
         <Field label="Order Expiry (hours)" name="order_expiry_hours" value={local.order_expiry_hours ?? 8} onChange={handleChange} min={1} max={48} hint="Cancel unfilled PENDING orders after this" />
         <ProviderToggle value={local.trading_provider ?? "binance"} onChange={handleChange} />
