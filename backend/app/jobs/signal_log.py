@@ -215,6 +215,15 @@ async def log_watchlist_setups(ctx):
         except Exception as e:
             logger.warning(f"Regime detection failed: {e}, using UNKNOWN")
 
+    # BTC price at signal fire time (fetched once, reused for all rows)
+    btc_price_at_signal = None
+    try:
+        btc_df_signal = await get_candles_df("BTCUSDT", timeframe="4h", limit=2, provider=None)
+        if btc_df_signal is not None and not btc_df_signal.empty:
+            btc_price_at_signal = float(btc_df_signal.iloc[-1]["close"])
+    except Exception as e:
+        logger.warning(f"log_watchlist_setups: BTC price fetch failed: {e}")
+
     # Collect all qualified rows first
     rows_to_insert = []
 
@@ -278,6 +287,8 @@ async def log_watchlist_setups(ctx):
                     fired_reason=fired_reason,
                     fired_at=now_ms,
                     outcome="OPEN",
+                    regime_at_signal=regime,
+                    btc_price_at_signal=btc_price_at_signal,
                 )
 
                 rows_to_insert.append(row)
@@ -338,6 +349,22 @@ async def log_best_setups(ctx):
     logged = 0
     rejected = 0
 
+    # Regime at signal fire time
+    regime_bs = "UNKNOWN"
+    cached_regime_bs = await RedisClient.get_json("market:regime")
+    if cached_regime_bs:
+        regime_bs = cached_regime_bs.get("regime", "UNKNOWN")
+
+    # BTC price at signal fire time
+    btc_price_at_signal_bs = None
+    try:
+        from app.routes.strategy import get_candles_df as _get_candles_df_bs
+        btc_df_bs = await _get_candles_df_bs("BTCUSDT", timeframe="4h", limit=2, provider=None)
+        if btc_df_bs is not None and not btc_df_bs.empty:
+            btc_price_at_signal_bs = float(btc_df_bs.iloc[-1]["close"])
+    except Exception as e:
+        logger.warning(f"log_best_setups: BTC price fetch failed: {e}")
+
     # Collect all qualified rows first
     CANDLE_4H_MS = 14_400_000  # 4H cooldown — one candle width per symbol+direction
     rows_to_insert = []
@@ -393,6 +420,8 @@ async def log_best_setups(ctx):
                 fired_at=now_ms,
                 source="counter" if is_counter else "scanner",
                 outcome="OPEN",
+                regime_at_signal=regime_bs,
+                btc_price_at_signal=btc_price_at_signal_bs,
             )
 
             rows_to_insert.append(row)
@@ -799,7 +828,23 @@ async def log_contrarian_signals(ctx):
     
     rows_to_insert = []
     now_ms = int(time.time() * 1000)
-    
+
+    # Regime at signal fire time
+    regime_cs = "UNKNOWN"
+    cached_regime_cs = await RedisClient.get_json("market:regime")
+    if cached_regime_cs:
+        regime_cs = cached_regime_cs.get("regime", "UNKNOWN")
+
+    # BTC price at signal fire time
+    btc_price_at_signal_cs = None
+    try:
+        from app.routes.strategy import get_candles_df as _get_candles_df_cs
+        btc_df_cs = await _get_candles_df_cs("BTCUSDT", timeframe="4h", limit=2, provider=None)
+        if btc_df_cs is not None and not btc_df_cs.empty:
+            btc_price_at_signal_cs = float(btc_df_cs.iloc[-1]["close"])
+    except Exception as e:
+        logger.warning(f"log_contrarian_signals: BTC price fetch failed: {e}")
+
     for sym, df in df_data.items():
         if df is None or df.empty:
             continue
@@ -839,6 +884,8 @@ async def log_contrarian_signals(ctx):
                 source="counter",
                 provider="binance",
                 outcome="OPEN",
+                regime_at_signal=regime_cs,
+                btc_price_at_signal=btc_price_at_signal_cs,
             ))
 
     if rows_to_insert:

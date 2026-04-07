@@ -123,6 +123,9 @@ class SignalLogItem(BaseModel):
     btc_price_at_resolution: Optional[float] = None
     time_to_resolution_ms: Optional[int] = None
     rejection_reason: Optional[str] = None
+    # Entry-time context (Phase 18)
+    regime_at_signal: Optional[str] = None
+    btc_price_at_signal: Optional[float] = None
 
 class SignalLogSummary(BaseModel):
     total: int

@@ -164,11 +164,6 @@ function DetailBody({ signal }: { signal: SignalLogItem }) {
 
         <div className="grid grid-cols-2 gap-2">
           <StatCard label="Market State" value={signal.market_state || "\u2014"} />
-          <StatCard label="Regime at Resolution" value={signal.regime_at_resolution || "\u2014"} />
-          <StatCard
-            label="BTC Price at Resolution"
-            value={signal.btc_price_at_resolution ? `$${formatPriceCompact(signal.btc_price_at_resolution)}` : "\u2014"}
-          />
           <div className="bg-muted/30 border border-border/50 rounded-lg p-2">
             <div className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground mb-0.5">Source</div>
             <span className={cn(
@@ -179,6 +174,25 @@ function DetailBody({ signal }: { signal: SignalLogItem }) {
             </span>
           </div>
         </div>
+
+        <div className="grid grid-cols-2 gap-2">
+          <StatCard label="Entry Regime" value={signal.regime_at_signal || "\u2014"} />
+          <StatCard label="Resolution Regime" value={signal.regime_at_resolution || "\u2014"} />
+          <StatCard
+            label="Entry BTC Price"
+            value={signal.btc_price_at_signal ? `$${formatPriceCompact(signal.btc_price_at_signal)}` : "\u2014"}
+          />
+          <StatCard
+            label="Resolution BTC Price"
+            value={signal.btc_price_at_resolution ? `$${formatPriceCompact(signal.btc_price_at_resolution)}` : "\u2014"}
+          />
+        </div>
+
+        {signal.regime_at_signal && signal.regime_at_resolution && signal.regime_at_signal !== signal.regime_at_resolution && (
+          <div className="text-[11px] text-muted-foreground">
+            Regime shift: {signal.regime_at_signal} &rarr; {signal.regime_at_resolution}
+          </div>
+        )}
 
         {signal.rejection_reason && (
           <div className="bg-red-500/5 border border-red-500/20 rounded-lg p-2">

@@ -452,6 +452,9 @@ export interface SignalLogItem {
   btc_price_at_resolution: number | null;
   time_to_resolution_ms: number | null;
   rejection_reason: string | null;
+  // Signal-time context (Phase 18)
+  regime_at_signal: string | null;
+  btc_price_at_signal: number | null;
 }
 
 export interface SignalLogSummary {

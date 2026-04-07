@@ -46,6 +46,10 @@ class SignalLog(SQLModel, table=True):
     btc_price_at_resolution: Optional[float] = Field(default=None) # BTC price when resolved
     time_to_resolution_ms: Optional[int] = Field(default=None, sa_type=BigInteger)  # resolved_at - fired_at
 
+    # Entry-time context (populated when row is inserted) — Phase 18
+    regime_at_signal: Optional[str] = Field(default=None)
+    btc_price_at_signal: Optional[float] = Field(default=None)
+
     # Rejection tracking (populated when outcome = REJECTED)
     rejection_reason: Optional[str] = Field(default=None)  # e.g. "low_conviction", "exposure_cap", "stablecoin_vol_gate"
 
