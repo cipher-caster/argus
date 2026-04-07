@@ -117,7 +117,7 @@ PostgreSQL (historical) ← Routes/Services → Frontend
 
 7. **Jobs** (`app/jobs/*.py`):
    - Background worker jobs beyond cache sync
-   - `signal_log.py`: Scans watchlist at 4H candle close, logs signals to DB, resolves outcomes every 30 min
+   - `signal_log.py`: Scans watchlist at 4H candle close (`live` source), also runs `log_best_setups` over top-100 coins every 5 min (`scanner` source); logs signals to DB and resolves outcomes every 30 min
 
 8. **Storage** (`app/storage.py`):
    - PostgreSQL and Redis connection pooling (single file)

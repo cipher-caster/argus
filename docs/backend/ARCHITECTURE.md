@@ -126,7 +126,7 @@ There are three `source` values in the `signal_log` table. They serve different 
 
 **`scanner` (Signal Log → Scanner tab)**
 - Reads the `best-setups` Redis cache (pre-warmed every 5 min by `sync_analytics_cache`).
-- Logs signals from all top-50 coins for scouting — even non-watchlist coins appear in Signal Log.
+- Logs signals from all top-100 coins for scouting — even non-watchlist coins appear in Signal Log.
 - **Trading gate**: `execute_signals` filters to watchlist-only before passing to the orchestrator. Non-watchlist scanner signals are tracked for outcome learning but never traded.
 - Conviction threshold: configurable (default 50).
 

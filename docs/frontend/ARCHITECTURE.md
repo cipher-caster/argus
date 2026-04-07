@@ -43,6 +43,9 @@ frontend/src/
 │   │   └── page.tsx       # Best Setups, Signal Log, Backtest Performance
 │   ├── chart/             # Chart viewer
 │   │   └── [symbol]/      # Dynamic routes (BTC-USDT)
+│   ├── markets/           # Markets pages by category
+│   │   └── [type]/        # gainers/losers/volume/etc
+│   ├── trading/           # Paper trading dashboard
 │   └── layout.tsx         # Root layout
 ├── components/            # React components
 │   ├── analytics/         # Analytics-specific components
