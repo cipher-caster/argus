@@ -7,7 +7,7 @@ description: Provides real-time cryptocurrency market analysis and signal report
 
 ## Overview
 
-This skill transforms Gemini CLI into a specialized crypto market analyst using the Argus analytics platform. It can fetch live data from the local Argus API and generate structured intelligence reports.
+This skill turns the assistant into a specialized crypto market analyst using the Argus analytics platform. It can fetch live data from the local Argus API and generate structured intelligence reports.
 
 ## Core Workflows
 
