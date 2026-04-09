@@ -501,6 +501,7 @@ from arq.connections import RedisSettings
 import os
 from urllib.parse import urlparse
 from app.jobs.signal_log import log_watchlist_setups, log_best_setups, resolve_signal_outcomes, log_contrarian_signals
+from app.jobs.snapshot import snapshot_signal_outcomes
 from app.trading.orchestrator import TradeOrchestrator, get_trading_config, _get_prices
 
 _trade_orchestrator = TradeOrchestrator()
@@ -690,7 +691,7 @@ class WorkerSettings:
         sync_market_summary, sync_market_snapshot, sync_analytics_cache,
         log_watchlist_setups, log_best_setups, resolve_signal_outcomes,
         execute_signals, manage_positions, sync_trading_balance,
-        log_contrarian_signals, backfill_okx_candles,
+        log_contrarian_signals, backfill_okx_candles, snapshot_signal_outcomes,
     ]
     on_startup = startup
     on_shutdown = shutdown
@@ -722,6 +723,7 @@ class WorkerSettings:
         cron(manage_positions, minute={0, 5, 10, 15, 20, 25, 30, 35, 40, 45, 50, 55}),  # Check fills/TP/SL every 5min
         cron(sync_trading_balance, minute={1, 11, 21, 31, 41, 51}),  # Cache balance every 10min
         cron(backfill_okx_candles, minute={0, 30}),  # OKX candle backfill every 30 min
+        cron(snapshot_signal_outcomes, hour={0}, minute={5}),  # Daily outcome snapshot at 00:05 UTC
     ]
 
 if __name__ == "__main__":

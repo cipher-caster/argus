@@ -725,6 +725,44 @@ export async function fetchActivityLog(limit = 30, offset = 0, eventType?: strin
 
 // --- End Trading API ---
 
+// --- Signal Outcome Trend Types ---
+
+export interface SignalOutcomeTrendPoint {
+  date: string; // "2026-04-08"
+  win_rate: number | null;
+  wins: number;
+  losses: number;
+  total_resolved: number;
+}
+
+export interface SignalOutcomeTrendResponse {
+  trend: SignalOutcomeTrendPoint[];
+  regime_breakdown: Record<string, number>; // { "BULL": 68.0, "BEAR": 45.0 }
+  conviction_breakdown: Record<string, number>; // { "75+": 71.0, "65-74": 58.0, "55-64": 42.0 }
+}
+
+/**
+ * Fetch signal outcome win-rate trend with optional filters
+ */
+export async function fetchSignalOutcomeTrend(params?: {
+  days?: number;
+  regime?: string;
+  conviction_band?: string;
+  source?: string;
+  coin?: string;
+}): Promise<SignalOutcomeTrendResponse> {
+  const qs = new URLSearchParams();
+  if (params?.days !== undefined) qs.set("days", params.days.toString());
+  if (params?.regime) qs.set("regime", params.regime);
+  if (params?.conviction_band) qs.set("conviction_band", params.conviction_band);
+  if (params?.source) qs.set("source", params.source);
+  if (params?.coin) qs.set("coin", params.coin);
+  const query = qs.toString();
+  return apiFetch<SignalOutcomeTrendResponse>(
+    `${API_URL}/api/analytics/signal-outcomes/trend${query ? `?${query}` : ""}`
+  );
+}
+
 export async function fetchOracleStrategy(symbol: string, micro_tf: string = "1h", macro_tf: string = "1d"): Promise<OracleStrategyResponse> {
   const params = new URLSearchParams({
     micro_tf,

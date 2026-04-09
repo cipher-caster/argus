@@ -64,6 +64,7 @@ class Database:
         # Ensure models are imported so metadata is populated
         from app.schemas.candle import Candle
         from app.schemas.signal_log import SignalLog
+        from app.schemas.snapshot import SignalOutcomeSnapshot  # noqa: F401
         from app.schemas.trading import Position, TradeEvent  # noqa: F401
         from app.schemas.optimization import OptimizationExperiment  # noqa: F401
         from app.schemas.activity_log import ActivityLog  # noqa: F401

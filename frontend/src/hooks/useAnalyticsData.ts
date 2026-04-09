@@ -5,7 +5,7 @@
  * Optimized with stale-while-revalidate for better UX
  */
 
-import { fetchAnalyticsSymbols, fetchBacktestStats, fetchBestSetups, fetchMeanReversion, fetchOracleScreener, fetchOracleSignalSummary, fetchSignalLog, fetchSignalLogConfig, fetchTitanRadar, updateSignalLogConfig, fetchRegime, fetchProviderComparison, SignalLogConfig } from "@/lib/api";
+import { fetchAnalyticsSymbols, fetchBacktestStats, fetchBestSetups, fetchMeanReversion, fetchOracleScreener, fetchOracleSignalSummary, fetchSignalLog, fetchSignalLogConfig, fetchTitanRadar, updateSignalLogConfig, fetchRegime, fetchProviderComparison, fetchSignalOutcomeTrend, SignalLogConfig } from "@/lib/api";
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 /**
@@ -122,6 +122,23 @@ export function useProviderComparison() {
     staleTime: 10 * 60_000,
     gcTime: 15 * 60_000,
     refetchOnWindowFocus: false,
+  });
+}
+
+export function useSignalOutcomeTrend(params?: {
+  days?: number;
+  regime?: string;
+  conviction_band?: string;
+  source?: string;
+  coin?: string;
+}) {
+  return useQuery({
+    queryKey: ["analytics", "signal-outcomes-trend", params],
+    queryFn: () => fetchSignalOutcomeTrend(params),
+    staleTime: 60 * 60 * 1000, // 1 hour — matches backend 1hr cache
+    gcTime: 5 * 60 * 1000,
+    refetchOnWindowFocus: false,
+    placeholderData: keepPreviousData,
   });
 }
 

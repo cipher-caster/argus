@@ -1,7 +1,7 @@
 "use client";
 
 import { cn } from "@/lib/utils";
-import { History, Info, Sparkles } from "lucide-react";
+import { History, Info, Sparkles, TrendingUp as TrendingUpIcon } from "lucide-react";
 import dynamic from "next/dynamic";
 import { useState } from "react";
 
@@ -13,11 +13,16 @@ const SignalLog = dynamic(() => import("@/components/analytics").then((mod) => (
   loading: () => <div className="h-[400px] flex items-center justify-center text-muted-foreground">Loading Signal Log…</div>,
 });
 
-type ChartType = "best-setups" | "signal-log";
+const WinRateTrend = dynamic(() => import("@/components/analytics").then((mod) => ({ default: mod.WinRateTrend })), {
+  loading: () => <div className="h-[400px] flex items-center justify-center text-muted-foreground">Loading Win Rate Trend…</div>,
+});
+
+type ChartType = "best-setups" | "signal-log" | "win-rate-trend";
 
 const MENU_ITEMS: { id: ChartType; label: string; icon: React.ElementType }[] = [
   { id: "best-setups", label: "Best Setups", icon: Sparkles },
   { id: "signal-log", label: "Signal Log", icon: History },
+  { id: "win-rate-trend", label: "Win Rate Trend", icon: TrendingUpIcon },
 ];
 
 const CHART_INFO: Record<ChartType, { title: string; description: string | string[] }> = {
@@ -33,6 +38,16 @@ const CHART_INFO: Record<ChartType, { title: string; description: string | strin
       "Backtest — historical replay.",
       "Resolves as WIN, LOSS, REVIEW (7d), or REJECTED.",
       "Shows fired/resolved timestamps, regime changes, and BTC price at resolution.",
+    ],
+  },
+  "win-rate-trend": {
+    title: "Win Rate Trend",
+    description: [
+      "Daily win-rate snapshots captured at 00:05 UTC.",
+      "Overall line shows all resolved signals across each day.",
+      "Breakdown lines show aggregate win-rate per regime, conviction band, or source.",
+      "Dashed 50% baseline marks breakeven threshold.",
+      "7-day trend compares the last week average vs the prior week.",
     ],
   },
 };
@@ -127,6 +142,7 @@ export default function AnalyticsPage() {
           <div className="p-6 md:p-8">
             {activeTab === "best-setups" && <BestSetups timeframe={timeframe} />}
             {activeTab === "signal-log" && <SignalLog />}
+            {activeTab === "win-rate-trend" && <WinRateTrend />}
           </div>
         </div>
       </div>
