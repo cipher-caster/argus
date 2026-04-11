@@ -7,7 +7,7 @@ import { SignalLogItem, SignalLogConfig } from "@/lib/api";
 import { formatPriceCompact, formatDateTime, formatPercentageChange, timeAgo } from "@/lib/formatters";
 import { OUTCOME_CONFIG } from "@/lib/outcomeConfig";
 import { cn } from "@/lib/utils";
-import { RefreshCw, Settings2, Save, Check, ChevronDown, Activity, AlertTriangle } from "lucide-react";
+import { RefreshCw, Settings2, Save, Check, ChevronDown } from "lucide-react";
 import { SignalDetailModal } from "./SignalDetailModal";
 
 const SYMBOLS = ["All", "BTC", "ETH", "BNB", "TRX", "XRP", "FET", "NEAR", "ARB", "ATOM", "DOGE", "APT"];
@@ -354,6 +354,15 @@ export function SignalLog() {
           ))}
         </div>
         <div className="flex items-center gap-3">
+          {activeSource === "Live" && scanStatus?.available && scanStatus.timestamp_ms != null && (
+            <span className="text-[11px] text-muted-foreground hidden sm:inline">
+              Scanned {timeAgo(scanStatus.timestamp_ms)}
+              {(scanStatus.skipped_regime ?? 0) > 0 && (
+                <> · <span className="text-amber-500/80">{scanStatus.skipped_regime} blocked</span></>
+              )}
+              {" · "}next {formatCountdown(getNextScanMs())}
+            </span>
+          )}
           <button
             onClick={() => setShowSettings(!showSettings)}
             className={cn(
@@ -383,65 +392,6 @@ export function SignalLog() {
           isSaving={updateConfig.isPending}
           saved={saved}
         />
-      )}
-
-      {/* Live scan status bar */}
-      {scanStatus?.available && scanStatus.timestamp_ms != null && (
-        <div className="flex items-center gap-3 px-3 py-2 rounded-xl bg-secondary/30 border border-border/40 text-[11px] font-bold text-muted-foreground">
-          <Activity size={11} className="shrink-0 text-sky-500" />
-          <span className="shrink-0">
-            Last watchlist scan:{" "}
-            <span className="text-foreground">{timeAgo(scanStatus.timestamp_ms)}</span>
-          </span>
-          <span className="text-border/80">·</span>
-          <span className={cn("shrink-0", (scanStatus.fired ?? 0) > 0 ? "text-emerald-500" : "text-muted-foreground")}>
-            {scanStatus.fired ?? 0} fired
-          </span>
-          {(scanStatus.skipped_regime ?? 0) > 0 && (
-            <>
-              <span className="text-border/80">·</span>
-              <span className="shrink-0 text-amber-500/80">
-                {scanStatus.skipped_regime} blocked ({scanStatus.regime} filter)
-              </span>
-            </>
-          )}
-          {(scanStatus.skipped_no_signal ?? 0) > 0 && (
-            <>
-              <span className="text-border/80">·</span>
-              <span className="shrink-0">{scanStatus.skipped_no_signal} no signal</span>
-            </>
-          )}
-          <span className="ml-auto shrink-0">
-            Next: <span className="text-foreground">{formatCountdown(getNextScanMs())}</span>
-          </span>
-        </div>
-      )}
-
-      {/* Regime filter banner — shown when viewing Live source with no results */}
-      {activeSource === "Live" && !isLoading && data?.data.length === 0 && regime?.regime && (
-        <div className={cn(
-          "flex items-start gap-3 px-4 py-3 rounded-xl border text-sm",
-          regime.regime === "BEAR"
-            ? "bg-red-500/5 border-red-500/20 text-red-400"
-            : "bg-green-500/5 border-green-500/20 text-green-400"
-        )}>
-          <AlertTriangle size={14} className="shrink-0 mt-0.5" />
-          <div className="space-y-1">
-            <p className="font-black text-[11px] uppercase tracking-widest">
-              {regime.regime} Regime — Watchlist Signals Filtered
-            </p>
-            <p className="text-[11px] text-muted-foreground">
-              {regime.regime === "BEAR"
-                ? "All watchlist coins are producing long signals (bouncing), but BEAR regime blocks longs. Live signals resume when a watchlist coin generates a SHORT, or when BTC closes above EMA50."
-                : "All watchlist coins are producing short signals, but BULL regime blocks shorts. Live signals resume when a watchlist coin generates a LONG, or when BTC closes below EMA50."}
-            </p>
-            {scanStatus?.available && (scanStatus.skipped_regime ?? 0) > 0 && (
-              <p className="text-[10px] text-muted-foreground">
-                Last scan: {scanStatus.skipped_regime} signal{scanStatus.skipped_regime !== 1 ? "s" : ""} blocked · {scanStatus.skipped_no_signal ?? 0} coins had no qualifying signal
-              </p>
-            )}
-          </div>
-        </div>
       )}
 
       {/* Summary bar */}
@@ -478,8 +428,27 @@ export function SignalLog() {
         <div className="h-48 flex items-center justify-center text-red-500 text-sm">Failed to load signal log.</div>
       ) : !data?.data.length ? (
         <div className="h-48 flex flex-col items-center justify-center text-muted-foreground text-sm gap-2">
-          <span className="text-3xl">📭</span>
-          <span>No signals logged yet. The worker logs setups at 4H candle closes.</span>
+          {activeSource === "Live" && regime?.regime && (scanStatus?.skipped_regime ?? 0) > 0 ? (
+            <>
+              <span className="font-medium text-foreground">
+                {regime.regime} regime — watchlist {regime.regime === "BEAR" ? "longs" : "shorts"} blocked
+              </span>
+              <span className="text-xs text-center max-w-sm">
+                Live signals resume when a watchlist coin generates a {regime.regime === "BEAR" ? "SHORT" : "LONG"},
+                or BTC flips the weekly EMA50 ({regime.regime === "BEAR" ? "closes above" : "closes below"} ${regime.ema50?.toLocaleString()}).
+              </span>
+              {scanStatus?.timestamp_ms != null && (
+                <span className="text-xs text-muted-foreground/60">
+                  Last scan {timeAgo(scanStatus.timestamp_ms)} · {scanStatus.skipped_regime} blocked · next {formatCountdown(getNextScanMs())}
+                </span>
+              )}
+            </>
+          ) : (
+            <>
+              <span className="text-3xl">📭</span>
+              <span>No signals logged yet. The worker logs setups at 4H candle closes.</span>
+            </>
+          )}
         </div>
       ) : (
         <div className="overflow-x-auto rounded-2xl border border-border/40">
