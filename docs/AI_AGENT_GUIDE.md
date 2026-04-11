@@ -118,6 +118,7 @@ PostgreSQL (historical) ← Routes/Services → Frontend
 7. **Jobs** (`app/jobs/*.py`):
    - Background worker jobs beyond cache sync
    - `signal_log.py`: Scans watchlist at 4H candle close (`live` source), also runs `log_best_setups` over top-100 coins every 5 min (`scanner` source); logs signals to DB and resolves outcomes every 30 min
+   - `snapshot.py`: `snapshot_signal_outcomes()` runs daily at 00:05 UTC; aggregates all resolved `signal_log` rows into `signal_outcome_snapshot` daily rows sliced by regime, conviction band, source, and coin. Accepts optional `snapshot_date` param for backfill. Idempotent.
 
 8. **Storage** (`app/storage.py`):
    - PostgreSQL and Redis connection pooling (single file)
@@ -391,6 +392,15 @@ npm run build
 ---
 
 ## 📊 Recent Improvements
+
+### v1.1.0 — Phase 19: Daily Win-Rate Snapshot System (2026-04-11)
+
+- **`signal_outcome_snapshot` table** — daily snapshots of win-rate stats sliced by regime, conviction band, source, and coin. Schema: `backend/app/schemas/snapshot.py`.
+- **`snapshot_signal_outcomes` job** — daily cron at 00:05 UTC (`backend/app/jobs/snapshot.py`). Accepts optional `snapshot_date` for targeted backfill. Idempotent via sentinel row check.
+- **Worker startup backfill** — on restart, checks last 7 days for missing snapshots and backfills gaps automatically (non-fatal).
+- **`regime_at_signal` + `btc_price_at_signal` on `SignalLog`** — entry-time regime and BTC price captured when each signal fires (previously only resolution-time context was stored).
+- **`GET /api/analytics/signal-outcomes/trend`** — time-series win-rate endpoint with `days`, `regime`, `conviction_band`, `source`, `coin` filters. Returns `trend` array plus `regime_breakdown` and `conviction_breakdown` dicts. Cached 1 hour in Redis.
+- **`WinRateTrend` chart** — new "Win Rate Trend" tab on the Analytics page (`frontend/src/components/analytics/WinRateTrend.tsx`).
 
 ### v0.9.12 — Signal Log Config, 4H Screener Fix & ActiveSignals Widget (2026-03-30)
 

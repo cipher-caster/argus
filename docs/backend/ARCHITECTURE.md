@@ -79,7 +79,7 @@ graph TD
 | `market.py` | `/api/market` | Tickers, OHLCV candles, market summary |
 | `indicators.py` | `/api/indicators` | Technical indicator endpoints |
 | `strategy.py` | `/api/strategy` | Titan signal + regime detection endpoints (Oracle deprecated from UI) |
-| `analytics.py` | `/api/analytics` | Screener, signal log, best setups; `GET /signal-log/config` + `PUT /signal-log/config` for live config management |
+| `analytics.py` | `/api/analytics` | Screener, signal log, best setups; `GET /signal-log/config` + `PUT /signal-log/config` for live config management; `GET /signal-outcomes/trend` for daily win-rate time-series |
 | `trading.py` | `/api/trading` | Paper trading — positions, trade events, portfolio, config |
 | `optimization.py` | `/api/optimization`, `/api/trading/analysis` | Experiment log, best config, apply; live vs backtest recommendations |
 
@@ -99,8 +99,9 @@ All background jobs are registered with the arq worker (`backend/app/worker.py`)
 | `execute_signals` | Every 10min | Pick up unprocessed OPEN signals (live + scanner) and create PENDING paper trade positions via TradeOrchestrator. |
 | `manage_positions` | Every 5min | Check pending fills (price reached entry?), check TP/SL hits via candle walk, run circuit breaker. |
 | `sync_trading_balance` | Every 10min | Cache portfolio balance in Redis for quick API access. |
+| `snapshot_signal_outcomes` | Daily at 00:05 UTC | Aggregate all resolved `signal_log` rows into `signal_outcome_snapshot` daily rows, sliced by (regime, conviction_band, source, coin) with "ALL" rollup variants. Accepts optional `snapshot_date` for backfill; idempotent via grand-total sentinel row. |
 
-**On startup**, the worker also runs: initial signal scan, position recovery, missed candle close recovery (regime-based), and signal execution.
+**On startup**, the worker also runs: initial signal scan, position recovery, missed candle close recovery (regime-based), signal execution, and snapshot backfill (checks last 7 days; calls `snapshot_signal_outcomes` for each missing date; non-fatal).
 
 **Direction filtering**: Regime-based (BTC weekly EMA50). BEAR regime → SHORT signals only, BULL → LONG only, UNKNOWN → all. Configured via Redis key `signal_log:config` (readable/writable via `GET /api/analytics/signal-log/config` and `PUT /api/analytics/signal-log/config`; changes take effect on the next worker cycle without restart).
 
@@ -166,9 +167,10 @@ PENDING  →  OPEN  →  CLOSED
 
 | File | SQLModel table(s) | Key constraints |
 |------|-------------------|----------------|
-| `signal_log.py` | `SignalLog` | Partial unique index `uq_signal_log_open` on `(symbol, direction) WHERE outcome='OPEN'` — enforces one active signal per pair+direction |
+| `signal_log.py` | `SignalLog` | Partial unique index `uq_signal_log_open` on `(symbol, direction) WHERE outcome='OPEN'` — enforces one active signal per pair+direction. Phase 18 columns: `regime_at_resolution`, `btc_price_at_resolution`, `time_to_resolution_ms`. Phase 19 columns: `regime_at_signal` (BTC regime when the signal fires), `btc_price_at_signal` (BTC spot price at signal fire time). |
 | `trading.py` | `Position`, `TradeEvent` | `Position`: partial unique index `uq_position_active` on `(symbol, direction) WHERE status IN ('PENDING','OPEN')`. `TradeEvent.event_type` values: `CREATED`, `FILLED`, `TP_HIT`, `SL_HIT`, `CANCELLED`, `CIRCUIT_BREAKER`, `RISK_REJECTED` |
 | `optimization.py` | `OptimizationExperiment` | 23-field table — params tested (`sl_mult`, `tp_mult`, `tp_adaptive`, `min_titan_confidence`, gate flags, `min_conviction`) + result metrics (`win_rate`, `total_r`, `ev_per_trade`, `avg_rr`, `coin_results` JSON). `is_production=True` marks the active config. Current production: `tp_mult=2.0`, `tp_adaptive=False`, `sl_mult=1.5`. |
+| `snapshot.py` | `SignalOutcomeSnapshot` | Table `signal_outcome_snapshot`. Dimensions: `snapshot_date` (ISO date), `regime` (BULL/BEAR/ALL), `conviction_band` (55-64/65-74/75+/ALL), `source` (live/backtest/scanner/ALL), `coin` (symbol or NULL for aggregate). Metrics: `wins`, `losses`, `reviews`, `rejected`, `total_resolved`, `win_rate`, `avg_time_to_resolution_ms`. Two partial unique indexes: `uq_snapshot_aggregate` (coin IS NULL) and `uq_snapshot_per_coin` (coin IS NOT NULL). |
 
 ### `backend/scripts/`
 

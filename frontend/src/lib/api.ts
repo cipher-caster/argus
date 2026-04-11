@@ -247,45 +247,6 @@ export async function fetchRegime(timeframe: string = "4h"): Promise<RegimeData>
 
 // --- Strategy Types ---
 
-export interface OracleStrategyResponse {
-  symbol: string;
-  micro_tf: string;
-  macro_tf: string;
-  price: number;
-  signal: "STRONG_BUY" | "BUY" | "STRONG_SELL" | "SELL" | "NEUTRAL";
-  confidence: string;
-  bias: "BULLISH" | "BEARISH" | "NEUTRAL";
-  state: string;
-  volatility: string;
-  active_fvg_type?: "bullish" | "bearish" | null;
-  earnest: {
-    score: number;
-    voters: Record<string, number>;
-  };
-  macro: {
-    score: number;
-    bias: string;
-    details: Record<string, boolean>;
-  };
-  targets: {
-    tp1: number;
-    tp2: number;
-    sl: number;
-  };
-  advice: string;
-  historical_signals: Array<{
-    timestamp: number;
-    signal: string;
-    price: number;
-  }>;
-  performance: {
-    total_trades: number;
-    win_rate: number;
-    net_profit: number;
-  };
-  last_updated?: number;
-}
-
 export interface TitanStrategyResponse {
   symbol: string;
   timeframe: string;
@@ -374,21 +335,6 @@ export interface Experiment {
   is_production: boolean;
 }
 
-export interface TradeAnalysis {
-  total_trades: number;
-  win_rate: number;
-  total_r: number;
-  avg_rr: number;
-  [key: string]: unknown;
-}
-
-export interface Recommendation {
-  field: string;
-  current: unknown;
-  recommended: unknown;
-  reason: string;
-}
-
 export async function fetchExperiments(runId?: string, limit = 50): Promise<Experiment[]> {
   const params = new URLSearchParams({ limit: limit.toString() });
   if (runId) params.set("run_id", runId);
@@ -411,21 +357,6 @@ export async function applyExperiment(experimentId: number): Promise<{ status: s
   });
 }
 
-export async function fetchTradeAnalysis(): Promise<TradeAnalysis> {
-  return apiFetch<TradeAnalysis>(`${API_URL}/api/trading/analysis`);
-}
-
-export async function fetchTradeRecommendations(): Promise<Recommendation[]> {
-  return apiFetch<Recommendation[]>(`${API_URL}/api/trading/analysis/recommendations`);
-}
-
-export async function fetchTradeAnalysisReport(): Promise<{ report: string }> {
-  return apiFetch<{ report: string }>(`${API_URL}/api/trading/analysis/report`);
-}
-
-/**
- * Fetch Oracle Strategy analysis
- */
 export interface SignalLogItem {
   id: number;
   symbol: string;
@@ -775,13 +706,4 @@ export async function fetchSignalOutcomeTrend(params?: {
   return apiFetch<SignalOutcomeTrendResponse>(
     `${API_URL}/api/analytics/signal-outcomes/trend${query ? `?${query}` : ""}`
   );
-}
-
-export async function fetchOracleStrategy(symbol: string, micro_tf: string = "1h", macro_tf: string = "1d"): Promise<OracleStrategyResponse> {
-  const params = new URLSearchParams({
-    micro_tf,
-    macro_tf,
-  });
-
-  return apiFetch<OracleStrategyResponse>(`${API_URL}/api/strategy/oracle/${encodeURIComponent(symbol)}?${params}`);
 }

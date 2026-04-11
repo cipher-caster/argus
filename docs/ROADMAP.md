@@ -185,7 +185,7 @@
 
 ### Phase 19: Analytics Page Redesign — Trading Performance Intelligence
 - [x] Remove redundant "Backtest" tab — it's just SignalLog filtered to `source=backtest`, already covered by SignalLog's source filter ✓
-- [ ] Persist signal-outcomes snapshots (daily) — current `GET /api/analytics/signal-outcomes` computes on-the-fly. Need a periodic job (cron/daily) that snapshots win rate by regime, conviction band stats, rejection counts to a DB table so we can track trends over time (e.g. "win rate by regime last week vs this week") — see [PHASE19_PLAN.md](PHASE19_PLAN.md)
+- [x] Persist signal-outcomes snapshots (daily) — `snapshot_signal_outcomes` job runs daily at 00:05 UTC; writes `signal_outcome_snapshot` table sliced by regime, conviction band, source, and coin. Worker startup auto-backfills up to 7 days. `GET /api/analytics/signal-outcomes/trend` endpoint serves the time-series. `WinRateTrend` chart added as a new Analytics tab. ✓
 
 ### Phase 20: API Documentation & Swagger
 - [ ] Add FastAPI auto-generated Swagger/OpenAPI docs — already available at `/docs` but needs cleanup

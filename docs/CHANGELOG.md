@@ -2,6 +2,19 @@
 
 All notable changes to this project will be documented in this file.
 
+## [v1.1.0] - 2026-04-11 — Phase 19: Daily Win-Rate Snapshot System
+
+### Added
+
+- **`signal_outcome_snapshot` table** — new PostgreSQL table that stores daily win-rate snapshots sliced by `(snapshot_date, regime, conviction_band, source, coin)`. Both granular slices and "ALL" rollup rows are written each day, enabling trend queries across any filter combination. Schema: `backend/app/schemas/snapshot.py`, migration: `backend/migrate_v0_19_0.py`.
+- **`snapshot_signal_outcomes` worker job** — daily cron at **00:05 UTC** that aggregates all resolved `signal_log` rows (WIN/LOSS/REVIEW/REJECTED) into `signal_outcome_snapshot`. Idempotent: skips any date where the grand-total sentinel row already exists. Accepts an optional `snapshot_date` parameter for targeted backfill. Registered in `backend/app/worker.py`.
+- **Worker startup snapshot backfill** — on every worker restart, the startup hook checks the last 7 days for missing snapshot dates and calls `snapshot_signal_outcomes()` for each gap. Non-fatal: a backfill failure logs a warning and does not block startup.
+- **`regime_at_signal` and `btc_price_at_signal` columns on `signal_log`** — capture the active BTC regime and BTC spot price at the moment each signal is fired (entry-time context). Previously only resolution-time context (`regime_at_resolution`, `btc_price_at_resolution`) was persisted. The snapshot job uses `regime_at_signal` as the primary regime dimension.
+- **`GET /api/analytics/signal-outcomes/trend` endpoint** — returns a daily win-rate time-series from `signal_outcome_snapshot`. Query params: `days` (1–365, default 30), `regime`, `conviction_band`, `source`, `coin`. Also returns `regime_breakdown` and `conviction_breakdown` dicts aggregated across the window. Response cached in Redis for 1 hour.
+- **`WinRateTrend` chart component** — new Analytics tab ("Win Rate Trend") that renders the daily win-rate time-series as a line chart with regime and conviction breakdown summaries. Loaded lazily via `dynamic()`. Source: `frontend/src/components/analytics/WinRateTrend.tsx`.
+
+---
+
 ## [v1.0.0-alpha] - 2026-04-05 — Dashboard Polish & Error Handling
 
 ### Added
