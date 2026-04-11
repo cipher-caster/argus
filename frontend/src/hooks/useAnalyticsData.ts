@@ -5,7 +5,7 @@
  * Optimized with stale-while-revalidate for better UX
  */
 
-import { fetchAnalyticsSymbols, fetchBacktestStats, fetchBestSetups, fetchMeanReversion, fetchOracleScreener, fetchOracleSignalSummary, fetchSignalLog, fetchSignalLogConfig, fetchTitanRadar, updateSignalLogConfig, fetchRegime, fetchProviderComparison, fetchSignalOutcomeTrend, SignalLogConfig } from "@/lib/api";
+import { fetchAnalyticsSymbols, fetchBacktestStats, fetchBestSetups, fetchMeanReversion, fetchOracleScreener, fetchOracleSignalSummary, fetchSignalLog, fetchSignalLogConfig, fetchScanStatus, fetchTitanRadar, updateSignalLogConfig, fetchRegime, fetchProviderComparison, fetchSignalOutcomeTrend, SignalLogConfig } from "@/lib/api";
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 /**
@@ -91,6 +91,16 @@ export function useSignalLogConfig() {
     queryKey: ["signal-log-config"],
     queryFn: fetchSignalLogConfig,
     staleTime: 5 * 60_000,
+  });
+}
+
+export function useScanStatus() {
+  return useQuery({
+    queryKey: ["signal-log-scan-status"],
+    queryFn: fetchScanStatus,
+    staleTime: 60_000, // 1 min — scans run at 4H closes, but refresh on tab visit
+    gcTime: 10 * 60_000,
+    refetchOnWindowFocus: false,
   });
 }
 

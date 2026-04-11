@@ -2,12 +2,12 @@
 
 import { useState, useEffect } from "react";
 import Link from "next/link";
-import { useSignalLog, useSignalLogConfig, useUpdateSignalLogConfig } from "@/hooks/useAnalyticsData";
+import { useSignalLog, useSignalLogConfig, useUpdateSignalLogConfig, useScanStatus, useRegime } from "@/hooks/useAnalyticsData";
 import { SignalLogItem, SignalLogConfig } from "@/lib/api";
-import { formatPriceCompact, formatDateTime, formatPercentageChange } from "@/lib/formatters";
+import { formatPriceCompact, formatDateTime, formatPercentageChange, timeAgo } from "@/lib/formatters";
 import { OUTCOME_CONFIG } from "@/lib/outcomeConfig";
 import { cn } from "@/lib/utils";
-import { RefreshCw, Settings2, Save, Check, ChevronDown } from "lucide-react";
+import { RefreshCw, Settings2, Save, Check, ChevronDown, Activity, AlertTriangle } from "lucide-react";
 import { SignalDetailModal } from "./SignalDetailModal";
 
 const SYMBOLS = ["All", "BTC", "ETH", "BNB", "TRX", "XRP", "FET", "NEAR", "ARB", "ATOM", "DOGE", "APT"];
@@ -245,6 +245,28 @@ function SettingsPanel({ config, onSave, isSaving, saved }: {
 
 const PROVIDERS = ["All", "Binance", "OKX"];
 
+function getNextScanMs(): number {
+  const now = new Date();
+  const scanHours = [0, 4, 8, 12, 16, 20];
+  for (const h of scanHours) {
+    const candidate = Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate(), h, 3);
+    if (candidate > Date.now()) return candidate;
+  }
+  const tomorrow = new Date(now);
+  tomorrow.setUTCDate(tomorrow.getUTCDate() + 1);
+  return Date.UTC(tomorrow.getUTCFullYear(), tomorrow.getUTCMonth(), tomorrow.getUTCDate(), 0, 3);
+}
+
+function formatCountdown(ms: number): string {
+  const diff = ms - Date.now();
+  if (diff <= 0) return "soon";
+  const mins = Math.floor(diff / 60_000);
+  if (mins < 60) return `${mins}m`;
+  const hrs = Math.floor(mins / 60);
+  const rem = mins % 60;
+  return rem > 0 ? `${hrs}h ${rem}m` : `${hrs}h`;
+}
+
 export function SignalLog() {
   const PAGE_SIZE = 50;
   const [activeSymbol, setActiveSymbol] = useState("All");
@@ -256,6 +278,8 @@ export function SignalLog() {
   const [selectedSignal, setSelectedSignal] = useState<SignalLogItem | null>(null);
   const { data: config } = useSignalLogConfig();
   const updateConfig = useUpdateSignalLogConfig();
+  const { data: scanStatus } = useScanStatus();
+  const { data: regime } = useRegime("4h");
   const offset = (page - 1) * PAGE_SIZE;
   const { data, isLoading, isError, refetch, isFetching } = useSignalLog(
     activeSymbol === "All" ? undefined : activeSymbol,
@@ -359,6 +383,65 @@ export function SignalLog() {
           isSaving={updateConfig.isPending}
           saved={saved}
         />
+      )}
+
+      {/* Live scan status bar */}
+      {scanStatus?.available && scanStatus.timestamp_ms != null && (
+        <div className="flex items-center gap-3 px-3 py-2 rounded-xl bg-secondary/30 border border-border/40 text-[11px] font-bold text-muted-foreground">
+          <Activity size={11} className="shrink-0 text-sky-500" />
+          <span className="shrink-0">
+            Last watchlist scan:{" "}
+            <span className="text-foreground">{timeAgo(scanStatus.timestamp_ms)}</span>
+          </span>
+          <span className="text-border/80">·</span>
+          <span className={cn("shrink-0", (scanStatus.fired ?? 0) > 0 ? "text-emerald-500" : "text-muted-foreground")}>
+            {scanStatus.fired ?? 0} fired
+          </span>
+          {(scanStatus.skipped_regime ?? 0) > 0 && (
+            <>
+              <span className="text-border/80">·</span>
+              <span className="shrink-0 text-amber-500/80">
+                {scanStatus.skipped_regime} blocked ({scanStatus.regime} filter)
+              </span>
+            </>
+          )}
+          {(scanStatus.skipped_no_signal ?? 0) > 0 && (
+            <>
+              <span className="text-border/80">·</span>
+              <span className="shrink-0">{scanStatus.skipped_no_signal} no signal</span>
+            </>
+          )}
+          <span className="ml-auto shrink-0">
+            Next: <span className="text-foreground">{formatCountdown(getNextScanMs())}</span>
+          </span>
+        </div>
+      )}
+
+      {/* Regime filter banner — shown when viewing Live source with no results */}
+      {activeSource === "Live" && !isLoading && data?.data.length === 0 && regime?.regime && (
+        <div className={cn(
+          "flex items-start gap-3 px-4 py-3 rounded-xl border text-sm",
+          regime.regime === "BEAR"
+            ? "bg-red-500/5 border-red-500/20 text-red-400"
+            : "bg-green-500/5 border-green-500/20 text-green-400"
+        )}>
+          <AlertTriangle size={14} className="shrink-0 mt-0.5" />
+          <div className="space-y-1">
+            <p className="font-black text-[11px] uppercase tracking-widest">
+              {regime.regime} Regime — Watchlist Signals Filtered
+            </p>
+            <p className="text-[11px] text-muted-foreground">
+              {regime.regime === "BEAR"
+                ? "All watchlist coins are producing long signals (bouncing), but BEAR regime blocks longs. Live signals resume when a watchlist coin generates a SHORT, or when BTC closes above EMA50."
+                : "All watchlist coins are producing short signals, but BULL regime blocks shorts. Live signals resume when a watchlist coin generates a LONG, or when BTC closes below EMA50."}
+            </p>
+            {scanStatus?.available && (scanStatus.skipped_regime ?? 0) > 0 && (
+              <p className="text-[10px] text-muted-foreground">
+                Last scan: {scanStatus.skipped_regime} signal{scanStatus.skipped_regime !== 1 ? "s" : ""} blocked · {scanStatus.skipped_no_signal ?? 0} coins had no qualifying signal
+              </p>
+            )}
+          </div>
+        </div>
       )}
 
       {/* Summary bar */}

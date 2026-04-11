@@ -226,6 +226,8 @@ async def log_watchlist_setups(ctx):
 
     # Collect all qualified rows first
     rows_to_insert = []
+    skipped_regime = 0
+    skipped_no_signal = 0
 
     # Share one provider across all symbol fetches to avoid repeated exchangeInfo calls
     shared_provider = get_provider()
@@ -248,12 +250,14 @@ async def log_watchlist_setups(ctx):
                 is_long = t_signal in ("BUY", "BUY_LIMIT", "STRONG_BUY")
                 is_short = t_signal in ("SELL", "SELL_LIMIT", "STRONG_SELL")
                 if not (is_long or is_short) or t_confidence < config["min_titan_confidence"]:
+                    skipped_no_signal += 1
                     continue
 
                 # Regime-based direction filter: BEAR → shorts only, BULL → longs only
                 regime_aligned = (regime == "BULL" and is_long) or (regime == "BEAR" and is_short)
                 if regime != "UNKNOWN" and not regime_aligned:
                     logger.info(f"Signal log: SKIP {symbol} {t_signal} — counter-trend ({regime} regime)")
+                    skipped_regime += 1
                     continue
 
                 # Compute conviction (regime-based, not Oracle-based)
@@ -318,6 +322,18 @@ async def log_watchlist_setups(ctx):
             await session.commit()
 
     logger.info(f"Job: log_watchlist_setups complete — {logged} new signal(s) logged")
+
+    # Cache scan summary for UI status display
+    SCAN_STATUS_KEY = "signal:scan:last"
+    SCAN_STATUS_TTL = 6 * 3600  # 6 hours — covers gap between scans
+    await RedisClient.set_json(SCAN_STATUS_KEY, {
+        "timestamp_ms": now_ms,
+        "checked": len(config["watchlist"]),
+        "fired": logged,
+        "skipped_regime": skipped_regime,
+        "skipped_no_signal": skipped_no_signal,
+        "regime": regime,
+    }, ttl=SCAN_STATUS_TTL)
 
 
 # ---------------------------------------------------------------------------

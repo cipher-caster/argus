@@ -531,6 +531,15 @@ async def update_signal_log_config(config: SignalLogConfig):
     return config
 
 
+@router.get("/signal-log/scan-status")
+async def get_signal_log_scan_status():
+    """Return the result of the last log_watchlist_setups scan (cached in Redis)."""
+    data = await RedisClient.get_json("signal:scan:last")
+    if not data:
+        return {"available": False}
+    return {"available": True, **data}
+
+
 @router.get("/signal-log", response_model=SignalLogResponse)
 async def get_signal_log(symbol: Optional[str] = None, source: Optional[str] = None, provider: Optional[str] = None, limit: int = 50, offset: int = 0):
     """

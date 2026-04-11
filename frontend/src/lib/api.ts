@@ -488,6 +488,20 @@ export async function fetchSignalLogConfig(): Promise<SignalLogConfig> {
   return apiFetch<SignalLogConfig>(`${API_URL}/api/analytics/signal-log/config`);
 }
 
+export interface ScanStatus {
+  available: boolean;
+  timestamp_ms?: number;
+  checked?: number;
+  fired?: number;
+  skipped_regime?: number;
+  skipped_no_signal?: number;
+  regime?: string;
+}
+
+export async function fetchScanStatus(): Promise<ScanStatus> {
+  return apiFetch<ScanStatus>(`${API_URL}/api/analytics/signal-log/scan-status`);
+}
+
 export async function updateSignalLogConfig(config: SignalLogConfig): Promise<SignalLogConfig> {
   return apiFetch<SignalLogConfig>(`${API_URL}/api/analytics/signal-log/config`, {
     method: "PUT",
