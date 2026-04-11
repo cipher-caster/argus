@@ -29,7 +29,7 @@ def _conviction_band(conviction: int) -> str:
     return "55-64"
 
 
-async def snapshot_signal_outcomes(ctx):  # noqa: C901  (complexity acceptable for a batch job)
+async def snapshot_signal_outcomes(ctx, snapshot_date: str | None = None):  # noqa: C901  (complexity acceptable for a batch job)
     """
     Aggregate resolved SignalLog rows into SignalOutcomeSnapshot daily rows.
 
@@ -40,8 +40,13 @@ async def snapshot_signal_outcomes(ctx):  # noqa: C901  (complexity acceptable f
     Idempotency guard: checks for the grand-total sentinel row
     (regime=ALL, conviction_band=ALL, source=ALL, coin IS NULL) before doing
     any work.
+
+    Args:
+        snapshot_date: ISO date string (e.g. "2026-04-10") to backfill a specific
+            date. Defaults to today's UTC date.
     """
-    snapshot_date = datetime.utcnow().date().isoformat()
+    if snapshot_date is None:
+        snapshot_date = datetime.utcnow().date().isoformat()
 
     async with Database.get_session() as session:
         # ------------------------------------------------------------------

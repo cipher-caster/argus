@@ -202,6 +202,13 @@ async def startup(ctx):
     except Exception as e:
         logger.warning(f"Startup: position recovery failed (non-fatal): {e}")
 
+    # Schedule OKX backfill 10 minutes after startup (lets market data settle first)
+    try:
+        await ctx['redis'].enqueue_job('backfill_okx_candles', _defer_by=timedelta(minutes=10))
+        logger.info("Startup: OKX backfill scheduled for T+10min")
+    except Exception as e:
+        logger.warning(f"Startup: failed to schedule OKX backfill (non-fatal): {e}")
+
     # --- Startup Recovery ---
     try:
         r = RedisClient.get_instance()
@@ -259,6 +266,39 @@ async def startup(ctx):
 
     except Exception as e:
         logger.warning(f"Startup: recovery failed (non-fatal): {e}")
+
+    # Backfill any missed daily snapshots (last 7 days)
+    try:
+        from app.jobs.snapshot import snapshot_signal_outcomes
+        from sqlalchemy import select, distinct
+        from app.schemas.snapshot import SignalOutcomeSnapshot
+
+        async with Database.get_session() as session:
+            result = await session.execute(
+                select(distinct(SignalOutcomeSnapshot.snapshot_date))
+            )
+            existing_dates = {row[0] for row in result.fetchall()}
+
+        now_utc = datetime.now(timezone.utc).date()
+        missing_dates = []
+        for offset in range(7, 0, -1):  # oldest → newest
+            check_date = (now_utc - timedelta(days=offset)).isoformat()
+            if check_date not in existing_dates:
+                missing_dates.append(check_date)
+        # Always include today
+        today_str = now_utc.isoformat()
+        if today_str not in existing_dates:
+            missing_dates.append(today_str)
+
+        if missing_dates:
+            logger.info(f"Startup: backfilling {len(missing_dates)} missing snapshot date(s): {missing_dates}")
+            for date_str in missing_dates:
+                await snapshot_signal_outcomes(ctx, snapshot_date=date_str)
+        else:
+            logger.info("Startup: all recent snapshots present, no backfill needed")
+
+    except Exception as e:
+        logger.warning(f"Startup: snapshot backfill failed (non-fatal): {e}")
 
     # Execute any new signals (including recovered ones) into paper trades
     try:
@@ -722,7 +762,7 @@ class WorkerSettings:
         cron(execute_signals, minute={5, 15, 25, 35, 45, 55}),  # Execute signals every 10min
         cron(manage_positions, minute={0, 5, 10, 15, 20, 25, 30, 35, 40, 45, 50, 55}),  # Check fills/TP/SL every 5min
         cron(sync_trading_balance, minute={1, 11, 21, 31, 41, 51}),  # Cache balance every 10min
-        cron(backfill_okx_candles, minute={0, 30}),  # OKX candle backfill every 30 min
+        cron(backfill_okx_candles, hour={2}, minute={0}),  # OKX candle backfill daily at 02:00 UTC
         cron(snapshot_signal_outcomes, hour={0}, minute={5}),  # Daily outcome snapshot at 00:05 UTC
     ]
 
