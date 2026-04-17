@@ -267,39 +267,6 @@ async def startup(ctx):
     except Exception as e:
         logger.warning(f"Startup: recovery failed (non-fatal): {e}")
 
-    # Backfill any missed daily snapshots (last 7 days)
-    try:
-        from app.jobs.snapshot import snapshot_signal_outcomes
-        from sqlalchemy import select, distinct
-        from app.schemas.snapshot import SignalOutcomeSnapshot
-
-        async with Database.get_session() as session:
-            result = await session.execute(
-                select(distinct(SignalOutcomeSnapshot.snapshot_date))
-            )
-            existing_dates = {row[0] for row in result.fetchall()}
-
-        now_utc = datetime.now(timezone.utc).date()
-        missing_dates = []
-        for offset in range(7, 0, -1):  # oldest → newest
-            check_date = (now_utc - timedelta(days=offset)).isoformat()
-            if check_date not in existing_dates:
-                missing_dates.append(check_date)
-        # Always include today
-        today_str = now_utc.isoformat()
-        if today_str not in existing_dates:
-            missing_dates.append(today_str)
-
-        if missing_dates:
-            logger.info(f"Startup: backfilling {len(missing_dates)} missing snapshot date(s): {missing_dates}")
-            for date_str in missing_dates:
-                await snapshot_signal_outcomes(ctx, snapshot_date=date_str)
-        else:
-            logger.info("Startup: all recent snapshots present, no backfill needed")
-
-    except Exception as e:
-        logger.warning(f"Startup: snapshot backfill failed (non-fatal): {e}")
-
     # Execute any new signals (including recovered ones) into paper trades
     try:
         await execute_signals(ctx)
@@ -541,7 +508,6 @@ from arq.connections import RedisSettings
 import os
 from urllib.parse import urlparse
 from app.jobs.signal_log import log_watchlist_setups, log_best_setups, resolve_signal_outcomes, log_contrarian_signals
-from app.jobs.snapshot import snapshot_signal_outcomes
 from app.trading.orchestrator import TradeOrchestrator, get_trading_config, _get_prices
 
 _trade_orchestrator = TradeOrchestrator()
@@ -731,7 +697,7 @@ class WorkerSettings:
         sync_market_summary, sync_market_snapshot, sync_analytics_cache,
         log_watchlist_setups, log_best_setups, resolve_signal_outcomes,
         execute_signals, manage_positions, sync_trading_balance,
-        log_contrarian_signals, backfill_okx_candles, snapshot_signal_outcomes,
+        log_contrarian_signals, backfill_okx_candles,
     ]
     on_startup = startup
     on_shutdown = shutdown
@@ -763,7 +729,6 @@ class WorkerSettings:
         cron(manage_positions, minute={0, 5, 10, 15, 20, 25, 30, 35, 40, 45, 50, 55}),  # Check fills/TP/SL every 5min
         cron(sync_trading_balance, minute={1, 11, 21, 31, 41, 51}),  # Cache balance every 10min
         cron(backfill_okx_candles, hour={2}, minute={0}),  # OKX candle backfill daily at 02:00 UTC
-        cron(snapshot_signal_outcomes, hour={0}, minute={5}),  # Daily outcome snapshot at 00:05 UTC
     ]
 
 if __name__ == "__main__":
