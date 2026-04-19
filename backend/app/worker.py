@@ -41,7 +41,7 @@ async def get_active_provider():
     global _active_provider, _active_provider_name
     r = RedisClient.get_instance()
     config_name = await r.get("config:provider")
-    target = config_name or os.getenv("DATA_PROVIDER", "binance")
+    target = config_name or os.getenv("DATA_PROVIDER", "okx")
     if _active_provider_name != target:
         if _active_provider:
             await _active_provider.close()
@@ -311,48 +311,29 @@ async def sync_market_summary(ctx):
         global _provider_unavailable_until
 
         active = await get_active_provider()
-        in_backoff = active.name != "binance" and time.time() < _provider_unavailable_until
+        in_backoff = time.time() < _provider_unavailable_until
 
         if in_backoff:
-            # Primary provider is in cooldown — use Binance directly, no timeout wait
-            fallback = BinanceProvider()
-            try:
-                tickers = await _retry(
-                    lambda: fallback.get_all_tickers(),
-                    retries=3,
-                    delay=2.0,
-                    label="sync_market_summary:fallback:get_all_tickers",
-                )
-            finally:
-                await fallback.close()
-        else:
-            try:
-                tickers = await _retry(
-                    lambda: active.get_all_tickers(),
-                    retries=3,
-                    delay=2.0,
-                    label="sync_market_summary:get_all_tickers",
-                )
-                _provider_unavailable_until = 0  # clear backoff on success
-            except Exception as provider_err:
-                if active.name != "binance":
-                    _provider_unavailable_until = time.time() + _PROVIDER_BACKOFF_SECONDS
-                    logger.warning(
-                        f"Job: {active.name} unavailable ({provider_err}), "
-                        f"falling back to Binance for {_PROVIDER_BACKOFF_SECONDS // 60}m"
-                    )
-                    fallback = BinanceProvider()
-                    try:
-                        tickers = await _retry(
-                            lambda: fallback.get_all_tickers(),
-                            retries=3,
-                            delay=2.0,
-                            label="sync_market_summary:fallback:get_all_tickers",
-                        )
-                    finally:
-                        await fallback.close()
-                else:
-                    raise
+            logger.warning(
+                f"Job: {active.name} is in backoff until {_provider_unavailable_until:.0f} — skipping sync cycle"
+            )
+            return
+
+        try:
+            tickers = await _retry(
+                lambda: active.get_all_tickers(),
+                retries=3,
+                delay=2.0,
+                label="sync_market_summary:get_all_tickers",
+            )
+            _provider_unavailable_until = 0  # clear backoff on success
+        except Exception as provider_err:
+            _provider_unavailable_until = time.time() + _PROVIDER_BACKOFF_SECONDS
+            logger.warning(
+                f"Job: {active.name} unavailable ({provider_err}), "
+                f"skipping sync for {_PROVIDER_BACKOFF_SECONDS // 60}m"
+            )
+            return
         
         # Convert to list of MarketTicker objects (USDT pairs only)
         ticker_list = []
@@ -475,11 +456,7 @@ async def sync_analytics_cache(ctx):
     from app.routes.analytics import get_best_setups, get_oracle_signal_summary
 
     # Make get_provider() inside analytics functions use the effective provider.
-    effective = (
-        "binance"
-        if _active_provider_name != "binance" and time.time() < _provider_unavailable_until
-        else (_active_provider_name or os.getenv("DATA_PROVIDER", "binance"))
-    )
+    effective = _active_provider_name or os.getenv("DATA_PROVIDER", "okx")
     os.environ["DATA_PROVIDER"] = effective
     logger.info(f"Job: Pre-warming Analytics Cache (provider={effective})...")
 

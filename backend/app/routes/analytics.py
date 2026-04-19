@@ -57,27 +57,11 @@ async def get_supported_symbols(limit: int = 20):
 
 async def fetch_all_candles(symbols: List[str], timeframe: str = "1h", limit: int = 250):
     """Helper to fetch candles for multiple symbols concurrently, reusing provider"""
-    from app.providers.binance_provider import BinanceProvider
-
     provider = get_provider()
     # owns_provider() is True when we created a fresh instance (worker / test context)
     # and False when get_provider() returned the shared singleton (backend API context).
     # Only close the provider if we own it — never close the app-lifetime singleton.
     _should_close = owns_provider(provider)
-
-    # Probe non-Binance providers with a tight timeout before committing to a full
-    # batch fetch. OKX (and similar) can be geo-blocked, causing every gather() call
-    # to hang for the full CCXT timeout (~15s). A 4s probe detects this up-front
-    # so we fall back to Binance once instead of paying the penalty 9× per job.
-    if provider.name != "binance":
-        try:
-            await asyncio.wait_for(provider._ensure_loaded(), timeout=4.0)
-        except Exception:
-            if _should_close:
-                await provider.close()
-            logger.warning(f"{provider.name} unreachable for analytics, falling back to Binance")
-            provider = BinanceProvider()
-            _should_close = True  # we created this fallback instance
 
     try:
         async def _fetch_one(sym):

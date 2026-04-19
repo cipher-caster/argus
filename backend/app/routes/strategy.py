@@ -33,7 +33,7 @@ async def get_candles_df(symbol: str, timeframe: str, limit: int = 500, provider
     Fetches from DB first, then falls back to Binance if insufficient.
     """
     # 1. Try DB (filter by active provider to avoid duplicate timestamps)
-    active_provider = os.getenv("DATA_PROVIDER", "binance").lower() if provider is None else provider.name
+    active_provider = os.getenv("DATA_PROVIDER", "okx").lower() if provider is None else provider.name
     async with Database.get_session() as session:
         statement = select(DbCandle).where(
             DbCandle.symbol == symbol,
@@ -213,7 +213,7 @@ async def get_titan_strategy(
         # Add metadata
         result['symbol'] = symbol
         result['timeframe'] = timeframe
-        result['provider'] = provider_name or os.getenv("DATA_PROVIDER", "binance").lower()
+        result['provider'] = provider_name or os.getenv("DATA_PROVIDER", "okx").lower()
         result['price'] = df.iloc[-1]['close']
         result['last_updated'] = int(time.time() * 1000)
 

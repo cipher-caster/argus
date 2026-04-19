@@ -15,6 +15,7 @@ fit SOL's mean-reverting character on 4H.
 COUNTER_REGIME_ENABLED: bool = False
 import logging
 import math
+import os
 import time
 from datetime import datetime, timezone
 
@@ -898,7 +899,7 @@ async def log_contrarian_signals(ctx):
                 fired_reason=f"(contrarian) {rev['extension_atr']}x ATR extension",
                 fired_at=now_ms,
                 source="counter",
-                provider="binance",
+                provider=os.getenv("DATA_PROVIDER", "okx").lower(),
                 outcome="OPEN",
                 regime_at_signal=regime_cs,
                 btc_price_at_signal=btc_price_at_signal_cs,

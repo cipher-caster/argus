@@ -142,7 +142,7 @@ async def get_provider_info():
     import os
     r = RedisClient.get_instance()
     stored = await r.get("config:provider")
-    name = stored if stored else os.getenv("DATA_PROVIDER", "binance").lower()
+    name = stored if stored else os.getenv("DATA_PROVIDER", "okx").lower()
     return {"provider": name}
 
 
