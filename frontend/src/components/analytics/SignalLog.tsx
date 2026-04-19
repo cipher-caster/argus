@@ -19,6 +19,7 @@ function SignalRow({ item, onClick }: { item: SignalLogItem; onClick: () => void
   const cfg = OUTCOME_CONFIG[item.outcome] ?? OUTCOME_CONFIG.OPEN;
   const isLong = item.direction === "LONG";
   const base = item.symbol.replace("USDT", "");
+  const isLegacy = item.methodology_version === "v1";
 
   return (
     <tr className="border-b border-border/30 hover:bg-secondary/20 transition-colors text-[12px] cursor-pointer" onClick={onClick}>
@@ -39,6 +40,11 @@ function SignalRow({ item, onClick }: { item: SignalLogItem; onClick: () => void
         {item.source === "backtest" && item.provider && (
           <span className="ml-1 text-[10px] font-bold px-1.5 py-0.5 rounded bg-zinc-500/10 text-zinc-500">
             {item.provider}
+          </span>
+        )}
+        {isLegacy && (
+          <span className="ml-1 text-[10px] font-bold px-1.5 py-0.5 rounded bg-zinc-500/10 text-zinc-400 opacity-60" title="Legacy methodology (v1 — may contain lookahead bias)">
+            v1
           </span>
         )}
       </td>
@@ -272,6 +278,7 @@ export function SignalLog() {
   const [activeSymbol, setActiveSymbol] = useState("All");
   const [activeSource, setActiveSource] = useState("All");
   const [activeProvider, setActiveProvider] = useState("All");
+  const [includeLegacy, setIncludeLegacy] = useState(false);
   const [page, setPage] = useState(1);
   const [showSettings, setShowSettings] = useState(false);
   const [saved, setSaved] = useState(false);
@@ -286,7 +293,8 @@ export function SignalLog() {
     activeSource === "All" ? undefined : activeSource.toLowerCase(),
     PAGE_SIZE,
     offset,
-    activeProvider === "All" ? undefined : activeProvider.toLowerCase()
+    activeProvider === "All" ? undefined : activeProvider.toLowerCase(),
+    includeLegacy
   );
 
   const totalPages = data ? Math.ceil(data.total / PAGE_SIZE) : 1;
@@ -352,6 +360,21 @@ export function SignalLog() {
               {p}
             </button>
           ))}
+          <div className="w-px h-6 bg-border/50" />
+          <label className="flex items-center gap-1.5 cursor-pointer select-none" title="Include legacy (v1) rows — may contain lookahead bias, excluded from win-rate by default">
+            <div
+              className={cn(
+                "w-7 h-4 rounded-full transition-colors flex items-center px-0.5",
+                includeLegacy ? "bg-amber-500/70 justify-end" : "bg-secondary/80 justify-start"
+              )}
+              onClick={() => { setIncludeLegacy(v => !v); setPage(1); }}
+            >
+              <div className="w-3 h-3 rounded-full bg-white shadow-sm" />
+            </div>
+            <span className={cn("text-[11px] font-bold", includeLegacy ? "text-amber-500" : "text-muted-foreground")}>
+              Include legacy (v1)
+            </span>
+          </label>
         </div>
         <div className="flex items-center gap-3">
           {activeSource === "Live" && scanStatus?.available && scanStatus.timestamp_ms != null && (

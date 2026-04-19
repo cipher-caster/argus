@@ -75,10 +75,10 @@ export function useTitanRadar(limit: number = 50, timeframe: string = "4h") {
   });
 }
 
-export function useSignalLog(symbol?: string, source?: string, limit: number = 50, offset: number = 0, provider?: string) {
+export function useSignalLog(symbol?: string, source?: string, limit: number = 50, offset: number = 0, provider?: string, includeLegacy: boolean = false) {
   return useQuery({
-    queryKey: ["analytics", "signal-log", symbol, source, limit, offset, provider],
-    queryFn: () => fetchSignalLog(symbol, source, limit, offset, provider),
+    queryKey: ["analytics", "signal-log", symbol, source, limit, offset, provider, includeLegacy],
+    queryFn: () => fetchSignalLog(symbol, source, limit, offset, provider, includeLegacy),
     staleTime: 60_000, // 1 minute — resolution job runs hourly, logging every 5 min
     gcTime: 5 * 60_000,
     refetchOnWindowFocus: false,

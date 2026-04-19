@@ -5,19 +5,20 @@ import { useBacktestStats, useSignalLog, useProviderComparison } from "@/hooks/u
 import { CoinBacktestStats, SignalLogItem, ProviderStats } from "@/lib/api";
 import { formatPriceCompact, formatDateTime } from "@/lib/formatters";
 import { cn } from "@/lib/utils";
-import { BarChart3, ArrowUpDown, Trophy, Target, TrendingUp, TrendingDown, ChevronRight } from "lucide-react";
+import { BarChart3, ArrowUpDown, Trophy, Target, TrendingUp, TrendingDown, ChevronRight, HelpCircle } from "lucide-react";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
 type SortKey = "profit_r" | "win_rate" | "total";
 
 function SignalDetail({ symbol }: { symbol: string }) {
   const { data, isLoading } = useSignalLog(symbol, "backtest", 200);
 
-  if (isLoading) return <tr><td colSpan={7} className="py-4 text-center text-muted-foreground text-[11px]">Loading signals…</td></tr>;
-  if (!data?.data.length) return <tr><td colSpan={7} className="py-4 text-center text-muted-foreground text-[11px]">No backtest signals found.</td></tr>;
+  if (isLoading) return <tr><td colSpan={9} className="py-4 text-center text-muted-foreground text-[11px]">Loading signals…</td></tr>;
+  if (!data?.data.length) return <tr><td colSpan={9} className="py-4 text-center text-muted-foreground text-[11px]">No backtest signals found.</td></tr>;
 
   return (
     <tr>
-      <td colSpan={7} className="p-0">
+      <td colSpan={9} className="p-0">
         <div className="bg-secondary/20 border-t border-border/20 px-6 py-3">
           <div className="overflow-x-auto rounded-xl border border-border/30">
             <table className="w-full">
@@ -164,6 +165,26 @@ function CoinRow({ coin, rank, expanded, onToggle }: { coin: CoinBacktestStats; 
           {isProfitable ? "PROFITABLE" : isMarginal ? "MARGINAL" : "UNPROFITABLE"}
         </span>
       </td>
+      <td className="py-3.5 px-3">
+        {coin.sharpe != null ? (
+          <span className={cn("text-[12px] font-black",
+            coin.sharpe > 0.5 ? "text-emerald-500 dark:text-emerald-400" :
+            coin.sharpe > 0 ? "text-amber-500 dark:text-amber-400" : "text-red-500 dark:text-red-400"
+          )}>
+            {coin.sharpe.toFixed(2)}
+          </span>
+        ) : <span className="text-muted-foreground text-[11px]">—</span>}
+      </td>
+      <td className="py-3.5 px-3">
+        {coin.calmar != null ? (
+          <span className={cn("text-[12px] font-black",
+            coin.calmar > 1 ? "text-emerald-500 dark:text-emerald-400" :
+            coin.calmar > 0 ? "text-amber-500 dark:text-amber-400" : "text-red-500 dark:text-red-400"
+          )}>
+            {coin.calmar.toFixed(2)}
+          </span>
+        ) : <span className="text-muted-foreground text-[11px]">—</span>}
+      </td>
     </tr>
     {expanded && <SignalDetail symbol={coin.symbol} />}
     </>
@@ -217,7 +238,7 @@ function ProviderComparisonBanner({ binance, okx }: { binance: ProviderStats; ok
 }
 
 export function BacktestPerformance() {
-  const [provider, setProvider] = useState<"binance" | "okx">("binance");
+  const [provider, setProvider] = useState<"binance" | "okx">("okx");
   const { data, isLoading, isError } = useBacktestStats(provider);
   const { data: comparison } = useProviderComparison();
   const [sortBy, setSortBy] = useState<SortKey>("profit_r");
@@ -337,6 +358,34 @@ export function BacktestPerformance() {
                 <th className="py-3 px-3 text-left">W/L</th>
                 <th className="py-3 px-3 text-left">L/S Split</th>
                 <th className="py-3 px-3 text-left">Status</th>
+                <th className="py-3 px-3 text-left">
+                  <TooltipProvider>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <span className="flex items-center gap-1 cursor-default">
+                          Sharpe <HelpCircle size={10} className="text-muted-foreground/60" />
+                        </span>
+                      </TooltipTrigger>
+                      <TooltipContent side="top" className="max-w-[200px] text-[11px]">
+                        Per-trade Sharpe ratio: average R divided by its standard deviation. Higher is better; above 0.5 is strong.
+                      </TooltipContent>
+                    </Tooltip>
+                  </TooltipProvider>
+                </th>
+                <th className="py-3 px-3 text-left">
+                  <TooltipProvider>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <span className="flex items-center gap-1 cursor-default">
+                          Calmar <HelpCircle size={10} className="text-muted-foreground/60" />
+                        </span>
+                      </TooltipTrigger>
+                      <TooltipContent side="top" className="max-w-[200px] text-[11px]">
+                        Total R earned divided by the worst peak-to-trough drawdown in R. Higher is better; above 1 means returns outpaced the worst losing streak.
+                      </TooltipContent>
+                    </Tooltip>
+                  </TooltipProvider>
+                </th>
               </tr>
             </thead>
             <tbody>

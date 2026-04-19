@@ -386,6 +386,8 @@ export interface SignalLogItem {
   // Signal-time context (Phase 18)
   regime_at_signal: string | null;
   btc_price_at_signal: number | null;
+  // Methodology versioning (Change 4 — P0 bias correction)
+  methodology_version: string;
 }
 
 export interface SignalLogSummary {
@@ -441,11 +443,12 @@ export async function updateSignalLogConfig(config: SignalLogConfig): Promise<Si
   });
 }
 
-export async function fetchSignalLog(symbol?: string, source?: string, limit: number = 50, offset: number = 0, provider?: string): Promise<SignalLogResponse> {
+export async function fetchSignalLog(symbol?: string, source?: string, limit: number = 50, offset: number = 0, provider?: string, includeLegacy: boolean = false): Promise<SignalLogResponse> {
   const params = new URLSearchParams({ limit: limit.toString(), offset: offset.toString() });
   if (symbol) params.append("symbol", symbol);
   if (source) params.append("source", source);
   if (provider) params.append("provider", provider);
+  if (includeLegacy) params.append("include_legacy", "true");
   return apiFetch<SignalLogResponse>(`${API_URL}/api/analytics/signal-log?${params}`);
 }
 
@@ -463,6 +466,11 @@ export interface CoinBacktestStats {
   long_wr: number | null;
   short_wr: number | null;
   avg_conviction: number;
+  sharpe?: number | null;
+  calmar?: number | null;
+  return_std?: number | null;
+  sortino?: number | null;
+  max_drawdown_r?: number | null;
 }
 
 export interface BacktestStatsResponse {

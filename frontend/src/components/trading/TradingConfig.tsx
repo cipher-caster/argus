@@ -161,7 +161,7 @@ export function TradingConfigPanel() {
         <Field label="Max Leverage" name="max_leverage" value={local.max_leverage ?? 2} onChange={handleChange} min={1} max={10} step={0.5} hint="Notional size cap per trade (× balance)" />
         <Field label="Min Conviction" name="min_conviction" value={local.min_conviction ?? 65} onChange={handleChange} min={0} max={100} hint="Minimum signal conviction score" />
         <Field label="Order Expiry (hours)" name="order_expiry_hours" value={local.order_expiry_hours ?? 8} onChange={handleChange} min={1} max={48} hint="Cancel unfilled PENDING orders after this" />
-        <ProviderToggle value={local.trading_provider ?? "binance"} onChange={handleChange} />
+        <ProviderToggle value={local.trading_provider ?? "okx"} onChange={handleChange} />
       </div>
     </div>
   );

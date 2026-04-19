@@ -19,11 +19,11 @@ export default function ChartPage({ params }: ChartPageProps) {
   const symbol = params.symbol.replace("-", "/");
   const [timeframe, setTimeframe] = useState("4h");
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
-  const [chartProvider, setChartProvider] = useState<string>("binance");
+  const [chartProvider, setChartProvider] = useState<string>("okx");
   const scrollToLatestRef = useRef<(() => void) | null>(null);
 
   const { data: providersData } = useSymbolProviders(symbol);
-  const availableProviders = providersData?.providers ?? ["binance"];
+  const availableProviders = providersData?.providers ?? ["okx"];
 
   const { data: providerInfo } = useProviderInfo();
   const globalProvider = providerInfo?.provider ?? null;

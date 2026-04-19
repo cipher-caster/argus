@@ -48,7 +48,7 @@ export function useSymbolProviders(symbol: string) {
  */
 export function useOHLCV(symbol: string, timeframe: string = "1h", limit: number = 1000, provider?: string) {
   return useInfiniteQuery({
-    queryKey: ["ohlcv", symbol, timeframe, limit, provider ?? "binance"] as const,
+    queryKey: ["ohlcv", symbol, timeframe, limit, provider ?? "okx"] as const,
     queryFn: async ({ pageParam }) => {
       const result = await fetchOHLCV(symbol, timeframe, limit, pageParam, provider);
       return result;
