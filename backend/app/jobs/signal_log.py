@@ -294,6 +294,7 @@ async def log_watchlist_setups(ctx):
                     outcome="OPEN",
                     regime_at_signal=regime,
                     btc_price_at_signal=btc_price_at_signal,
+                    methodology_version="v2",
                 )
 
                 rows_to_insert.append(row)
@@ -439,6 +440,7 @@ async def log_best_setups(ctx):
                 outcome="OPEN",
                 regime_at_signal=regime_bs,
                 btc_price_at_signal=btc_price_at_signal_bs,
+                methodology_version="v2",
             )
 
             rows_to_insert.append(row)
@@ -903,6 +905,7 @@ async def log_contrarian_signals(ctx):
                 outcome="OPEN",
                 regime_at_signal=regime_cs,
                 btc_price_at_signal=btc_price_at_signal_cs,
+                methodology_version="v2",
             ))
 
     if rows_to_insert:

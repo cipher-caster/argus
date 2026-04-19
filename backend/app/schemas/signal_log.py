@@ -53,6 +53,9 @@ class SignalLog(SQLModel, table=True):
     # Rejection tracking (populated when outcome = REJECTED)
     rejection_reason: Optional[str] = Field(default=None)  # e.g. "low_conviction", "exposure_cap", "stablecoin_vol_gate"
 
+    # Methodology versioning — v1 = legacy (may have lookahead bias), v2 = current
+    methodology_version: str = Field(default="v2")
+
     __table_args__ = (
         # Partial unique index: only one OPEN signal per symbol+direction at a time
         Index(

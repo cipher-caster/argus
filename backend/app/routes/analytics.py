@@ -398,11 +398,12 @@ async def get_titan_radar(limit: int = 50, timeframe: str = Query(default="4h", 
 
 
 @router.get("/signal-log/stats")
-async def get_signal_log_stats(source: str = "backtest", provider: Optional[str] = None):
+async def get_signal_log_stats(source: str = "backtest", provider: Optional[str] = None, include_legacy: bool = False):
     """
     Return per-coin aggregated performance stats from signal log.
     Used by the Backtest Performance dashboard.
     Filter by provider='binance' or 'okx' when provided.
+    Set include_legacy=true to include v1 methodology signals.
     """
     from sqlalchemy import select as sa_select, func, case
     from app.schemas.signal_log import SignalLog
@@ -412,6 +413,8 @@ async def get_signal_log_stats(source: str = "backtest", provider: Optional[str]
         stmt = sa_select(SignalLog).where(SignalLog.source == source)
         if provider is not None:
             stmt = stmt.where(SignalLog.provider == provider)
+        if not include_legacy:
+            stmt = stmt.where(SignalLog.methodology_version != "v1")
         result = await session.execute(stmt)
         rows = result.scalars().all()
 
@@ -525,11 +528,12 @@ async def get_signal_log_scan_status():
 
 
 @router.get("/signal-log", response_model=SignalLogResponse)
-async def get_signal_log(symbol: Optional[str] = None, source: Optional[str] = None, provider: Optional[str] = None, limit: int = 50, offset: int = 0):
+async def get_signal_log(symbol: Optional[str] = None, source: Optional[str] = None, provider: Optional[str] = None, limit: int = 50, offset: int = 0, include_legacy: bool = False):
     """
     Returns logged swing signals for the watchlist (BTC/ETH/SOL/BNB).
     Each row captures what fired, when, and whether it resolved as WIN/LOSS/REVIEW/OPEN.
     Filter by source='live' or source='backtest'. Filter by provider='binance' or 'okx'.
+    Set include_legacy=true to include v1 methodology signals (may have lookahead bias).
     """
     from sqlalchemy import select as sa_select, desc, func as sa_func, case as sa_case
     from app.schemas.signal_log import SignalLog
@@ -547,6 +551,8 @@ async def get_signal_log(symbol: Optional[str] = None, source: Optional[str] = N
             base_where.append(SignalLog.source != "backtest")
         if provider:
             base_where.append(SignalLog.provider == provider)
+        if not include_legacy:
+            base_where.append(SignalLog.methodology_version != "v1")
 
         # Total count
         count_stmt = sa_select(sa_func.count()).select_from(SignalLog)

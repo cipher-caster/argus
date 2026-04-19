@@ -126,6 +126,7 @@ class SignalLogItem(BaseModel):
     # Entry-time context (Phase 18)
     regime_at_signal: Optional[str] = None
     btc_price_at_signal: Optional[float] = None
+    methodology_version: Optional[str] = None
 
 class SignalLogSummary(BaseModel):
     total: int
