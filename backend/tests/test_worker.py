@@ -24,7 +24,7 @@ async def test_sync_market_summary_success(mock_ctx):
     }
 
     mock_provider = mock_ctx['provider']
-    mock_provider.name = "binance"
+    mock_provider.name = "okx"
 
     with patch("app.worker.get_active_provider", new_callable=AsyncMock, return_value=mock_provider):
         with patch("app.worker.RedisClient.set_json", new_callable=AsyncMock) as mock_set_json:
@@ -45,20 +45,17 @@ async def test_sync_market_summary_success(mock_ctx):
 async def test_sync_market_summary_handles_provider_error(mock_ctx):
     """Test that the job gracefully handles errors from the provider after all retries."""
     mock_provider = AsyncMock()
-    mock_provider.name = "binance"
-    mock_provider.get_all_tickers.side_effect = Exception("Binance API down")
+    mock_provider.name = "okx"
+    mock_provider.get_all_tickers.side_effect = Exception("OKX API down")
 
     # Should not raise an exception or crash the worker
+    # New behavior: sets backoff and returns early (no Binance fallback)
     with patch("app.worker.get_active_provider", new_callable=AsyncMock, return_value=mock_provider):
         with patch("asyncio.sleep", new_callable=AsyncMock):
-            with patch("app.worker.logger.error") as mock_logger:
+            with patch("app.worker.logger.warning") as mock_logger:
                 await sync_market_summary(mock_ctx)
-                # _retry logs an error on final attempt, outer handler logs another
+                # After all retries fail, logs a warning and enters backoff
                 assert mock_logger.called
-                assert any(
-                    "Job Failed: sync_market_summary" in str(call)
-                    for call in mock_logger.call_args_list
-                )
 
 
 @pytest.mark.asyncio

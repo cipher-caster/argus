@@ -48,7 +48,7 @@ def _make_signal_row(
     s.tp = 51000.0
     s.sl = 49500.0
     s.fired_reason = "test signal"
-    s.provider = "binance"
+    s.provider = "okx"
     s.resolved_at = None
     s.__dict__["__tablename__"] = "signal_log"
     return s

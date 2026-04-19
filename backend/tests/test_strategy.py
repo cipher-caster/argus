@@ -90,26 +90,26 @@ async def test_get_titan_strategy_insufficient_data(async_client):
 
 
 @pytest.mark.asyncio
-async def test_get_candles_df_binance_fallback():
-    """Test the internal helper `get_candles_df` directly to ensure DB/Binance logic works."""
+async def test_get_candles_df_provider_fallback():
+    """Test the internal helper `get_candles_df` directly to ensure DB-empty → provider-fetch logic works."""
     from app.routes.strategy import get_candles_df
-    
+
     # SQLAlchemy session setup
     from unittest.mock import MagicMock
-    
+
     # The return of execute() is a synchronous result object
     result_mock = MagicMock()
     result_mock.scalars.return_value.all.return_value = []
-    
+
     # The session itself has an async execute() method
     session_mock = AsyncMock()
     session_mock.execute.return_value = result_mock
-    
+
     # get_session is an async context manager
     db_mock = AsyncMock()
     db_mock.__aenter__.return_value = session_mock
 
-    
+
     class FakeCandle:
         def __init__(self, ts):
             self.timestamp = ts
@@ -120,19 +120,19 @@ async def test_get_candles_df_binance_fallback():
             self.volume = 1000.0
 
     mock_fresh = [FakeCandle(1000), FakeCandle(2000)]
-    
-    binance_provider_mock = AsyncMock()
-    binance_provider_mock.get_ohlcv.return_value = mock_fresh
-    
+
+    provider_mock = AsyncMock()
+    provider_mock.get_ohlcv.return_value = mock_fresh
+
     with patch("app.routes.strategy.Database.get_session", return_value=db_mock):
-        df = await get_candles_df("AAVEUSDT", "1h", limit=50, provider=binance_provider_mock)
-    
+        df = await get_candles_df("AAVEUSDT", "1h", limit=50, provider=provider_mock)
+
     assert not df.empty
     assert len(df) == 2
     assert "timestamp" in df.columns
     assert df.iloc[-1]["close"] == 10.5
-    # Ensure Binance provider was called since DB was empty
-    binance_provider_mock.get_ohlcv.assert_called_once()
+    # Ensure provider was called since DB was empty
+    provider_mock.get_ohlcv.assert_called_once()
 
 
 @pytest.mark.asyncio

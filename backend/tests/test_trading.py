@@ -1144,9 +1144,9 @@ class TestOrchestratorCommitErrorHandling:
 
 class TestTradingProviderConfig:
 
-    def test_default_config_has_binance_provider(self):
+    def test_default_config_has_okx_provider(self):
         from app.trading.orchestrator import DEFAULT_TRADING_CONFIG
-        assert DEFAULT_TRADING_CONFIG["trading_provider"] == "binance"
+        assert DEFAULT_TRADING_CONFIG["trading_provider"] == "okx"
 
     def test_config_update_accepts_okx(self):
         from app.routes.trading import TradingConfigUpdate

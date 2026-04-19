@@ -391,7 +391,7 @@ class TestFetchAllCandlesConcurrency:
              patch("app.routes.analytics.get_provider") as mock_get_provider, \
              patch("app.routes.analytics.owns_provider", return_value=False):
             mock_provider = MagicMock()
-            mock_provider.name = "binance"
+            mock_provider.name = "okx"
             mock_get_provider.return_value = mock_provider
 
             await fetch_all_candles(symbols, timeframe="4h", limit=300)
