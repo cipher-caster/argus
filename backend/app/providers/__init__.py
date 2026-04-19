@@ -31,10 +31,10 @@ def get_provider() -> DataProvider:
     """
     if _shared is not None:
         return _shared
-    name = os.getenv("DATA_PROVIDER", "binance").lower()
-    if name == "okx":
-        return OKXProvider()
-    return BinanceProvider()
+    name = os.getenv("DATA_PROVIDER", "okx").lower()
+    if name == "binance":
+        return BinanceProvider()
+    return OKXProvider()
 
 
 __all__ = [

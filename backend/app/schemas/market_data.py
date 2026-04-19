@@ -12,7 +12,7 @@ class MarketTicker(BaseModel):
     market_cap: Optional[float] = None
     rank: Optional[int] = None
     name: Optional[str] = None
-    provider: str = "binance"
+    provider: str = "okx"
     
 class MarketSummary(BaseModel):
     gainers: List[MarketTicker] = []

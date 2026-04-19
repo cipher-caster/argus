@@ -6,7 +6,7 @@ class Candle(SQLModel, table=True):
     __tablename__ = "candles"
     
     symbol: str = Field(primary_key=True, index=True)
-    provider: str = Field(primary_key=True, default="binance")
+    provider: str = Field(primary_key=True, default="okx")
     timeframe: str = Field(primary_key=True)
     timestamp: int = Field(primary_key=True, sa_type=BigInteger)  # Epoch milliseconds
     

@@ -34,7 +34,7 @@ class SignalLog(SQLModel, table=True):
 
     # Source
     source: str = Field(default="live", index=True)  # "live" | "backtest" | "scanner"
-    provider: str = Field(default="binance")          # "binance" | "okx"
+    provider: str = Field(default="okx")              # "binance" | "okx"
 
     # Outcome
     outcome: str = Field(default="OPEN")       # "OPEN" | "WIN" | "LOSS" | "REVIEW" | "REJECTED"

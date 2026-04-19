@@ -34,7 +34,7 @@ class Position(SQLModel, table=True):
     market_state: str           # Market state at open
     market_state_at_close: Optional[str] = Field(default=None)  # Market state at close
     fired_reason: str
-    provider: str = Field(default="binance")
+    provider: str = Field(default="okx")
 
     # Timing
     created_at: int = Field(sa_type=BigInteger)

@@ -41,7 +41,7 @@ DEFAULT_TRADING_CONFIG = {
     "min_conviction": 50,
     "max_total_exposure_pct": 200.0,
     "order_expiry_hours": 16,
-    "trading_provider": "binance",
+    "trading_provider": "okx",
     "correlation_groups": {
         "btc_correlated": [
             "BTCUSDT", "ETHUSDT", "BNBUSDT",
@@ -171,7 +171,7 @@ class TradeOrchestrator:
                 market_state=signal.market_state,
                 fired_reason=signal.fired_reason,
                 created_at=now_ms,
-                provider=config.get("trading_provider", "binance"),
+                provider=config.get("trading_provider", "okx"),
             )
             session.add(position)
 
@@ -312,7 +312,7 @@ class TradeOrchestrator:
 
             candle_cache: dict[tuple[str, str], object] = {}
             for pos in open_positions:
-                pos_provider = getattr(pos, "provider", "binance") or "binance"
+                pos_provider = getattr(pos, "provider", "okx") or "okx"
                 cache_key = (pos.symbol, pos_provider)
                 if cache_key not in candle_cache:
                     provider_obj = _provider_instance(pos_provider)
@@ -323,7 +323,7 @@ class TradeOrchestrator:
                 if pos.actual_entry is None:
                     continue
 
-                pos_provider = getattr(pos, "provider", "binance") or "binance"
+                pos_provider = getattr(pos, "provider", "okx") or "okx"
                 df = candle_cache.get((pos.symbol, pos_provider))
                 if df is None or df.empty:
                     continue

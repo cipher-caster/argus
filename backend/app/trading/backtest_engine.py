@@ -45,7 +45,7 @@ DEFAULT_COINS = ["BTC", "ETH", "BNB", "TRX", "XRP", "FET", "NEAR", "ARB", "ATOM"
 @dataclass
 class BacktestConfig:
     symbols: list[str] = field(default_factory=lambda: list(DEFAULT_COINS))
-    provider: str = "binance"    # which exchange's candle data to use
+    provider: str = "okx"    # which exchange's candle data to use
     sl_mult: float = 1.5
     tp_mult: float = 2.0
     tp_adaptive: bool = False
@@ -75,7 +75,7 @@ class BacktestConfig:
 # Data loading
 # ---------------------------------------------------------------------------
 
-async def load_candles(symbol: str, timeframe: str, provider: str = "binance") -> pd.DataFrame:
+async def load_candles(symbol: str, timeframe: str, provider: str = "okx") -> pd.DataFrame:
     """Load candles from DB (filtered by provider) and return as DataFrame."""
     async with Database.get_session() as session:
         stmt = (
@@ -102,7 +102,7 @@ async def load_candles(symbol: str, timeframe: str, provider: str = "binance") -
     return df
 
 
-async def load_and_prepare_data(symbols: list[str], provider: str = "binance") -> dict:
+async def load_and_prepare_data(symbols: list[str], provider: str = "okx") -> dict:
     """
     Load all candle data and pre-compute BTC indicators in one shot.
     Returns a bundle dict:
