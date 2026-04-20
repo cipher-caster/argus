@@ -41,16 +41,17 @@ class BinanceProvider(DataProvider):
     ) -> List[Candle]:
         await self._ensure_loaded()
         
-        # Fetch OHLCV data from Binance
-        # 'since' parameter tells CCXT to fetch candles STARTING from this timestamp
+        # Request limit+1 so we can drop the still-forming candle at the tail
         ohlcv = await self._exchange.fetch_ohlcv(
-            symbol, 
-            timeframe=timeframe, 
-            limit=limit,
+            symbol,
+            timeframe=timeframe,
+            limit=limit + 1,
             since=since
         )
-        
-        # Convert to Candle objects
+
+        # Drop the last row — it is the currently-forming (incomplete) candle
+        ohlcv = ohlcv[:-1] if ohlcv else ohlcv
+
         candles = []
         for item in ohlcv:
             candles.append(Candle(
@@ -61,7 +62,7 @@ class BinanceProvider(DataProvider):
                 close=item[4],
                 volume=item[5]
             ))
-        
+
         return candles
     
     async def get_symbols(self) -> List[SymbolInfo]:

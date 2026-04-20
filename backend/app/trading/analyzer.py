@@ -138,18 +138,19 @@ class TradeAnalyzer:
         }
 
     @staticmethod
-    async def compare_backtest_vs_live() -> dict:
+    async def compare_backtest_vs_live(include_legacy: bool = False) -> dict:
         """
         Compare backtest WR (from SignalLog source=backtest) vs live WR
         (from Position table) per coin. Flags divergence > 15%.
         """
         async with Database.get_session() as session:
-            bt_result = await session.execute(
-                select(SignalLog).where(
-                    SignalLog.source == "backtest",
-                    SignalLog.outcome.in_(["WIN", "LOSS"]),
-                )
-            )
+            bt_where = [
+                SignalLog.source == "backtest",
+                SignalLog.outcome.in_(["WIN", "LOSS"]),
+            ]
+            if not include_legacy:
+                bt_where.append(SignalLog.methodology_version == "v2")
+            bt_result = await session.execute(select(SignalLog).where(*bt_where))
             bt_signals: list[SignalLog] = bt_result.scalars().all()
 
             live_result = await session.execute(

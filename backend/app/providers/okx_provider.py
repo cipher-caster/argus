@@ -42,12 +42,16 @@ class OKXProvider(DataProvider):
     ) -> List[Candle]:
         await self._ensure_loaded()
 
+        # Request limit+1 so we can drop the still-forming candle at the tail
         ohlcv = await self._exchange.fetch_ohlcv(
             symbol,
             timeframe=timeframe,
-            limit=limit,
+            limit=limit + 1,
             since=since
         )
+
+        # Drop the last row — it is the currently-forming (incomplete) candle
+        ohlcv = ohlcv[:-1] if ohlcv else ohlcv
 
         candles = []
         for item in ohlcv:

@@ -479,6 +479,7 @@ async def backtest_symbol(
             outcome=outcome,
             resolved_at=resolved_ts_ms,
             resolved_price=resolved_price,
+            methodology_version="v2",
         )
         signals.append(signal)
         active_signal = signal
