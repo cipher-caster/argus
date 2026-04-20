@@ -34,7 +34,7 @@ class TestGetConfig:
         custom = {"watchlist": ["BTCUSDT"], "min_titan_confidence": 70,
                   "review_days": 5, "block_sleeping": False,
                   "block_volatile": False, "macro_guard": False,
-                  "block_btc_sell": False}
+                  }
         mock_redis.get_json = AsyncMock(return_value=custom)
         result = await _get_config()
         assert result == custom
@@ -47,7 +47,7 @@ class TestGetConfig:
         result = await _get_config()
         assert result["watchlist"] == DEFAULT_WATCHLIST
         assert result["block_sleeping"] is True
-        assert result["block_btc_sell"] is True
+        assert result["macro_guard"] is True
 
     @pytest.mark.asyncio
     @patch("app.jobs.signal_log.RedisClient")
@@ -288,7 +288,7 @@ class TestLogBestSetups:
         mock_cfg.return_value = {"watchlist": [], "min_titan_confidence": 55,
                                  "review_days": 7, "block_sleeping": True,
                                  "block_volatile": True, "macro_guard": True,
-                                 "block_btc_sell": True}
+                                 }
 
         from app.jobs.signal_log import log_best_setups
         await log_best_setups(self._make_ctx())
@@ -310,7 +310,7 @@ class TestLogBestSetups:
         mock_cfg.return_value = {"watchlist": [], "min_titan_confidence": 55,
                                  "review_days": 7, "block_sleeping": True,
                                  "block_volatile": True, "macro_guard": True,
-                                 "block_btc_sell": True}
+                                 }
 
         from app.jobs.signal_log import log_best_setups
         await log_best_setups(self._make_ctx())
@@ -333,7 +333,7 @@ class TestLogBestSetups:
         mock_cfg.return_value = {"watchlist": [], "min_titan_confidence": 55,
                                  "review_days": 7, "block_sleeping": True,
                                  "block_volatile": True, "macro_guard": True,
-                                 "block_btc_sell": True}
+                                 }
 
         mock_session = AsyncMock()
         mock_db.get_session.return_value.__aenter__ = AsyncMock(return_value=mock_session)
@@ -361,7 +361,7 @@ class TestLogBestSetups:
         mock_cfg.return_value = {"watchlist": [], "min_titan_confidence": 55,
                                  "review_days": 7, "block_sleeping": True,
                                  "block_volatile": True, "macro_guard": True,
-                                 "block_btc_sell": True}
+                                 }
 
         mock_session = AsyncMock()
         mock_db.get_session.return_value.__aenter__ = AsyncMock(return_value=mock_session)

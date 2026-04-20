@@ -87,14 +87,13 @@ class SignalLogConfig(BaseModel):
     watchlist: List[str] = [
         "BTCUSDT", "ETHUSDT", "BNBUSDT",
         "TRXUSDT", "XRPUSDT", "FETUSDT", "NEARUSDT",
-        "ARBUSDT", "ATOMUSDT", "DOGEUSDT", "APTUSDT",
+        "ARBUSDT", "ATOMUSDT", "DOGEUSDT",
     ]
     min_titan_confidence: int = 55
     review_days: int = 7
     block_sleeping: bool = True
     block_volatile: bool = True
     macro_guard: bool = True
-    block_btc_sell: bool = True
 
 
 class SignalLogItem(BaseModel):

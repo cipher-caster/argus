@@ -8,6 +8,7 @@ REVIEW on max_hold expiry, and stats aggregation.
 import pandas as pd
 import pytest
 from app.trading.backtest_engine import resolve_outcome, compute_stats
+from app.utils.trading_utils import calculate_conviction
 
 
 # ---------------------------------------------------------------------------
@@ -191,3 +192,81 @@ class TestComputeStats:
         result = compute_stats(signals)
         assert result["total_r"] == pytest.approx(2.0, rel=0.01)
         assert result["avg_rr"] == pytest.approx(2.0, rel=0.01)
+
+
+# ---------------------------------------------------------------------------
+# A1: TestBacktestConviction — conviction formula unit tests
+# ---------------------------------------------------------------------------
+
+class TestBacktestConviction:
+    """Unit tests for the conviction formula used in backtest_symbol.
+
+    These tests call calculate_conviction() directly with the regime_aligned
+    logic introduced by the fix, verifying parity with the live signal_log
+    formula.
+    """
+
+    def test_regime_aligned_long_gets_bonus(self):
+        """BULLISH bias + is_long=True → regime_aligned=True → +20 bonus."""
+        btc_bias = "BULLISH"
+        is_long = True
+        regime_aligned = (btc_bias == "BULLISH" and is_long) or (btc_bias == "BEARISH" and not is_long)
+        conviction = calculate_conviction(
+            confidence=50,
+            regime_aligned=regime_aligned,
+            is_market_signal=False,  # LIMIT signal
+        )
+        # int((50/100)*60 + 20 + 0) = 50
+        assert conviction == 50
+
+    def test_regime_aligned_short_gets_bonus(self):
+        """BEARISH bias + is_short=True → regime_aligned=True → +20 bonus."""
+        btc_bias = "BEARISH"
+        is_short = True
+        regime_aligned = (btc_bias == "BULLISH" and not is_short) or (btc_bias == "BEARISH" and is_short)
+        conviction = calculate_conviction(
+            confidence=50,
+            regime_aligned=regime_aligned,
+            is_market_signal=False,  # LIMIT signal
+        )
+        # int((50/100)*60 + 20 + 0) = 50
+        assert conviction == 50
+
+    def test_regime_misaligned_no_bonus(self):
+        """BEARISH bias + is_long=True → regime_aligned=False → no bonus."""
+        btc_bias = "BEARISH"
+        is_long = True
+        regime_aligned = (btc_bias == "BULLISH" and is_long) or (btc_bias == "BEARISH" and not is_long)
+        conviction = calculate_conviction(
+            confidence=50,
+            regime_aligned=regime_aligned,
+            is_market_signal=False,  # LIMIT signal
+        )
+        # int((50/100)*60) = 30
+        assert conviction == 30
+
+    def test_neutral_regime_no_bonus(self):
+        """NEUTRAL bias → regime_aligned=False regardless of direction → no bonus."""
+        btc_bias = "NEUTRAL"
+        is_long = True
+        regime_aligned = (btc_bias == "BULLISH" and is_long) or (btc_bias == "BEARISH" and not is_long)
+        conviction = calculate_conviction(
+            confidence=50,
+            regime_aligned=regime_aligned,
+            is_market_signal=False,  # LIMIT signal
+        )
+        # int((50/100)*60) = 30
+        assert conviction == 30
+
+    def test_market_signal_bonus_stacks(self):
+        """BULLISH + is_long + MARKET signal → both bonuses apply (+20 +10)."""
+        btc_bias = "BULLISH"
+        is_long = True
+        regime_aligned = (btc_bias == "BULLISH" and is_long) or (btc_bias == "BEARISH" and not is_long)
+        conviction = calculate_conviction(
+            confidence=50,
+            regime_aligned=regime_aligned,
+            is_market_signal=True,  # "BUY" market signal
+        )
+        # int((50/100)*60 + 20 + 10) = 60
+        assert conviction == 60

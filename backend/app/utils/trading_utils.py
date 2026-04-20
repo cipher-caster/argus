@@ -16,6 +16,14 @@ def calculate_conviction(
 
     Returns:
         Integer conviction score clamped to [0, 100]
+
+    Titan confidence is discrete, not continuous — six possible values only:
+      0 (neutral/wait), 60 (standard trend LIMIT), 80 (dip/rally market order),
+      90 (MSS only), 95 (MSS + sweep), 100 (elite: MSS + sweep + HTF level).
+    The most common setup — clean trend continuation, no RSI extreme, no SMC event —
+    always produces confidence=60 → conviction=56 (regime-aligned LIMIT signal).
+    min_conviction should be set to 56 to capture this class; anything higher silently
+    disables the entire standard-trend signal path.
     """
     base_pts = (confidence / 100) * 60
     regime_bonus = 20 if regime_aligned else 0

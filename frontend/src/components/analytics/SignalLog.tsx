@@ -206,7 +206,6 @@ function SettingsPanel({ config, onSave, isSaving, saved }: {
               { field: "block_sleeping" as const, label: "Block SLEEPING" },
               { field: "block_volatile" as const, label: "Block VOLATILE" },
               { field: "macro_guard" as const, label: "Macro Guard" },
-              { field: "block_btc_sell" as const, label: "Block BTC Sell" },
             ].map(({ field, label }) => (
               <button
                 key={field}

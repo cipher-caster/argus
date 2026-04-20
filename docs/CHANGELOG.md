@@ -2,6 +2,26 @@
 
 All notable changes to this project will be documented in this file.
 
+## [v1.1.1] - 2026-04-20 — Signal Quality & Conviction Calibration
+
+### Fixed
+
+- **Backtest conviction inflation** — `backtest_engine.py` hardcoded `regime_bonus = 20` for all backtest signals regardless of direction, inflating conviction scores by +20 vs equivalent live signals. Counter-regime backtest signals (e.g. BEARISH-bias long) were appearing to pass the min_conviction gate in analysis when they would not have fired live. Fix: derive `regime_aligned` from `btc_macro["bias"]` (BTC 1D oracle, already in scope) and delegate to the shared `calculate_conviction()` utility. Backtest and live conviction scores now use identical logic.
+
+### Changed
+
+- **`min_conviction` lowered 60 → 56** — data-driven decision based on 195 resolved live/scanner signals. Titan's most common signal — standard trend continuation (clean trend, no RSI extreme, no SMC event) — always produces `confidence=60` → `conviction=56`. Setting the gate above 56 silently disables the entire standard-trend signal class. Live signals at conviction=56 have **75.7% WR** over 70 resolved trades; raising to 60 produced zero positions for 3 days. Default code config updated in `orchestrator.py` and documented in `trading_utils.py`.
+
+- **APTUSDT removed from watchlist** — 39.2% win rate over 125 signals, worst performer with a meaningful sample. Removed from `DEFAULT_WATCHLIST` in `signal_log.py`, schema defaults in `analytics.py` / `schemas/analytics.py`, routes default, and correlation group in `orchestrator.py`. Live Redis config updated.
+
+- **`block_btc_sell` stub deleted** — flag existed in schema, job defaults, route defaults, tests, frontend type, and UI toggle, but was never read by `signal_log.py` (unwired stub). Removed entirely from all layers to eliminate dead configuration surface.
+
+### Added
+
+- **5 backtest conviction unit tests** (`TestBacktestConviction` in `test_backtest_engine.py`) — verify regime-aligned bonus, misaligned penalty, neutral case, and market-signal stacking against the corrected formula.
+
+---
+
 ## [v1.1.0] - 2026-04-11 — Phase 19: Daily Win-Rate Snapshot System
 
 ### Added

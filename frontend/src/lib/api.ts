@@ -414,7 +414,6 @@ export interface SignalLogConfig {
   block_sleeping: boolean;
   block_volatile: boolean;
   macro_guard: boolean;
-  block_btc_sell: boolean;
 }
 
 export async function fetchSignalLogConfig(): Promise<SignalLogConfig> {

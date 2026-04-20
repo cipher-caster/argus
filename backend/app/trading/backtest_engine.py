@@ -30,6 +30,7 @@ from app.storage import Database
 from app.schemas.candle import Candle as DbCandle
 from app.strategies.oracle import OracleStrategy
 from app.strategies.titan import TitanStrategy, calculate_risk_levels
+from app.utils.trading_utils import calculate_conviction
 
 oracle = OracleStrategy()
 titan = TitanStrategy()
@@ -444,12 +445,14 @@ async def backtest_symbol(
         if tp == 0 or sl == 0:
             continue
 
-        # --- Conviction (mirrors live signal_log formula for consistency) ---
-        # All backtest signals pass the btc_state regime gate, so regime_bonus always applies.
-        base_pts = (t_confidence / 100) * 60
-        regime_bonus = 20
-        signal_bonus = 10 if t_signal in ("BUY", "SELL", "STRONG_BUY", "STRONG_SELL") else 0
-        conviction = int(min(100, base_pts + regime_bonus + signal_bonus))
+        # --- Conviction (mirrors live calculate_conviction formula) ---
+        btc_bias = btc_macro["bias"]  # "BULLISH", "BEARISH", or "NEUTRAL" from BTC 1D macro
+        regime_aligned = (btc_bias == "BULLISH" and is_long) or (btc_bias == "BEARISH" and is_short)
+        conviction = calculate_conviction(
+            confidence=int(t_confidence),
+            regime_aligned=regime_aligned,
+            is_market_signal=t_signal in ("BUY", "SELL", "STRONG_BUY", "STRONG_SELL"),
+        )
 
         # --- Resolve outcome ---
         outcome, resolved_price, resolved_ts_ms = await resolve_outcome_with_tiebreaker(

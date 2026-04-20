@@ -34,7 +34,8 @@ logger = logging.getLogger(__name__)
 DEFAULT_WATCHLIST = [
     "BTCUSDT", "ETHUSDT", "BNBUSDT",
     "TRXUSDT", "XRPUSDT", "FETUSDT", "NEARUSDT",
-    "ARBUSDT", "ATOMUSDT", "DOGEUSDT", "APTUSDT",
+    "ARBUSDT", "ATOMUSDT", "DOGEUSDT",
+    # APTUSDT removed 2026-04-20: 39.2% WR over 125 signals — worst performer with meaningful sample.
 ]
 DEFAULT_MIN_TITAN_CONFIDENCE = 55
 DEFAULT_REVIEW_DAYS = 3
@@ -54,7 +55,6 @@ async def _get_config() -> dict:
         "block_sleeping": True,
         "block_volatile": True,
         "macro_guard": True,
-        "block_btc_sell": True,
     }
 
 

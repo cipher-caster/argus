@@ -38,14 +38,17 @@ DEFAULT_TRADING_CONFIG = {
     "max_correlated_positions": 2,
     "max_drawdown_pct": 15.0,
     "max_leverage": 2.0,
-    "min_conviction": 50,
+    # 56 = standard trend LIMIT signal (Titan confidence=60, regime-aligned, no market bonus).
+    # This is Titan's most common output — setting this above 56 disables the entire
+    # standard-trend signal class. Live data: 75.7% WR over 70 resolved signals at conv=56.
+    "min_conviction": 56,
     "max_total_exposure_pct": 200.0,
     "order_expiry_hours": 16,
     "trading_provider": "okx",
     "correlation_groups": {
         "btc_correlated": [
             "BTCUSDT", "ETHUSDT", "BNBUSDT",
-            "ARBUSDT", "NEARUSDT", "APTUSDT",
+            "ARBUSDT", "NEARUSDT",
         ]
     },
 }

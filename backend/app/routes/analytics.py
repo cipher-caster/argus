@@ -489,14 +489,13 @@ SIGNAL_LOG_DEFAULTS = {
     "watchlist": [
         "BTCUSDT", "ETHUSDT", "BNBUSDT",
         "TRXUSDT", "XRPUSDT", "FETUSDT", "NEARUSDT",
-        "ARBUSDT", "ATOMUSDT", "DOGEUSDT", "APTUSDT",
+        "ARBUSDT", "ATOMUSDT", "DOGEUSDT",
     ],
     "min_titan_confidence": 55,
     "review_days": 7,
     "block_sleeping": True,
     "block_volatile": True,
     "macro_guard": True,
-    "block_btc_sell": True,
 }
 
 
