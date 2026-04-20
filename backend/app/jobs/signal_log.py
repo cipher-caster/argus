@@ -36,6 +36,7 @@ DEFAULT_WATCHLIST = [
     "TRXUSDT", "XRPUSDT", "FETUSDT", "NEARUSDT",
     "ARBUSDT", "ATOMUSDT", "DOGEUSDT",
     # APTUSDT removed 2026-04-20: 39.2% WR over 125 signals — worst performer with meaningful sample.
+    "STRKUSDT", "POLUSDT", "AVAXUSDT",  # added 2026-04-20: OKX backtest 59.4%/51.4%/52.5% WR
 ]
 DEFAULT_MIN_TITAN_CONFIDENCE = 55
 DEFAULT_REVIEW_DAYS = 3
