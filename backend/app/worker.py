@@ -596,7 +596,7 @@ async def backfill_okx_candles(ctx) -> None:
 
     config = await _get_config()
     watchlist = config.get("watchlist", [])
-    symbols = [f"{s.replace('USDT', '')}/USDT" for s in watchlist]
+    symbols = watchlist  # OKXProvider normalizes BTCUSDT → BTC/USDT internally
 
     since_ms = int((datetime.now(timezone.utc) - timedelta(days=_OKX_BACKFILL_DAYS)).timestamp() * 1000)
     limit = _OKX_BACKFILL_DAYS * 24 * 4  # generous upper bound (covers 15m candles for 7d)

@@ -33,6 +33,13 @@ class OKXProvider(DataProvider):
         if not self._exchange.markets:
             await self._exchange.load_markets()
 
+    @staticmethod
+    def _normalize_symbol(symbol: str) -> str:
+        """Convert Binance-style symbol (BTCUSDT) to CCXT slash format (BTC/USDT)."""
+        if '/' not in symbol and symbol.endswith('USDT'):
+            return symbol[:-4] + '/USDT'
+        return symbol
+
     async def get_ohlcv(
         self,
         symbol: str,
@@ -44,7 +51,7 @@ class OKXProvider(DataProvider):
 
         # Request limit+1 so we can drop the still-forming candle at the tail
         ohlcv = await self._exchange.fetch_ohlcv(
-            symbol,
+            self._normalize_symbol(symbol),
             timeframe=timeframe,
             limit=limit + 1,
             since=since
@@ -88,7 +95,7 @@ class OKXProvider(DataProvider):
         await self._ensure_loaded()
 
         try:
-            ticker = await self._exchange.fetch_ticker(symbol)
+            ticker = await self._exchange.fetch_ticker(self._normalize_symbol(symbol))
             return ticker.get('last')
         except Exception:
             return None
