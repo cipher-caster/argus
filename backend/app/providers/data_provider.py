@@ -6,7 +6,6 @@ Defines the interface for all market data sources (Binance, OKX, CoinGecko)
 from abc import ABC, abstractmethod
 from typing import List, Optional
 from pydantic import BaseModel
-from datetime import datetime
 
 
 class Candle(BaseModel):

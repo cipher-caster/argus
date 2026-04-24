@@ -5,15 +5,6 @@ from typing import Dict, Any, Optional
 
 from app.indicators.calculator import _mss_to_list, _sweep_to_list
 
-# Per-symbol risk parameter overrides.
-# NOTE: TP overrides were removed 2026-03-27 after discovering the backtest
-# lookup bug (symbol="BTC/USDT" was checked as "BTC/USDTUSDT" — never matched).
-# All prior "validation" of TP=4.0x overrides used TP=2.0x data. When the bug
-# was fixed, TP=4.0x hurt both BTC and ETH vs the TP=2.0x default.
-# BTC SL=1.75x also untested — removed pending proper validation.
-SYMBOL_OVERRIDES: Dict[str, Dict[str, float]] = {}
-
-
 def calculate_risk_levels(
     row: "pd.Series",
     signal_type: str,
@@ -22,20 +13,12 @@ def calculate_risk_levels(
     sl_mult: float = 1.5,
     tp_mult: float = 2.0,
 ) -> Dict[str, float]:
-    """
-    Shared TP/SL calculator used by both Titan and the backtest engine.
-    Per-symbol overrides from SYMBOL_OVERRIDES are applied on top of caller defaults.
-    """
+    """Shared TP/SL calculator used by both Titan and the backtest engine."""
     atr = row.get("atr", 0)
     price = entry_price if entry_price else row["close"]
 
     if atr == 0:
         return {"entry": price, "tp": 0, "sl": 0}
-
-    overrides = SYMBOL_OVERRIDES.get(symbol, {}) if symbol else {}
-    sl_mult = overrides.get("sl_mult", sl_mult)
-    tp_override = overrides.get("tp_mult", None)
-    tp_mult = tp_override if tp_override is not None else tp_mult
 
     rr = round(tp_mult / sl_mult, 2)
 
@@ -386,7 +369,7 @@ class TitanStrategy:
             "ideal_entry": ideal_entry
         }
 
-    def _calculate_risk_levels(self, row: pd.Series, signal_type: str, entry_price: float = None, adx: float = None, symbol: str = None) -> Dict[str, float]:
+    def _calculate_risk_levels(self, row: pd.Series, signal_type: str, entry_price: float = None, symbol: str = None) -> Dict[str, float]:
         """Delegates to module-level calculate_risk_levels with instance defaults."""
         return calculate_risk_levels(
             row=row,

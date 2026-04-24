@@ -415,9 +415,9 @@ class TestPnLMath:
 class TestDefaultConfig:
 
     def test_min_conviction_allows_live_signals(self):
-        """Default min_conviction=50 lets live watchlist signals (conviction 56) through."""
+        """Default min_conviction=56 matches Titan's standard-trend floor."""
         from app.trading.orchestrator import DEFAULT_TRADING_CONFIG
-        assert DEFAULT_TRADING_CONFIG["min_conviction"] == 50
+        assert DEFAULT_TRADING_CONFIG["min_conviction"] == 56
 
     def test_order_expiry_16_hours(self):
         """Order expiry should be 16h to avoid dead capital in low-vol."""

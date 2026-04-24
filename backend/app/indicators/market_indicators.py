@@ -20,14 +20,6 @@ class IndicatorValue(BaseModel):
     history: List[float] = []  # Sparkline data
 
 
-class MarketIndicators(BaseModel):
-    """All dashboard indicators"""
-    btc_volatility: Optional[IndicatorValue] = None
-    market_adx: Optional[IndicatorValue] = None
-    total_market_cap: Optional[Dict[str, Any]] = None
-    btc_dominance: Optional[IndicatorValue] = None
-    average_rsi: Optional[IndicatorValue] = None
-
 
 def calculate_volatility(closes: List[float], period: int = 14) -> IndicatorValue:
     """
@@ -415,6 +407,6 @@ def calculate_average_rsi(coins: List[Dict[str, Any]], period: int = 14) -> Indi
         )
         
     except Exception as e:
-        print(f"Error calculating Average RSI: {e}")
+        logger.error(f"Error calculating Average RSI: {e}")
         return IndicatorValue(value=50, label="Error", history=[])
 

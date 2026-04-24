@@ -25,11 +25,6 @@ class RiskManager:
         return True, ""
 
     @staticmethod
-    def check_max_positions(active_positions: list) -> tuple[bool, str]:
-        """Reject if we're already at max concurrent positions."""
-        return True, ""  # checked with config in check_all
-
-    @staticmethod
     def check_correlation(symbol: str, open_positions: list, config: dict) -> tuple[bool, str]:
         """Reject if too many correlated coins are already open."""
         max_corr = config.get("max_correlated_positions", 2)

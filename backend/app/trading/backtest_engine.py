@@ -19,6 +19,7 @@ Public API:
 from __future__ import annotations
 
 import asyncio
+import logging
 from dataclasses import dataclass, field
 from collections import defaultdict
 from typing import Optional
@@ -32,11 +33,13 @@ from app.strategies.oracle import OracleStrategy
 from app.strategies.titan import TitanStrategy, calculate_risk_levels
 from app.utils.trading_utils import calculate_conviction
 
+logger = logging.getLogger(__name__)
+
 oracle = OracleStrategy()
 titan = TitanStrategy()
 
 WARMUP = 200
-DEFAULT_COINS = ["BTC", "ETH", "BNB", "TRX", "XRP", "FET", "NEAR", "ARB", "ATOM", "DOGE", "APT"]
+DEFAULT_COINS = ["BTC", "ETH", "BNB", "TRX", "XRP", "FET", "NEAR", "ARB", "ATOM", "DOGE", "STRK", "POL", "AVAX"]
 
 
 # ---------------------------------------------------------------------------
@@ -120,15 +123,15 @@ async def load_and_prepare_data(symbols: list[str], provider: str = "okx") -> di
     Candle data is shared: BTC DataFrames appear both as btc_4h/btc_1d AND
     inside coin_data["BTC"] to avoid duplication.
     """
-    print("Loading BTC candles...")
+    logger.info("Loading BTC candles...")
     btc_4h = await load_candles("BTC/USDT", "4h", provider)
     btc_1d = await load_candles("BTC/USDT", "1d", provider)
 
     if btc_4h.empty or len(btc_4h) < WARMUP + 10:
         raise ValueError(f"Not enough BTC 4H data (have {len(btc_4h)}, need >{WARMUP})")
 
-    print(f"  BTC: {len(btc_4h)} × 4H, {len(btc_1d)} × 1D")
-    print("Pre-computing BTC indicators...")
+    logger.info(f"  BTC: {len(btc_4h)} × 4H, {len(btc_1d)} × 1D")
+    logger.info("Pre-computing BTC indicators...")
     oracle._add_indicators(btc_4h)
     oracle._add_indicators(btc_1d)
     titan._add_indicators(btc_4h)
@@ -143,7 +146,7 @@ async def load_and_prepare_data(symbols: list[str], provider: str = "okx") -> di
         sym_1d = f"{coin}/USDT"
         df_4h = await load_candles(sym_4h, "4h", provider)
         df_1d = await load_candles(sym_1d, "1d", provider)
-        print(f"  {coin}: {len(df_4h)} × 4H, {len(df_1d)} × 1D")
+        logger.info(f"  {coin}: {len(df_4h)} × 4H, {len(df_1d)} × 1D")
         coin_data[coin] = {"4h": df_4h, "1d": df_1d}
 
     return {

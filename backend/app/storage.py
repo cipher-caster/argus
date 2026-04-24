@@ -2,7 +2,6 @@ import os
 import json
 import redis.asyncio as redis
 from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession, async_sessionmaker
-from sqlalchemy.orm import sessionmaker
 from typing import Optional, Any
 
 # Environment Variables

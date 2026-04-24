@@ -102,14 +102,6 @@ class TestInsertPathsVersion:
             "log_best_setups() must include methodology_version='v2' in the row dict"
         )
 
-    def test_log_contrarian_signals_row_has_v2(self):
-        """log_contrarian_signals() row dict includes methodology_version='v2'."""
-        import inspect
-        from app.jobs import signal_log
-        src = inspect.getsource(signal_log.log_contrarian_signals)
-        assert 'methodology_version="v2"' in src, (
-            "log_contrarian_signals() must include methodology_version='v2' in the row dict"
-        )
 
 
 # ---------------------------------------------------------------------------
