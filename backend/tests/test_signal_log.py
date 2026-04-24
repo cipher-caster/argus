@@ -83,18 +83,18 @@ class TestRedisHelpers:
     @pytest.mark.asyncio
     @patch("app.jobs.signal_log.RedisClient")
     async def test_get_btc_oracle_signal_from_list(self, mock_redis):
-        screener = [{"symbol": "BTCUSDT", "signal": "BUY"}]
+        screener = [{"symbol": "BTCUSDT", "opportunity": "LONG"}]
         mock_redis.get_json = AsyncMock(return_value=screener)
         result = await _get_btc_oracle_signal()
-        assert result == "BUY"
+        assert result == "LONG"
 
     @pytest.mark.asyncio
     @patch("app.jobs.signal_log.RedisClient")
     async def test_get_btc_oracle_signal_from_dict(self, mock_redis):
-        screener = {"data": [{"symbol": "BTCUSDT", "signal": "STRONG_BUY"}]}
+        screener = {"data": [{"symbol": "BTCUSDT", "opportunity": "SHORT"}]}
         mock_redis.get_json = AsyncMock(return_value=screener)
         result = await _get_btc_oracle_signal()
-        assert result == "STRONG_BUY"
+        assert result == "SHORT"
 
     @pytest.mark.asyncio
     @patch("app.jobs.signal_log.RedisClient")
@@ -316,35 +316,6 @@ class TestLogBestSetups:
         await log_best_setups(self._make_ctx())
         # Cooldown pre-fetch runs (1 DB call), but no rows qualify → no insert, no commit
         assert mock_db.get_session.call_count == 1
-
-    @pytest.mark.asyncio
-    @patch("app.jobs.signal_log.COUNTER_REGIME_ENABLED", True)
-    @patch("app.jobs.signal_log.Database")
-    @patch("app.jobs.signal_log._get_market_state", new_callable=AsyncMock, return_value="TRENDING")
-    @patch("app.jobs.signal_log._get_config", new_callable=AsyncMock)
-    @patch("app.jobs.signal_log.RedisClient")
-    async def test_skips_counter_regime(self, mock_redis, mock_cfg, mock_ms, mock_db):
-        """Counter-regime signals (reason starts with '(counter)') → logged with source='counter'."""
-        mock_redis.get_json = AsyncMock(return_value={
-            "data": [{"symbol": "XLMUSDT", "direction": "LONG", "conviction": 75,
-                       "oracle_score": 4, "titan_signal": "BUY",
-                       "entry": 0.30, "tp": 0.35, "sl": 0.27, "reason": "(counter) BUY_LIMIT"}]
-        })
-        mock_cfg.return_value = {"watchlist": [], "min_titan_confidence": 55,
-                                 "review_days": 7, "block_sleeping": True,
-                                 "block_volatile": True, "macro_guard": True,
-                                 }
-
-        mock_session = AsyncMock()
-        mock_db.get_session.return_value.__aenter__ = AsyncMock(return_value=mock_session)
-        mock_db.get_session.return_value.__aexit__ = AsyncMock(return_value=False)
-
-        from app.jobs.signal_log import log_best_setups
-        await log_best_setups(self._make_ctx())
-        # 2 DB calls: cooldown pre-fetch + insert
-        assert mock_db.get_session.call_count == 2
-        mock_session.execute.assert_awaited()
-        mock_session.commit.assert_awaited_once()
 
     @pytest.mark.asyncio
     @patch("app.jobs.signal_log.Database")

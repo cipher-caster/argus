@@ -78,6 +78,8 @@ class TitanRadarItem(BaseModel):
     sl: float
     advice: str
     reasons: List[str] = []
+    mss_type: Optional[str] = None
+    sweep_type: Optional[str] = None
 
 class TitanRadarResponse(BaseModel):
     data: List[TitanRadarItem]
@@ -88,6 +90,7 @@ class SignalLogConfig(BaseModel):
         "BTCUSDT", "ETHUSDT", "BNBUSDT",
         "TRXUSDT", "XRPUSDT", "FETUSDT", "NEARUSDT",
         "ARBUSDT", "ATOMUSDT", "DOGEUSDT",
+        "STRKUSDT", "POLUSDT", "AVAXUSDT",
     ]
     min_titan_confidence: int = 55
     review_days: int = 7

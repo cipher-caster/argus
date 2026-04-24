@@ -9,10 +9,6 @@ combinations — consistently negative. Trend-following strategy doesn't
 fit SOL's mean-reverting character on 4H.
 """
 
-# Counter-regime signal generation is disabled.
-# Data: 13.6% win rate vs 60.2% overall (59 resolved, 8 wins) — negative EV.
-# Set to True to re-enable counter signal logging.
-COUNTER_REGIME_ENABLED: bool = False
 import logging
 import math
 import os
@@ -99,7 +95,7 @@ async def _get_btc_oracle_signal() -> str:
             items = data if isinstance(data, list) else data.get("data", [])
             for item in items:
                 if isinstance(item, dict) and item.get("symbol") == "BTCUSDT":
-                    return item.get("signal", "")
+                    return item.get("opportunity", "")
     return ""
 
 
@@ -413,10 +409,6 @@ async def log_best_setups(ctx):
                 rejected += 1
                 continue
 
-            is_counter = reason.startswith("(counter)")
-            if is_counter and not COUNTER_REGIME_ENABLED:
-                continue
-
             if (symbol, direction) in recently_fired:
                 logger.debug(f"log_best_setups: skipping {symbol} {direction} — fired within last 4H")
                 rejected += 1
@@ -437,7 +429,7 @@ async def log_best_setups(ctx):
                 market_state="scanner",
                 fired_reason=item.get("reason", ""),
                 fired_at=now_ms,
-                source="counter" if is_counter else "scanner",
+                source="scanner",
                 outcome="OPEN",
                 regime_at_signal=regime_bs,
                 btc_price_at_signal=btc_price_at_signal_bs,
@@ -820,107 +812,4 @@ async def resolve_outcomes_historical(ctx):
 
     logger.info(f"Job: resolve_outcomes_historical complete — {resolved} signal(s) resolved")
 
-
-# ---------------------------------------------------------------------------
-# Job E: log_contrarian_signals
-# ---------------------------------------------------------------------------
-
-async def log_contrarian_signals(ctx):
-    """
-    Identifies overextended coins (3x ATR from EMA200) and logs them to SignalLog.
-    Runs every hour.
-    """
-    if not COUNTER_REGIME_ENABLED:
-        return
-
-    from app.services.market_data import MarketDataService
-    from app.routes.analytics import fetch_all_candles
-    from app.indicators.mean_reversion import detect_mean_reversion
-    from sqlalchemy.dialects.postgresql import insert as pg_insert
-    
-    logger.info("Job: log_contrarian_signals — scanning for extensions...")
-    
-    # 1. Fetch top 50 symbols
-    symbols = await MarketDataService.get_top_symbols(limit=50)
-    
-    # 2. Fetch 1H candles
-    df_data = await fetch_all_candles(symbols, timeframe="1h")
-    
-    rows_to_insert = []
-    now_ms = int(time.time() * 1000)
-
-    # Regime at signal fire time
-    regime_cs = "UNKNOWN"
-    cached_regime_cs = await RedisClient.get_json("market:regime")
-    if cached_regime_cs:
-        regime_cs = cached_regime_cs.get("regime", "UNKNOWN")
-
-    # BTC price at signal fire time
-    btc_price_at_signal_cs = None
-    try:
-        from app.routes.strategy import get_candles_df as _get_candles_df_cs
-        btc_df_cs = await _get_candles_df_cs("BTCUSDT", timeframe="4h", limit=2, provider=None)
-        if btc_df_cs is not None and not btc_df_cs.empty:
-            btc_price_at_signal_cs = float(btc_df_cs.iloc[-1]["close"])
-    except Exception as e:
-        logger.warning(f"log_contrarian_signals: BTC price fetch failed: {e}")
-
-    for sym, df in df_data.items():
-        if df is None or df.empty:
-            continue
-            
-        rev = detect_mean_reversion(df)
-        if rev.get('is_extended'):
-            direction = "LONG" if rev['opportunity'] == "SPOT_BUY" else "SHORT"
-            
-            # Use 1.5 ATR for SL, Reversion to mean for TP
-            price = rev['price']
-            mean = rev['mean']
-            # Calculate ATR for SL
-            import pandas_ta as ta
-            atr_series = ta.atr(df['high'], df['low'], df['close'], length=14)
-            if atr_series is None or atr_series.empty:
-                continue
-            atr = float(atr_series.iloc[-1])
-            
-            sl = price - (1.5 * atr) if direction == "LONG" else price + (1.5 * atr)
-            tp = mean
-            
-            rows_to_insert.append(dict(
-                symbol=sym,
-                direction=direction,
-                timeframe="1h",
-                entry=_price_round(price),
-                tp=_price_round(tp),
-                sl=_price_round(sl),
-                conviction=70,  # Base conviction for contrarian
-                oracle_signal="N/A",
-                titan_signal="CONTRARIAN",
-                oracle_score=0,
-                titan_confidence=int(rev['extension_atr'] * 10), # Pseudo-confidence
-                market_state=await _get_market_state(),
-                fired_reason=f"(contrarian) {rev['extension_atr']}x ATR extension",
-                fired_at=now_ms,
-                source="counter",
-                provider=os.getenv("DATA_PROVIDER", "okx").lower(),
-                outcome="OPEN",
-                regime_at_signal=regime_cs,
-                btc_price_at_signal=btc_price_at_signal_cs,
-                methodology_version="v2",
-            ))
-
-    if rows_to_insert:
-        async with Database.get_session() as session:
-            for row in rows_to_insert:
-                stmt = (
-                    pg_insert(SignalLog)
-                    .values(**row)
-                    .on_conflict_do_nothing(
-                        index_elements=["symbol", "direction"],
-                        index_where=text("outcome = 'OPEN'"),
-                    )
-                )
-                await session.execute(stmt)
-            await session.commit()
-            logger.info(f"Job: log_contrarian_signals — {len(rows_to_insert)} logged")
 
