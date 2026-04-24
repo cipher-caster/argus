@@ -2,6 +2,34 @@
 
 All notable changes to this project will be documented in this file.
 
+## [v1.1.2] - 2026-04-24 — Backend Dead Code Removal & Bug Fixes
+
+### Fixed
+
+- **`_get_btc_oracle_signal()` always returned `""`** — was reading `item["signal"]` from the Oracle screener cache, but the screener stores `item["opportunity"]` (values: `LONG`/`SHORT`/`NONE`). BTC oracle signal context was silently missing from every signal log entry. Fixed and tests updated to use real screener schema.
+- **`SignalLogConfig` default watchlist out of sync** — schema default had 10 coins; `DEFAULT_WATCHLIST` in `signal_log.py` had 13 (STRK, POL, AVAX added 2026-04-20 were missing). Cold-start Redis served the wrong watchlist to the UI config endpoint.
+- **`TitanRadarItem` silently dropped `mss_type`/`sweep_type`** — `analytics.py` computed and set these fields but `TitanRadarItem` had no matching schema fields; Pydantic discarded them. Both fields added as `Optional[str]`.
+
+### Changed
+
+- **`DEFAULT_COINS` in backtest engine synced to live watchlist** — APT (removed 2026-04-20, 39.2% WR) replaced with STRK, POL, AVAX. Backtest-vs-live comparison was biased while APT remained in backtest defaults.
+
+### Removed
+
+- **`schemas/validation.py` deleted** — 82-line file (`SymbolValidator`, `TimeframeValidator`, eight request models) that was never imported anywhere in the application.
+- **`log_contrarian_signals` removed** — 98-line job permanently guarded by `COUNTER_REGIME_ENABLED = False` (13.6% WR, disabled after data review). Cron registration and `COUNTER_REGIME_ENABLED` flag also removed. Dead counter-signal branch in `log_best_setups` cleaned up.
+- **`SYMBOL_OVERRIDES = {}` and dead override branches** — empty dict with live conditional checks in `calculate_risk_levels`. Overrides were removed 2026-03-27; the lookup code was never reached.
+- **`RiskManager.check_max_positions` stub** — method body was `return True, ""`. Max-position logic already handled in `check_all`; this stub was never called.
+- **`MarketIndicators` Pydantic model** — defined in `market_indicators.py` but never instantiated; route returns a plain dict.
+- **Dead imports** — `sqlalchemy.orm.sessionmaker` (storage.py), `datetime` (data_provider.py), duplicate `import os` (worker.py).
+- **`adx` parameter from `TitanStrategy._calculate_risk_levels`** — never passed by caller, never read in body.
+
+### Fixed (hygiene)
+
+- `print()` calls in `market_indicators.py` and `backtest_engine.py` replaced with `logger`.
+
+---
+
 ## [v1.1.1] - 2026-04-20 — Signal Quality & Conviction Calibration
 
 ### Fixed
