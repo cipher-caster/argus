@@ -49,9 +49,15 @@ SIGNAL_LOG_CONFIG_KEY = "signal_log:config"
 
 
 async def _get_config() -> dict:
-    """Read signal log config from Redis, falling back to defaults."""
+    """Read signal log config from Redis, falling back to defaults.
+    Auto-syncs watchlist if the cached version differs from DEFAULT_WATCHLIST.
+    """
     data = await RedisClient.get_json(SIGNAL_LOG_CONFIG_KEY)
     if data:
+        if set(data.get("watchlist", [])) != set(DEFAULT_WATCHLIST):
+            data["watchlist"] = DEFAULT_WATCHLIST
+            await RedisClient.set_json(SIGNAL_LOG_CONFIG_KEY, data, ttl=86400 * 365)
+            logger.info("signal_log:config: watchlist auto-synced from DEFAULT_WATCHLIST")
         return data
     return {
         "watchlist": DEFAULT_WATCHLIST,

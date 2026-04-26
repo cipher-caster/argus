@@ -30,34 +30,91 @@ class TestGetConfig:
 
     @pytest.mark.asyncio
     @patch("app.jobs.signal_log.RedisClient")
-    async def test_returns_redis_config(self, mock_redis):
-        custom = {"watchlist": ["BTCUSDT"], "min_titan_confidence": 70,
+    async def test_returns_redis_config_current_watchlist(self, mock_redis):
+        """Redis config with up-to-date watchlist is returned as-is, set_json not called."""
+        custom = {"watchlist": list(DEFAULT_WATCHLIST), "min_titan_confidence": 70,
                   "review_days": 5, "block_sleeping": False,
                   "block_volatile": False, "macro_guard": False,
                   }
         mock_redis.get_json = AsyncMock(return_value=custom)
+        mock_redis.set_json = AsyncMock()
         result = await _get_config()
-        assert result == custom
+        assert result["watchlist"] == DEFAULT_WATCHLIST
+        assert result["min_titan_confidence"] == 70
         mock_redis.get_json.assert_awaited_once_with(SIGNAL_LOG_CONFIG_KEY)
+        mock_redis.set_json.assert_not_awaited()
 
     @pytest.mark.asyncio
     @patch("app.jobs.signal_log.RedisClient")
     async def test_returns_defaults_on_miss(self, mock_redis):
         mock_redis.get_json = AsyncMock(return_value=None)
+        mock_redis.set_json = AsyncMock()
         result = await _get_config()
         assert result["watchlist"] == DEFAULT_WATCHLIST
         assert result["block_sleeping"] is True
         assert result["macro_guard"] is True
+        mock_redis.set_json.assert_not_awaited()
 
     @pytest.mark.asyncio
     @patch("app.jobs.signal_log.RedisClient")
     async def test_default_watchlist_contents(self, mock_redis):
         mock_redis.get_json = AsyncMock(return_value=None)
+        mock_redis.set_json = AsyncMock()
         result = await _get_config()
         assert "BTCUSDT" in result["watchlist"]
         assert "ETHUSDT" in result["watchlist"]
         assert "BNBUSDT" in result["watchlist"]
         assert len(result["watchlist"]) == len(DEFAULT_WATCHLIST)
+
+    @pytest.mark.asyncio
+    @patch("app.jobs.signal_log.RedisClient")
+    async def test_stale_watchlist_triggers_sync(self, mock_redis):
+        """Cached config with outdated watchlist is auto-synced to DEFAULT_WATCHLIST."""
+        stale = {"watchlist": ["BTCUSDT"], "min_titan_confidence": 60,
+                 "review_days": 3, "block_sleeping": True,
+                 "block_volatile": True, "macro_guard": True,
+                 }
+        mock_redis.get_json = AsyncMock(return_value=stale)
+        mock_redis.set_json = AsyncMock()
+        result = await _get_config()
+        assert result["watchlist"] == DEFAULT_WATCHLIST
+        # Other fields must be preserved
+        assert result["min_titan_confidence"] == 60
+        # set_json must be called with updated watchlist
+        mock_redis.set_json.assert_awaited_once()
+        call_kwargs = mock_redis.set_json.call_args
+        written = call_kwargs[0][1]
+        assert written["watchlist"] == DEFAULT_WATCHLIST
+        assert written["min_titan_confidence"] == 60
+
+    @pytest.mark.asyncio
+    @patch("app.jobs.signal_log.RedisClient")
+    async def test_current_watchlist_skips_sync(self, mock_redis):
+        """Cached config whose watchlist matches DEFAULT_WATCHLIST does not trigger set_json."""
+        current = {"watchlist": list(DEFAULT_WATCHLIST), "min_titan_confidence": 55,
+                   "review_days": 3, "block_sleeping": True,
+                   "block_volatile": True, "macro_guard": True,
+                   }
+        mock_redis.get_json = AsyncMock(return_value=current)
+        mock_redis.set_json = AsyncMock()
+        result = await _get_config()
+        assert result["watchlist"] == DEFAULT_WATCHLIST
+        mock_redis.set_json.assert_not_awaited()
+
+    @pytest.mark.asyncio
+    @patch("app.jobs.signal_log.RedisClient")
+    async def test_empty_redis_falls_back_to_defaults(self, mock_redis):
+        """None from Redis returns full default config without calling set_json."""
+        mock_redis.get_json = AsyncMock(return_value=None)
+        mock_redis.set_json = AsyncMock()
+        result = await _get_config()
+        assert result["watchlist"] == DEFAULT_WATCHLIST
+        assert result["min_titan_confidence"] == 55
+        assert result["review_days"] == 3
+        assert result["block_sleeping"] is True
+        assert result["block_volatile"] is True
+        assert result["macro_guard"] is True
+        mock_redis.set_json.assert_not_awaited()
 
 
 # ---------------------------------------------------------------------------
