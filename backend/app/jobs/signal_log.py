@@ -7,6 +7,12 @@ resolve_signal_outcomes — every hour  — WIN / LOSS / REVIEW resolution
 SOL removed from watchlist (2026-03-17): backtested across 7+ parameter
 combinations — consistently negative. Trend-following strategy doesn't
 fit SOL's mean-reverting character on 4H.
+
+ARB removed from watchlist (2026-04-25): 36.1% WR over 83 signals —
+consistent underperformer, insufficient trend quality on 4H.
+
+SUI, RENDER, AAVE added to watchlist (2026-04-25): OKX 4H backtest results
+show 48.4% / 47.2% / 60.0% WR respectively across 32 / 37 / 10 signals.
 """
 
 import logging
@@ -30,9 +36,11 @@ logger = logging.getLogger(__name__)
 DEFAULT_WATCHLIST = [
     "BTCUSDT", "ETHUSDT", "BNBUSDT",
     "TRXUSDT", "XRPUSDT", "FETUSDT", "NEARUSDT",
-    "ARBUSDT", "ATOMUSDT", "DOGEUSDT",
+    # ARBUSDT removed 2026-04-25: 36.1% WR over 83 signals — underperformer.
+    "ATOMUSDT", "DOGEUSDT",
     # APTUSDT removed 2026-04-20: 39.2% WR over 125 signals — worst performer with meaningful sample.
     "STRKUSDT", "POLUSDT", "AVAXUSDT",  # added 2026-04-20: OKX backtest 59.4%/51.4%/52.5% WR
+    "SUIUSDT", "RENDERUSDT", "AAVEUSDT",  # added 2026-04-25: backtest 48.4%/47.2%/60.0% WR
 ]
 DEFAULT_MIN_TITAN_CONFIDENCE = 55
 DEFAULT_REVIEW_DAYS = 3
@@ -212,6 +220,10 @@ async def log_watchlist_setups(ctx):
             await RedisClient.set_json(REGIME_CACHE_KEY, {"regime": regime}, ttl=REGIME_CACHE_TTL)
         except Exception as e:
             logger.warning(f"Regime detection failed: {e}, using UNKNOWN")
+
+    if regime == "UNKNOWN":
+        logger.warning("log_watchlist_setups: regime UNKNOWN — skipping scan to avoid unfiltered signals")
+        return
 
     # BTC price at signal fire time (fetched once, reused for all rows)
     btc_price_at_signal = None
@@ -413,6 +425,15 @@ async def log_best_setups(ctx):
                 logger.debug(f"log_best_setups: skipping {symbol} {direction} — fired within last 4H")
                 rejected += 1
                 continue
+
+            # Regime gate: BEAR → shorts only, BULL → longs only
+            if regime_bs not in ("UNKNOWN", ""):
+                is_long_bs = direction == "LONG"
+                regime_aligned_bs = (regime_bs == "BULL" and is_long_bs) or (regime_bs == "BEAR" and not is_long_bs)
+                if not regime_aligned_bs:
+                    logger.debug(f"log_best_setups: skipping {symbol} {direction} — counter-trend ({regime_bs} regime)")
+                    rejected += 1
+                    continue
 
             row = dict(
                 symbol=symbol,

@@ -93,7 +93,7 @@ All background jobs are registered with the arq worker (`backend/app/worker.py`)
 | `sync_market_snapshot` | Every 5min | Fetch top 250 coins from CoinGecko (mcap, sparklines, 1h/7d change). Cached 10min TTL. |
 | `sync_analytics_cache` | Every 5min (offset +2min) | Pre-warm `best-setups` cache so dashboard loads instantly. |
 | `log_watchlist_setups` | 4H candle closes +3min (00:03, 04:03, …, 20:03 UTC) | Run Titan on watchlist (BTC/ETH/BNB), filter by regime (BULL→LONG, BEAR→SHORT), log to `signal_log` table with `source='live'`. Deduplicates via partial unique index. |
-| `log_best_setups` | Every 5min (+3min offset) | Read cached best-setups (top 100 by volume), persist qualifying signals (conviction >= 50) as `source='scanner'`. Cheap Redis read + batch insert. |
+| `log_best_setups` | Every 5min (+3min offset) | Read cached best-setups (top 100 by volume), persist qualifying signals (conviction >= 50) as `source='scanner'`. Regime-filtered (BEAR → shorts only, BULL → longs only). Cheap Redis read + batch insert. |
 | `log_contrarian_signals` | Every 10min | Scan top 50 symbols for overextensions (3x ATR from EMA200), log to `signal_log` with `source='counter'`. |
 | `resolve_signal_outcomes` | Every 5min | Resolves OPEN signals via **Fast-path** (live tickers) every 5m + **Historical** (candle walk) every 30m. |
 | `execute_signals` | Every 10min | Pick up unprocessed OPEN signals (live + scanner) and create PENDING paper trade positions via TradeOrchestrator. |
@@ -103,7 +103,9 @@ All background jobs are registered with the arq worker (`backend/app/worker.py`)
 
 **On startup**, the worker also runs: initial signal scan, position recovery, missed candle close recovery (regime-based), signal execution, and snapshot backfill (checks last 7 days; calls `snapshot_signal_outcomes` for each missing date; non-fatal).
 
-**Direction filtering**: Regime-based (BTC weekly EMA50). BEAR regime → SHORT signals only, BULL → LONG only, UNKNOWN → all. Configured via Redis key `signal_log:config` (readable/writable via `GET /api/analytics/signal-log/config` and `PUT /api/analytics/signal-log/config`; changes take effect on the next worker cycle without restart).
+**Direction filtering**: Regime-based (BTC weekly EMA50). BEAR regime → SHORT signals only, BULL → LONG only, UNKNOWN → `log_watchlist_setups` bails out entirely (skips scan); `log_best_setups` logs both directions. Both job paths apply the regime gate. Configured via Redis key `signal_log:config` (readable/writable via `GET /api/analytics/signal-log/config` and `PUT /api/analytics/signal-log/config`; changes take effect on the next worker cycle without restart).
+
+**Config defaults**: `DEFAULT_WATCHLIST`, `DEFAULT_MIN_TITAN_CONFIDENCE`, and `DEFAULT_REVIEW_DAYS` are defined once in `signal_log.py` and imported by `routes/analytics.py` and `schemas/analytics.py`. No duplicated hardcoded values across files.
 
 **4H screener keys**: The 4H candle-close scanner (`log_watchlist_setups`) reads Titan screener results from `analytics:screener:4h:{symbol}` Redis keys.
 

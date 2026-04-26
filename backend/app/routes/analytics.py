@@ -33,6 +33,11 @@ from app.services.market_data import MarketDataService
 from app.storage import RedisClient
 from app.exceptions import DataProviderError, CacheError, CalculationError
 from app.utils.trading_utils import calculate_conviction
+from app.jobs.signal_log import (
+    DEFAULT_WATCHLIST,
+    DEFAULT_MIN_TITAN_CONFIDENCE,
+    DEFAULT_REVIEW_DAYS,
+)
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/analytics", tags=["Analytics"])
@@ -486,13 +491,9 @@ async def get_signal_log_stats(source: str = "backtest", provider: Optional[str]
 
 SIGNAL_LOG_CONFIG_KEY = "signal_log:config"
 SIGNAL_LOG_DEFAULTS = {
-    "watchlist": [
-        "BTCUSDT", "ETHUSDT", "BNBUSDT",
-        "TRXUSDT", "XRPUSDT", "FETUSDT", "NEARUSDT",
-        "ARBUSDT", "ATOMUSDT", "DOGEUSDT",
-    ],
-    "min_titan_confidence": 55,
-    "review_days": 7,
+    "watchlist": DEFAULT_WATCHLIST,
+    "min_titan_confidence": DEFAULT_MIN_TITAN_CONFIDENCE,
+    "review_days": DEFAULT_REVIEW_DAYS,
     "block_sleeping": True,
     "block_volatile": True,
     "macro_guard": True,

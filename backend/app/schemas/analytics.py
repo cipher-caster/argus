@@ -3,6 +3,7 @@ Futures analytics data schemas
 """
 from pydantic import BaseModel
 from typing import List, Optional, Dict, Any
+from app.jobs.signal_log import DEFAULT_WATCHLIST, DEFAULT_MIN_TITAN_CONFIDENCE, DEFAULT_REVIEW_DAYS
 
 
 # New Analytics Schemas
@@ -86,14 +87,9 @@ class TitanRadarResponse(BaseModel):
     last_updated: int = 0
 
 class SignalLogConfig(BaseModel):
-    watchlist: List[str] = [
-        "BTCUSDT", "ETHUSDT", "BNBUSDT",
-        "TRXUSDT", "XRPUSDT", "FETUSDT", "NEARUSDT",
-        "ARBUSDT", "ATOMUSDT", "DOGEUSDT",
-        "STRKUSDT", "POLUSDT", "AVAXUSDT",
-    ]
-    min_titan_confidence: int = 55
-    review_days: int = 7
+    watchlist: List[str] = DEFAULT_WATCHLIST
+    min_titan_confidence: int = DEFAULT_MIN_TITAN_CONFIDENCE
+    review_days: int = DEFAULT_REVIEW_DAYS
     block_sleeping: bool = True
     block_volatile: bool = True
     macro_guard: bool = True

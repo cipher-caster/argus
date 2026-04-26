@@ -117,7 +117,7 @@ PostgreSQL (historical) ← Routes/Services → Frontend
 
 7. **Jobs** (`app/jobs/*.py`):
    - Background worker jobs beyond cache sync
-   - `signal_log.py`: Scans watchlist at 4H candle close (`live` source), also runs `log_best_setups` over top-100 coins every 5 min (`scanner` source); logs signals to DB and resolves outcomes every 30 min
+   - `signal_log.py`: Scans watchlist at 4H candle close (`live` source), also runs `log_best_setups` over top-100 coins every 5 min (`scanner` source); both paths apply regime filtering (BEAR → shorts only, BULL → longs only; UNKNOWN bails out on `log_watchlist_setups`). Config defaults (`DEFAULT_WATCHLIST`, `DEFAULT_MIN_TITAN_CONFIDENCE`, `DEFAULT_REVIEW_DAYS`) are the single source of truth imported by routes and schemas. Logs signals to DB and resolves outcomes every 30 min.
    - `snapshot.py`: `snapshot_signal_outcomes()` runs daily at 00:05 UTC; aggregates all resolved `signal_log` rows into `signal_outcome_snapshot` daily rows sliced by regime, conviction band, source, and coin. Accepts optional `snapshot_date` param for backfill. Idempotent.
 
 8. **Storage** (`app/storage.py`):
@@ -392,6 +392,13 @@ npm run build
 ---
 
 ## 📊 Recent Improvements
+
+### v1.1.3 — Watchlist Update, Regime Gate Hardening & Config Consolidation (2026-04-25)
+
+- **Watchlist**: SUIUSDT, RENDERUSDT, AAVEUSDT added (backtested); ARBUSDT removed (36.1% WR, 83 signals).
+- **`log_best_setups` regime gate**: Scanner signals now filtered by regime (BEAR → shorts only, BULL → longs only). Previously no regime gate existed on this path.
+- **`log_watchlist_setups` UNKNOWN bail-out**: Scan skips entirely if regime is UNKNOWN (previously ran unfiltered).
+- **Config defaults consolidated**: `DEFAULT_WATCHLIST`, `DEFAULT_MIN_TITAN_CONFIDENCE`, `DEFAULT_REVIEW_DAYS` defined once in `signal_log.py`; imported by `routes/analytics.py` and `schemas/analytics.py`.
 
 ### v1.1.0 — Phase 19: Daily Win-Rate Snapshot System (2026-04-11)
 

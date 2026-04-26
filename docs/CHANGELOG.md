@@ -2,6 +2,20 @@
 
 All notable changes to this project will be documented in this file.
 
+## [v1.1.3] - 2026-04-25 — Watchlist Update, Regime Gate Hardening & Config Consolidation
+
+### Changed
+
+- **Watchlist expanded**: SUI (48.4% WR, 32 signals), RENDER (47.2% WR, 37 signals), and AAVE (60.0% WR, 10 signals) added based on OKX 4H backtest results.
+- **ARB removed**: 36.1% WR over 83 signals — consistent underperformer, insufficient trend quality on 4H.
+- **`DEFAULT_COINS` in backtest engine** synced: ARB replaced by SUI, RENDER, AAVE.
+- **`log_best_setups` regime gate added**: Scanner signals are now blocked by regime (BEAR → shorts only, BULL → longs only). Previously `log_best_setups` had no regime filter — counter-trend scanner signals were logged and could reach paper trading. Matches the filtering already applied by `log_watchlist_setups`.
+- **`log_watchlist_setups` UNKNOWN regime bail-out**: Scan now skips entirely when BTC regime is UNKNOWN (previously ran unfiltered and logged everything as counter-trend). Prevents noisy unclassified signals accumulating in the log.
+- **Single source of truth for config defaults**: `routes/analytics.py` and `schemas/analytics.py` now import `DEFAULT_WATCHLIST`, `DEFAULT_MIN_TITAN_CONFIDENCE`, and `DEFAULT_REVIEW_DAYS` from `signal_log.py`. Previously these values were hardcoded separately in each file and could silently diverge.
+- **APTUSDT removed from `trading:config` correlation group**: Removed from `correlation_groups.btc_correlated` in Redis (was already removed from watchlist in v1.1.1; correlation entry was a stale remnant).
+
+---
+
 ## [v1.1.2] - 2026-04-24 — Backend Dead Code Removal & Bug Fixes
 
 ### Fixed
