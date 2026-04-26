@@ -2,6 +2,19 @@
 
 All notable changes to this project will be documented in this file.
 
+## [v1.1.4] - 2026-04-26 — Execution-Layer Defense-in-Depth & Staleness Gate
+
+### Added
+
+- **Regime gate in `execute_signals`** — `execute_signals` in `worker.py` now independently enforces regime alignment before passing signals to the orchestrator (BEAR → shorts only, BULL → longs only). Fetches live `market:regime` from Redis; UNKNOWN passes all signals through. This is defense-in-depth: the logging layer (`log_watchlist_setups`, `log_best_setups`) already gates by regime, but execution now gates independently so counter-trend signals that slip through during logging (e.g. race between regime change and scan cycle) are blocked before any position is created.
+- **Staleness gate in `execute_signals`** — Signals older than 12 hours are skipped at execution time. Prevents entry/SL/TP prices from stale signals being traded after downtime or a missed worker cycle where price has moved significantly.
+
+### Fixed
+
+- **WAL/U/DCR stuck signals (provider mismatch → auto-REVIEW)** — Signals for symbols with a provider mismatch (e.g. OKX-sourced candles logged under Binance provider key, or vice versa) were staying OPEN indefinitely because the resolution engine couldn't find matching candles. These are now auto-transitioned to REVIEW to unblock the signal log.
+
+---
+
 ## [v1.1.3] - 2026-04-25 — Watchlist Update, Regime Gate Hardening & Config Consolidation
 
 ### Changed

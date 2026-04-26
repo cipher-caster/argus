@@ -532,6 +532,30 @@ async def execute_signals(ctx):
         logger.info(f"Job: execute_signals — {skipped} signal(s) skipped (not in watchlist)")
 
     logger.info(f"Job: execute_signals — {len(tradeable)} tradeable signal(s) found")
+
+    # Regime gate: skip counter-trend signals (BEAR → shorts only, BULL → longs only)
+    cached_regime = await RedisClient.get_json("market:regime")
+    current_regime = (cached_regime or {}).get("regime", "UNKNOWN")
+    if current_regime != "UNKNOWN":
+        before = len(tradeable)
+        tradeable = [
+            s for s in tradeable
+            if (current_regime == "BULL" and s.direction == "LONG")
+            or (current_regime == "BEAR" and s.direction == "SHORT")
+        ]
+        skipped = before - len(tradeable)
+        if skipped:
+            logger.info(f"execute_signals: {skipped} signal(s) skipped — counter-trend ({current_regime} regime)")
+
+    # Staleness gate: skip signals older than 12 hours
+    MAX_SIGNAL_AGE_MS = 12 * 60 * 60 * 1000  # 12 hours
+    now_ms = int(time.time() * 1000)
+    before = len(tradeable)
+    tradeable = [s for s in tradeable if (now_ms - s.fired_at) < MAX_SIGNAL_AGE_MS]
+    stale = before - len(tradeable)
+    if stale:
+        logger.info(f"execute_signals: {stale} signal(s) skipped — stale (>12h old)")
+
     batch_positions = []
     for signal in tradeable:
         try:

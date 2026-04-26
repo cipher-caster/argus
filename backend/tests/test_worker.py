@@ -1,9 +1,10 @@
 """
 Tests for background worker jobs (`worker.py`).
 """
+import time
 import pytest
 from unittest.mock import patch, AsyncMock, MagicMock, call
-from app.worker import sync_market_summary, sync_market_snapshot, sync_analytics_cache, _retry, backfill_okx_candles
+from app.worker import sync_market_summary, sync_market_snapshot, sync_analytics_cache, _retry, backfill_okx_candles, execute_signals
 
 
 @pytest.fixture
@@ -200,3 +201,122 @@ async def test_backfill_okx_candles_handles_provider_error():
                         await backfill_okx_candles({})
 
     mock_okx.close.assert_awaited_once()
+
+
+# ---------------------------------------------------------------------------
+# execute_signals — regime gate + staleness gate
+# ---------------------------------------------------------------------------
+
+def _make_signal(symbol="BTCUSDT", direction="LONG", fired_at_offset_ms=0):
+    """Create a mock SignalLog for execute_signals tests.
+
+    fired_at_offset_ms is subtracted from now so positive values mean 'in the past'.
+    Default 0 == now (fresh signal).
+    """
+    now_ms = int(time.time() * 1000)
+    sig = MagicMock()
+    sig.id = 1
+    sig.symbol = symbol
+    sig.direction = direction
+    sig.fired_at = now_ms - fired_at_offset_ms
+    return sig
+
+
+def _build_patches(signals, regime_payload, trading_enabled=True):
+    """Return a list of patch objects that stub all execute_signals dependencies."""
+    # DB session returns the provided signals list
+    mock_session = AsyncMock()
+    mock_session.__aenter__ = AsyncMock(return_value=mock_session)
+    mock_session.__aexit__ = AsyncMock(return_value=False)
+    mock_result = MagicMock()
+    mock_result.scalars.return_value.all.return_value = signals
+    mock_session.execute = AsyncMock(return_value=mock_result)
+
+    config = {"enabled": trading_enabled, "initial_capital": 100.0}
+    signal_config = {"watchlist": [s.symbol for s in signals]}
+
+    return [
+        patch("app.worker.get_trading_config", new_callable=AsyncMock, return_value=config),
+        patch("app.worker.Database.get_session", return_value=mock_session),
+        patch("app.jobs.signal_log._get_config", new_callable=AsyncMock, return_value=signal_config),
+        patch("app.worker.RedisClient.get_json", new_callable=AsyncMock, return_value=regime_payload),
+        patch("app.worker._trade_orchestrator.process_signal", new_callable=AsyncMock, return_value=None),
+    ]
+
+
+@pytest.mark.asyncio
+async def test_execute_signals_regime_bear_blocks_long():
+    """Regime gate: BEAR regime drops LONG signals — orchestrator is never called."""
+    long_signal = _make_signal(direction="LONG")
+    patches = _build_patches([long_signal], regime_payload={"regime": "BEAR"})
+
+    with patches[0], patches[1], patches[2], patches[3], patches[4] as mock_process:
+        await execute_signals({})
+        mock_process.assert_not_called()
+
+
+@pytest.mark.asyncio
+async def test_execute_signals_regime_bear_passes_short():
+    """Regime gate: BEAR regime passes SHORT signals through to orchestrator."""
+    short_signal = _make_signal(direction="SHORT")
+    patches = _build_patches([short_signal], regime_payload={"regime": "BEAR"})
+
+    with patches[0], patches[1], patches[2], patches[3], patches[4] as mock_process:
+        await execute_signals({})
+        mock_process.assert_awaited_once_with(short_signal, batch_positions=[])
+
+
+@pytest.mark.asyncio
+async def test_execute_signals_regime_unknown_passes_all():
+    """Regime gate: UNKNOWN regime lets both LONG and SHORT through."""
+    long_signal = _make_signal(symbol="BTCUSDT", direction="LONG")
+    short_signal = _make_signal(symbol="ETHUSDT", direction="SHORT")
+    short_signal.id = 2
+    patches = _build_patches(
+        [long_signal, short_signal],
+        regime_payload={"regime": "UNKNOWN"},
+    )
+
+    with patches[0], patches[1], patches[2], patches[3], patches[4] as mock_process:
+        await execute_signals({})
+        assert mock_process.await_count == 2
+
+
+@pytest.mark.asyncio
+async def test_execute_signals_regime_none_passes_all():
+    """Regime gate: missing Redis key (None) is treated as UNKNOWN — both pass."""
+    long_signal = _make_signal(symbol="BTCUSDT", direction="LONG")
+    short_signal = _make_signal(symbol="ETHUSDT", direction="SHORT")
+    short_signal.id = 2
+    patches = _build_patches(
+        [long_signal, short_signal],
+        regime_payload=None,  # Redis returns None
+    )
+
+    with patches[0], patches[1], patches[2], patches[3], patches[4] as mock_process:
+        await execute_signals({})
+        assert mock_process.await_count == 2
+
+
+@pytest.mark.asyncio
+async def test_execute_signals_staleness_drops_old_signal():
+    """Staleness gate: signal older than 12 hours is filtered out."""
+    thirteen_hours_ms = 13 * 60 * 60 * 1000
+    old_signal = _make_signal(fired_at_offset_ms=thirteen_hours_ms)
+    patches = _build_patches([old_signal], regime_payload={"regime": "UNKNOWN"})
+
+    with patches[0], patches[1], patches[2], patches[3], patches[4] as mock_process:
+        await execute_signals({})
+        mock_process.assert_not_called()
+
+
+@pytest.mark.asyncio
+async def test_execute_signals_staleness_passes_fresh_signal():
+    """Staleness gate: signal fired 1 hour ago passes through."""
+    one_hour_ms = 1 * 60 * 60 * 1000
+    fresh_signal = _make_signal(fired_at_offset_ms=one_hour_ms)
+    patches = _build_patches([fresh_signal], regime_payload={"regime": "UNKNOWN"})
+
+    with patches[0], patches[1], patches[2], patches[3], patches[4] as mock_process:
+        await execute_signals({})
+        mock_process.assert_awaited_once_with(fresh_signal, batch_positions=[])

@@ -119,6 +119,7 @@ PostgreSQL (historical) ← Routes/Services → Frontend
    - Background worker jobs beyond cache sync
    - `signal_log.py`: Scans watchlist at 4H candle close (`live` source), also runs `log_best_setups` over top-100 coins every 5 min (`scanner` source); both paths apply regime filtering (BEAR → shorts only, BULL → longs only; UNKNOWN bails out on `log_watchlist_setups`). Config defaults (`DEFAULT_WATCHLIST`, `DEFAULT_MIN_TITAN_CONFIDENCE`, `DEFAULT_REVIEW_DAYS`) are the single source of truth imported by routes and schemas. Logs signals to DB and resolves outcomes every 30 min.
    - `snapshot.py`: `snapshot_signal_outcomes()` runs daily at 00:05 UTC; aggregates all resolved `signal_log` rows into `signal_outcome_snapshot` daily rows sliced by regime, conviction band, source, and coin. Accepts optional `snapshot_date` param for backfill. Idempotent.
+   - `execute_signals` (`worker.py`, every 10 min): picks up OPEN signals (`live` + `scanner`) and creates PENDING paper trade positions. Two pre-execution gates run before the orchestrator: **regime gate** (fetches `market:regime` from Redis; BEAR → shorts only, BULL → longs only; UNKNOWN passes all through — independent of the logging-layer filter, defense-in-depth) and **staleness gate** (signals older than 12h are skipped to prevent trading stale entry/SL/TP prices after downtime or a missed cycle).
 
 8. **Storage** (`app/storage.py`):
    - PostgreSQL and Redis connection pooling (single file)
@@ -392,6 +393,12 @@ npm run build
 ---
 
 ## 📊 Recent Improvements
+
+### v1.1.4 — Execution-Layer Defense-in-Depth & Staleness Gate (2026-04-26)
+
+- **Regime gate in `execute_signals`**: execution layer now independently enforces regime alignment (BEAR → shorts only, BULL → longs only; UNKNOWN passes through). Defense-in-depth against counter-trend signals that slip past the logging-layer filter.
+- **Staleness gate in `execute_signals`**: signals older than 12h are skipped at execution time. Prevents stale entry/SL/TP prices from being traded after downtime or missed worker cycles.
+- **WAL/U/DCR stuck signals**: symbols with provider mismatches that prevented resolution are now auto-transitioned to REVIEW.
 
 ### v1.1.3 — Watchlist Update, Regime Gate Hardening & Config Consolidation (2026-04-25)
 

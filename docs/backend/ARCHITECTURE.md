@@ -96,7 +96,7 @@ All background jobs are registered with the arq worker (`backend/app/worker.py`)
 | `log_best_setups` | Every 5min (+3min offset) | Read cached best-setups (top 100 by volume), persist qualifying signals (conviction >= 50) as `source='scanner'`. Regime-filtered (BEAR → shorts only, BULL → longs only). Cheap Redis read + batch insert. |
 | `log_contrarian_signals` | Every 10min | Scan top 50 symbols for overextensions (3x ATR from EMA200), log to `signal_log` with `source='counter'`. |
 | `resolve_signal_outcomes` | Every 5min | Resolves OPEN signals via **Fast-path** (live tickers) every 5m + **Historical** (candle walk) every 30m. |
-| `execute_signals` | Every 10min | Pick up unprocessed OPEN signals (live + scanner) and create PENDING paper trade positions via TradeOrchestrator. |
+| `execute_signals` | Every 10min | Pick up unprocessed OPEN signals (live + scanner) and create PENDING paper trade positions via TradeOrchestrator. Two pre-execution gates: **regime gate** (BEAR → shorts only, BULL → longs only; UNKNOWN passes all through — independent of the logging-layer regime filter, defense-in-depth) and **staleness gate** (signals older than 12h are skipped to prevent stale entry/SL/TP prices from being traded after downtime). |
 | `manage_positions` | Every 5min | Check pending fills (price reached entry?), check TP/SL hits via candle walk, run circuit breaker. |
 | `sync_trading_balance` | Every 10min | Cache portfolio balance in Redis for quick API access. |
 | `snapshot_signal_outcomes` | Daily at 00:05 UTC | Aggregate all resolved `signal_log` rows into `signal_outcome_snapshot` daily rows, sliced by (regime, conviction_band, source, coin) with "ALL" rollup variants. Accepts optional `snapshot_date` for backfill; idempotent via grand-total sentinel row. |
@@ -135,6 +135,7 @@ There are three `source` values in the `signal_log` table. They serve different 
 
 **Paper Trading**
 - `execute_signals` (every 10 min) picks up OPEN signals from `live` + `scanner` sources with no existing position.
+- Pre-execution filters applied before any position creation: **regime gate** (BEAR → shorts only, BULL → longs only; UNKNOWN passes all through) and **staleness gate** (signals older than 12h skipped). These are independent of the logging-layer regime filter — execution defends against counter-trend or stale signals even if they slipped through logging.
 - Watchlist filter applied — only watchlist coins are sent to `TradeOrchestrator`.
 - Risk gates in sequence: drawdown circuit breaker → max concurrent positions → correlated-pair limit → conviction gate → position sizing.
 - Positions follow: `PENDING → OPEN → CLOSED / EXPIRED / CANCELLED`.
