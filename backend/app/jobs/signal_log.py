@@ -656,6 +656,14 @@ async def resolve_outcomes_historical(ctx):
                 # Use cached candle data for this symbol
                 df = candle_cache.get(sig.symbol)
                 if df is None:
+                    # Candle fetch failed (symbol not on current provider).
+                    # Still apply review timeout so signals don't stay OPEN forever.
+                    if (now_ms - sig.fired_at) >= review_threshold_ms:
+                        sig.outcome = "REVIEW"
+                        sig.resolved_at = now_ms
+                        sig.regime_at_resolution = await _get_market_state()
+                        session.add(sig)
+                        resolved += 1
                     continue
 
                 if "timestamp" not in df.columns:
