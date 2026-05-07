@@ -70,10 +70,10 @@ class TradeAnalyzer:
             )
             positions: list[Position] = result.scalars().all()
 
-            # Also grab RISK_REJECTED events from TradeEvent for rejection count
-            from app.schemas.trading import TradeEvent
+            # Count rejections from SignalLog (RISK_REJECTED is recorded there
+            # because no Position row exists yet at risk-rejection time).
             rejected_result = await session.execute(
-                select(TradeEvent).where(TradeEvent.event_type == "RISK_REJECTED")
+                select(SignalLog).where(SignalLog.outcome == "REJECTED")
             )
             rejections = rejected_result.scalars().all()
 

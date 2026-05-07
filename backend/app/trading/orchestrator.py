@@ -38,9 +38,6 @@ DEFAULT_TRADING_CONFIG = {
     "max_correlated_positions": 2,
     "max_drawdown_pct": 15.0,
     "max_leverage": 2.0,
-    # 56 = standard trend LIMIT signal (Titan confidence=60, regime-aligned, no market bonus).
-    # This is Titan's most common output — setting this above 56 disables the entire
-    # standard-trend signal class. Live data: 75.7% WR over 70 resolved signals at conv=56.
     "min_conviction": 56,
     "max_total_exposure_pct": 200.0,
     "order_expiry_hours": 16,
@@ -80,6 +77,29 @@ async def _log_event(session, position_id: int, event_type: str, details: dict) 
         timestamp=int(time.time() * 1000),
     )
     session.add(event)
+
+
+async def _fill_telemetry(intended: Optional[float], actual: Optional[float]) -> dict:
+    """Build entry_delta + regime_at_fill fields for FILLED events. Cache-miss safe."""
+    regime = "UNKNOWN"
+    try:
+        regime_data = await RedisClient.get_json("market:regime")
+        if regime_data and regime_data.get("regime"):
+            regime = regime_data["regime"]
+    except Exception:
+        pass
+
+    if intended is None or actual is None or intended == 0:
+        delta_pct = 0.0
+    else:
+        delta_pct = round((actual - intended) / intended * 100, 4)
+
+    return {
+        "intended_entry": intended,
+        "actual_entry": actual,
+        "entry_delta_pct": delta_pct,
+        "regime_at_fill": regime,
+    }
 
 
 async def _get_active_positions(session) -> list:
@@ -181,7 +201,7 @@ class TradeOrchestrator:
             try:
                 await session.flush()  # get position.id
                 event_type = "FILLED" if position.status == "OPEN" else "CREATED"
-                await _log_event(session, position.id, event_type, {
+                event_details = {
                     "balance": balance,
                     "entry": signal.entry,
                     "actual_entry": position.actual_entry,
@@ -191,7 +211,12 @@ class TradeOrchestrator:
                     "quote_amount": quote_amount,
                     "risk_amount": risk_amount,
                     "market_fill": is_market,
-                })
+                }
+                if event_type == "FILLED":
+                    # Market fills have no limit price → intended_entry is None for telemetry
+                    intended = None if is_market else position.intended_entry
+                    event_details.update(await _fill_telemetry(intended, position.actual_entry))
+                await _log_event(session, position.id, event_type, event_details)
                 await session.commit()
                 await session.refresh(position)
             except Exception as e:
@@ -266,11 +291,11 @@ class TradeOrchestrator:
                 pos.actual_entry = current_price
                 pos.filled_at = now_ms
                 session.add(pos)
-                await _log_event(session, pos.id, "FILLED", {
-                    "actual_entry": pos.actual_entry,
-                    "intended_entry": pos.intended_entry,
+                fill_details = {
                     "current_price": current_price,
-                })
+                }
+                fill_details.update(await _fill_telemetry(pos.intended_entry, pos.actual_entry))
+                await _log_event(session, pos.id, "FILLED", fill_details)
                 logger.info(
                     f"Orchestrator: {pos.symbol} {pos.direction} FILLED @ {pos.actual_entry} "
                     f"(intended: {pos.intended_entry})"
