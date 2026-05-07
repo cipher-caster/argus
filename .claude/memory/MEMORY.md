@@ -5,6 +5,7 @@
 
 ## Feedback
 - [feedback_argus_best_practices.md](feedback_argus_best_practices.md) — Project-specific rules: gate parity, config precedence, schemas, caching, tests
+- [feedback_audit_vs_closed_experiment.md](feedback_audit_vs_closed_experiment.md) — Audit recs never override closed-experiment memories without backtest evidence
 - [feedback_backtest_before_deploy.md](feedback_backtest_before_deploy.md) — Always run backtest script to validate strategy changes before deploying
 - [feedback_docker_no_build.md](feedback_docker_no_build.md) — Never use `--build` flag by default, build separately
 - [feedback_docs_not_obsidian.md](feedback_docs_not_obsidian.md) — Log findings in docs/ folder, not Obsidian
@@ -28,7 +29,7 @@
 - [project_analytics_redesign.md](project_analytics_redesign.md) — Analytics page is 2 tabs (Best Setups, Signal Log); Backtest Performance and WinRateTrend removed
 - [project_phase19_plan.md](project_phase19_plan.md) — Phase 19 (WinRateTrend) shipped in v1.1.0 then removed end-to-end; do not re-implement
 - [project_risk_rollback_history.md](project_risk_rollback_history.md) — 7% risk was tried 2026-04-05 and reverted to 3%; don't re-propose without new evidence
-- [project_conviction_experiment.md](project_conviction_experiment.md) — Closed 2026-04-20: min_conviction set to 56; raised to 60 in 2026-05-07 audit (BUY_LIMIT class)
+- [project_conviction_experiment.md](project_conviction_experiment.md) — Closed 2026-04-20: min_conviction set to 56; 2026-05-07 audit tried 56→60 again, reverted
 - [project_post_conviction_review.md](project_post_conviction_review.md) — Closed 2026-04-20: APTUSDT removed, block_btc_sell deleted; ADX gate + ATOMUSDT swap deferred
 - [project_v2_methodology_review.md](project_v2_methodology_review.md) — Scheduled ~2026-06-01: compare v1 vs v2 win rate, Sharpe/Calmar, conviction threshold impact
 
