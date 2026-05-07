@@ -62,7 +62,7 @@ docker compose exec redis redis-cli
 - `routes/` — FastAPI route handlers with input validation (`strategy.py` for regime endpoint)
 - `services/` — Business logic, cache coordination (`market_data.py`)
 - `indicators/` — Technical analysis (pandas-ta): `screener.py`, `mean_reversion.py`
-- `strategies/` — Trading signal generation: `oracle.py` (deprecated from UI, backend preserved), `titan.py` (hybrid trend-momentum with ADX(14), primary strategy)
+- `strategies/` — Trading signal generation: `oracle.py` (removed from UI but still used by `trading/backtest_engine.py` and `routes/analytics.py` — do not delete without migrating those callers), `titan.py` (hybrid trend-momentum with ADX(14), primary strategy)
 - `jobs/` — Worker background jobs: `signal_log.py` (scan watchlist at 4H candle close with regime-based filtering, resolve outcomes every 30min)
 - `trading/` — Paper trading engine: orchestrator, risk manager, portfolio, backtest engine, optimizer
 - `providers/` — CCXT Binance wrapper (`binance_provider.py`)
@@ -87,6 +87,11 @@ docker compose exec redis redis-cli
 - **Caching:** Always check Redis before hitting Binance. Cache keys and TTLs are managed in `services/market_data.py`.
 - **API docs:** Swagger UI available at `http://localhost:8000/docs` during development.
 - **Key endpoint:** `GET /api/strategy/regime` — BTC weekly EMA50 regime detection.
+- **Trading provider:** `trading_provider` defaults to `"okx"` in `DEFAULT_TRADING_CONFIG`. Binance fallback was removed; assume OKX as the canonical execution venue.
+
+## Claude Code setup
+
+After cloning, run `bash .claude/install.sh` once to wire the project memory into your local Claude Code. See `.claude/README.md` for what's shipped (commands, hooks, memory) and how it loads.
 
 ## Documentation
 
@@ -95,7 +100,7 @@ Detailed architecture and implementation docs live in `docs/`:
 - `docs/backend/ARCHITECTURE.md` — Backend system design
 - `docs/frontend/ARCHITECTURE.md` — Frontend patterns
 - `docs/backend/ERROR_HANDLING.md` — Exception hierarchy details
-- `docs/CHANGELOG.md` — Version history (current: v1.0.0-alpha)
+- `docs/CHANGELOG.md` — Version history (current: v1.1.4)
 - `docs/ROADMAP.md` — Planned features
 
 ## AI Slash Commands
