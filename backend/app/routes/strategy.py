@@ -238,65 +238,19 @@ async def get_market_regime():
     Also returns anticipation: distance to EMA50 and next cross target.
     """
     try:
-        cache_key = "strategy:regime"
-        cached = await RedisClient.get_json(cache_key)
-        if cached:
+        # Canonical regime key shared with signal_log + worker (single source of truth).
+        from app.jobs.signal_log import (
+            compute_btc_weekly_regime,
+            REGIME_CACHE_KEY,
+            REGIME_CACHE_TTL,
+        )
+
+        cached = await RedisClient.get_json(REGIME_CACHE_KEY)
+        if cached and cached.get("regime") in ("BULL", "BEAR"):
             return cached
 
-        from app.trading.backtest_engine import load_candles
-
-        # Load BTC weekly data
-        df = await load_candles("BTC/USDT", "1w")
-        if df.empty or len(df) < 51:
-            return {"regime": "UNKNOWN", "reason": "insufficient data"}
-
-        # Calculate EMA50
-        import pandas_ta as ta
-        df["ema50"] = ta.ema(df["close"], length=50)
-
-        last = df.iloc[-1]
-        price = float(last["close"])
-        ema50 = float(last["ema50"])
-
-        if pd.isna(ema50):
-            return {"regime": "UNKNOWN", "reason": "EMA50 not available"}
-
-        regime = "BULL" if price > ema50 else "BEAR"
-        distance_pct = round((price - ema50) / ema50 * 100, 1)
-
-        # Anticipation: how close to cross?
-        anticipation = ""
-        if abs(distance_pct) < 5:
-            if regime == "BEAR":
-                anticipation = f"Bull cross likely if BTC closes above ${ema50:,.0f}"
-            else:
-                anticipation = f"Bear cross risk if BTC closes below ${ema50:,.0f}"
-        elif regime == "BEAR":
-            anticipation = f"BTC needs +{abs(distance_pct)}% to cross into bull"
-        else:
-            anticipation = f"BTC has {distance_pct}% buffer above EMA50"
-
-        # Recent trend of EMA50 (rising/falling)
-        ema_prev = float(df.iloc[-2]["ema50"])
-        ema_slope = "rising" if ema50 > ema_prev else "falling"
-
-        # Price action: is price approaching or moving away from EMA50?
-        prev_price = float(df.iloc[-2]["close"])
-        prev_distance = (prev_price - ema_prev) / ema_prev * 100
-        approaching = abs(distance_pct) < abs(prev_distance)
-
-        result = {
-            "regime": regime,
-            "btc_price": round(price, 2),
-            "ema50": round(ema50, 2),
-            "distance_pct": distance_pct,
-            "ema50_slope": ema_slope,
-            "approaching_cross": approaching,
-            "anticipation": anticipation,
-            "weekly_candle_ts": int(last["ts_ms"]),
-        }
-
-        await RedisClient.set_json(cache_key, result, ttl=3600)  # 1hr cache (weekly data)
+        result = await compute_btc_weekly_regime()
+        await RedisClient.set_json(REGIME_CACHE_KEY, result, ttl=REGIME_CACHE_TTL)
         return result
 
     except Exception as e:

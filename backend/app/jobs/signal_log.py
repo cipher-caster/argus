@@ -47,6 +47,78 @@ DEFAULT_REVIEW_DAYS = 3
 
 SIGNAL_LOG_CONFIG_KEY = "signal_log:config"
 
+# Canonical Redis key for market regime. Single source of truth across:
+#   - signal_log.log_watchlist_setups (writer)
+#   - routes/strategy.get_market_regime (reader/writer fallback)
+#   - worker.execute_signals (reader)
+#   - trading/orchestrator (reader)
+REGIME_CACHE_KEY = "market:regime"
+REGIME_CACHE_TTL = 3600  # 1 hour
+
+
+async def compute_btc_weekly_regime() -> dict:
+    """Compute the canonical BTC weekly EMA50 regime dict.
+
+    Uses the last CLOSED weekly candle (iloc[-2]) — iloc[-1] may be an
+    incomplete open candle whose close is still moving and would flip the
+    regime intra-week. All trading pipeline writers/readers must agree on
+    this so backtest and live use the same gate.
+
+    Returns the rich shape consumed by the /api/strategy/regime endpoint
+    and the UI; readers in the trading pipeline only need .get("regime").
+    """
+    from app.trading.backtest_engine import load_candles
+    import pandas_ta as _ta
+
+    df = await load_candles("BTC/USDT", "1w")
+    if df.empty or len(df) < 51:
+        return {"regime": "UNKNOWN", "reason": "insufficient data"}
+
+    df["ema50"] = _ta.ema(df["close"], length=50)
+
+    # Last closed weekly candle — see docstring.
+    last = df.iloc[-2]
+    price = float(last["close"])
+    ema50 = float(last["ema50"]) if not pd.isna(last["ema50"]) else None
+
+    if ema50 is None:
+        return {"regime": "UNKNOWN", "reason": "EMA50 not available"}
+
+    regime = "BULL" if price > ema50 else "BEAR"
+    distance_pct = round((price - ema50) / ema50 * 100, 1)
+
+    # Anticipation: how close to cross?
+    if abs(distance_pct) < 5:
+        if regime == "BEAR":
+            anticipation = f"Bull cross likely if BTC closes above ${ema50:,.0f}"
+        else:
+            anticipation = f"Bear cross risk if BTC closes below ${ema50:,.0f}"
+    elif regime == "BEAR":
+        anticipation = f"BTC needs +{abs(distance_pct)}% to cross into bull"
+    else:
+        anticipation = f"BTC has {distance_pct}% buffer above EMA50"
+
+    # Need at least 3 closed candles to compare slope and prior distance.
+    ema_slope = "rising"
+    approaching = False
+    if len(df) >= 3 and not pd.isna(df.iloc[-3]["ema50"]):
+        ema_prev = float(df.iloc[-3]["ema50"])
+        ema_slope = "rising" if ema50 > ema_prev else "falling"
+        prev_price = float(df.iloc[-3]["close"])
+        prev_distance = (prev_price - ema_prev) / ema_prev * 100
+        approaching = abs(distance_pct) < abs(prev_distance)
+
+    return {
+        "regime": regime,
+        "btc_price": round(price, 2),
+        "ema50": round(ema50, 2),
+        "distance_pct": distance_pct,
+        "ema50_slope": ema_slope,
+        "approaching_cross": approaching,
+        "anticipation": anticipation,
+        "weekly_candle_ts": int(last["ts_ms"]) if "ts_ms" in last.index and not pd.isna(last["ts_ms"]) else None,
+    }
+
 
 async def _get_config() -> dict:
     """Read signal log config from Redis, falling back to defaults.
@@ -206,24 +278,15 @@ async def log_watchlist_setups(ctx):
     logged = 0
 
     # Detect regime from BTC weekly EMA50 (cached to avoid recomputing on every watchlist scan)
-    REGIME_CACHE_KEY = "market:regime"
-    REGIME_CACHE_TTL = 3600  # 1 hour
-
     regime = "UNKNOWN"
     cached_regime = await RedisClient.get_json(REGIME_CACHE_KEY)
     if cached_regime:
         regime = cached_regime.get("regime", "UNKNOWN")
     else:
         try:
-            from app.trading.backtest_engine import load_candles
-            import pandas_ta as _ta
-            btc_weekly = await load_candles("BTC/USDT", "1w")
-            if not btc_weekly.empty and len(btc_weekly) > 50:
-                btc_weekly["ema50"] = _ta.ema(btc_weekly["close"], length=50)
-                last = btc_weekly.iloc[-2]  # Use last closed candle — iloc[-1] may be an incomplete open candle
-                if not pd.isna(last.get("ema50")):
-                    regime = "BULL" if float(last["close"]) > float(last["ema50"]) else "BEAR"
-            await RedisClient.set_json(REGIME_CACHE_KEY, {"regime": regime}, ttl=REGIME_CACHE_TTL)
+            regime_data = await compute_btc_weekly_regime()
+            regime = regime_data.get("regime", "UNKNOWN")
+            await RedisClient.set_json(REGIME_CACHE_KEY, regime_data, ttl=REGIME_CACHE_TTL)
         except Exception as e:
             logger.warning(f"Regime detection failed: {e}, using UNKNOWN")
 

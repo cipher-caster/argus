@@ -39,7 +39,7 @@ oracle = OracleStrategy()
 titan = TitanStrategy()
 
 WARMUP = 200
-DEFAULT_COINS = ["BTC", "ETH", "BNB", "TRX", "XRP", "FET", "NEAR", "ARB", "ATOM", "DOGE", "STRK", "POL", "AVAX"]
+DEFAULT_COINS = ["BTC", "ETH", "BNB", "TRX", "XRP", "FET", "NEAR", "ATOM", "DOGE", "STRK", "POL", "AVAX", "SUI", "RENDER", "AAVE"]
 
 
 # ---------------------------------------------------------------------------
@@ -136,6 +136,7 @@ async def load_and_prepare_data(symbols: list[str], provider: str = "okx") -> di
     oracle._add_indicators(btc_1d)
     titan._add_indicators(btc_4h)
     btc_macro_biases = build_macro_biases(btc_1d)
+    btc_weekly_regime = build_weekly_regime_series(btc_1d)
 
     coin_data: dict[str, dict] = {"BTC": {"4h": btc_4h, "1d": btc_1d}}
 
@@ -153,6 +154,7 @@ async def load_and_prepare_data(symbols: list[str], provider: str = "okx") -> di
         "btc_4h": btc_4h,
         "btc_1d": btc_1d,
         "btc_macro_biases": btc_macro_biases,
+        "btc_weekly_regime": btc_weekly_regime,
         "coin_data": coin_data,
     }
 
@@ -167,6 +169,53 @@ def build_macro_biases(df_1d: pd.DataFrame) -> dict:
     for _, row in df_1d.iterrows():
         biases[row["timestamp"]] = oracle._calculate_macro_bias(row)
     return biases
+
+
+def build_weekly_regime_series(btc_1d: pd.DataFrame) -> pd.DataFrame:
+    """Build a per-week regime series (BULL/BEAR/UNKNOWN) from BTC 1D data.
+
+    Mirrors the live pipeline's gate (BTC weekly close vs weekly EMA50,
+    using the LAST CLOSED weekly candle — see signal_log.compute_btc_weekly_regime).
+    Returned frame is indexed by week-end timestamp; lookup with `.asof()`.
+    """
+    import pandas_ta as _ta
+
+    if btc_1d.empty:
+        return pd.DataFrame(columns=["regime"])
+
+    df = btc_1d[["timestamp", "close"]].copy()
+    df = df.set_index("timestamp").sort_index()
+    # Resample to weekly bars (Sunday close — matches CCXT 1w convention).
+    weekly = df["close"].resample("1W").last().dropna().to_frame()
+    if len(weekly) < 51:
+        return pd.DataFrame(columns=["regime"])
+
+    weekly["ema50"] = _ta.ema(weekly["close"], length=50)
+    weekly["regime"] = "UNKNOWN"
+    mask = weekly["ema50"].notna()
+    weekly.loc[mask & (weekly["close"] > weekly["ema50"]), "regime"] = "BULL"
+    weekly.loc[mask & (weekly["close"] <= weekly["ema50"]), "regime"] = "BEAR"
+    return weekly[["regime"]]
+
+
+def get_weekly_regime(ts: pd.Timestamp, weekly_regime: pd.DataFrame) -> str:
+    """Return the regime of the most recent CLOSED weekly bar at or before ts.
+
+    Uses `.asof()` semantics; falls back to UNKNOWN if no prior bar exists.
+    Note: weekly bars in `build_weekly_regime_series` are indexed at week-end,
+    so this naturally enforces "last closed candle" — the current open week's
+    bar only enters the index after it closes.
+    """
+    if weekly_regime.empty:
+        return "UNKNOWN"
+    try:
+        # asof returns the value at the largest index <= ts.
+        regime = weekly_regime["regime"].asof(ts)
+        if isinstance(regime, str) and regime in ("BULL", "BEAR"):
+            return regime
+        return "UNKNOWN"
+    except (KeyError, TypeError):
+        return "UNKNOWN"
 
 
 def get_macro_bias(ts: pd.Timestamp, macro_biases: dict) -> dict:
@@ -321,12 +370,27 @@ async def backtest_symbol(
     btc_4h: pd.DataFrame,
     btc_macro_biases: dict,
     config: BacktestConfig,
+    btc_weekly_regime: Optional[pd.DataFrame] = None,
 ) -> list:
-    """Walk-forward simulation for one coin. Returns list of signal dicts."""
+    """Walk-forward simulation for one coin. Returns list of signal dicts.
+
+    btc_weekly_regime: optional precomputed weekly regime (BULL/BEAR/UNKNOWN)
+        from build_weekly_regime_series. If None, it's derived here from btc_4h
+        so legacy callers (scripts) get the live-aligned gate without changes.
+    """
 
     if df_4h.empty or df_1d.empty:
         print(f"  [{symbol}] Skipping — no candle data")
         return []
+
+    # Backfill the weekly regime gate when callers (e.g. scripts) didn't supply
+    # one — keeps backtest aligned with live execution (worker.execute_signals).
+    if btc_weekly_regime is None:
+        try:
+            btc_weekly_regime = build_weekly_regime_series(btc_4h)
+        except Exception as e:
+            logger.warning(f"  [{symbol}] weekly regime build failed: {e} — gate disabled")
+            btc_weekly_regime = pd.DataFrame(columns=["regime"])
 
     print(f"\n  [{symbol}] Simulating {len(df_4h)} × 4H candles...")
 
@@ -420,6 +484,16 @@ async def backtest_symbol(
         if active_signal and active_signal["direction"] == direction:
             continue
 
+        # --- Live-aligned regime gate (BTC weekly EMA50) ---
+        # Mirrors worker.execute_signals: BEAR blocks longs, BULL blocks shorts,
+        # UNKNOWN allows both. This replaces the prior Oracle-1D-macro filter,
+        # which was the source of backtest/live calibration drift.
+        weekly_regime = get_weekly_regime(ts, btc_weekly_regime)
+        if weekly_regime == "BULL" and is_short:
+            continue
+        if weekly_regime == "BEAR" and is_long:
+            continue
+
         # --- Compute targets via shared calculator ---
         atr = float(row.get("atr", 0))
         if atr <= 0:
@@ -449,8 +523,14 @@ async def backtest_symbol(
             continue
 
         # --- Conviction (mirrors live calculate_conviction formula) ---
-        btc_bias = btc_macro["bias"]  # "BULLISH", "BEARISH", or "NEUTRAL" from BTC 1D macro
-        regime_aligned = (btc_bias == "BULLISH" and is_long) or (btc_bias == "BEARISH" and is_short)
+        # btc_bias retained as informational only (Oracle 1D macro) — the actual
+        # regime gate above uses weekly EMA50 to match live, so conviction's
+        # alignment must use the same source.
+        btc_bias = btc_macro["bias"]  # informational; not used as a gate
+        regime_aligned = (
+            (weekly_regime == "BULL" and is_long)
+            or (weekly_regime == "BEAR" and is_short)
+        )
         conviction = calculate_conviction(
             confidence=int(t_confidence),
             regime_aligned=regime_aligned,
