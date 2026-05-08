@@ -9,6 +9,7 @@
       "Bash(git:*)",
       "Read",
       "Write(.claude)",
+      "Write(docs)",
       "Edit"
     ]
   },

@@ -101,7 +101,17 @@ Detailed architecture and implementation docs live in `docs/`:
 - `docs/frontend/ARCHITECTURE.md` — Frontend patterns
 - `docs/backend/ERROR_HANDLING.md` — Exception hierarchy details
 - `docs/CHANGELOG.md` — Version history (current: v1.1.4)
-- `docs/ROADMAP.md` — Planned features
+- `V1_CLEANUP_PLAN.md` — v1.0 scope-freeze cleanup plan; ROADMAP retired
+
+## Compact Instructions
+
+When auto-compacting this conversation, always preserve:
+- Active phase / item being worked on (e.g. "V1_CLEANUP_PLAN Item 4")
+- Any failing test names, error messages, or unresolved decisions
+- Closed-experiment guards: 3% risk (not 7%), conviction=56 (not 60), no per-symbol overrides
+- OKX is the canonical trading provider; Binance fallback is removed
+- Watchlist is 15 coins; do not propose adding/removing without a full walk-forward
+- Memory rule: never override a closed experiment without new backtest evidence
 
 ## AI Slash Commands
 

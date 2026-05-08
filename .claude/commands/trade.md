@@ -1,3 +1,8 @@
+---
+description: Call the Argus trading API and produce a trade management report.
+disable-model-invocation: true
+---
+
 Call the Argus trading API and produce a trade management report.
 
 Make these API calls (backend at http://localhost:8000):

@@ -1,3 +1,8 @@
+---
+description: Run a trading optimization loop for the Argus paper trading engine.
+disable-model-invocation: true
+---
+
 Run a trading optimization loop for the Argus paper trading engine.
 
 Usage: /optimize [sweep sl|tp|confidence|gates|full] [analyze] [apply] [status]
