@@ -221,7 +221,7 @@ async def startup(ctx):
             gap_hours = gap_ms / (1000 * 60 * 60)
 
             if gap_hours > 0.5:  # Only recover if gap > 30 minutes
-                logger.info(f"Startup: detected {gap_hours:.1f}h gap since last heartbeat")
+                logger.info(f"Startup: detected {gap_hours:.1f}h gap since last heartbeat — deferring recovery scan")
 
                 # Log the gap
                 from app.schemas.activity_log import log_activity
@@ -229,33 +229,17 @@ async def startup(ctx):
                                    gap_hours=round(gap_hours, 1),
                                    last_heartbeat_ms=last_ms)
 
-                # Calculate missed 4H candle closes (00, 04, 08, 12, 16, 20 UTC)
-                last_dt = datetime.fromtimestamp(last_ms / 1000, tz=timezone.utc)
-                now_dt = datetime.fromtimestamp(now_ms / 1000, tz=timezone.utc)
-
-                missed_closes = []
-                candle_hours = [0, 4, 8, 12, 16, 20]
-                check_dt = last_dt.replace(minute=0, second=0, microsecond=0)
-                while check_dt <= now_dt:
-                    if check_dt.hour in candle_hours and check_dt > last_dt:
-                        missed_closes.append(check_dt)
-                    check_dt = check_dt + timedelta(hours=1)
-
-                if missed_closes:
-                    logger.info(f"Startup: {len(missed_closes)} missed 4H candle close(s), recovering signals...")
-                    await log_activity("RECOVERY_SCAN",
-                                       missed_closes=len(missed_closes),
-                                       first_missed=missed_closes[0].isoformat(),
-                                       last_missed=missed_closes[-1].isoformat())
-
-                    # For each missed close, run signal scan with historical data
-                    await _recover_missed_scans(ctx, missed_closes)
-
-                    # Resolve any open signals using candle high/low (not just current price)
-                    from app.jobs.signal_log import resolve_outcomes_historical
-                    await resolve_outcomes_historical(ctx)
-                else:
-                    logger.info("Startup: no missed 4H candle closes")
+                # Defer recovery into an arq job so cron dispatch isn't blocked
+                # while the recovery loop iterates over (missed_closes × watchlist).
+                try:
+                    await ctx['redis'].enqueue_job(
+                        'recover_missed_scans',
+                        last_ms,
+                        _defer_by=timedelta(seconds=30),
+                    )
+                    logger.info("Startup: recovery scan enqueued (T+30s)")
+                except Exception as e:
+                    logger.warning(f"Startup: failed to enqueue recovery scan (non-fatal): {e}")
         else:
             logger.info("Startup: no previous heartbeat found (first boot)")
             from app.schemas.activity_log import log_activity
@@ -691,13 +675,47 @@ async def backfill_okx_candles(ctx) -> None:
         )
 
 
+async def recover_missed_scans(ctx, last_heartbeat_ms: int) -> None:
+    """Deferred startup recovery — runs missed-4H-close signal scan + outcome
+    resolution in a normal arq job slot, so cron dispatch isn't blocked while
+    the recovery loop iterates over (missed_closes × watchlist).
+    """
+    from app.schemas.activity_log import log_activity
+    from app.jobs.signal_log import resolve_outcomes_historical
+
+    now_ms = int(time.time() * 1000)
+    last_dt = datetime.fromtimestamp(last_heartbeat_ms / 1000, tz=timezone.utc)
+    now_dt = datetime.fromtimestamp(now_ms / 1000, tz=timezone.utc)
+
+    missed_closes = []
+    candle_hours = [0, 4, 8, 12, 16, 20]
+    check_dt = last_dt.replace(minute=0, second=0, microsecond=0)
+    while check_dt <= now_dt:
+        if check_dt.hour in candle_hours and check_dt > last_dt:
+            missed_closes.append(check_dt)
+        check_dt = check_dt + timedelta(hours=1)
+
+    if not missed_closes:
+        logger.info("Job: recover_missed_scans — no missed 4H candle closes")
+        return
+
+    logger.info(f"Job: recover_missed_scans — {len(missed_closes)} missed close(s), recovering...")
+    await log_activity("RECOVERY_SCAN",
+                       missed_closes=len(missed_closes),
+                       first_missed=missed_closes[0].isoformat(),
+                       last_missed=missed_closes[-1].isoformat())
+    await _recover_missed_scans(ctx, missed_closes)
+    await resolve_outcomes_historical(ctx)
+    logger.info("Job: recover_missed_scans — complete")
+
+
 class WorkerSettings:
     # Market data and analytics cache jobs
     functions = [
         sync_market_summary, sync_market_snapshot, sync_analytics_cache,
         log_watchlist_setups, log_best_setups, resolve_signal_outcomes,
         execute_signals, manage_positions, sync_trading_balance,
-        backfill_okx_candles,
+        backfill_okx_candles, recover_missed_scans,
     ]
     on_startup = startup
     on_shutdown = shutdown
