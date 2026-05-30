@@ -27,6 +27,7 @@
 - [project_risk_rollback_history.md](project_risk_rollback_history.md) — 7% risk was tried 2026-04-05 and reverted to 3%; don't re-propose without new evidence
 - [project_conviction_experiment.md](project_conviction_experiment.md) — Closed 2026-04-20: min_conviction set to 56; 2026-05-07 audit tried 56→60 again, reverted
 - [project_post_conviction_review.md](project_post_conviction_review.md) — Closed 2026-04-20: APTUSDT removed, block_btc_sell deleted; ADX gate + ATOMUSDT swap deferred
+- [project_orchestration_backbone.md](project_orchestration_backbone.md) — Portable .claude/core backbone: generic dev agents + /dev /fix /discuss drivers + Obsidian context backup
 
 ## Reference
 - [reference_backtest_docs.md](reference_backtest_docs.md) — Full backtest results and strategy docs location
