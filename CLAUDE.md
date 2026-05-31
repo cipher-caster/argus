@@ -178,3 +178,18 @@ Runs Phase B frontend E2E expansion tests (data rendering, trading page).
 ### `/test-phase-c`
 
 Runs Phase C trading analytics integration tests (signal log joins, regime capture).
+
+### `/heal`
+
+Self-healing backend monitor. Traces the data flow from a symptom (empty dashboard,
+missing market data, blocked cron) to its root cause, proves the cause with a command,
+fixes it, and re-runs the same command to prove resolution.
+
+```
+/heal                    # auto-triage: detect symptom, then diagnose → verify → fix → prove
+/heal empty dashboard    # start from a known symptom
+```
+
+Hard rules baked in: resolve+curl any external endpoint before calling it "official";
+verify root cause before fixing and re-verify after; commit only verified code fixes;
+flag risky config changes (risk %, conviction, watchlist, provider) for approval first.
