@@ -1,0 +1,229 @@
+"use client";
+
+import { CoinIcon } from "@/components/features/dashboard/CoinIcon";
+import { Badge } from "@/components/ui/badge";
+import { DirectionBadge } from "@/components/ui/DirectionBadge";
+import { useBestSetups } from "@/hooks/useAnalyticsData";
+import { CoinMeta, useCoinMeta } from "@/hooks/useCoinMeta";
+import { BestSetupItem } from "@/lib/api";
+import { formatPriceCompact, formatPercentageChange } from "@/lib/formatters";
+import { cn } from "@/lib/utils";
+import { RefreshCw, TrendingDown, TrendingUp } from "lucide-react";
+import Link from "next/link";
+
+function SetupCard({ item, coinMeta }: { item: BestSetupItem; coinMeta: Map<string, CoinMeta> }) {
+  const isLong = item.direction === "LONG";
+  const tpPct = isLong ? formatPercentageChange(item.entry, item.tp) : formatPercentageChange(item.tp, item.entry, "SHORT");
+  const slPct = isLong ? formatPercentageChange(item.entry, item.sl) : formatPercentageChange(item.sl, item.entry, "SHORT");
+  const isElite = item.conviction >= 95;
+  const isWithTrend = item.reason.startsWith("(trend)");
+
+  return (
+    <Link href={`/chart/${item.symbol.replace("/", "-")}`} className="block group">
+      <div className={cn(
+        "bg-secondary/30 border rounded-2xl p-5 hover:bg-secondary/50 transition-all duration-300 space-y-4",
+        isElite ? "border-amber-500/50 shadow-[0_0_15px_rgba(245,158,11,0.1)]" : "border-border/50 hover:border-primary/40"
+      )}>
+        {/* Header row */}
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <CoinIcon symbol={item.symbol} coinMeta={coinMeta} size={36} className="rounded-xl" />
+            <div>
+              <div className="flex items-center gap-2">
+                <span className="font-black text-sm tracking-tight group-hover:text-primary transition-colors">
+                  {item.symbol.replace("USDT", "")}
+                </span>
+                {isElite && (
+                  <Badge className="bg-amber-500 text-[8px] h-4 px-1 font-black animate-pulse border-none">
+                    ELITE
+                  </Badge>
+                )}
+              </div>
+              <p className="text-xs text-muted-foreground font-mono">${formatPriceCompact(item.entry)}</p>
+            </div>
+          </div>
+          <div className="flex items-center gap-2">
+            <span
+              className={cn(
+                "flex items-center gap-1.5 px-3 py-1 rounded-lg text-xs font-black uppercase tracking-widest",
+                isLong ? "bg-green-500/15 text-green-400" : "bg-red-500/15 text-red-400"
+              )}
+            >
+              {isLong ? <TrendingUp size={12} /> : <TrendingDown size={12} />}
+              {item.direction}
+            </span>
+            {isWithTrend && (
+              <span className="text-[8px] font-bold px-1.5 py-0.5 rounded bg-primary/15 text-primary uppercase tracking-wider">with trend</span>
+            )}
+          </div>
+        </div>
+
+        {/* Conviction bar */}
+        <div className="space-y-1.5">
+          <div className="flex justify-between text-[10px] font-bold uppercase tracking-widest text-muted-foreground">
+            <span>Conviction</span>
+            <span className={cn(item.conviction >= 80 ? "text-green-400" : item.conviction >= 65 ? "text-yellow-400" : "text-muted-foreground")}>
+              {item.conviction}%
+            </span>
+          </div>
+          <div className="h-1.5 bg-muted/40 rounded-full overflow-hidden">
+            <div
+              className={cn(
+                "h-full rounded-full transition-all duration-700",
+                item.conviction >= 80 ? "bg-green-500" : item.conviction >= 65 ? "bg-yellow-500" : "bg-primary/60"
+              )}
+              style={{ width: `${item.conviction}%` }}
+            />
+          </div>
+        </div>
+
+        {/* Entry / TP / SL */}
+        <div className="grid grid-cols-3 gap-3 text-center">
+          <div className="bg-muted/20 rounded-xl p-2.5">
+            <p className="text-[9px] font-black uppercase tracking-widest text-muted-foreground mb-1">Entry</p>
+            <p className="text-xs font-medium font-mono">${formatPriceCompact(item.entry)}</p>
+          </div>
+          <div className="bg-green-500/10 rounded-xl p-2.5">
+            <p className="text-[9px] font-black uppercase tracking-widest text-green-500/70 mb-1">TP</p>
+            <p className="text-xs font-medium font-mono text-green-400">
+              ${formatPriceCompact(item.tp)}
+              <span className="block text-[9px] text-green-500/60">+{tpPct}%</span>
+            </p>
+          </div>
+          <div className="bg-red-500/10 rounded-xl p-2.5">
+            <p className="text-[9px] font-black uppercase tracking-widest text-red-500/70 mb-1">SL</p>
+            <p className="text-xs font-medium font-mono text-red-400">
+              ${formatPriceCompact(item.sl)}
+              <span className="block text-[9px] text-red-500/60">{slPct}%</span>
+            </p>
+          </div>
+        </div>
+
+        {/* MTF confluence */}
+        {item.timeframe_confirmation && (
+          <div className="border-t border-border/30 pt-3 flex items-center justify-center gap-3">
+            <span className="text-[9px] font-black uppercase tracking-widest text-muted-foreground">MTF</span>
+            <div className="flex items-center gap-3">
+              {/* Swing lane */}
+              <div className="flex items-center gap-1.5">
+                <span className="text-[9px] font-black text-muted-foreground/60 uppercase tracking-widest">Swing</span>
+                {(["4h", "1d"] as const).map((tf) => (
+                  <span
+                    key={tf}
+                    className={cn(
+                      "text-[10px] font-black px-1.5 py-0.5 rounded",
+                      item.timeframe_confirmation![tf]
+                        ? "bg-green-500/15 text-green-400"
+                        : "bg-muted/30 text-muted-foreground/50"
+                    )}
+                  >
+                    {tf.toUpperCase()}
+                  </span>
+                ))}
+              </div>
+              <span className="text-muted-foreground/30 text-xs">|</span>
+              {/* Macro lane */}
+              <div className="flex items-center gap-1.5">
+                <span className="text-[9px] font-black text-muted-foreground/60 uppercase tracking-widest">Macro</span>
+                {(["12h", "1w"] as const).map((tf) => (
+                  <span
+                    key={tf}
+                    className={cn(
+                      "text-[10px] font-black px-1.5 py-0.5 rounded",
+                      item.timeframe_confirmation![tf]
+                        ? "bg-green-500/15 text-green-400"
+                        : "bg-muted/30 text-muted-foreground/50"
+                    )}
+                  >
+                    {tf.toUpperCase()}
+                  </span>
+                ))}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Reason */}
+        <div className="flex items-center justify-between border-t border-border/30 pt-3">
+          <p className="text-[11px] text-muted-foreground leading-relaxed font-medium flex-1">
+            {item.reason}
+          </p>
+          {item.win_rate != null && (
+            <span
+              className={cn(
+                "ml-3 shrink-0 text-[10px] font-black px-2 py-0.5 rounded-md",
+                item.win_rate >= 50
+                  ? "bg-green-500/15 text-green-400"
+                  : item.win_rate >= 33
+                  ? "bg-yellow-500/15 text-yellow-400"
+                  : "bg-red-500/15 text-red-400"
+              )}
+              title={`${item.total_trades} historical trades`}
+            >
+              {item.win_rate.toFixed(0)}% win
+            </span>
+          )}
+        </div>
+      </div>
+    </Link>
+  );
+}
+
+export function BestSetups({ timeframe = "4h" }: { timeframe?: string }) {
+  const { coinMeta } = useCoinMeta();
+  const { data, isLoading, isRefetching, refetch } = useBestSetups(timeframe);
+  const items = data?.data ?? [];
+
+  return (
+    <div className="space-y-6">
+      <div className="flex items-center justify-between">
+        <div>
+          <h3 className="text-sm font-black uppercase tracking-widest flex items-center gap-2">
+            <TrendingUp size={16} className="text-primary" />
+            Best Setups
+          </h3>
+          <div className="flex items-center gap-2 mt-0.5">
+            <p className="text-[11px] text-muted-foreground">
+              {items.length > 0 ? `${items.length} high-conviction setup${items.length > 1 ? "s" : ""} found` : "Scanning markets…"}
+            </p>
+            {data?.last_updated && (
+              <span className="text-[10px] text-muted-foreground border-l border-border pl-2 opacity-60 font-medium">
+                Last Analyzed: {new Date(data.last_updated).toLocaleTimeString()}
+              </span>
+            )}
+          </div>
+        </div>
+        <button
+          onClick={() => refetch()}
+          disabled={isRefetching}
+          className="flex items-center gap-1.5 text-[11px] font-bold text-muted-foreground hover:text-foreground transition-colors"
+        >
+          <RefreshCw size={13} className={cn(isRefetching && "animate-spin")} />
+          Refresh
+        </button>
+      </div>
+
+      {isLoading ? (
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          {Array.from({ length: 4 }).map((_, i) => (
+            <div key={i} className="h-52 bg-secondary/20 rounded-2xl animate-pulse" />
+          ))}
+        </div>
+      ) : items.length === 0 ? (
+        <div className="flex flex-col items-center justify-center h-64 text-center space-y-3">
+          <div className="text-4xl">🔍</div>
+          <p className="font-black text-sm uppercase tracking-widest">No setups right now</p>
+          <p className="text-xs text-muted-foreground max-w-xs">
+            No high-conviction Titan signals matching the current regime. Market may be ranging or waiting for better entries.
+          </p>
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          {items.map((item) => (
+            <SetupCard key={item.symbol} item={item} coinMeta={coinMeta} />
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}

@@ -1,0 +1,198 @@
+"use client";
+
+import { useChartSettingsStore } from "@/stores/chartSettingsStore";
+import { themes, useThemeStore } from "@/stores/themeStore";
+import { ColorType, createChart } from "lightweight-charts";
+import { ReactNode, useEffect, useRef } from "react";
+import { useChart } from "../context/ChartContext";
+
+interface ChartCanvasProps {
+  children?: ReactNode;
+  className?: string; // For layout styling
+}
+
+export function ChartCanvas({ children, className }: ChartCanvasProps) {
+  const containerRef = useRef<HTMLDivElement>(null);
+  const { chart: contextChart, setChart, mainSeries: contextMainSeries, setMainSeries, setDimensions, width, height } = useChart();
+
+  const theme = useThemeStore((s) => s.theme);
+  const currentTheme = themes[theme];
+  const chartColors = useChartSettingsStore((s) => s.colors);
+
+  // Helper to create chart options
+  const getChartOptions = (width: number, height: number) => ({
+    layout: {
+      background: { type: ColorType.Solid, color: currentTheme.chart.background },
+      textColor: currentTheme.chart.text,
+    },
+    grid: {
+      vertLines: { color: currentTheme.chart.gridLines },
+      horzLines: { color: currentTheme.chart.gridLines },
+    },
+    crosshair: {
+      mode: 1,
+      vertLine: {
+        color: currentTheme.chart.crosshair,
+        width: 1 as 1,
+        style: 2,
+        labelBackgroundColor: currentTheme.backgroundSecondary,
+      },
+      horzLine: {
+        color: currentTheme.chart.crosshair,
+        width: 1 as 1,
+        style: 2,
+        labelBackgroundColor: currentTheme.backgroundSecondary,
+      },
+    },
+    rightPriceScale: {
+      borderColor: currentTheme.border,
+      scaleMargins: {
+        top: 0.1,
+        bottom: 0.1,
+      },
+      visible: true,
+    },
+    timeScale: {
+      borderColor: currentTheme.border,
+      timeVisible: true,
+      secondsVisible: false,
+    },
+    width,
+    height,
+  });
+
+  // Pinch-to-zoom
+  useEffect(() => {
+    const el = containerRef.current;
+    if (!el || !contextChart) return;
+
+    let initialDist = 0;
+    let initialRange: { from: number; to: number } | null = null;
+
+    const getDistance = (touches: TouchList) => {
+      const dx = touches[0].clientX - touches[1].clientX;
+      const dy = touches[0].clientY - touches[1].clientY;
+      return Math.hypot(dx, dy);
+    };
+
+    const onTouchStart = (e: TouchEvent) => {
+      if (e.touches.length !== 2) return;
+      initialDist = getDistance(e.touches);
+      const range = contextChart.timeScale().getVisibleLogicalRange();
+      initialRange = range ? { from: range.from, to: range.to } : null;
+    };
+
+    const onTouchMove = (e: TouchEvent) => {
+      if (e.touches.length !== 2 || !initialRange || initialDist === 0) return;
+      e.preventDefault();
+      const newDist = getDistance(e.touches);
+      const scale = initialDist / newDist; // pinch in → scale > 1 → zoom out
+      const mid = (initialRange.from + initialRange.to) / 2;
+      const half = ((initialRange.to - initialRange.from) / 2) * scale;
+      contextChart.timeScale().setVisibleLogicalRange({
+        from: mid - half,
+        to: mid + half,
+      });
+    };
+
+    const onTouchEnd = () => {
+      initialDist = 0;
+      initialRange = null;
+    };
+
+    el.addEventListener("touchstart", onTouchStart, { passive: true });
+    el.addEventListener("touchmove", onTouchMove, { passive: false });
+    el.addEventListener("touchend", onTouchEnd, { passive: true });
+
+    return () => {
+      el.removeEventListener("touchstart", onTouchStart);
+      el.removeEventListener("touchmove", onTouchMove);
+      el.removeEventListener("touchend", onTouchEnd);
+    };
+  }, [contextChart]);
+
+  // Resize Observer
+  useEffect(() => {
+    if (!containerRef.current) return;
+
+    const resizeObserver = new ResizeObserver((entries) => {
+      if (!entries.length) return;
+      const { width, height } = entries[0].contentRect;
+      setDimensions(width, height);
+      if (contextChart) {
+        contextChart.applyOptions({ width, height });
+      }
+    });
+
+    resizeObserver.observe(containerRef.current);
+
+    return () => resizeObserver.disconnect();
+  }, [contextChart, setDimensions]);
+
+  // Initial Resize
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      if (containerRef.current) {
+        setDimensions(containerRef.current.clientWidth, containerRef.current.clientHeight);
+      }
+    }, 50);
+    return () => clearTimeout(timer);
+  }, [setDimensions]);
+
+  // Initialize Chart
+  useEffect(() => {
+    if (!containerRef.current) return;
+
+    // We check if dimensions are > 0 to avoid the 0x0 issue
+    if (width === 0 || height === 0) return;
+
+    const seriesOptions = {
+      upColor: chartColors.upColor || currentTheme.positive,
+      downColor: chartColors.downColor || currentTheme.negative,
+      borderUpColor: chartColors.borderUpColor || currentTheme.positive,
+      borderDownColor: chartColors.borderDownColor || currentTheme.negative,
+      wickUpColor: chartColors.wickUpColor || currentTheme.positive,
+      wickDownColor: chartColors.wickDownColor || currentTheme.negative,
+    };
+
+    if (!contextChart) {
+      try {
+        const newChart = createChart(containerRef.current, getChartOptions(width, height));
+        setChart(newChart);
+
+        const series = newChart.addCandlestickSeries(seriesOptions);
+        setMainSeries(series);
+      } catch (e) {
+        console.error("Failed to create chart", e);
+      }
+    } else {
+      contextChart.applyOptions(getChartOptions(width, height));
+      contextMainSeries?.applyOptions(seriesOptions);
+    }
+
+    // The chart instance lives on the context provider, which outlives this
+    // component, so it is intentionally not destroyed on Canvas unmount — the
+    // provider owns teardown when the user navigates away.
+    return () => {};
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [width, height, theme, currentTheme, chartColors]);
+
+  // Cleanup on unmount
+  useEffect(() => {
+    return () => {
+      if (contextChart) {
+        contextChart.remove();
+        setChart(null);
+        setMainSeries(null);
+      }
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []); // Run on mount/unmount only
+
+  return (
+    <div className={className} style={{ position: "relative" }}>
+      <div ref={containerRef} className="absolute inset-0" />
+      {children}
+    </div>
+  );
+}

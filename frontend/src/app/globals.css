@@ -1,0 +1,126 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer utilities {
+  .scrollbar-none {
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+  }
+  .scrollbar-none::-webkit-scrollbar {
+    display: none;
+  }
+}
+
+@layer base {
+  :root {
+    --background: 0 0% 100%;
+    --foreground: 222.2 84% 4.9%;
+
+    --card: 0 0% 100%;
+    --card-foreground: 222.2 84% 4.9%;
+
+    --popover: 0 0% 100%;
+    --popover-foreground: 222.2 84% 4.9%;
+
+    --primary: 245 82% 67%; /* #6366f1 Indigo-500 */
+    --primary-foreground: 210 40% 98%;
+
+    --secondary: 240 5% 96%;
+    --secondary-foreground: 222.2 47.4% 11.2%;
+
+    --muted: 240 5% 96%;
+    --muted-foreground: 215.4 16.3% 46.9%;
+
+    --accent: 240 5% 96%;
+    --accent-foreground: 222.2 47.4% 11.2%;
+
+    --destructive: 0 84.2% 60.2%;
+    --destructive-foreground: 210 40% 98%;
+
+    --success: 160 84% 39%;
+    --success-foreground: 210 40% 98%;
+
+    --danger: 0 84% 60%;
+    --danger-foreground: 210 40% 98%;
+
+    --border: 214.3 31.8% 91.4%;
+    --input: 214.3 31.8% 91.4%;
+    --ring: 245 82% 67%;
+
+    --radius: 0.5rem;
+
+    /* Legacy Argus Vars Mapped */
+    --bg-primary: #ffffff;
+    --bg-secondary: #f5f5f7;
+    --bg-tertiary: #e8e8eb;
+    --text-primary: #1a1a1a;
+    --text-secondary: #606070;
+    --text-muted: #9ca3af;
+    --accent-primary: #6366f1;
+    --border-color: #d1d1d6;
+  }
+
+  .dark {
+    --background: 240 10% 4%; /* #08080c */
+    --foreground: 210 40% 98%;
+
+    --card: 240 10% 7%; /* #0f0f18 */
+    --card-foreground: 210 40% 98%;
+
+    --popover: 240 10% 7%;
+    --popover-foreground: 210 40% 98%;
+
+    --primary: 245 82% 67%;
+    --primary-foreground: 222.2 47.4% 11.2%;
+
+    --secondary: 240 10% 7%;
+    --secondary-foreground: 210 40% 98%;
+
+    --muted: 240 10% 11%;
+    --muted-foreground: 215 20.2% 65.1%;
+
+    --accent: 240 10% 11%;
+    --accent-foreground: 210 40% 98%;
+
+    --destructive: 0 62.8% 30.6%;
+    --destructive-foreground: 210 40% 98%;
+
+    --success: 155 100% 43%;
+    --success-foreground: 210 40% 98%;
+
+    --danger: 355 100% 64%;
+    --danger-foreground: 210 40% 98%;
+
+    --border: 240 10% 11%; /* #1e1e30 */
+    --input: 240 10% 11%;
+    --ring: 245 82% 67%;
+
+    /* Legacy Argus Vars Mapped */
+    --bg-primary: #08080c;
+    --bg-secondary: #0f0f18;
+    --bg-tertiary: #161625;
+    --text-primary: #ffffff;
+    --text-secondary: #a0a0b0;
+    --text-muted: #606070;
+    --accent-primary: #6366f1;
+    --border-color: #1e1e30;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+  html,
+  body {
+    @apply h-full m-0 p-0 overflow-hidden;
+    font-family: var(--font-sans), system-ui, sans-serif;
+  }
+  body {
+    @apply bg-background text-foreground;
+  }
+  .font-mono, code, kbd, samp, pre {
+    font-family: var(--font-mono), ui-monospace, monospace;
+  }
+}

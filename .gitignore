@@ -1,0 +1,61 @@
+# Claude Code — local-only
+.claude/worktrees/
+.claude/settings.local.json
+.claude/memory/
+.claude/global/
+
+# Private / internal content (never publish)
+docs/market-reports/
+docs/trading/*.csv
+
+# Dependencies
+node_modules/
+__pycache__/
+*.pyc
+.pyo
+venv/
+.venv/
+env/
+
+# Build outputs
+.next/
+out/
+build/
+dist/
+*.egg-info/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# Environment
+.env
+.env.local
+.env.*.local
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Testing
+coverage/
+.pytest_cache/
+
+# Runtime data
+data/
+
+# Build artifacts
+frontend/tsconfig.tsbuildinfo
+
+# Misc
+*.pem
+.vercel
