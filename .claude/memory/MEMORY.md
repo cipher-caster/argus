@@ -28,6 +28,7 @@
 - [project_conviction_experiment.md](project_conviction_experiment.md) — Closed 2026-04-20: min_conviction set to 56; 2026-05-07 audit tried 56→60 again, reverted
 - [project_post_conviction_review.md](project_post_conviction_review.md) — Closed 2026-04-20: APTUSDT removed, block_btc_sell deleted; ADX gate + ATOMUSDT swap deferred
 - [project_orchestration_backbone.md](project_orchestration_backbone.md) — Portable .claude/core backbone: generic dev agents + /dev /fix /discuss drivers + Obsidian context backup
+- [project_backend_cleanup_2026_06.md](project_backend_cleanup_2026_06.md) — Jun 2026 phased backend cleanup: what shipped + deferred backlog (broad-excepts, candle-walk merge, lint ratchet) + reusable backtest parity-gate procedure
 
 ## Reference
 - [reference_backtest_docs.md](reference_backtest_docs.md) — Full backtest results and strategy docs location
