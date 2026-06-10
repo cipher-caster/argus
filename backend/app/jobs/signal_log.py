@@ -808,8 +808,6 @@ async def resolve_outcomes_historical(ctx):
                 for _, candle in candles_after.iterrows():
                     c_high = float(candle.get("high", 0))
                     c_low = float(candle.get("low", 0))
-                    c_open = float(candle.get("open", 0))
-                    c_close = float(candle.get("close", 0))
                     c_ts = candle.get("timestamp", 0)
                     c_time = (
                         int(c_ts.timestamp() * 1000) if hasattr(c_ts, "timestamp") else int(c_ts)

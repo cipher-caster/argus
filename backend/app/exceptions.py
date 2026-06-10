@@ -62,29 +62,3 @@ class ValidationError(ArgusException):
     """
 
     pass
-
-
-class ExecutionError(ArgusException):
-    """
-    Raised when a trade execution or simulation step fails.
-
-    Examples:
-        - Position creation failed
-        - Price lookup failed during fill check
-        - Unexpected state transition
-    """
-
-    pass
-
-
-class RiskCheckError(ArgusException):
-    """
-    Raised when a risk management gate rejects a trade.
-
-    Examples:
-        - Max positions exceeded
-        - Drawdown threshold breached
-        - Conviction below minimum
-    """
-
-    pass

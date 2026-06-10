@@ -391,7 +391,7 @@ class MarketDataService:
         if sort_by == "volume":
             data.sort(key=lambda x: x.get("volume_24h", 0), reverse=True)
         else:  # Default market_cap
-            data.sort(key=lambda x: x.get("market_cap" or 0) or 0, reverse=True)
+            data.sort(key=lambda x: x.get("market_cap", 0) or 0, reverse=True)
 
         # Filter against active exchange symbols to ensure we only return tradeable assets
         from app.providers import get_provider, owns_provider

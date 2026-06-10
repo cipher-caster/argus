@@ -3,6 +3,7 @@ Argus Crypto Dashboard - Backend API
 FastAPI application for market data and analysis
 """
 
+import logging
 from contextlib import asynccontextmanager
 
 from dotenv import load_dotenv
@@ -17,6 +18,8 @@ from app.routes.system import router as system_router
 from app.routes.trading import router as trading_router
 from app.storage import Database
 
+logger = logging.getLogger(__name__)
+
 load_dotenv()
 
 
@@ -27,9 +30,9 @@ async def lifespan(app: FastAPI):
     # Initialize Database
     try:
         Database.init()
-        print("✓ Argus Backend: Database initialized")
+        logger.info("✓ Argus Backend: Database initialized")
     except Exception as e:
-        print(f"✗ Argus Backend: Database init failed — {e}")
+        logger.error(f"✗ Argus Backend: Database init failed — {e}")
         raise RuntimeError(f"Database initialization failed: {e}") from e
 
     # Initialize Data Provider
@@ -40,9 +43,9 @@ async def lifespan(app: FastAPI):
         provider = get_provider()
         set_shared_provider(provider)
         set_provider(provider)
-        print("✓ Argus Backend: Provider initialized")
+        logger.info("✓ Argus Backend: Provider initialized")
     except Exception as e:
-        print(f"✗ Argus Backend: Provider init failed — {e}")
+        logger.error(f"✗ Argus Backend: Provider init failed — {e}")
         raise RuntimeError(f"Provider initialization failed: {e}") from e
 
     yield
@@ -51,9 +54,9 @@ async def lifespan(app: FastAPI):
     try:
         await provider.close()
     except Exception as e:
-        print(f"Warning: provider close failed — {e}")
+        logger.warning(f"Warning: provider close failed — {e}")
     await Database.close()
-    print("✓ Argus Backend: Storage closed")
+    logger.info("✓ Argus Backend: Storage closed")
 
 
 app = FastAPI(

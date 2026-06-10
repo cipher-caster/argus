@@ -7,7 +7,7 @@ import logging
 
 from fastapi import APIRouter, HTTPException, Query
 
-from app.exceptions import CacheError, DataProviderError, ValidationError
+from app.exceptions import DataProviderError
 from app.providers import SymbolInfo
 from app.schemas.market_data import (
     CoinInfo,
@@ -90,9 +90,6 @@ async def get_ohlcv(
     except DataProviderError as e:
         logger.error(f"Provider error fetching {symbol} {timeframe}: {e}")
         raise HTTPException(status_code=503, detail="Data provider unavailable")
-    except ValidationError as e:
-        logger.warning(f"Validation error for {symbol} {timeframe}: {e}")
-        raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
         logger.error(f"Unexpected error fetching {symbol} {timeframe}: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail="Internal server error")
@@ -138,9 +135,6 @@ async def get_ticker(symbol: str):
         # Still not found - return null price instead of 404
         logger.warning(f"Ticker not found for {symbol}")
         return TickerResponse(symbol=symbol, price=None, provider="not-found")
-    except CacheError as e:
-        logger.error(f"Cache error fetching ticker {symbol}: {e}")
-        raise HTTPException(status_code=503, detail="Cache unavailable")
     except Exception as e:
         logger.error(f"Unexpected error fetching ticker {symbol}: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail="Internal server error")
@@ -223,9 +217,6 @@ async def get_market_summary():
             top_losers=map_tickers(data.get("losers", [])),
             top_volume=map_tickers(data.get("top_volume", [])),
         )
-    except CacheError as e:
-        logger.error(f"Cache error fetching market summary: {e}")
-        raise HTTPException(status_code=503, detail="Cache unavailable")
     except Exception as e:
         logger.error(f"Unexpected error fetching market summary: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail="Internal server error")
@@ -242,9 +233,6 @@ async def get_market_tickers():
 
         logger.info(f"Fetched {len(data)} merged tickers")
         return {"tickers": data, "provider": "redis-merged"}
-    except CacheError as e:
-        logger.error(f"Cache error fetching tickers: {e}")
-        raise HTTPException(status_code=503, detail="Cache unavailable")
     except Exception as e:
         logger.error(f"Unexpected error fetching tickers: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail="Internal server error")
@@ -287,12 +275,6 @@ async def get_coins(
 
         return CoinsResponse(coins=coins, total=total, page=page, page_size=page_size)
 
-    except CacheError as e:
-        logger.error(f"Cache error fetching coins: {e}")
-        raise HTTPException(status_code=503, detail="Cache unavailable")
-    except ValidationError as e:
-        logger.warning(f"Validation error in coins endpoint: {e}")
-        raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
         logger.error(f"Unexpected error fetching coins: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail="Internal server error")

@@ -410,7 +410,7 @@ async def backtest_symbol(
     """
 
     if df_4h.empty or df_1d.empty:
-        print(f"  [{symbol}] Skipping — no candle data")
+        logger.info(f"  [{symbol}] Skipping — no candle data")
         return []
 
     # Backfill the weekly regime gate when callers (e.g. scripts) didn't supply
@@ -422,7 +422,7 @@ async def backtest_symbol(
             logger.warning(f"  [{symbol}] weekly regime build failed: {e} — gate disabled")
             btc_weekly_regime = pd.DataFrame(columns=["regime"])
 
-    print(f"\n  [{symbol}] Simulating {len(df_4h)} × 4H candles...")
+    logger.info(f"  [{symbol}] Simulating {len(df_4h)} × 4H candles...")
 
     # Pre-compute indicators (idempotent — skip if already done)
     if "rsi" not in df_4h.columns:

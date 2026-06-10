@@ -3,12 +3,15 @@ Market-Level Indicators Module
 Dashboard metrics computed from market data (separate from chart indicators)
 """
 
+import logging
 from typing import Any
 
 import numpy as np
 import pandas as pd
 import pandas_ta as ta
 from pydantic import BaseModel
+
+logger = logging.getLogger(__name__)
 
 
 class IndicatorValue(BaseModel):

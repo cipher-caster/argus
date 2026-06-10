@@ -247,7 +247,6 @@ def _series_to_list(timestamps: pd.Series, values: pd.Series) -> list[dict[str, 
 def _bbands_to_list(timestamps: pd.Series, bbands: pd.DataFrame) -> list[dict[str, Any]]:
     """Convert Bollinger Bands DataFrame to list"""
     result = []
-    cols = bbands.columns.tolist()
     for i, ts in enumerate(timestamps):
         row = bbands.iloc[i]
         if pd.notna(row.iloc[0]):

@@ -3,9 +3,13 @@ OKX Data Provider
 Uses CCXT library for market data fetching
 """
 
+import logging
+
 import ccxt.async_support as ccxt
 
 from .data_provider import Candle, DataProvider, SymbolInfo
+
+logger = logging.getLogger(__name__)
 
 
 class OKXProvider(DataProvider):
@@ -98,7 +102,8 @@ class OKXProvider(DataProvider):
         try:
             ticker = await self._exchange.fetch_ticker(self._normalize_symbol(symbol))
             return ticker.get("last")
-        except Exception:
+        except Exception as e:
+            logger.warning(f"get_ticker_price failed for {symbol}: {e}", exc_info=True)
             return None
 
     async def get_all_tickers(self) -> dict:
@@ -107,7 +112,8 @@ class OKXProvider(DataProvider):
 
         try:
             return await self._exchange.fetch_tickers()
-        except Exception:
+        except Exception as e:
+            logger.warning(f"get_all_tickers failed: {e}", exc_info=True)
             return {}
 
     async def close(self):
