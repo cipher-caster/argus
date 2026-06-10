@@ -29,7 +29,7 @@ from app.schemas.candle import Candle as DbCandle
 from app.storage import Database
 from app.strategies.oracle import OracleStrategy
 from app.strategies.titan import TitanStrategy, calculate_risk_levels
-from app.utils.trading_utils import calculate_conviction
+from app.utils.trading_utils import calculate_conviction, tp_sl_hit
 
 logger = logging.getLogger(__name__)
 
@@ -267,13 +267,7 @@ def resolve_outcome(
     for j in range(entry_idx + 1, min(entry_idx + 1 + max_hold, len(df_4h))):
         candle = df_4h.iloc[j]
         h, l = candle["high"], candle["low"]
-
-        if direction == "LONG":
-            sl_hit = l <= sl
-            tp_hit = h >= tp
-        else:
-            sl_hit = h >= sl
-            tp_hit = l <= tp
+        tp_hit, sl_hit = tp_sl_hit(direction, h, l, tp, sl)
 
         if sl_hit and tp_hit:
             return "LOSS", float(sl), int(candle["ts_ms"])
@@ -303,13 +297,7 @@ async def resolve_outcome_with_tiebreaker(
         candle = df_4h.iloc[j]
         h, l = candle["high"], candle["low"]
         c_ts_ms = int(candle["ts_ms"])
-
-        if direction == "LONG":
-            sl_hit = l <= sl
-            tp_hit = h >= tp
-        else:
-            sl_hit = h >= sl
-            tp_hit = l <= tp
+        tp_hit, sl_hit = tp_sl_hit(direction, h, l, tp, sl)
 
         if sl_hit and tp_hit:
             # Both hit in same 4H candle — fetch 5min to determine order

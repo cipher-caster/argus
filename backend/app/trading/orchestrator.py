@@ -15,13 +15,13 @@ import time
 import pandas as pd
 from sqlalchemy import select
 
-from app.constants import FEE_PCT
 from app.schemas.signal_log import SignalLog
 from app.schemas.trading import Position, TradeEvent
 from app.storage import Database, RedisClient
 from app.trading import notifier
 from app.trading.portfolio import PortfolioTracker, _price_map_from_tickers
 from app.trading.risk_manager import RiskManager
+from app.utils.trading_utils import gross_pnl_usd, tp_sl_hit
 
 logger = logging.getLogger(__name__)
 
@@ -376,19 +376,9 @@ class TradeOrchestrator:
                         int(c_ts.timestamp() * 1000) if hasattr(c_ts, "timestamp") else int(c_ts)
                     )
 
-                    tp_hit = False
-                    sl_hit = False
-
-                    if pos.direction == "LONG":
-                        if c_high >= pos.intended_tp:
-                            tp_hit = True
-                        if c_low <= pos.intended_sl:
-                            sl_hit = True
-                    else:  # SHORT
-                        if c_low <= pos.intended_tp:
-                            tp_hit = True
-                        if c_high >= pos.intended_sl:
-                            sl_hit = True
+                    tp_hit, sl_hit = tp_sl_hit(
+                        pos.direction, c_high, c_low, pos.intended_tp, pos.intended_sl
+                    )
 
                     if tp_hit and sl_hit:
                         # Both hit in same 4H candle — fetch 5min candles
@@ -417,13 +407,9 @@ class TradeOrchestrator:
                     continue
 
                 # Calculate PnL
-                if pos.direction == "LONG":
-                    raw_pnl = (exit_price - pos.actual_entry) * pos.quantity
-                else:
-                    raw_pnl = (pos.actual_entry - exit_price) * pos.quantity
-
-                fee = pos.quote_amount * FEE_PCT
-                pnl_usd = raw_pnl - fee
+                pnl_usd = gross_pnl_usd(
+                    pos.direction, pos.actual_entry, exit_price, pos.quantity, pos.quote_amount
+                )
                 pnl_pct = (pnl_usd / pos.quote_amount * 100) if pos.quote_amount > 0 else 0.0
 
                 pos.status = "CLOSED"
@@ -551,13 +537,9 @@ class TradeOrchestrator:
                 entry = pos.actual_entry or pos.intended_entry
                 exit_price = current_price or entry
 
-                if pos.direction == "LONG":
-                    raw_pnl = (exit_price - entry) * pos.quantity
-                else:
-                    raw_pnl = (entry - exit_price) * pos.quantity
-
-                fee = pos.quote_amount * FEE_PCT
-                pnl_usd = raw_pnl - fee
+                pnl_usd = gross_pnl_usd(
+                    pos.direction, entry, exit_price, pos.quantity, pos.quote_amount
+                )
                 pnl_pct = (pnl_usd / pos.quote_amount * 100) if pos.quote_amount > 0 else 0.0
                 outcome = "WIN" if pnl_usd >= 0 else "LOSS"
 

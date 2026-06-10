@@ -24,11 +24,11 @@ import pandas as pd
 from sqlalchemy import select, text
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 
-from app.constants import FEE_PCT, TIMEFRAME_MS
+from app.constants import TIMEFRAME_MS
 from app.schemas.signal_log import SignalLog
 from app.schemas.trading import Position, TradeEvent
 from app.storage import Database, RedisClient
-from app.utils.trading_utils import calculate_conviction
+from app.utils.trading_utils import calculate_conviction, gross_pnl_usd
 
 logger = logging.getLogger(__name__)
 
@@ -669,16 +669,18 @@ async def resolve_signal_outcomes(ctx):
                                 # OPEN position — close with PnL at TP/SL level
                                 entry = linked_pos.actual_entry or linked_pos.intended_entry
                                 exit_price = sig.tp if new_outcome == "WIN" else sig.sl
-                                if linked_pos.direction == "LONG":
-                                    raw_pnl = (exit_price - entry) * linked_pos.quantity
-                                else:
-                                    raw_pnl = (entry - exit_price) * linked_pos.quantity
+                                pnl_usd = gross_pnl_usd(
+                                    linked_pos.direction,
+                                    entry,
+                                    exit_price,
+                                    linked_pos.quantity,
+                                    linked_pos.quote_amount,
+                                )
 
                                 linked_pos.actual_exit = exit_price
                                 linked_pos.status = "CLOSED"
                                 linked_pos.closed_at = now_ms
-                                fee = linked_pos.quote_amount * FEE_PCT
-                                linked_pos.pnl_usd = round(raw_pnl - fee, 4)
+                                linked_pos.pnl_usd = round(pnl_usd, 4)
                                 linked_pos.pnl_pct = (
                                     round((linked_pos.pnl_usd / linked_pos.quote_amount * 100), 2)
                                     if linked_pos.quote_amount > 0
@@ -896,12 +898,13 @@ async def resolve_outcomes_historical(ctx):
                                 # OPEN position — close with PnL at TP/SL level
                                 entry = linked_pos.actual_entry or linked_pos.intended_entry
                                 exit_price = sig.tp if new_outcome == "WIN" else sig.sl
-                                if linked_pos.direction == "LONG":
-                                    raw_pnl = (exit_price - entry) * linked_pos.quantity
-                                else:
-                                    raw_pnl = (entry - exit_price) * linked_pos.quantity
-                                fee = linked_pos.quote_amount * FEE_PCT
-                                pnl_usd = raw_pnl - fee
+                                pnl_usd = gross_pnl_usd(
+                                    linked_pos.direction,
+                                    entry,
+                                    exit_price,
+                                    linked_pos.quantity,
+                                    linked_pos.quote_amount,
+                                )
                                 pnl_pct = (
                                     (pnl_usd / linked_pos.quote_amount * 100)
                                     if linked_pos.quote_amount > 0
