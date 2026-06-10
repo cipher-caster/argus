@@ -23,6 +23,12 @@ def owns_provider(p: DataProvider) -> bool:
     return p is not _shared
 
 
+def provider_for(name: str) -> DataProvider:
+    """Construct a provider instance by name. OKX is the canonical default;
+    only an explicit "binance" selects Binance."""
+    return BinanceProvider() if name == "binance" else OKXProvider()
+
+
 def get_provider() -> DataProvider:
     """
     Return the shared provider singleton if one is registered (backend process),
@@ -30,10 +36,7 @@ def get_provider() -> DataProvider:
     """
     if _shared is not None:
         return _shared
-    name = os.getenv("DATA_PROVIDER", "okx").lower()
-    if name == "binance":
-        return BinanceProvider()
-    return OKXProvider()
+    return provider_for(os.getenv("DATA_PROVIDER", "okx").lower())
 
 
 __all__ = [
@@ -42,6 +45,7 @@ __all__ = [
     "SymbolInfo",
     "BinanceProvider",
     "OKXProvider",
+    "provider_for",
     "get_provider",
     "set_shared_provider",
     "owns_provider",

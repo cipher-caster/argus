@@ -6,8 +6,7 @@ from datetime import UTC, datetime, timedelta
 
 from arq import cron
 
-from app.providers import get_provider
-from app.providers.binance_provider import BinanceProvider
+from app.providers import get_provider, provider_for
 from app.providers.okx_provider import OKXProvider
 from app.schemas.market_data import MarketSummary, MarketTicker
 from app.storage import Database, RedisClient
@@ -50,7 +49,7 @@ async def get_active_provider():
     if _active_provider_name != target:
         if _active_provider:
             await _active_provider.close()
-        _active_provider = BinanceProvider() if target == "binance" else OKXProvider()
+        _active_provider = provider_for(target)
         _active_provider_name = target
         logger.info(f"Worker provider set to {target}")
     return _active_provider

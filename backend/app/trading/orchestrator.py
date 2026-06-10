@@ -334,18 +334,15 @@ class TradeOrchestrator:
             if not open_positions:
                 return
 
-            from app.providers import BinanceProvider, OKXProvider
+            from app.providers import provider_for
             from app.routes.strategy import get_candles_df
-
-            def _provider_instance(name: str):
-                return OKXProvider() if name == "okx" else BinanceProvider()
 
             candle_cache: dict[tuple[str, str], object] = {}
             for pos in open_positions:
                 pos_provider = getattr(pos, "provider", "okx") or "okx"
                 cache_key = (pos.symbol, pos_provider)
                 if cache_key not in candle_cache:
-                    provider_obj = _provider_instance(pos_provider)
+                    provider_obj = provider_for(pos_provider)
                     df = await get_candles_df(
                         pos.symbol, timeframe="4h", limit=100, provider=provider_obj
                     )
@@ -404,7 +401,7 @@ class TradeOrchestrator:
                             pos.intended_tp,
                             pos.intended_sl,
                             c_time,
-                            provider=_provider_instance(pos_provider),
+                            provider=provider_for(pos_provider),
                         )
                         outcome = tiebreak["outcome"]
                         exit_price = tiebreak["resolved_price"]

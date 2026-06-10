@@ -33,7 +33,7 @@ class BinanceProvider(DataProvider):
         symbol: str,
         timeframe: str = "1h",
         limit: int = 100,
-        since: int = None,  # Timestamp in ms to fetch data starting from
+        since: int | None = None,  # Timestamp in ms to fetch data starting from
     ) -> list[Candle]:
         await self._ensure_loaded()
 
