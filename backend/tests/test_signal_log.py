@@ -11,6 +11,7 @@ Covers:
 
 from unittest.mock import AsyncMock, MagicMock, patch
 
+import pandas as pd
 import pytest
 
 from app.jobs.signal_log import (
@@ -1097,8 +1098,6 @@ class TestHistoricalResolution:
     """Unit tests for resolve_outcome() candle-walk logic (no DB, no mocks)."""
 
     def _make_df(self, rows: list[dict]) -> "pd.DataFrame":
-        import pandas as pd
-
         base_ms = 1_704_067_200_000
         data = []
         for i, r in enumerate(rows):

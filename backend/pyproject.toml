@@ -12,7 +12,28 @@ extend-exclude = ["scripts", "migrate_*.py", "debug_*.py"]
 # SIM  - flake8-simplify (readability)
 select = ["E", "F", "I", "UP", "B", "SIM"]
 # E501 line-length is enforced by the formatter, not the linter.
-ignore = ["E501"]
+#
+# The codes below are a *deferred cleanup backlog*: pre-existing violations the
+# first cleanup pass did not resolve (they are behavior-changing or higher-risk
+# and need their own focused passes). They are ignored so `ruff check` is green
+# and NEW violations of the enabled rules stand out. Remove a code from this list
+# as its violations get fixed — that is the ratchet. See the project memory note
+# "backend cleanup — deferred follow-ups" for context.
+ignore = [
+    "E501",  # line length — handled by the formatter
+    "B904",  # raise ... from err inside except (24 — tied to the broad-except cleanup)
+    "B007",  # unused loop control variable
+    "B023",  # function uses loop variable
+    "B905",  # zip() without explicit strict=
+    "SIM105",  # use contextlib.suppress
+    "SIM108",  # ternary instead of if/else
+    "SIM117",  # combine nested with-statements
+    "SIM202",  # `not a != a` — deliberate NaN-check idiom; rewrite is unsafe
+    "E402",  # module import not at top (intentional post-setup imports)
+    "E712",  # == True/False (SQLAlchemy filter idiom)
+    "E741",  # ambiguous variable name (e.g. `l` for low)
+    "F841",  # assigned-but-unused local
+]
 
 [tool.ruff.format]
 quote-style = "double"

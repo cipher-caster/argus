@@ -130,7 +130,7 @@ class OracleStrategy:
             if pd.isna(row["rsi"]) or pd.isna(row["ema200"]):
                 continue
 
-            macro_ts = [ts for ts in macro_biases.keys() if ts <= row["timestamp"]]
+            macro_ts = [ts for ts in macro_biases if ts <= row["timestamp"]]
             if not macro_ts:
                 continue
             m_bias = macro_biases[max(macro_ts)]

@@ -719,7 +719,7 @@ async def backfill_okx_candles(ctx) -> None:
             "OKX_BACKFILL",
             candles_stored=total,
             symbols=len(symbols),
-            message=f"OKX backfill complete",
+            message="OKX backfill complete",
         )
 
 
