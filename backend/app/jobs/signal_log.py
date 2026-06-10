@@ -24,6 +24,7 @@ import pandas as pd
 from sqlalchemy import select, text
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 
+from app.constants import FEE_PCT, TIMEFRAME_MS
 from app.schemas.signal_log import SignalLog
 from app.schemas.trading import Position, TradeEvent
 from app.storage import Database, RedisClient
@@ -53,6 +54,7 @@ DEFAULT_WATCHLIST = [
 ]
 DEFAULT_MIN_TITAN_CONFIDENCE = 55
 DEFAULT_REVIEW_DAYS = 3
+MIN_BEST_SETUP_CONVICTION = 50  # minimum conviction for a scanner setup to be logged
 
 SIGNAL_LOG_CONFIG_KEY = "signal_log:config"
 
@@ -179,7 +181,7 @@ async def _get_market_state() -> str:
         return data.get("market_state")
 
     # 2. Fallback to BTC Weekly Regime (Broad bias)
-    regime_data = await RedisClient.get_json("market:regime")
+    regime_data = await RedisClient.get_json(REGIME_CACHE_KEY)
     if regime_data and regime_data.get("regime"):
         return regime_data.get("regime")
 
@@ -476,7 +478,7 @@ async def log_best_setups(ctx):
 
     # Regime at signal fire time
     regime_bs = "UNKNOWN"
-    cached_regime_bs = await RedisClient.get_json("market:regime")
+    cached_regime_bs = await RedisClient.get_json(REGIME_CACHE_KEY)
     if cached_regime_bs:
         regime_bs = cached_regime_bs.get("regime", "UNKNOWN")
 
@@ -492,7 +494,7 @@ async def log_best_setups(ctx):
         logger.warning(f"log_best_setups: BTC price fetch failed: {e}")
 
     # Collect all qualified rows first
-    CANDLE_4H_MS = 14_400_000  # 4H cooldown — one candle width per symbol+direction
+    CANDLE_4H_MS = TIMEFRAME_MS["4h"]  # 4H cooldown — one candle width per symbol+direction
     rows_to_insert = []
 
     # Pre-fetch recently fired symbols to apply cooldown filter
@@ -516,7 +518,7 @@ async def log_best_setups(ctx):
             t_signal = item.get("titan_signal", "")
             reason = item.get("reason", "")
 
-            if conviction < 50:
+            if conviction < MIN_BEST_SETUP_CONVICTION:
                 rejected += 1
                 continue
 
@@ -675,7 +677,7 @@ async def resolve_signal_outcomes(ctx):
                                 linked_pos.actual_exit = exit_price
                                 linked_pos.status = "CLOSED"
                                 linked_pos.closed_at = now_ms
-                                fee = linked_pos.quote_amount * 0.001
+                                fee = linked_pos.quote_amount * FEE_PCT
                                 linked_pos.pnl_usd = round(raw_pnl - fee, 4)
                                 linked_pos.pnl_pct = (
                                     round((linked_pos.pnl_usd / linked_pos.quote_amount * 100), 2)
@@ -892,7 +894,6 @@ async def resolve_outcomes_historical(ctx):
                                 linked_pos.outcome = "EXPIRED"
                             else:
                                 # OPEN position — close with PnL at TP/SL level
-                                FEE_PCT = 0.001
                                 entry = linked_pos.actual_entry or linked_pos.intended_entry
                                 exit_price = sig.tp if new_outcome == "WIN" else sig.sl
                                 if linked_pos.direction == "LONG":

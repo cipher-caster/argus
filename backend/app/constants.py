@@ -19,3 +19,6 @@ TIMEFRAME_MS: dict[str, int] = {
 
 # Default fallback if timeframe not found (1 hour)
 DEFAULT_TIMEFRAME_MS: int = 60 * 60 * 1_000
+
+# 0.1% simulated round-trip fee (paper trading)
+FEE_PCT = 0.001

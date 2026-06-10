@@ -15,6 +15,7 @@ import time
 import pandas as pd
 from sqlalchemy import select
 
+from app.constants import FEE_PCT
 from app.schemas.signal_log import SignalLog
 from app.schemas.trading import Position, TradeEvent
 from app.storage import Database, RedisClient
@@ -26,8 +27,6 @@ logger = logging.getLogger(__name__)
 
 TRADING_CONFIG_KEY = "trading:config"
 TRADING_BALANCE_KEY = "trading:balance"
-
-FEE_PCT = 0.001  # 0.1% simulated round-trip fee per side (0.05% * 2)
 
 DEFAULT_TRADING_CONFIG = {
     "enabled": False,

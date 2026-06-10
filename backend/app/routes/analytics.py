@@ -18,6 +18,9 @@ from app.jobs.signal_log import (
     DEFAULT_MIN_TITAN_CONFIDENCE,
     DEFAULT_REVIEW_DAYS,
     DEFAULT_WATCHLIST,
+    REGIME_CACHE_KEY,
+    REGIME_CACHE_TTL,
+    SIGNAL_LOG_CONFIG_KEY,
 )
 from app.providers import get_provider, owns_provider
 from app.routes.strategy import get_candles_df, oracle, titan
@@ -231,9 +234,6 @@ async def get_best_setups(
 
     from app.trading.backtest_engine import load_candles
 
-    REGIME_CACHE_KEY = "market:regime"
-    REGIME_CACHE_TTL = 3600  # 1 hour
-
     regime = "UNKNOWN"
     cached_regime = await RedisClient.get_json(REGIME_CACHE_KEY)
     if cached_regime:
@@ -262,7 +262,7 @@ async def get_best_setups(
 
             is_long = t_signal in ("BUY", "BUY_LIMIT", "STRONG_BUY")
             is_short = t_signal in ("SELL", "SELL_LIMIT", "STRONG_SELL")
-            if not (is_long or is_short) or t_confidence < 55:
+            if not (is_long or is_short) or t_confidence < DEFAULT_MIN_TITAN_CONFIDENCE:
                 continue
 
             # Regime alignment boosts conviction (counter-regime signals still shown in UI)
@@ -529,7 +529,6 @@ async def get_signal_log_stats(
     return {"coins": coins, "overall": overall}
 
 
-SIGNAL_LOG_CONFIG_KEY = "signal_log:config"
 SIGNAL_LOG_DEFAULTS = {
     "watchlist": DEFAULT_WATCHLIST,
     "min_titan_confidence": DEFAULT_MIN_TITAN_CONFIDENCE,
