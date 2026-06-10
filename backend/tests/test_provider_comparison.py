@@ -7,12 +7,21 @@ Covers:
 - Empty response (no resolved signals)
 - REVIEW / REJECTED / OPEN signals excluded from win rate
 """
-import pytest
+
 from unittest.mock import AsyncMock, MagicMock, patch
 
+import pytest
 
-def _make_signal(symbol="BTCUSDT", direction="LONG", outcome="WIN",
-                 provider="binance", entry=100.0, tp=110.0, sl=90.0):
+
+def _make_signal(
+    symbol="BTCUSDT",
+    direction="LONG",
+    outcome="WIN",
+    provider="binance",
+    entry=100.0,
+    tp=110.0,
+    sl=90.0,
+):
     sig = MagicMock()
     sig.symbol = symbol
     sig.direction = direction
@@ -34,7 +43,6 @@ def _mock_db(mock_db, signals):
 
 
 class TestProviderComparison:
-
     @pytest.mark.asyncio
     @patch("app.storage.Database")
     async def test_empty_returns_empty_dict(self, mock_db, async_client):
@@ -137,10 +145,12 @@ class TestProviderComparison:
     async def test_avg_r_profit_calculation(self, mock_db, async_client):
         """WIN with 2:1 RR = +2R, LOSS = -1R, avg = (+2R - 1R) / 2 = +0.5R."""
         signals = [
-            _make_signal("BTCUSDT", outcome="WIN", provider="binance",
-                         entry=100.0, tp=120.0, sl=90.0),   # reward=20, risk=10 → 2R
-            _make_signal("BTCUSDT", outcome="LOSS", provider="binance",
-                         entry=100.0, tp=120.0, sl=90.0),   # -1R
+            _make_signal(
+                "BTCUSDT", outcome="WIN", provider="binance", entry=100.0, tp=120.0, sl=90.0
+            ),  # reward=20, risk=10 → 2R
+            _make_signal(
+                "BTCUSDT", outcome="LOSS", provider="binance", entry=100.0, tp=120.0, sl=90.0
+            ),  # -1R
         ]
         _mock_db(mock_db, signals)
         resp = await async_client.get("/api/analytics/provider-comparison")

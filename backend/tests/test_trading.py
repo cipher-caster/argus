@@ -6,18 +6,18 @@ Covers:
 - PortfolioTracker: balance calculation, stats
 - TradeOrchestrator: full PENDING → OPEN → CLOSED simulation cycle
 """
-import json
+
 import time
-import pytest
-import pytest_asyncio
 from unittest.mock import AsyncMock, MagicMock, patch
 
-from app.trading.risk_manager import RiskManager
+import pytest
 
+from app.trading.risk_manager import RiskManager
 
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
+
 
 def make_config(**overrides):
     base = {
@@ -49,8 +49,8 @@ def make_position(symbol="BTCUSDT", direction="LONG", status="OPEN"):
 # RiskManager — gate tests
 # ---------------------------------------------------------------------------
 
-class TestRiskManagerDrawdown:
 
+class TestRiskManagerDrawdown:
     def test_healthy_balance_passes(self):
         rm = RiskManager()
         config = make_config(initial_capital=100.0, max_drawdown_pct=15.0)
@@ -79,7 +79,6 @@ class TestRiskManagerDrawdown:
 
 
 class TestRiskManagerCorrelation:
-
     def test_no_open_positions_passes(self):
         rm = RiskManager()
         config = make_config()
@@ -111,7 +110,6 @@ class TestRiskManagerCorrelation:
 
 
 class TestRiskManagerConviction:
-
     def test_above_minimum_passes(self):
         rm = RiskManager()
         config = make_config(min_conviction=65)
@@ -135,12 +133,12 @@ class TestRiskManagerConviction:
         """Live watchlist signals fire at conviction 56 — default min should allow them."""
         rm = RiskManager()
         from app.trading.orchestrator import DEFAULT_TRADING_CONFIG
+
         ok, _ = rm.check_conviction(56, DEFAULT_TRADING_CONFIG)
         assert ok is True
 
 
 class TestRiskManagerMinOrderSize:
-
     def test_adequate_size_passes(self):
         rm = RiskManager()
         ok, _ = rm.check_min_order_size(5.0)
@@ -154,7 +152,6 @@ class TestRiskManagerMinOrderSize:
 
 
 class TestPositionSizing:
-
     def test_basic_sizing(self):
         rm = RiskManager()
         # max_leverage=10 so leverage cap doesn't interfere
@@ -210,7 +207,6 @@ class TestPositionSizing:
 
 
 class TestCheckAll:
-
     @pytest.mark.asyncio
     async def test_all_gates_pass(self):
         rm = RiskManager()
@@ -234,9 +230,14 @@ class TestCheckAll:
         rm = RiskManager()
         config = make_config(initial_capital=100.0, max_drawdown_pct=10.0)
         ok, reason, sizing = await rm.check_all(
-            symbol="BTCUSDT", direction="LONG", conviction=75,
-            entry=50000.0, sl=49000.0,
-            config=config, open_positions=[], balance=85.0,  # below floor=90
+            symbol="BTCUSDT",
+            direction="LONG",
+            conviction=75,
+            entry=50000.0,
+            sl=49000.0,
+            config=config,
+            open_positions=[],
+            balance=85.0,  # below floor=90
         )
         assert ok is False
         assert sizing is None
@@ -247,9 +248,14 @@ class TestCheckAll:
         config = make_config(max_concurrent_positions=2)
         positions = [make_position("ETHUSDT"), make_position("BNBUSDT")]
         ok, reason, sizing = await rm.check_all(
-            symbol="BTCUSDT", direction="LONG", conviction=75,
-            entry=50000.0, sl=49000.0,
-            config=config, open_positions=positions, balance=100.0,
+            symbol="BTCUSDT",
+            direction="LONG",
+            conviction=75,
+            entry=50000.0,
+            sl=49000.0,
+            config=config,
+            open_positions=positions,
+            balance=100.0,
         )
         assert ok is False
         assert "Max positions" in reason
@@ -259,9 +265,14 @@ class TestCheckAll:
         rm = RiskManager()
         config = make_config(min_conviction=80)
         ok, reason, sizing = await rm.check_all(
-            symbol="BTCUSDT", direction="LONG", conviction=70,
-            entry=50000.0, sl=49000.0,
-            config=config, open_positions=[], balance=100.0,
+            symbol="BTCUSDT",
+            direction="LONG",
+            conviction=70,
+            entry=50000.0,
+            sl=49000.0,
+            config=config,
+            open_positions=[],
+            balance=100.0,
         )
         assert ok is False
         assert "conviction" in reason.lower()
@@ -271,12 +282,11 @@ class TestCheckAll:
 # PortfolioTracker — balance and stats
 # ---------------------------------------------------------------------------
 
-class TestPortfolioTracker:
 
+class TestPortfolioTracker:
     @pytest.mark.asyncio
     async def test_balance_no_trades(self):
         from app.trading.portfolio import PortfolioTracker
-        from app.schemas.trading import Position
 
         tracker = PortfolioTracker(initial_capital=100.0)
 
@@ -351,6 +361,7 @@ class TestPortfolioTracker:
 
     def test_max_drawdown_no_trades(self):
         from app.trading.portfolio import PortfolioTracker
+
         tracker = PortfolioTracker(initial_capital=100.0)
         assert tracker._calc_max_drawdown([]) == 0.0
 
@@ -359,8 +370,8 @@ class TestPortfolioTracker:
 # PnL calculation math (direct, no DB)
 # ---------------------------------------------------------------------------
 
-class TestPnLMath:
 
+class TestPnLMath:
     def test_long_win_pnl(self):
         """LONG: entry 50000, exit 51000, qty 0.01 → raw pnl = 10"""
         entry, exit_price, qty = 50000.0, 51000.0, 0.01
@@ -412,16 +423,18 @@ class TestPnLMath:
 # Default config sanity checks
 # ---------------------------------------------------------------------------
 
-class TestDefaultConfig:
 
+class TestDefaultConfig:
     def test_min_conviction_allows_live_signals(self):
         """Default min_conviction=56 matches Titan's standard-trend floor."""
         from app.trading.orchestrator import DEFAULT_TRADING_CONFIG
+
         assert DEFAULT_TRADING_CONFIG["min_conviction"] == 56
 
     def test_order_expiry_16_hours(self):
         """Order expiry should be 16h to avoid dead capital in low-vol."""
         from app.trading.orchestrator import DEFAULT_TRADING_CONFIG
+
         assert DEFAULT_TRADING_CONFIG["order_expiry_hours"] == 16
 
 
@@ -429,10 +442,11 @@ class TestDefaultConfig:
 # Integration: full signal → position simulation cycle (mocked DB/Redis)
 # ---------------------------------------------------------------------------
 
-class TestOrchestratorCycle:
 
-    def _make_signal(self, symbol="BTCUSDT", direction="LONG", conviction=75,
-                     titan_signal="BUY_LIMIT"):
+class TestOrchestratorCycle:
+    def _make_signal(
+        self, symbol="BTCUSDT", direction="LONG", conviction=75, titan_signal="BUY_LIMIT"
+    ):
         sig = MagicMock()
         sig.id = 1
         sig.symbol = symbol
@@ -457,7 +471,9 @@ class TestOrchestratorCycle:
         with (
             patch("app.trading.orchestrator.get_trading_config", return_value=config),
             patch("app.trading.orchestrator.Database.get_session") as mock_session_ctx,
-            patch("app.trading.orchestrator.notifier.notify_position_created", new_callable=AsyncMock),
+            patch(
+                "app.trading.orchestrator.notifier.notify_position_created", new_callable=AsyncMock
+            ),
         ):
             # First execute: check existing position (returns None)
             # Then get active positions (returns empty list)
@@ -522,8 +538,9 @@ class TestOrchestratorCycle:
                     assert True
                 except Exception as e:
                     # Only acceptable failure is SQLModel-specific during mock
-                    assert "Position" in str(type(e).__name__) or "mock" in str(e).lower(), \
+                    assert "Position" in str(type(e).__name__) or "mock" in str(e).lower(), (
                         f"Unexpected error: {e}"
+                    )
 
     @pytest.mark.asyncio
     async def test_process_signal_disabled_returns_none(self):
@@ -556,9 +573,11 @@ class TestOrchestratorCycle:
 
         added_objects = []
         orig_add = mock_session.add
+
         def capture_add(obj):
             added_objects.append(obj)
             return orig_add(obj)
+
         mock_session.add = capture_add
 
         db_ctx = MagicMock()
@@ -574,11 +593,23 @@ class TestOrchestratorCycle:
         p_ctx.__aexit__ = AsyncMock(return_value=None)
 
         with (
-            patch("app.trading.orchestrator.get_trading_config", new_callable=AsyncMock, return_value=config),
+            patch(
+                "app.trading.orchestrator.get_trading_config",
+                new_callable=AsyncMock,
+                return_value=config,
+            ),
             patch("app.trading.orchestrator.Database") as mock_db,
-            patch("app.trading.orchestrator.notifier.notify_position_created", new_callable=AsyncMock),
-            patch("app.trading.orchestrator.notifier.notify_position_filled", new_callable=AsyncMock),
-            patch("app.trading.orchestrator._get_prices", new_callable=AsyncMock, return_value={"BTCUSDT": 50500.0}),
+            patch(
+                "app.trading.orchestrator.notifier.notify_position_created", new_callable=AsyncMock
+            ),
+            patch(
+                "app.trading.orchestrator.notifier.notify_position_filled", new_callable=AsyncMock
+            ),
+            patch(
+                "app.trading.orchestrator._get_prices",
+                new_callable=AsyncMock,
+                return_value={"BTCUSDT": 50500.0},
+            ),
             patch("app.trading.portfolio.Database") as mock_pdb,
         ):
             mock_db.get_session.return_value = db_ctx
@@ -588,6 +619,7 @@ class TestOrchestratorCycle:
             result = await orchestrator.process_signal(signal)
 
             from app.schemas.trading import Position
+
             positions = [o for o in added_objects if isinstance(o, Position)]
             assert len(positions) >= 1, "Expected a Position to be created"
             pos = positions[0]
@@ -614,9 +646,11 @@ class TestOrchestratorCycle:
 
         added_objects = []
         orig_add = mock_session.add
+
         def capture_add(obj):
             added_objects.append(obj)
             return orig_add(obj)
+
         mock_session.add = capture_add
 
         db_ctx = MagicMock()
@@ -632,10 +666,20 @@ class TestOrchestratorCycle:
         p_ctx.__aexit__ = AsyncMock(return_value=None)
 
         with (
-            patch("app.trading.orchestrator.get_trading_config", new_callable=AsyncMock, return_value=config),
+            patch(
+                "app.trading.orchestrator.get_trading_config",
+                new_callable=AsyncMock,
+                return_value=config,
+            ),
             patch("app.trading.orchestrator.Database") as mock_db,
-            patch("app.trading.orchestrator.notifier.notify_position_created", new_callable=AsyncMock),
-            patch("app.trading.orchestrator._get_prices", new_callable=AsyncMock, return_value={"ETHUSDT": 1800.0}),
+            patch(
+                "app.trading.orchestrator.notifier.notify_position_created", new_callable=AsyncMock
+            ),
+            patch(
+                "app.trading.orchestrator._get_prices",
+                new_callable=AsyncMock,
+                return_value={"ETHUSDT": 1800.0},
+            ),
             patch("app.trading.portfolio.Database") as mock_pdb,
         ):
             mock_db.get_session.return_value = db_ctx
@@ -645,6 +689,7 @@ class TestOrchestratorCycle:
             result = await orchestrator.process_signal(signal)
 
             from app.schemas.trading import Position
+
             positions = [o for o in added_objects if isinstance(o, Position)]
             assert len(positions) >= 1, "Expected a Position to be created"
             pos = positions[0]
@@ -712,10 +757,11 @@ class TestOrchestratorCycle:
 # Price map helper
 # ---------------------------------------------------------------------------
 
-class TestPriceMap:
 
+class TestPriceMap:
     def test_converts_slash_format(self):
         from app.trading.portfolio import _price_map_from_tickers
+
         tickers = [
             {"symbol": "BTC/USDT", "price": 50000.0},
             {"symbol": "ETH/USDT", "price": 3000.0},
@@ -726,6 +772,7 @@ class TestPriceMap:
 
     def test_skips_missing_price(self):
         from app.trading.portfolio import _price_map_from_tickers
+
         tickers = [{"symbol": "BTC/USDT", "price": None}]
         prices = _price_map_from_tickers(tickers)
         assert "BTCUSDT" not in prices
@@ -738,8 +785,9 @@ class TestPriceMap:
 import pandas as pd
 
 
-def _make_position(symbol="BTCUSDT", direction="LONG", entry=50000.0,
-                   tp=52000.0, sl=49000.0, qty=0.01, quote=500.0):
+def _make_position(
+    symbol="BTCUSDT", direction="LONG", entry=50000.0, tp=52000.0, sl=49000.0, qty=0.01, quote=500.0
+):
     pos = MagicMock()
     pos.symbol = symbol
     pos.direction = direction
@@ -771,12 +819,15 @@ class TestCandleWalkResolution:
     @pytest.mark.asyncio
     async def test_long_tp_hit(self):
         from app.trading.orchestrator import TradeOrchestrator
+
         orch = TradeOrchestrator()
         pos = _make_position(direction="LONG", entry=50000, tp=52000, sl=49000)
-        candles = _make_candles([
-            (1000, 50000, 50500, 49800, 50200),  # no hit
-            (2000, 50200, 52100, 50100, 51800),  # TP hit (high >= 52000)
-        ])
+        candles = _make_candles(
+            [
+                (1000, 50000, 50500, 49800, 50200),  # no hit
+                (2000, 50200, 52100, 50100, 51800),  # TP hit (high >= 52000)
+            ]
+        )
 
         mock_session = AsyncMock()
         result_mock = MagicMock()
@@ -792,9 +843,17 @@ class TestCandleWalkResolution:
         with (
             patch("app.trading.orchestrator.get_trading_config", return_value=config),
             patch("app.trading.orchestrator.Database.get_session", return_value=mock_session),
-            patch("app.routes.strategy.get_candles_df", new_callable=AsyncMock, return_value=candles),
-            patch("app.trading.orchestrator.notifier.notify_position_closed", new_callable=AsyncMock),
-            patch("app.trading.orchestrator.RedisClient.get_json", new_callable=AsyncMock, return_value={"market_state": "TRENDING"}),
+            patch(
+                "app.routes.strategy.get_candles_df", new_callable=AsyncMock, return_value=candles
+            ),
+            patch(
+                "app.trading.orchestrator.notifier.notify_position_closed", new_callable=AsyncMock
+            ),
+            patch(
+                "app.trading.orchestrator.RedisClient.get_json",
+                new_callable=AsyncMock,
+                return_value={"market_state": "TRENDING"},
+            ),
         ):
             await orch.check_open_positions(config=config)
 
@@ -805,12 +864,15 @@ class TestCandleWalkResolution:
     @pytest.mark.asyncio
     async def test_long_sl_hit(self):
         from app.trading.orchestrator import TradeOrchestrator
+
         orch = TradeOrchestrator()
         pos = _make_position(direction="LONG", entry=50000, tp=52000, sl=49000)
-        candles = _make_candles([
-            (1000, 50000, 50500, 49800, 50200),  # no hit
-            (2000, 50200, 50300, 48900, 49100),  # SL hit (low <= 49000)
-        ])
+        candles = _make_candles(
+            [
+                (1000, 50000, 50500, 49800, 50200),  # no hit
+                (2000, 50200, 50300, 48900, 49100),  # SL hit (low <= 49000)
+            ]
+        )
 
         mock_session = AsyncMock()
         result_mock = MagicMock()
@@ -826,9 +888,17 @@ class TestCandleWalkResolution:
         with (
             patch("app.trading.orchestrator.get_trading_config", return_value=config),
             patch("app.trading.orchestrator.Database.get_session", return_value=mock_session),
-            patch("app.routes.strategy.get_candles_df", new_callable=AsyncMock, return_value=candles),
-            patch("app.trading.orchestrator.notifier.notify_position_closed", new_callable=AsyncMock),
-            patch("app.trading.orchestrator.RedisClient.get_json", new_callable=AsyncMock, return_value={"market_state": "TRENDING"}),
+            patch(
+                "app.routes.strategy.get_candles_df", new_callable=AsyncMock, return_value=candles
+            ),
+            patch(
+                "app.trading.orchestrator.notifier.notify_position_closed", new_callable=AsyncMock
+            ),
+            patch(
+                "app.trading.orchestrator.RedisClient.get_json",
+                new_callable=AsyncMock,
+                return_value={"market_state": "TRENDING"},
+            ),
         ):
             await orch.check_open_positions(config=config)
 
@@ -839,12 +909,15 @@ class TestCandleWalkResolution:
     @pytest.mark.asyncio
     async def test_short_tp_hit(self):
         from app.trading.orchestrator import TradeOrchestrator
+
         orch = TradeOrchestrator()
         pos = _make_position(direction="SHORT", entry=50000, tp=48000, sl=51000)
-        candles = _make_candles([
-            (1000, 50000, 50200, 49500, 49800),  # no hit
-            (2000, 49800, 49900, 47900, 48200),  # TP hit (low <= 48000)
-        ])
+        candles = _make_candles(
+            [
+                (1000, 50000, 50200, 49500, 49800),  # no hit
+                (2000, 49800, 49900, 47900, 48200),  # TP hit (low <= 48000)
+            ]
+        )
 
         mock_session = AsyncMock()
         result_mock = MagicMock()
@@ -860,9 +933,17 @@ class TestCandleWalkResolution:
         with (
             patch("app.trading.orchestrator.get_trading_config", return_value=config),
             patch("app.trading.orchestrator.Database.get_session", return_value=mock_session),
-            patch("app.routes.strategy.get_candles_df", new_callable=AsyncMock, return_value=candles),
-            patch("app.trading.orchestrator.notifier.notify_position_closed", new_callable=AsyncMock),
-            patch("app.trading.orchestrator.RedisClient.get_json", new_callable=AsyncMock, return_value={"market_state": "TRENDING"}),
+            patch(
+                "app.routes.strategy.get_candles_df", new_callable=AsyncMock, return_value=candles
+            ),
+            patch(
+                "app.trading.orchestrator.notifier.notify_position_closed", new_callable=AsyncMock
+            ),
+            patch(
+                "app.trading.orchestrator.RedisClient.get_json",
+                new_callable=AsyncMock,
+                return_value={"market_state": "TRENDING"},
+            ),
         ):
             await orch.check_open_positions(config=config)
 
@@ -874,12 +955,15 @@ class TestCandleWalkResolution:
     async def test_both_hit_same_candle_long_bullish_means_loss(self):
         """LONG + bullish candle (close >= open) → SL hit first → LOSS."""
         from app.trading.orchestrator import TradeOrchestrator
+
         orch = TradeOrchestrator()
         pos = _make_position(direction="LONG", entry=50000, tp=52000, sl=49000)
         # Bullish candle that hits both: high >= TP, low <= SL, close >= open
-        candles = _make_candles([
-            (1000, 49500, 52500, 48500, 51000),  # both hit, bullish
-        ])
+        candles = _make_candles(
+            [
+                (1000, 49500, 52500, 48500, 51000),  # both hit, bullish
+            ]
+        )
 
         mock_session = AsyncMock()
         result_mock = MagicMock()
@@ -895,9 +979,17 @@ class TestCandleWalkResolution:
         with (
             patch("app.trading.orchestrator.get_trading_config", return_value=config),
             patch("app.trading.orchestrator.Database.get_session", return_value=mock_session),
-            patch("app.routes.strategy.get_candles_df", new_callable=AsyncMock, return_value=candles),
-            patch("app.trading.orchestrator.notifier.notify_position_closed", new_callable=AsyncMock),
-            patch("app.trading.orchestrator.RedisClient.get_json", new_callable=AsyncMock, return_value={"market_state": "TRENDING"}),
+            patch(
+                "app.routes.strategy.get_candles_df", new_callable=AsyncMock, return_value=candles
+            ),
+            patch(
+                "app.trading.orchestrator.notifier.notify_position_closed", new_callable=AsyncMock
+            ),
+            patch(
+                "app.trading.orchestrator.RedisClient.get_json",
+                new_callable=AsyncMock,
+                return_value={"market_state": "TRENDING"},
+            ),
         ):
             await orch.check_open_positions(config=config)
 
@@ -908,11 +1000,14 @@ class TestCandleWalkResolution:
     async def test_both_hit_same_candle_uses_5m_tiebreaker(self):
         """When both TP and SL hit in same 4H candle, 5-min tiebreaker determines outcome."""
         from app.trading.orchestrator import TradeOrchestrator
+
         orch = TradeOrchestrator()
         pos = _make_position(direction="LONG", entry=50000, tp=52000, sl=49000)
-        candles = _make_candles([
-            (1000, 51000, 52500, 48500, 49500),  # both hit
-        ])
+        candles = _make_candles(
+            [
+                (1000, 51000, 52500, 48500, 49500),  # both hit
+            ]
+        )
 
         mock_session = AsyncMock()
         result_mock = MagicMock()
@@ -929,10 +1024,22 @@ class TestCandleWalkResolution:
         with (
             patch("app.trading.orchestrator.get_trading_config", return_value=config),
             patch("app.trading.orchestrator.Database.get_session", return_value=mock_session),
-            patch("app.routes.strategy.get_candles_df", new_callable=AsyncMock, return_value=candles),
-            patch("app.trading.orchestrator.notifier.notify_position_closed", new_callable=AsyncMock),
-            patch("app.trading.orchestrator.RedisClient.get_json", new_callable=AsyncMock, return_value={"market_state": "TRENDING"}),
-            patch("app.jobs.signal_log._resolve_tiebreaker_5m", new_callable=AsyncMock, return_value=tiebreak_result),
+            patch(
+                "app.routes.strategy.get_candles_df", new_callable=AsyncMock, return_value=candles
+            ),
+            patch(
+                "app.trading.orchestrator.notifier.notify_position_closed", new_callable=AsyncMock
+            ),
+            patch(
+                "app.trading.orchestrator.RedisClient.get_json",
+                new_callable=AsyncMock,
+                return_value={"market_state": "TRENDING"},
+            ),
+            patch(
+                "app.jobs.signal_log._resolve_tiebreaker_5m",
+                new_callable=AsyncMock,
+                return_value=tiebreak_result,
+            ),
         ):
             await orch.check_open_positions(config=config)
 
@@ -943,11 +1050,14 @@ class TestCandleWalkResolution:
     async def test_both_hit_same_candle_tiebreaker_fallback_is_loss(self):
         """When tiebreaker has no 5m data, conservative fallback is LOSS."""
         from app.trading.orchestrator import TradeOrchestrator
+
         orch = TradeOrchestrator()
         pos = _make_position(direction="LONG", entry=50000, tp=52000, sl=49000)
-        candles = _make_candles([
-            (1000, 51000, 52500, 48500, 49500),  # both hit
-        ])
+        candles = _make_candles(
+            [
+                (1000, 51000, 52500, 48500, 49500),  # both hit
+            ]
+        )
 
         mock_session = AsyncMock()
         result_mock = MagicMock()
@@ -964,10 +1074,22 @@ class TestCandleWalkResolution:
         with (
             patch("app.trading.orchestrator.get_trading_config", return_value=config),
             patch("app.trading.orchestrator.Database.get_session", return_value=mock_session),
-            patch("app.routes.strategy.get_candles_df", new_callable=AsyncMock, return_value=candles),
-            patch("app.trading.orchestrator.notifier.notify_position_closed", new_callable=AsyncMock),
-            patch("app.trading.orchestrator.RedisClient.get_json", new_callable=AsyncMock, return_value={"market_state": "TRENDING"}),
-            patch("app.jobs.signal_log._resolve_tiebreaker_5m", new_callable=AsyncMock, return_value=fallback_result),
+            patch(
+                "app.routes.strategy.get_candles_df", new_callable=AsyncMock, return_value=candles
+            ),
+            patch(
+                "app.trading.orchestrator.notifier.notify_position_closed", new_callable=AsyncMock
+            ),
+            patch(
+                "app.trading.orchestrator.RedisClient.get_json",
+                new_callable=AsyncMock,
+                return_value={"market_state": "TRENDING"},
+            ),
+            patch(
+                "app.jobs.signal_log._resolve_tiebreaker_5m",
+                new_callable=AsyncMock,
+                return_value=fallback_result,
+            ),
         ):
             await orch.check_open_positions(config=config)
 
@@ -977,12 +1099,15 @@ class TestCandleWalkResolution:
     @pytest.mark.asyncio
     async def test_no_hit_position_stays_open(self):
         from app.trading.orchestrator import TradeOrchestrator
+
         orch = TradeOrchestrator()
         pos = _make_position(direction="LONG", entry=50000, tp=52000, sl=49000)
-        candles = _make_candles([
-            (1000, 50000, 50500, 49800, 50200),  # no hit
-            (2000, 50200, 51000, 49500, 50800),  # no hit
-        ])
+        candles = _make_candles(
+            [
+                (1000, 50000, 50500, 49800, 50200),  # no hit
+                (2000, 50200, 51000, 49500, 50800),  # no hit
+            ]
+        )
 
         mock_session = AsyncMock()
         result_mock = MagicMock()
@@ -998,8 +1123,12 @@ class TestCandleWalkResolution:
         with (
             patch("app.trading.orchestrator.get_trading_config", return_value=config),
             patch("app.trading.orchestrator.Database.get_session", return_value=mock_session),
-            patch("app.routes.strategy.get_candles_df", new_callable=AsyncMock, return_value=candles),
-            patch("app.trading.orchestrator.notifier.notify_position_closed", new_callable=AsyncMock),
+            patch(
+                "app.routes.strategy.get_candles_df", new_callable=AsyncMock, return_value=candles
+            ),
+            patch(
+                "app.trading.orchestrator.notifier.notify_position_closed", new_callable=AsyncMock
+            ),
         ):
             await orch.check_open_positions(config=config)
 
@@ -1011,6 +1140,7 @@ class TestCandleWalkResolution:
 # ---------------------------------------------------------------------------
 # Error handling: commit failures trigger rollback and logging
 # ---------------------------------------------------------------------------
+
 
 class TestOrchestratorCommitErrorHandling:
     """Verify that commit failures in each method trigger rollback and log an error."""
@@ -1074,16 +1204,26 @@ class TestOrchestratorCommitErrorHandling:
         result_mock.scalars.return_value.all.return_value = [pos]
         mock_session.execute = AsyncMock(return_value=result_mock)
 
-        candles = _make_candles([
-            (1000, 50000, 52100, 49800, 51800),  # TP hit
-        ])
+        candles = _make_candles(
+            [
+                (1000, 50000, 52100, 49800, 51800),  # TP hit
+            ]
+        )
 
         with (
             patch("app.trading.orchestrator.get_trading_config", return_value=config),
             patch("app.trading.orchestrator.Database.get_session", return_value=mock_session),
-            patch("app.routes.strategy.get_candles_df", new_callable=AsyncMock, return_value=candles),
-            patch("app.trading.orchestrator.notifier.notify_position_closed", new_callable=AsyncMock),
-            patch("app.trading.orchestrator.RedisClient.get_json", new_callable=AsyncMock, return_value={}),
+            patch(
+                "app.routes.strategy.get_candles_df", new_callable=AsyncMock, return_value=candles
+            ),
+            patch(
+                "app.trading.orchestrator.notifier.notify_position_closed", new_callable=AsyncMock
+            ),
+            patch(
+                "app.trading.orchestrator.RedisClient.get_json",
+                new_callable=AsyncMock,
+                return_value={},
+            ),
             patch("app.trading.orchestrator.logger") as mock_logger,
         ):
             # Should not raise despite commit failure
@@ -1117,7 +1257,9 @@ class TestOrchestratorCommitErrorHandling:
             patch("app.trading.orchestrator.get_trading_config", return_value=config),
             patch("app.trading.orchestrator.Database.get_session", return_value=mock_session),
             patch("app.trading.orchestrator.save_trading_config", side_effect=capture_save),
-            patch("app.trading.orchestrator.notifier.notify_circuit_breaker", new_callable=AsyncMock),
+            patch(
+                "app.trading.orchestrator.notifier.notify_circuit_breaker", new_callable=AsyncMock
+            ),
             patch("app.trading.orchestrator.logger") as mock_logger,
         ):
             # Mock portfolio so balance returns below floor
@@ -1142,30 +1284,36 @@ class TestOrchestratorCommitErrorHandling:
 # trading_provider config field
 # ---------------------------------------------------------------------------
 
-class TestTradingProviderConfig:
 
+class TestTradingProviderConfig:
     def test_default_config_has_okx_provider(self):
         from app.trading.orchestrator import DEFAULT_TRADING_CONFIG
+
         assert DEFAULT_TRADING_CONFIG["trading_provider"] == "okx"
 
     def test_config_update_accepts_okx(self):
         from app.routes.trading import TradingConfigUpdate
+
         update = TradingConfigUpdate(trading_provider="okx")
         assert update.trading_provider == "okx"
 
     def test_config_update_accepts_binance(self):
         from app.routes.trading import TradingConfigUpdate
+
         update = TradingConfigUpdate(trading_provider="binance")
         assert update.trading_provider == "binance"
 
     def test_config_update_rejects_invalid_provider(self):
         import pydantic
+
         from app.routes.trading import TradingConfigUpdate
+
         with pytest.raises(pydantic.ValidationError):
             TradingConfigUpdate(trading_provider="kraken")
 
     def test_config_update_provider_none_is_excluded(self):
         from app.routes.trading import TradingConfigUpdate
+
         update = TradingConfigUpdate(trading_provider=None)
         patch = update.model_dump(exclude_none=True)
         assert "trading_provider" not in patch
@@ -1201,8 +1349,8 @@ class TestTradingProviderConfig:
     @pytest.mark.asyncio
     async def test_check_open_positions_passes_provider_to_get_candles_df(self):
         """check_open_positions passes a BinanceProvider instance to get_candles_df."""
-        from app.trading.orchestrator import TradeOrchestrator
         from app.providers import BinanceProvider
+        from app.trading.orchestrator import TradeOrchestrator
 
         orch = TradeOrchestrator()
         config = make_config(enabled=True, trading_provider="binance")
@@ -1218,9 +1366,11 @@ class TestTradingProviderConfig:
         result_mock.scalars.return_value.all.return_value = [pos]
         mock_session.execute = AsyncMock(return_value=result_mock)
 
-        candles = _make_candles([
-            (1000, 50000, 52100, 49800, 51800),  # TP hit
-        ])
+        candles = _make_candles(
+            [
+                (1000, 50000, 52100, 49800, 51800),  # TP hit
+            ]
+        )
 
         captured_providers = []
 
@@ -1231,9 +1381,19 @@ class TestTradingProviderConfig:
         with (
             patch("app.trading.orchestrator.get_trading_config", return_value=config),
             patch("app.trading.orchestrator.Database.get_session", return_value=mock_session),
-            patch("app.routes.strategy.get_candles_df", new_callable=AsyncMock, side_effect=capture_candles),
-            patch("app.trading.orchestrator.notifier.notify_position_closed", new_callable=AsyncMock),
-            patch("app.trading.orchestrator.RedisClient.get_json", new_callable=AsyncMock, return_value={"market_state": "TRENDING"}),
+            patch(
+                "app.routes.strategy.get_candles_df",
+                new_callable=AsyncMock,
+                side_effect=capture_candles,
+            ),
+            patch(
+                "app.trading.orchestrator.notifier.notify_position_closed", new_callable=AsyncMock
+            ),
+            patch(
+                "app.trading.orchestrator.RedisClient.get_json",
+                new_callable=AsyncMock,
+                return_value={"market_state": "TRENDING"},
+            ),
         ):
             await orch.check_open_positions(config=config)
 
@@ -1244,6 +1404,7 @@ class TestTradingProviderConfig:
 # ---------------------------------------------------------------------------
 # Per-position provider: check_open_positions uses position's stamped provider
 # ---------------------------------------------------------------------------
+
 
 class TestCheckOpenPositionsProvider:
     """Verify that check_open_positions uses each position's stamped provider,
@@ -1263,8 +1424,8 @@ class TestCheckOpenPositionsProvider:
     @pytest.mark.asyncio
     async def test_binance_position_uses_binance_provider(self):
         """A position stamped with provider='binance' causes BinanceProvider to be used."""
-        from app.trading.orchestrator import TradeOrchestrator
         from app.providers import BinanceProvider
+        from app.trading.orchestrator import TradeOrchestrator
 
         orch = TradeOrchestrator()
         config = make_config(enabled=True, trading_provider="okx")
@@ -1283,9 +1444,19 @@ class TestCheckOpenPositionsProvider:
         with (
             patch("app.trading.orchestrator.get_trading_config", return_value=config),
             patch("app.trading.orchestrator.Database.get_session", return_value=mock_session),
-            patch("app.routes.strategy.get_candles_df", new_callable=AsyncMock, side_effect=capture_candles),
-            patch("app.trading.orchestrator.notifier.notify_position_closed", new_callable=AsyncMock),
-            patch("app.trading.orchestrator.RedisClient.get_json", new_callable=AsyncMock, return_value={}),
+            patch(
+                "app.routes.strategy.get_candles_df",
+                new_callable=AsyncMock,
+                side_effect=capture_candles,
+            ),
+            patch(
+                "app.trading.orchestrator.notifier.notify_position_closed", new_callable=AsyncMock
+            ),
+            patch(
+                "app.trading.orchestrator.RedisClient.get_json",
+                new_callable=AsyncMock,
+                return_value={},
+            ),
         ):
             await orch.check_open_positions(config=config)
 
@@ -1295,8 +1466,8 @@ class TestCheckOpenPositionsProvider:
     @pytest.mark.asyncio
     async def test_okx_position_uses_okx_provider(self):
         """A position stamped with provider='okx' causes OKXProvider to be used."""
-        from app.trading.orchestrator import TradeOrchestrator
         from app.providers import OKXProvider
+        from app.trading.orchestrator import TradeOrchestrator
 
         orch = TradeOrchestrator()
         config = make_config(enabled=True, trading_provider="binance")
@@ -1315,9 +1486,19 @@ class TestCheckOpenPositionsProvider:
         with (
             patch("app.trading.orchestrator.get_trading_config", return_value=config),
             patch("app.trading.orchestrator.Database.get_session", return_value=mock_session),
-            patch("app.routes.strategy.get_candles_df", new_callable=AsyncMock, side_effect=capture_candles),
-            patch("app.trading.orchestrator.notifier.notify_position_closed", new_callable=AsyncMock),
-            patch("app.trading.orchestrator.RedisClient.get_json", new_callable=AsyncMock, return_value={}),
+            patch(
+                "app.routes.strategy.get_candles_df",
+                new_callable=AsyncMock,
+                side_effect=capture_candles,
+            ),
+            patch(
+                "app.trading.orchestrator.notifier.notify_position_closed", new_callable=AsyncMock
+            ),
+            patch(
+                "app.trading.orchestrator.RedisClient.get_json",
+                new_callable=AsyncMock,
+                return_value={},
+            ),
         ):
             await orch.check_open_positions(config=config)
 
@@ -1328,18 +1509,18 @@ class TestCheckOpenPositionsProvider:
     async def test_mixed_provider_positions_each_get_own_candle_fetch(self):
         """Two positions with different providers for different symbols each trigger
         a separate get_candles_df call with the correct provider instance."""
-        from app.trading.orchestrator import TradeOrchestrator
         from app.providers import BinanceProvider, OKXProvider
+        from app.trading.orchestrator import TradeOrchestrator
 
         orch = TradeOrchestrator()
         config = make_config(enabled=True, trading_provider="binance")
 
-        pos_binance = _make_position(symbol="BTCUSDT", direction="LONG",
-                                     entry=50000, tp=52000, sl=49000)
+        pos_binance = _make_position(
+            symbol="BTCUSDT", direction="LONG", entry=50000, tp=52000, sl=49000
+        )
         pos_binance.provider = "binance"
 
-        pos_okx = _make_position(symbol="ETHUSDT", direction="LONG",
-                                  entry=3000, tp=3200, sl=2900)
+        pos_okx = _make_position(symbol="ETHUSDT", direction="LONG", entry=3000, tp=3200, sl=2900)
         pos_okx.provider = "okx"
 
         mock_session = self._make_session_with_positions([pos_binance, pos_okx])
@@ -1354,9 +1535,19 @@ class TestCheckOpenPositionsProvider:
         with (
             patch("app.trading.orchestrator.get_trading_config", return_value=config),
             patch("app.trading.orchestrator.Database.get_session", return_value=mock_session),
-            patch("app.routes.strategy.get_candles_df", new_callable=AsyncMock, side_effect=capture_candles),
-            patch("app.trading.orchestrator.notifier.notify_position_closed", new_callable=AsyncMock),
-            patch("app.trading.orchestrator.RedisClient.get_json", new_callable=AsyncMock, return_value={}),
+            patch(
+                "app.routes.strategy.get_candles_df",
+                new_callable=AsyncMock,
+                side_effect=capture_candles,
+            ),
+            patch(
+                "app.trading.orchestrator.notifier.notify_position_closed", new_callable=AsyncMock
+            ),
+            patch(
+                "app.trading.orchestrator.RedisClient.get_json",
+                new_callable=AsyncMock,
+                return_value={},
+            ),
         ):
             await orch.check_open_positions(config=config)
 
@@ -1373,6 +1564,7 @@ class TestCheckOpenPositionsProvider:
 # Batch Race Condition — verify batch positions are visible to risk gates
 # ---------------------------------------------------------------------------
 
+
 class TestBatchRaceCondition:
     """Positions created earlier in the same signal batch must be
     visible to risk gates for subsequent signals."""
@@ -1383,12 +1575,19 @@ class TestBatchRaceCondition:
         with max_concurrent_positions=2 must be rejected."""
         rm = RiskManager()
         config = make_config(max_concurrent_positions=2, max_total_exposure_pct=9999)
-        batch = [make_position("ETHUSDT", "SHORT", "OPEN"),
-                 make_position("BNBUSDT", "SHORT", "OPEN")]
+        batch = [
+            make_position("ETHUSDT", "SHORT", "OPEN"),
+            make_position("BNBUSDT", "SHORT", "OPEN"),
+        ]
         ok, reason, sizing = await rm.check_all(
-            symbol="XRPUSDT", direction="SHORT", conviction=70,
-            entry=1.40, sl=1.45, config=config,
-            open_positions=batch, balance=200.0,
+            symbol="XRPUSDT",
+            direction="SHORT",
+            conviction=70,
+            entry=1.40,
+            sl=1.45,
+            config=config,
+            open_positions=batch,
+            balance=200.0,
         )
         assert ok is False
         assert "Max positions" in reason
@@ -1403,8 +1602,10 @@ class TestBatchRaceCondition:
         p2 = make_position("BNBUSDT", "SHORT", "OPEN")
         p2.quote_amount = 100.0
         ok, reason = rm.check_total_exposure(
-            open_positions=[p1, p2], quote_amount=10.0,
-            balance=100.0, config=config,
+            open_positions=[p1, p2],
+            quote_amount=10.0,
+            balance=100.0,
+            config=config,
         )
         assert ok is False
         assert "exposure" in reason.lower()
@@ -1417,8 +1618,10 @@ class TestBatchRaceCondition:
         pending = make_position("BNBUSDT", "SHORT", "PENDING")
         pending.quote_amount = 350.0  # large notional, unfilled
         ok, reason = rm.check_total_exposure(
-            open_positions=[pending], quote_amount=10.0,
-            balance=100.0, config=config,
+            open_positions=[pending],
+            quote_amount=10.0,
+            balance=100.0,
+            config=config,
         )
         assert ok is True, f"PENDING should not block new trades, got: {reason}"
 
@@ -1430,8 +1633,13 @@ class TestBatchRaceCondition:
         p1 = make_position("ETHUSDT", "SHORT", "OPEN")
         p1.quote_amount = 10.0
         ok, reason, sizing = await rm.check_all(
-            symbol="XRPUSDT", direction="SHORT", conviction=70,
-            entry=1.40, sl=1.45, config=config,
-            open_positions=[p1], balance=200.0,
+            symbol="XRPUSDT",
+            direction="SHORT",
+            conviction=70,
+            entry=1.40,
+            sl=1.45,
+            config=config,
+            open_positions=[p1],
+            balance=200.0,
         )
         assert ok is True

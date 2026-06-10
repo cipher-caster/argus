@@ -1,9 +1,11 @@
 """
 Tests for Strategy API Routes (`/api/strategy/*`).
 """
-import pytest
-from unittest.mock import patch, AsyncMock
+
+from unittest.mock import AsyncMock, patch
+
 import pandas as pd
+import pytest
 
 
 @pytest.fixture
@@ -18,26 +20,46 @@ def mock_db_session():
 @pytest.mark.asyncio
 async def test_get_oracle_strategy_success(async_client, mock_db_session):
     """Test the /oracle route returns Oracle response correctly."""
-    
+
     # Mock get_candles_df to bypass DB/Binance logic and just return mock OHLCV
-    mock_df_micro = pd.DataFrame({
-        "timestamp": pd.date_range("2024-01-01", periods=10, freq="1h"),
-        "open": [10]*10, "high": [11]*10, "low": [9]*10, "close": [10.5]*10, "volume": [1000]*10
-    })
-    mock_df_macro = pd.DataFrame({
-        "timestamp": pd.date_range("2024-01-01", periods=10, freq="1d"),
-        "open": [10]*10, "high": [11]*10, "low": [9]*10, "close": [10.5]*10, "volume": [1000]*10
-    })
+    mock_df_micro = pd.DataFrame(
+        {
+            "timestamp": pd.date_range("2024-01-01", periods=10, freq="1h"),
+            "open": [10] * 10,
+            "high": [11] * 10,
+            "low": [9] * 10,
+            "close": [10.5] * 10,
+            "volume": [1000] * 10,
+        }
+    )
+    mock_df_macro = pd.DataFrame(
+        {
+            "timestamp": pd.date_range("2024-01-01", periods=10, freq="1d"),
+            "open": [10] * 10,
+            "high": [11] * 10,
+            "low": [9] * 10,
+            "close": [10.5] * 10,
+            "volume": [1000] * 10,
+        }
+    )
 
     # The route calls get_candles_df twice (micro and macro)
-    with patch("app.routes.strategy.RedisClient.get_json", new_callable=AsyncMock, return_value=None):
+    with patch(
+        "app.routes.strategy.RedisClient.get_json", new_callable=AsyncMock, return_value=None
+    ):
         with patch("app.routes.strategy.RedisClient.set_json", new_callable=AsyncMock):
-            with patch("app.routes.strategy.get_candles_df", new_callable=AsyncMock, side_effect=[mock_df_micro, mock_df_macro]):
+            with patch(
+                "app.routes.strategy.get_candles_df",
+                new_callable=AsyncMock,
+                side_effect=[mock_df_micro, mock_df_macro],
+            ):
                 with patch("app.routes.strategy.oracle.analyze") as mock_analyze:
                     # Mock the oracle analysis response
                     mock_analyze.return_value = {"signal": "BUY", "confidence": "2/4"}
 
-                    response = await async_client.get("/api/strategy/oracle/BTCUSDT?micro_tf=1h&macro_tf=1d")
+                    response = await async_client.get(
+                        "/api/strategy/oracle/BTCUSDT?micro_tf=1h&macro_tf=1d"
+                    )
 
                     assert response.status_code == 200
                     data = response.json()
@@ -50,8 +72,14 @@ async def test_get_oracle_strategy_success(async_client, mock_db_session):
 @pytest.mark.asyncio
 async def test_get_oracle_strategy_insufficient_data(async_client):
     """Test poor data returns 404."""
-    with patch("app.routes.strategy.RedisClient.get_json", new_callable=AsyncMock, return_value=None):
-        with patch("app.routes.strategy.get_candles_df", new_callable=AsyncMock, return_value=pd.DataFrame()):
+    with patch(
+        "app.routes.strategy.RedisClient.get_json", new_callable=AsyncMock, return_value=None
+    ):
+        with patch(
+            "app.routes.strategy.get_candles_df",
+            new_callable=AsyncMock,
+            return_value=pd.DataFrame(),
+        ):
             response = await async_client.get("/api/strategy/oracle/BTCUSDT")
             assert response.status_code == 404
             assert "Insufficient data" in response.json()["detail"]
@@ -60,14 +88,24 @@ async def test_get_oracle_strategy_insufficient_data(async_client):
 @pytest.mark.asyncio
 async def test_get_titan_strategy_success(async_client):
     """Test the /titan route returns Titan response."""
-    mock_df = pd.DataFrame({
-        "timestamp": pd.date_range("2024-01-01", periods=250, freq="4h"),
-        "open": [10]*250, "high": [11]*250, "low": [9]*250, "close": [10.5]*250, "volume": [1000]*250
-    })
+    mock_df = pd.DataFrame(
+        {
+            "timestamp": pd.date_range("2024-01-01", periods=250, freq="4h"),
+            "open": [10] * 250,
+            "high": [11] * 250,
+            "low": [9] * 250,
+            "close": [10.5] * 250,
+            "volume": [1000] * 250,
+        }
+    )
 
-    with patch("app.routes.strategy.RedisClient.get_json", new_callable=AsyncMock, return_value=None):
+    with patch(
+        "app.routes.strategy.RedisClient.get_json", new_callable=AsyncMock, return_value=None
+    ):
         with patch("app.routes.strategy.RedisClient.set_json", new_callable=AsyncMock):
-            with patch("app.routes.strategy.get_candles_df", new_callable=AsyncMock, return_value=mock_df):
+            with patch(
+                "app.routes.strategy.get_candles_df", new_callable=AsyncMock, return_value=mock_df
+            ):
                 with patch("app.routes.strategy.titan.analyze") as mock_analyze:
                     mock_analyze.return_value = {"signal": "BUY", "confidence": 80}
 
@@ -80,11 +118,18 @@ async def test_get_titan_strategy_success(async_client):
                     assert data["timeframe"] == "4h"
                     assert data["price"] == 10.5
 
+
 @pytest.mark.asyncio
 async def test_get_titan_strategy_insufficient_data(async_client):
     """Test titan route handles empty data."""
-    with patch("app.routes.strategy.RedisClient.get_json", new_callable=AsyncMock, return_value=None):
-        with patch("app.routes.strategy.get_candles_df", new_callable=AsyncMock, return_value=pd.DataFrame()):
+    with patch(
+        "app.routes.strategy.RedisClient.get_json", new_callable=AsyncMock, return_value=None
+    ):
+        with patch(
+            "app.routes.strategy.get_candles_df",
+            new_callable=AsyncMock,
+            return_value=pd.DataFrame(),
+        ):
             response = await async_client.get("/api/strategy/titan/SOLUSDT")
             assert response.status_code == 404
 
@@ -92,10 +137,10 @@ async def test_get_titan_strategy_insufficient_data(async_client):
 @pytest.mark.asyncio
 async def test_get_candles_df_provider_fallback():
     """Test the internal helper `get_candles_df` directly to ensure DB-empty → provider-fetch logic works."""
-    from app.routes.strategy import get_candles_df
-
     # SQLAlchemy session setup
     from unittest.mock import MagicMock
+
+    from app.routes.strategy import get_candles_df
 
     # The return of execute() is a synchronous result object
     result_mock = MagicMock()
@@ -108,7 +153,6 @@ async def test_get_candles_df_provider_fallback():
     # get_session is an async context manager
     db_mock = AsyncMock()
     db_mock.__aenter__.return_value = session_mock
-
 
     class FakeCandle:
         def __init__(self, ts):
@@ -138,7 +182,9 @@ async def test_get_candles_df_provider_fallback():
 @pytest.mark.asyncio
 async def test_oracle_strategy_generic_500_on_unexpected_error(async_client):
     """When an unexpected exception occurs, the API returns 500 with a generic message (no raw str(e))."""
-    with patch("app.routes.strategy.RedisClient.get_json", new_callable=AsyncMock, return_value=None):
+    with patch(
+        "app.routes.strategy.RedisClient.get_json", new_callable=AsyncMock, return_value=None
+    ):
         with patch(
             "app.routes.strategy.get_candles_df",
             new_callable=AsyncMock,
@@ -154,22 +200,36 @@ async def test_oracle_strategy_generic_500_on_unexpected_error(async_client):
 @pytest.mark.asyncio
 async def test_get_titan_strategy_with_okx_provider(async_client):
     """Test the /titan route accepts provider=okx and routes through OKXProvider."""
-    mock_df = pd.DataFrame({
-        "timestamp": pd.date_range("2024-01-01", periods=250, freq="4h"),
-        "open": [10]*250, "high": [11]*250, "low": [9]*250, "close": [10.5]*250, "volume": [1000]*250
-    })
+    mock_df = pd.DataFrame(
+        {
+            "timestamp": pd.date_range("2024-01-01", periods=250, freq="4h"),
+            "open": [10] * 250,
+            "high": [11] * 250,
+            "low": [9] * 250,
+            "close": [10.5] * 250,
+            "volume": [1000] * 250,
+        }
+    )
 
-    with patch("app.routes.strategy.RedisClient.get_json", new_callable=AsyncMock, return_value=None):
+    with patch(
+        "app.routes.strategy.RedisClient.get_json", new_callable=AsyncMock, return_value=None
+    ):
         with patch("app.routes.strategy.RedisClient.set_json", new_callable=AsyncMock):
             with patch("app.routes.strategy.OKXProvider") as MockOKX:
                 mock_okx_instance = AsyncMock()
                 mock_okx_instance.name = "okx"
                 MockOKX.return_value = mock_okx_instance
-                with patch("app.routes.strategy.get_candles_df", new_callable=AsyncMock, return_value=mock_df):
+                with patch(
+                    "app.routes.strategy.get_candles_df",
+                    new_callable=AsyncMock,
+                    return_value=mock_df,
+                ):
                     with patch("app.routes.strategy.titan.analyze") as mock_analyze:
                         mock_analyze.return_value = {"signal": "BUY", "confidence": 75}
 
-                        response = await async_client.get("/api/strategy/titan/HYPEUSDT?timeframe=4h&provider=okx")
+                        response = await async_client.get(
+                            "/api/strategy/titan/HYPEUSDT?timeframe=4h&provider=okx"
+                        )
 
                         assert response.status_code == 200
                         data = response.json()
@@ -189,7 +249,9 @@ async def test_get_titan_strategy_invalid_provider(async_client):
 @pytest.mark.asyncio
 async def test_titan_strategy_generic_500_on_unexpected_error(async_client):
     """When an unexpected exception occurs, the titan route returns 500 with a generic message."""
-    with patch("app.routes.strategy.RedisClient.get_json", new_callable=AsyncMock, return_value=None):
+    with patch(
+        "app.routes.strategy.RedisClient.get_json", new_callable=AsyncMock, return_value=None
+    ):
         with patch(
             "app.routes.strategy.get_candles_df",
             new_callable=AsyncMock,

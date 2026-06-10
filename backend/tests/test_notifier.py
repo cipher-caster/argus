@@ -7,15 +7,17 @@ Covers:
 - Silent no-op when TELEGRAM_CHAT_ID is missing
 - Graceful handling of httpx errors (never raises)
 """
-import pytest
+
 from unittest.mock import AsyncMock, MagicMock, patch
 
-from app.trading import notifier
+import pytest
 
+from app.trading import notifier
 
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
+
 
 def make_closed_position(outcome="WIN", direction="LONG"):
     pos = MagicMock()
@@ -37,6 +39,7 @@ def make_closed_position(outcome="WIN", direction="LONG"):
 
 class FakeAsyncClient:
     """Context-manager stand-in for httpx.AsyncClient that records POST calls."""
+
     def __init__(self, post_side_effect=None):
         self.post = AsyncMock(side_effect=post_side_effect)
 
@@ -51,12 +54,15 @@ class FakeAsyncClient:
 # Credentials configured — HTTP dispatch happens
 # ---------------------------------------------------------------------------
 
+
 @pytest.mark.asyncio
 async def test_notify_position_closed_win_sends_http():
     fake_client = FakeAsyncClient()
-    with patch.object(notifier, "_BOT_TOKEN", "test-token"), \
-         patch.object(notifier, "_CHAT_ID", "12345"), \
-         patch.object(notifier.httpx, "AsyncClient", return_value=fake_client):
+    with (
+        patch.object(notifier, "_BOT_TOKEN", "test-token"),
+        patch.object(notifier, "_CHAT_ID", "12345"),
+        patch.object(notifier.httpx, "AsyncClient", return_value=fake_client),
+    ):
         await notifier.notify_position_closed(make_closed_position(outcome="WIN"))
 
     fake_client.post.assert_awaited_once()
@@ -71,9 +77,11 @@ async def test_notify_position_closed_win_sends_http():
 @pytest.mark.asyncio
 async def test_notify_position_closed_loss_sends_http():
     fake_client = FakeAsyncClient()
-    with patch.object(notifier, "_BOT_TOKEN", "test-token"), \
-         patch.object(notifier, "_CHAT_ID", "12345"), \
-         patch.object(notifier.httpx, "AsyncClient", return_value=fake_client):
+    with (
+        patch.object(notifier, "_BOT_TOKEN", "test-token"),
+        patch.object(notifier, "_CHAT_ID", "12345"),
+        patch.object(notifier.httpx, "AsyncClient", return_value=fake_client),
+    ):
         await notifier.notify_position_closed(make_closed_position(outcome="LOSS"))
 
     fake_client.post.assert_awaited_once()
@@ -86,12 +94,15 @@ async def test_notify_position_closed_loss_sends_http():
 # Missing credentials — silent no-op
 # ---------------------------------------------------------------------------
 
+
 @pytest.mark.asyncio
 async def test_no_op_when_bot_token_missing():
     fake_client = FakeAsyncClient()
-    with patch.object(notifier, "_BOT_TOKEN", None), \
-         patch.object(notifier, "_CHAT_ID", "12345"), \
-         patch.object(notifier.httpx, "AsyncClient", return_value=fake_client) as mock_cls:
+    with (
+        patch.object(notifier, "_BOT_TOKEN", None),
+        patch.object(notifier, "_CHAT_ID", "12345"),
+        patch.object(notifier.httpx, "AsyncClient", return_value=fake_client) as mock_cls,
+    ):
         # Should not raise, and should not construct an httpx client
         await notifier.notify_position_closed(make_closed_position(outcome="WIN"))
 
@@ -102,9 +113,11 @@ async def test_no_op_when_bot_token_missing():
 @pytest.mark.asyncio
 async def test_no_op_when_chat_id_missing():
     fake_client = FakeAsyncClient()
-    with patch.object(notifier, "_BOT_TOKEN", "test-token"), \
-         patch.object(notifier, "_CHAT_ID", None), \
-         patch.object(notifier.httpx, "AsyncClient", return_value=fake_client) as mock_cls:
+    with (
+        patch.object(notifier, "_BOT_TOKEN", "test-token"),
+        patch.object(notifier, "_CHAT_ID", None),
+        patch.object(notifier.httpx, "AsyncClient", return_value=fake_client) as mock_cls,
+    ):
         await notifier.notify_position_closed(make_closed_position(outcome="LOSS"))
 
     mock_cls.assert_not_called()
@@ -114,9 +127,11 @@ async def test_no_op_when_chat_id_missing():
 @pytest.mark.asyncio
 async def test_no_op_when_both_missing():
     fake_client = FakeAsyncClient()
-    with patch.object(notifier, "_BOT_TOKEN", None), \
-         patch.object(notifier, "_CHAT_ID", None), \
-         patch.object(notifier.httpx, "AsyncClient", return_value=fake_client) as mock_cls:
+    with (
+        patch.object(notifier, "_BOT_TOKEN", None),
+        patch.object(notifier, "_CHAT_ID", None),
+        patch.object(notifier.httpx, "AsyncClient", return_value=fake_client) as mock_cls,
+    ):
         # Exercise every public notify_* function — none should raise or dispatch
         pos = make_closed_position()
         await notifier.notify_position_created(pos)
@@ -132,13 +147,17 @@ async def test_no_op_when_both_missing():
 # HTTP failure — swallowed, never raised
 # ---------------------------------------------------------------------------
 
+
 @pytest.mark.asyncio
 async def test_http_error_is_swallowed():
     import httpx
+
     fake_client = FakeAsyncClient(post_side_effect=httpx.ConnectError("network down"))
-    with patch.object(notifier, "_BOT_TOKEN", "test-token"), \
-         patch.object(notifier, "_CHAT_ID", "12345"), \
-         patch.object(notifier.httpx, "AsyncClient", return_value=fake_client):
+    with (
+        patch.object(notifier, "_BOT_TOKEN", "test-token"),
+        patch.object(notifier, "_CHAT_ID", "12345"),
+        patch.object(notifier.httpx, "AsyncClient", return_value=fake_client),
+    ):
         # Must not raise
         await notifier.notify_position_closed(make_closed_position(outcome="LOSS"))
 

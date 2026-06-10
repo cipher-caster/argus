@@ -4,13 +4,22 @@ Tests for signal log stats endpoint (/api/analytics/signal-log/stats).
 Covers per-coin aggregation, L/S split, R-profit math, source filtering,
 overall stats, and edge cases.
 """
-import pytest
+
 from unittest.mock import AsyncMock, MagicMock, patch
 
+import pytest
 
-def _make_signal(symbol="BTCUSDT", direction="LONG", outcome="WIN",
-                 source="backtest", entry=100.0, tp=110.0, sl=90.0,
-                 conviction=70):
+
+def _make_signal(
+    symbol="BTCUSDT",
+    direction="LONG",
+    outcome="WIN",
+    source="backtest",
+    entry=100.0,
+    tp=110.0,
+    sl=90.0,
+    conviction=70,
+):
     sig = MagicMock()
     sig.symbol = symbol
     sig.direction = direction
@@ -24,7 +33,6 @@ def _make_signal(symbol="BTCUSDT", direction="LONG", outcome="WIN",
 
 
 class TestSignalLogStats:
-
     @pytest.mark.asyncio
     @patch("app.storage.Database")
     async def test_returns_empty_when_no_data(self, mock_db, async_client):

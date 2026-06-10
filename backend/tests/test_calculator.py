@@ -1,9 +1,15 @@
 """
 Tests for Indicator Calculator.
 """
-import pytest
+
 import pandas as pd
-from app.indicators.calculator import get_available_indicators, calculate_indicator, INDICATOR_REGISTRY
+import pytest
+
+from app.indicators.calculator import (
+    INDICATOR_REGISTRY,
+    calculate_indicator,
+    get_available_indicators,
+)
 
 
 @pytest.fixture
@@ -11,19 +17,22 @@ def mock_df():
     """Returns a simple continuous dataframe of 100 rows."""
     timestamps = pd.date_range("2024-01-01", periods=100, freq="1D")
     # Convert to integer milliseconds representing Unix epoch
-    ts_ints = timestamps.astype('int64') // 10**6
+    ts_ints = timestamps.astype("int64") // 10**6
     import numpy as np
+
     np.random.seed(42)
     prices = np.linspace(100, 200, 100) + np.random.normal(0, 1, 100)
-    
-    return pd.DataFrame({
-        "timestamp": ts_ints,
-        "open": prices,
-        "high": prices * 1.05,
-        "low": prices * 0.95,
-        "close": prices,
-        "volume": np.random.randint(1000, 5000, 100)
-    })
+
+    return pd.DataFrame(
+        {
+            "timestamp": ts_ints,
+            "open": prices,
+            "high": prices * 1.05,
+            "low": prices * 0.95,
+            "close": prices,
+            "volume": np.random.randint(1000, 5000, 100),
+        }
+    )
 
 
 def test_get_available_indicators():
@@ -48,7 +57,7 @@ def test_calculate_ema(mock_df):
     assert result is not None
     assert result.name == "ema"
     assert result.type == "overlay"
-    
+
     # 10 length EMA on 100 items will have ~90 non-null values
     assert len(result.data) > 80
     assert "timestamp" in result.data[0]

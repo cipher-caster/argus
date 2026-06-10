@@ -7,16 +7,17 @@ Covers:
 - GET /api/indicators/market/dashboard — dashboard market indicators
 - GET /api/system/activity-log — activity log with filtering
 """
-import pytest
+
 from unittest.mock import AsyncMock, MagicMock, patch
 
+import pytest
 
 # ---------------------------------------------------------------------------
 # Indicator Routes
 # ---------------------------------------------------------------------------
 
-class TestIndicatorList:
 
+class TestIndicatorList:
     @pytest.mark.asyncio
     async def test_list_returns_200(self, async_client):
         resp = await async_client.get("/api/indicators/")
@@ -32,7 +33,6 @@ class TestIndicatorList:
 
 
 class TestIndicatorCalculate:
-
     @pytest.mark.asyncio
     @patch("app.storage.Database")
     async def test_calculate_returns_results(self, mock_db, async_client):
@@ -55,11 +55,14 @@ class TestIndicatorCalculate:
         mock_db.get_session.return_value.__aenter__ = AsyncMock(return_value=mock_session)
         mock_db.get_session.return_value.__aexit__ = AsyncMock(return_value=False)
 
-        resp = await async_client.post("/api/indicators/calculate", json={
-            "symbol": "BTC/USDT",
-            "timeframe": "1h",
-            "indicators": [{"type": "ema", "params": {"length": 20}}]
-        })
+        resp = await async_client.post(
+            "/api/indicators/calculate",
+            json={
+                "symbol": "BTC/USDT",
+                "timeframe": "1h",
+                "indicators": [{"type": "ema", "params": {"length": 20}}],
+            },
+        )
         assert resp.status_code == 200
         data = resp.json()
         assert "results" in data
@@ -92,11 +95,14 @@ class TestIndicatorCalculate:
         provider.get_ohlcv = AsyncMock(return_value=candles)
         mock_prov.return_value = provider
 
-        resp = await async_client.post("/api/indicators/calculate", json={
-            "symbol": "BTC/USDT",
-            "timeframe": "1h",
-            "indicators": [{"type": "ema", "params": {"length": 20}}]
-        })
+        resp = await async_client.post(
+            "/api/indicators/calculate",
+            json={
+                "symbol": "BTC/USDT",
+                "timeframe": "1h",
+                "indicators": [{"type": "ema", "params": {"length": 20}}],
+            },
+        )
         assert resp.status_code == 200
 
     @pytest.mark.asyncio
@@ -115,16 +121,18 @@ class TestIndicatorCalculate:
         provider.get_ohlcv = AsyncMock(return_value=[])
         mock_prov.return_value = provider
 
-        resp = await async_client.post("/api/indicators/calculate", json={
-            "symbol": "INVALID/PAIR",
-            "timeframe": "1h",
-            "indicators": [{"type": "ema", "params": {"length": 20}}]
-        })
+        resp = await async_client.post(
+            "/api/indicators/calculate",
+            json={
+                "symbol": "INVALID/PAIR",
+                "timeframe": "1h",
+                "indicators": [{"type": "ema", "params": {"length": 20}}],
+            },
+        )
         assert resp.status_code == 400
 
 
 class TestMarketDashboard:
-
     @pytest.mark.asyncio
     @patch("app.routes.indicators.RedisClient")
     @patch("app.storage.Database")
@@ -226,8 +234,8 @@ class TestMarketDashboard:
 # System Routes
 # ---------------------------------------------------------------------------
 
-class TestActivityLog:
 
+class TestActivityLog:
     @pytest.mark.asyncio
     @patch("app.routes.system.Database")
     async def test_activity_log_200(self, mock_db, async_client):
@@ -273,8 +281,8 @@ class TestActivityLog:
 # Health Endpoint
 # ---------------------------------------------------------------------------
 
-class TestHealthCheck:
 
+class TestHealthCheck:
     @pytest.mark.asyncio
     @patch("app.storage.RedisClient")
     @patch("app.storage.Database")

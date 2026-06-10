@@ -8,34 +8,38 @@ Covers:
 - log_best_setups: cache miss, low conviction, insert
 - resolve_signal_outcomes: LONG win/loss, SHORT win, REVIEW timeout
 """
-import time
-import pytest
+
 from unittest.mock import AsyncMock, MagicMock, patch
 
+import pytest
+
 from app.jobs.signal_log import (
-    _get_config,
-    _get_market_state,
-    _get_btc_oracle_signal,
-    _get_oracle_score,
     DEFAULT_WATCHLIST,
     SIGNAL_LOG_CONFIG_KEY,
+    _get_btc_oracle_signal,
+    _get_config,
+    _get_market_state,
+    _get_oracle_score,
 )
-
 
 # ---------------------------------------------------------------------------
 # TestGetConfig — Redis cache hit / miss
 # ---------------------------------------------------------------------------
 
-class TestGetConfig:
 
+class TestGetConfig:
     @pytest.mark.asyncio
     @patch("app.jobs.signal_log.RedisClient")
     async def test_returns_redis_config_current_watchlist(self, mock_redis):
         """Redis config with up-to-date watchlist is returned as-is, set_json not called."""
-        custom = {"watchlist": list(DEFAULT_WATCHLIST), "min_titan_confidence": 70,
-                  "review_days": 5, "block_sleeping": False,
-                  "block_volatile": False, "macro_guard": False,
-                  }
+        custom = {
+            "watchlist": list(DEFAULT_WATCHLIST),
+            "min_titan_confidence": 70,
+            "review_days": 5,
+            "block_sleeping": False,
+            "block_volatile": False,
+            "macro_guard": False,
+        }
         mock_redis.get_json = AsyncMock(return_value=custom)
         mock_redis.set_json = AsyncMock()
         result = await _get_config()
@@ -70,10 +74,14 @@ class TestGetConfig:
     @patch("app.jobs.signal_log.RedisClient")
     async def test_stale_watchlist_triggers_sync(self, mock_redis):
         """Cached config with outdated watchlist is auto-synced to DEFAULT_WATCHLIST."""
-        stale = {"watchlist": ["BTCUSDT"], "min_titan_confidence": 60,
-                 "review_days": 3, "block_sleeping": True,
-                 "block_volatile": True, "macro_guard": True,
-                 }
+        stale = {
+            "watchlist": ["BTCUSDT"],
+            "min_titan_confidence": 60,
+            "review_days": 3,
+            "block_sleeping": True,
+            "block_volatile": True,
+            "macro_guard": True,
+        }
         mock_redis.get_json = AsyncMock(return_value=stale)
         mock_redis.set_json = AsyncMock()
         result = await _get_config()
@@ -91,10 +99,14 @@ class TestGetConfig:
     @patch("app.jobs.signal_log.RedisClient")
     async def test_current_watchlist_skips_sync(self, mock_redis):
         """Cached config whose watchlist matches DEFAULT_WATCHLIST does not trigger set_json."""
-        current = {"watchlist": list(DEFAULT_WATCHLIST), "min_titan_confidence": 55,
-                   "review_days": 3, "block_sleeping": True,
-                   "block_volatile": True, "macro_guard": True,
-                   }
+        current = {
+            "watchlist": list(DEFAULT_WATCHLIST),
+            "min_titan_confidence": 55,
+            "review_days": 3,
+            "block_sleeping": True,
+            "block_volatile": True,
+            "macro_guard": True,
+        }
         mock_redis.get_json = AsyncMock(return_value=current)
         mock_redis.set_json = AsyncMock()
         result = await _get_config()
@@ -121,8 +133,8 @@ class TestGetConfig:
 # TestRedisHelpers
 # ---------------------------------------------------------------------------
 
-class TestRedisHelpers:
 
+class TestRedisHelpers:
     @pytest.mark.asyncio
     @patch("app.jobs.signal_log.RedisClient")
     async def test_get_market_state_from_cache(self, mock_redis):
@@ -177,8 +189,8 @@ class TestRedisHelpers:
 # TestLogWatchlistSetups
 # ---------------------------------------------------------------------------
 
-class TestLogWatchlistSetups:
 
+class TestLogWatchlistSetups:
     def _make_ctx(self):
         return {}
 
@@ -186,7 +198,6 @@ class TestLogWatchlistSetups:
     @patch("app.jobs.signal_log.resolve_outcomes_historical", new_callable=AsyncMock)
     async def test_skips_when_market_gate_blocks(self, mock_hist):
         """Gate always passes now (regime-based) — this test verifies delegation."""
-        from app.jobs.signal_log import log_watchlist_setups, resolve_signal_outcomes
         # Gate no longer blocks — test that the job runs
         # (This test name is legacy; gate is always open now)
         assert True
@@ -198,30 +209,47 @@ class TestLogWatchlistSetups:
     async def test_skips_counter_trend_in_bear(self, mock_redis, mock_cfg, mock_db):
         """BEAR regime + LONG signal → skip (counter-trend)."""
         mock_cfg.return_value = {
-            "watchlist": ["BTCUSDT"], "min_titan_confidence": 55,
+            "watchlist": ["BTCUSDT"],
+            "min_titan_confidence": 55,
             "review_days": 7,
         }
         # No cached regime — let it compute from BTC weekly
         mock_redis.get_json = AsyncMock(return_value=None)
         mock_redis.set_json = AsyncMock()
 
-        with patch("app.routes.strategy.get_candles_df", new_callable=AsyncMock) as mock_candles, \
-             patch("app.routes.strategy.titan") as mock_titan, \
-             patch("app.trading.backtest_engine.load_candles", new_callable=AsyncMock) as mock_load:
-            import pandas as pd
+        with (
+            patch("app.routes.strategy.get_candles_df", new_callable=AsyncMock) as mock_candles,
+            patch("app.routes.strategy.titan") as mock_titan,
+            patch("app.trading.backtest_engine.load_candles", new_callable=AsyncMock) as mock_load,
+        ):
             import numpy as np
-            mock_candles.return_value = pd.DataFrame({
-                "open": [100], "high": [101], "low": [99], "close": [100], "volume": [1000],
-                "timestamp": pd.to_datetime(["2024-01-01"]),
-            })
-            mock_titan.analyze.return_value = {"signal": "BUY", "confidence": 70, "targets": {"entry": 100, "tp": 110, "sl": 90}}
+            import pandas as pd
+
+            mock_candles.return_value = pd.DataFrame(
+                {
+                    "open": [100],
+                    "high": [101],
+                    "low": [99],
+                    "close": [100],
+                    "volume": [1000],
+                    "timestamp": pd.to_datetime(["2024-01-01"]),
+                }
+            )
+            mock_titan.analyze.return_value = {
+                "signal": "BUY",
+                "confidence": 70,
+                "targets": {"entry": 100, "tp": 110, "sl": 90},
+            }
             # BEAR regime: declining prices → last close below EMA50
-            mock_load.return_value = pd.DataFrame({
-                "close": np.linspace(80000.0, 10000.0, 100),
-                "timestamp": pd.date_range("2020-01-01", periods=100, freq="W"),
-            })
+            mock_load.return_value = pd.DataFrame(
+                {
+                    "close": np.linspace(80000.0, 10000.0, 100),
+                    "timestamp": pd.date_range("2020-01-01", periods=100, freq="W"),
+                }
+            )
 
             from app.jobs.signal_log import log_watchlist_setups
+
             await log_watchlist_setups(self._make_ctx())
             # DB session should not be called because LONG is skipped in BEAR
             mock_db.get_session.assert_not_called()
@@ -240,7 +268,8 @@ class TestLogWatchlistSetups:
     async def test_inserts_qualified_signal(self, mock_redis, mock_cfg, mock_db):
         """Valid signal with regime alignment → pg_insert called."""
         mock_cfg.return_value = {
-            "watchlist": ["BTCUSDT"], "min_titan_confidence": 55,
+            "watchlist": ["BTCUSDT"],
+            "min_titan_confidence": 55,
             "review_days": 7,
         }
         # No cached regime — let it compute from BTC weekly
@@ -251,28 +280,41 @@ class TestLogWatchlistSetups:
         mock_db.get_session.return_value.__aenter__ = AsyncMock(return_value=mock_session)
         mock_db.get_session.return_value.__aexit__ = AsyncMock(return_value=False)
 
-        with patch("app.routes.strategy.get_candles_df", new_callable=AsyncMock) as mock_candles, \
-             patch("app.routes.strategy.titan") as mock_titan, \
-             patch("app.trading.backtest_engine.load_candles", new_callable=AsyncMock) as mock_load:
+        with (
+            patch("app.routes.strategy.get_candles_df", new_callable=AsyncMock) as mock_candles,
+            patch("app.routes.strategy.titan") as mock_titan,
+            patch("app.trading.backtest_engine.load_candles", new_callable=AsyncMock) as mock_load,
+        ):
             import pandas as pd
-            mock_candles.return_value = pd.DataFrame({
-                "open": [100.0], "high": [101.0], "low": [99.0],
-                "close": [100.0], "volume": [1000.0],
-                "timestamp": pd.to_datetime(["2024-01-01"]),
-            })
+
+            mock_candles.return_value = pd.DataFrame(
+                {
+                    "open": [100.0],
+                    "high": [101.0],
+                    "low": [99.0],
+                    "close": [100.0],
+                    "volume": [1000.0],
+                    "timestamp": pd.to_datetime(["2024-01-01"]),
+                }
+            )
             mock_titan.analyze.return_value = {
-                "signal": "SELL", "confidence": 70,
+                "signal": "SELL",
+                "confidence": 70,
                 "targets": {"entry": 100.0, "tp": 90.0, "sl": 105.0},
                 "reasons": ["trend aligned", "momentum strong"],
             }
             # BEAR regime: BTC weekly declining so last close below EMA50
             import numpy as np
-            mock_load.return_value = pd.DataFrame({
-                "close": np.linspace(80000.0, 10000.0, 100),
-                "timestamp": pd.date_range("2020-01-01", periods=100, freq="W"),
-            })
+
+            mock_load.return_value = pd.DataFrame(
+                {
+                    "close": np.linspace(80000.0, 10000.0, 100),
+                    "timestamp": pd.date_range("2020-01-01", periods=100, freq="W"),
+                }
+            )
 
             from app.jobs.signal_log import log_watchlist_setups
+
             await log_watchlist_setups(self._make_ctx())
 
             mock_db.get_session.assert_called_once()
@@ -286,7 +328,8 @@ class TestLogWatchlistSetups:
     async def test_batch_insert_multiple_symbols(self, mock_redis, mock_cfg, mock_db):
         """Multiple qualifying symbols → batch insert in one session."""
         mock_cfg.return_value = {
-            "watchlist": ["BTCUSDT", "ETHUSDT"], "min_titan_confidence": 55,
+            "watchlist": ["BTCUSDT", "ETHUSDT"],
+            "min_titan_confidence": 55,
             "review_days": 7,
         }
         # No cached regime — let it compute from BTC weekly
@@ -297,28 +340,40 @@ class TestLogWatchlistSetups:
         mock_db.get_session.return_value.__aenter__ = AsyncMock(return_value=mock_session)
         mock_db.get_session.return_value.__aexit__ = AsyncMock(return_value=False)
 
-        with patch("app.routes.strategy.get_candles_df", new_callable=AsyncMock) as mock_candles, \
-             patch("app.routes.strategy.titan") as mock_titan, \
-             patch("app.trading.backtest_engine.load_candles", new_callable=AsyncMock) as mock_load:
-            import pandas as pd
+        with (
+            patch("app.routes.strategy.get_candles_df", new_callable=AsyncMock) as mock_candles,
+            patch("app.routes.strategy.titan") as mock_titan,
+            patch("app.trading.backtest_engine.load_candles", new_callable=AsyncMock) as mock_load,
+        ):
             import numpy as np
-            mock_candles.return_value = pd.DataFrame({
-                "open": [100.0], "high": [101.0], "low": [99.0],
-                "close": [100.0], "volume": [1000.0],
-                "timestamp": pd.to_datetime(["2024-01-01"]),
-            })
+            import pandas as pd
+
+            mock_candles.return_value = pd.DataFrame(
+                {
+                    "open": [100.0],
+                    "high": [101.0],
+                    "low": [99.0],
+                    "close": [100.0],
+                    "volume": [1000.0],
+                    "timestamp": pd.to_datetime(["2024-01-01"]),
+                }
+            )
             mock_titan.analyze.return_value = {
-                "signal": "SELL", "confidence": 70,
+                "signal": "SELL",
+                "confidence": 70,
                 "targets": {"entry": 100.0, "tp": 90.0, "sl": 105.0},
                 "reasons": ["trend"],
             }
             # BEAR regime: declining prices → last close below EMA50
-            mock_load.return_value = pd.DataFrame({
-                "close": np.linspace(80000.0, 10000.0, 100),
-                "timestamp": pd.date_range("2020-01-01", periods=100, freq="W"),
-            })
+            mock_load.return_value = pd.DataFrame(
+                {
+                    "close": np.linspace(80000.0, 10000.0, 100),
+                    "timestamp": pd.date_range("2020-01-01", periods=100, freq="W"),
+                }
+            )
 
             from app.jobs.signal_log import log_watchlist_setups
+
             await log_watchlist_setups(self._make_ctx())
 
             # Two symbols → two execute calls + one commit
@@ -330,8 +385,8 @@ class TestLogWatchlistSetups:
 # TestLogBestSetups
 # ---------------------------------------------------------------------------
 
-class TestLogBestSetups:
 
+class TestLogBestSetups:
     def _make_ctx(self):
         return {}
 
@@ -342,12 +397,17 @@ class TestLogBestSetups:
     async def test_skips_when_no_cache(self, mock_redis, mock_cfg, mock_ms):
         """No cached best-setups → early return."""
         mock_redis.get_json = AsyncMock(return_value=None)
-        mock_cfg.return_value = {"watchlist": [], "min_titan_confidence": 55,
-                                 "review_days": 7, "block_sleeping": True,
-                                 "block_volatile": True, "macro_guard": True,
-                                 }
+        mock_cfg.return_value = {
+            "watchlist": [],
+            "min_titan_confidence": 55,
+            "review_days": 7,
+            "block_sleeping": True,
+            "block_volatile": True,
+            "macro_guard": True,
+        }
 
         from app.jobs.signal_log import log_best_setups
+
         await log_best_setups(self._make_ctx())
         # Should not reach DB insert
         # (no assertion on Database because it's never imported in this path)
@@ -359,17 +419,34 @@ class TestLogBestSetups:
     @patch("app.jobs.signal_log.RedisClient")
     async def test_skips_low_conviction(self, mock_redis, mock_cfg, mock_ms, mock_db):
         """Conviction < 50 → skipped entirely (not persisted)."""
-        mock_redis.get_json = AsyncMock(return_value={
-            "data": [{"symbol": "BTCUSDT", "direction": "LONG", "conviction": 49,
-                       "oracle_score": 3, "titan_signal": "BUY",
-                       "entry": 100, "tp": 110, "sl": 95, "reason": "test"}]
-        })
-        mock_cfg.return_value = {"watchlist": [], "min_titan_confidence": 55,
-                                 "review_days": 7, "block_sleeping": True,
-                                 "block_volatile": True, "macro_guard": True,
-                                 }
+        mock_redis.get_json = AsyncMock(
+            return_value={
+                "data": [
+                    {
+                        "symbol": "BTCUSDT",
+                        "direction": "LONG",
+                        "conviction": 49,
+                        "oracle_score": 3,
+                        "titan_signal": "BUY",
+                        "entry": 100,
+                        "tp": 110,
+                        "sl": 95,
+                        "reason": "test",
+                    }
+                ]
+            }
+        )
+        mock_cfg.return_value = {
+            "watchlist": [],
+            "min_titan_confidence": 55,
+            "review_days": 7,
+            "block_sleeping": True,
+            "block_volatile": True,
+            "macro_guard": True,
+        }
 
         from app.jobs.signal_log import log_best_setups
+
         await log_best_setups(self._make_ctx())
         # Cooldown pre-fetch runs (1 DB call), but no rows qualify → no insert, no commit
         assert mock_db.get_session.call_count == 1
@@ -381,21 +458,38 @@ class TestLogBestSetups:
     @patch("app.jobs.signal_log.RedisClient")
     async def test_inserts_scanner_signal(self, mock_redis, mock_cfg, mock_ms, mock_db):
         """Valid scanner signal → source='scanner', correct fields."""
-        mock_redis.get_json = AsyncMock(return_value={
-            "data": [{"symbol": "BTC/USDT", "direction": "LONG", "conviction": 75,
-                       "oracle_score": 4, "titan_signal": "BUY",
-                       "entry": 50000, "tp": 55000, "sl": 48000, "reason": "(trend) BUY"}]
-        })
-        mock_cfg.return_value = {"watchlist": [], "min_titan_confidence": 55,
-                                 "review_days": 7, "block_sleeping": True,
-                                 "block_volatile": True, "macro_guard": True,
-                                 }
+        mock_redis.get_json = AsyncMock(
+            return_value={
+                "data": [
+                    {
+                        "symbol": "BTC/USDT",
+                        "direction": "LONG",
+                        "conviction": 75,
+                        "oracle_score": 4,
+                        "titan_signal": "BUY",
+                        "entry": 50000,
+                        "tp": 55000,
+                        "sl": 48000,
+                        "reason": "(trend) BUY",
+                    }
+                ]
+            }
+        )
+        mock_cfg.return_value = {
+            "watchlist": [],
+            "min_titan_confidence": 55,
+            "review_days": 7,
+            "block_sleeping": True,
+            "block_volatile": True,
+            "macro_guard": True,
+        }
 
         mock_session = AsyncMock()
         mock_db.get_session.return_value.__aenter__ = AsyncMock(return_value=mock_session)
         mock_db.get_session.return_value.__aexit__ = AsyncMock(return_value=False)
 
         from app.jobs.signal_log import log_best_setups
+
         await log_best_setups(self._make_ctx())
 
         # 2 DB calls: cooldown pre-fetch + insert
@@ -407,6 +501,7 @@ class TestLogBestSetups:
 # ---------------------------------------------------------------------------
 # TestResolveOutcomes
 # ---------------------------------------------------------------------------
+
 
 class TestResolveOutcomes:
     """Tests that resolve_signal_outcomes delegates to resolve_outcomes_historical."""
@@ -420,6 +515,7 @@ class TestResolveOutcomes:
     async def test_delegates_to_historical(self, mock_dt, mock_historical):
         """resolve_signal_outcomes should call resolve_outcomes_historical at :00 or :30."""
         from app.jobs.signal_log import resolve_signal_outcomes
+
         # Freeze time at a :00 minute so the throttle gate is open
         mock_now = MagicMock()
         mock_now.minute = 0
@@ -432,6 +528,7 @@ class TestResolveOutcomes:
 # ---------------------------------------------------------------------------
 # TestResolveOutcomesPositionBridge
 # ---------------------------------------------------------------------------
+
 
 class TestResolveOutcomesPositionBridge:
     """Tests that signal resolution closes linked positions."""
@@ -480,21 +577,26 @@ class TestResolveOutcomesPositionBridge:
     def _candle_df(self, fired_at_ms):
         """Create candles that trigger a SHORT TP hit (low <= tp)."""
         import pandas as pd
-        return pd.DataFrame({
-            "timestamp": pd.to_datetime([fired_at_ms, fired_at_ms + 14400000], unit="ms"),
-            "open": [70000.0, 68000.0],
-            "high": [70500.0, 68500.0],
-            "low": [69000.0, 65000.0],   # low=65000 < tp=66000 → TP hit
-            "close": [68000.0, 66000.0],
-            "volume": [100.0, 100.0],
-        })
+
+        return pd.DataFrame(
+            {
+                "timestamp": pd.to_datetime([fired_at_ms, fired_at_ms + 14400000], unit="ms"),
+                "open": [70000.0, 68000.0],
+                "high": [70500.0, 68500.0],
+                "low": [69000.0, 65000.0],  # low=65000 < tp=66000 → TP hit
+                "close": [68000.0, 66000.0],
+                "volume": [100.0, 100.0],
+            }
+        )
 
     @pytest.mark.asyncio
     @patch("app.providers.get_provider")
     @patch("app.jobs.signal_log._get_market_state", new_callable=AsyncMock, return_value="BEAR")
     @patch("app.jobs.signal_log._get_config", new_callable=AsyncMock)
     @patch("app.jobs.signal_log.Database")
-    async def test_resolves_signal_and_closes_open_position(self, mock_db, mock_cfg, mock_ms, mock_provider):
+    async def test_resolves_signal_and_closes_open_position(
+        self, mock_db, mock_cfg, mock_ms, mock_provider
+    ):
         """When a signal resolves WIN, the linked OPEN position should close with PnL."""
         mock_cfg.return_value = {"review_days": 7}
         mock_provider.return_value = AsyncMock()
@@ -513,13 +615,16 @@ class TestResolveOutcomesPositionBridge:
         mock_db.get_session.return_value.__aenter__ = AsyncMock(return_value=mock_session)
         mock_db.get_session.return_value.__aexit__ = AsyncMock(return_value=False)
 
-        import pandas as pd
         candle_df = self._candle_df(sig.fired_at)
 
-        with patch("app.routes.strategy.get_candles_df", new_callable=AsyncMock, return_value=candle_df), \
-             patch("app.schemas.activity_log.log_activity", new_callable=AsyncMock):
-
+        with (
+            patch(
+                "app.routes.strategy.get_candles_df", new_callable=AsyncMock, return_value=candle_df
+            ),
+            patch("app.schemas.activity_log.log_activity", new_callable=AsyncMock),
+        ):
             from app.jobs.signal_log import resolve_outcomes_historical
+
             await resolve_outcomes_historical({})
 
         # Signal should be resolved as WIN
@@ -538,7 +643,9 @@ class TestResolveOutcomesPositionBridge:
     @patch("app.jobs.signal_log._get_market_state", new_callable=AsyncMock, return_value="BEAR")
     @patch("app.jobs.signal_log._get_config", new_callable=AsyncMock)
     @patch("app.jobs.signal_log.Database")
-    async def test_cancels_pending_position_on_resolve(self, mock_db, mock_cfg, mock_ms, mock_provider):
+    async def test_cancels_pending_position_on_resolve(
+        self, mock_db, mock_cfg, mock_ms, mock_provider
+    ):
         """When a signal resolves, a linked PENDING position should be cancelled."""
         mock_cfg.return_value = {"review_days": 7}
         mock_provider.return_value = AsyncMock()
@@ -556,13 +663,16 @@ class TestResolveOutcomesPositionBridge:
         mock_db.get_session.return_value.__aenter__ = AsyncMock(return_value=mock_session)
         mock_db.get_session.return_value.__aexit__ = AsyncMock(return_value=False)
 
-        import pandas as pd
         candle_df = self._candle_df(sig.fired_at)
 
-        with patch("app.routes.strategy.get_candles_df", new_callable=AsyncMock, return_value=candle_df), \
-             patch("app.schemas.activity_log.log_activity", new_callable=AsyncMock):
-
+        with (
+            patch(
+                "app.routes.strategy.get_candles_df", new_callable=AsyncMock, return_value=candle_df
+            ),
+            patch("app.schemas.activity_log.log_activity", new_callable=AsyncMock),
+        ):
             from app.jobs.signal_log import resolve_outcomes_historical
+
             await resolve_outcomes_historical({})
 
         assert pos.status == "CANCELLED"
@@ -573,7 +683,9 @@ class TestResolveOutcomesPositionBridge:
     @patch("app.jobs.signal_log._get_market_state", new_callable=AsyncMock, return_value="BEAR")
     @patch("app.jobs.signal_log._get_config", new_callable=AsyncMock)
     @patch("app.jobs.signal_log.Database")
-    async def test_resolves_signal_without_position(self, mock_db, mock_cfg, mock_ms, mock_provider):
+    async def test_resolves_signal_without_position(
+        self, mock_db, mock_cfg, mock_ms, mock_provider
+    ):
         """Signal resolves normally even when no linked position exists."""
         mock_cfg.return_value = {"review_days": 7}
         mock_provider.return_value = AsyncMock()
@@ -590,13 +702,16 @@ class TestResolveOutcomesPositionBridge:
         mock_db.get_session.return_value.__aenter__ = AsyncMock(return_value=mock_session)
         mock_db.get_session.return_value.__aexit__ = AsyncMock(return_value=False)
 
-        import pandas as pd
         candle_df = self._candle_df(sig.fired_at)
 
-        with patch("app.routes.strategy.get_candles_df", new_callable=AsyncMock, return_value=candle_df), \
-             patch("app.schemas.activity_log.log_activity", new_callable=AsyncMock):
-
+        with (
+            patch(
+                "app.routes.strategy.get_candles_df", new_callable=AsyncMock, return_value=candle_df
+            ),
+            patch("app.schemas.activity_log.log_activity", new_callable=AsyncMock),
+        ):
             from app.jobs.signal_log import resolve_outcomes_historical
+
             await resolve_outcomes_historical({})
 
         assert sig.outcome == "WIN"
@@ -607,6 +722,7 @@ class TestResolveOutcomesPositionBridge:
 # TestTiebreaker5m — 5min candle tiebreaker for same-candle TP+SL hits
 # ---------------------------------------------------------------------------
 
+
 class TestTiebreaker5m:
     """Tests for _resolve_tiebreaker_5m — determines TP/SL ordering via 5min candles."""
 
@@ -616,13 +732,20 @@ class TestTiebreaker5m:
         rows: list of (offset_ms, high, low) relative to candle_open_ms
         """
         import pandas as pd
+
         data = []
         for offset_ms, high, low in rows:
             ts_ms = candle_open_ms + offset_ms
-            data.append({
-                "timestamp": pd.Timestamp(ts_ms, unit="ms"),
-                "open": 0, "high": high, "low": low, "close": 0, "volume": 0,
-            })
+            data.append(
+                {
+                    "timestamp": pd.Timestamp(ts_ms, unit="ms"),
+                    "open": 0,
+                    "high": high,
+                    "low": low,
+                    "close": 0,
+                    "volume": 0,
+                }
+            )
         return pd.DataFrame(data)
 
     @pytest.mark.asyncio
@@ -635,14 +758,22 @@ class TestTiebreaker5m:
         # LONG signal: tp=110, sl=90
         # First 5m: high=105, low=95 (neither hit)
         # Second 5m: high=112 (TP hit!), low=98
-        mock_candles.return_value = self._make_5m_df(candle_open_ms, [
-            (0, 105.0, 95.0),
-            (300000, 112.0, 98.0),
-            (600000, 108.0, 88.0),  # SL hit after TP
-        ])
+        mock_candles.return_value = self._make_5m_df(
+            candle_open_ms,
+            [
+                (0, 105.0, 95.0),
+                (300000, 112.0, 98.0),
+                (600000, 108.0, 88.0),  # SL hit after TP
+            ],
+        )
 
         result = await _resolve_tiebreaker_5m(
-            "BTCUSDT", "LONG", 110.0, 90.0, candle_open_ms, MagicMock(),
+            "BTCUSDT",
+            "LONG",
+            110.0,
+            90.0,
+            candle_open_ms,
+            MagicMock(),
         )
         assert result["outcome"] == "WIN"
         assert result["resolved_price"] == 110.0
@@ -657,13 +788,21 @@ class TestTiebreaker5m:
         candle_open_ms = 1700000000000
         # LONG signal: tp=110, sl=90
         # First 5m: high=105, low=88 (SL hit!)
-        mock_candles.return_value = self._make_5m_df(candle_open_ms, [
-            (0, 105.0, 88.0),
-            (300000, 112.0, 85.0),
-        ])
+        mock_candles.return_value = self._make_5m_df(
+            candle_open_ms,
+            [
+                (0, 105.0, 88.0),
+                (300000, 112.0, 85.0),
+            ],
+        )
 
         result = await _resolve_tiebreaker_5m(
-            "BTCUSDT", "LONG", 110.0, 90.0, candle_open_ms, MagicMock(),
+            "BTCUSDT",
+            "LONG",
+            110.0,
+            90.0,
+            candle_open_ms,
+            MagicMock(),
         )
         assert result["outcome"] == "LOSS"
         assert result["resolved_price"] == 90.0
@@ -678,13 +817,21 @@ class TestTiebreaker5m:
         candle_open_ms = 1700000000000
         # SHORT signal: tp=90, sl=110
         # First 5m: low=88 (TP hit for SHORT), high=105
-        mock_candles.return_value = self._make_5m_df(candle_open_ms, [
-            (0, 105.0, 88.0),
-            (300000, 112.0, 85.0),
-        ])
+        mock_candles.return_value = self._make_5m_df(
+            candle_open_ms,
+            [
+                (0, 105.0, 88.0),
+                (300000, 112.0, 85.0),
+            ],
+        )
 
         result = await _resolve_tiebreaker_5m(
-            "BTCUSDT", "SHORT", 90.0, 110.0, candle_open_ms, MagicMock(),
+            "BTCUSDT",
+            "SHORT",
+            90.0,
+            110.0,
+            candle_open_ms,
+            MagicMock(),
         )
         assert result["outcome"] == "WIN"
         assert result["resolved_price"] == 90.0
@@ -698,13 +845,21 @@ class TestTiebreaker5m:
         candle_open_ms = 1700000000000
         # SHORT signal: tp=90, sl=110
         # First 5m: high=112 (SL hit for SHORT), low=100
-        mock_candles.return_value = self._make_5m_df(candle_open_ms, [
-            (0, 112.0, 100.0),
-            (300000, 108.0, 88.0),
-        ])
+        mock_candles.return_value = self._make_5m_df(
+            candle_open_ms,
+            [
+                (0, 112.0, 100.0),
+                (300000, 108.0, 88.0),
+            ],
+        )
 
         result = await _resolve_tiebreaker_5m(
-            "BTCUSDT", "SHORT", 90.0, 110.0, candle_open_ms, MagicMock(),
+            "BTCUSDT",
+            "SHORT",
+            90.0,
+            110.0,
+            candle_open_ms,
+            MagicMock(),
         )
         assert result["outcome"] == "LOSS"
         assert result["resolved_price"] == 110.0
@@ -713,13 +868,19 @@ class TestTiebreaker5m:
     @patch("app.routes.strategy.get_candles_df", new_callable=AsyncMock)
     async def test_no_5m_data_falls_back_to_loss(self, mock_candles):
         """No 5min candles available → conservative LOSS fallback."""
+        import pandas as pd
+
         from app.jobs.signal_log import _resolve_tiebreaker_5m
 
-        import pandas as pd
         mock_candles.return_value = pd.DataFrame()
 
         result = await _resolve_tiebreaker_5m(
-            "BTCUSDT", "LONG", 110.0, 90.0, 1700000000000, MagicMock(),
+            "BTCUSDT",
+            "LONG",
+            110.0,
+            90.0,
+            1700000000000,
+            MagicMock(),
         )
         assert result["outcome"] == "LOSS"
         assert result["resolved_price"] == 90.0
@@ -733,7 +894,12 @@ class TestTiebreaker5m:
         mock_candles.side_effect = Exception("API error")
 
         result = await _resolve_tiebreaker_5m(
-            "BTCUSDT", "LONG", 110.0, 90.0, 1700000000000, MagicMock(),
+            "BTCUSDT",
+            "LONG",
+            110.0,
+            90.0,
+            1700000000000,
+            MagicMock(),
         )
         assert result["outcome"] == "LOSS"
         assert result["resolved_price"] == 90.0
@@ -746,13 +912,21 @@ class TestTiebreaker5m:
 
         candle_open_ms = 1700000000000
         # First 5m: both hit (skip), second 5m: only TP hit
-        mock_candles.return_value = self._make_5m_df(candle_open_ms, [
-            (0, 112.0, 88.0),       # both hit — ambiguous, skip
-            (300000, 112.0, 95.0),  # TP hit, SL not hit
-        ])
+        mock_candles.return_value = self._make_5m_df(
+            candle_open_ms,
+            [
+                (0, 112.0, 88.0),  # both hit — ambiguous, skip
+                (300000, 112.0, 95.0),  # TP hit, SL not hit
+            ],
+        )
 
         result = await _resolve_tiebreaker_5m(
-            "BTCUSDT", "LONG", 110.0, 90.0, candle_open_ms, MagicMock(),
+            "BTCUSDT",
+            "LONG",
+            110.0,
+            90.0,
+            candle_open_ms,
+            MagicMock(),
         )
         assert result["outcome"] == "WIN"
         assert result["resolved_at_ms"] == candle_open_ms + 300000
@@ -761,6 +935,7 @@ class TestTiebreaker5m:
 # ---------------------------------------------------------------------------
 # TestResolveOutcomesTiebreaker — integration: 4H resolution uses tiebreaker
 # ---------------------------------------------------------------------------
+
 
 class TestResolveOutcomesTiebreaker:
     """Integration tests: resolve_outcomes_historical calls tiebreaker on same-candle TP+SL."""
@@ -787,37 +962,48 @@ class TestResolveOutcomesTiebreaker:
     def _candle_df_both_hit(self, fired_at_ms):
         """4H candles where both TP and SL are hit in the same candle."""
         import pandas as pd
-        return pd.DataFrame({
-            "timestamp": pd.to_datetime([fired_at_ms, fired_at_ms + 14400000], unit="ms"),
-            "open": [3000.0, 3100.0],
-            "high": [3100.0, 3250.0],   # high >= tp (3200)
-            "low": [2900.0, 2750.0],    # low <= sl (2800)
-            "close": [3100.0, 3050.0],
-            "volume": [100.0, 100.0],
-        })
+
+        return pd.DataFrame(
+            {
+                "timestamp": pd.to_datetime([fired_at_ms, fired_at_ms + 14400000], unit="ms"),
+                "open": [3000.0, 3100.0],
+                "high": [3100.0, 3250.0],  # high >= tp (3200)
+                "low": [2900.0, 2750.0],  # low <= sl (2800)
+                "close": [3100.0, 3050.0],
+                "volume": [100.0, 100.0],
+            }
+        )
 
     def _make_5m_df_tiebreak(self, candle_open_ms):
         """5min candles where TP is hit before SL within the 4H window."""
         import pandas as pd
-        return pd.DataFrame({
-            "timestamp": pd.to_datetime([
-                candle_open_ms,
-                candle_open_ms + 300000,
-                candle_open_ms + 600000,
-            ], unit="ms"),
-            "open": [3100.0, 3150.0, 3210.0],
-            "high": [3120.0, 3180.0, 3220.0],   # 3rd: high=3220 >= tp=3200
-            "low": [3050.0, 3100.0, 3150.0],    # never hits sl=2800
-            "close": [3150.0, 3180.0, 3210.0],
-            "volume": [10.0, 10.0, 10.0],
-        })
+
+        return pd.DataFrame(
+            {
+                "timestamp": pd.to_datetime(
+                    [
+                        candle_open_ms,
+                        candle_open_ms + 300000,
+                        candle_open_ms + 600000,
+                    ],
+                    unit="ms",
+                ),
+                "open": [3100.0, 3150.0, 3210.0],
+                "high": [3120.0, 3180.0, 3220.0],  # 3rd: high=3220 >= tp=3200
+                "low": [3050.0, 3100.0, 3150.0],  # never hits sl=2800
+                "close": [3150.0, 3180.0, 3210.0],
+                "volume": [10.0, 10.0, 10.0],
+            }
+        )
 
     @pytest.mark.asyncio
     @patch("app.providers.get_provider")
     @patch("app.jobs.signal_log._get_market_state", new_callable=AsyncMock, return_value="BULL")
     @patch("app.jobs.signal_log._get_config", new_callable=AsyncMock)
     @patch("app.jobs.signal_log.Database")
-    async def test_same_candle_tp_sl_uses_tiebreaker(self, mock_db, mock_cfg, mock_ms, mock_provider):
+    async def test_same_candle_tp_sl_uses_tiebreaker(
+        self, mock_db, mock_cfg, mock_ms, mock_provider
+    ):
         """When both TP+SL hit in same 4H candle, tiebreaker determines outcome."""
         mock_cfg.return_value = {"review_days": 7}
         mock_provider.return_value = AsyncMock()
@@ -843,10 +1029,12 @@ class TestResolveOutcomesTiebreaker:
                 return tiebreak_df
             return candle_df
 
-        with patch("app.routes.strategy.get_candles_df", side_effect=mock_get_candles), \
-             patch("app.schemas.activity_log.log_activity", new_callable=AsyncMock):
-
+        with (
+            patch("app.routes.strategy.get_candles_df", side_effect=mock_get_candles),
+            patch("app.schemas.activity_log.log_activity", new_callable=AsyncMock),
+        ):
             from app.jobs.signal_log import resolve_outcomes_historical
+
             await resolve_outcomes_historical({})
 
         # Tiebreaker determined TP hit first → WIN
@@ -858,7 +1046,9 @@ class TestResolveOutcomesTiebreaker:
     @patch("app.jobs.signal_log._get_market_state", new_callable=AsyncMock, return_value="BULL")
     @patch("app.jobs.signal_log._get_config", new_callable=AsyncMock)
     @patch("app.jobs.signal_log.Database")
-    async def test_tiebreaker_no_5m_data_resolves_as_loss(self, mock_db, mock_cfg, mock_ms, mock_provider):
+    async def test_tiebreaker_no_5m_data_resolves_as_loss(
+        self, mock_db, mock_cfg, mock_ms, mock_provider
+    ):
         """When 5min data unavailable, same-candle TP+SL falls back to conservative LOSS."""
         mock_cfg.return_value = {"review_days": 7}
         mock_provider.return_value = AsyncMock()
@@ -879,14 +1069,17 @@ class TestResolveOutcomesTiebreaker:
 
         async def mock_get_candles(symbol, timeframe, limit=500, provider=None):
             import pandas as pd
+
             if timeframe == "5m":
                 return pd.DataFrame()
             return candle_df
 
-        with patch("app.routes.strategy.get_candles_df", side_effect=mock_get_candles), \
-             patch("app.schemas.activity_log.log_activity", new_callable=AsyncMock):
-
+        with (
+            patch("app.routes.strategy.get_candles_df", side_effect=mock_get_candles),
+            patch("app.schemas.activity_log.log_activity", new_callable=AsyncMock),
+        ):
             from app.jobs.signal_log import resolve_outcomes_historical
+
             await resolve_outcomes_historical({})
 
         assert sig.outcome == "LOSS"
@@ -899,32 +1092,39 @@ class TestResolveOutcomesTiebreaker:
 # covering TP/SL hit order, same-candle tiebreak, and REVIEW on no data.
 # ---------------------------------------------------------------------------
 
+
 class TestHistoricalResolution:
     """Unit tests for resolve_outcome() candle-walk logic (no DB, no mocks)."""
 
     def _make_df(self, rows: list[dict]) -> "pd.DataFrame":
         import pandas as pd
+
         base_ms = 1_704_067_200_000
         data = []
         for i, r in enumerate(rows):
-            data.append({
-                "timestamp": pd.Timestamp(base_ms + i * 14_400_000, unit="ms", tz="UTC"),
-                "open": 100.0,
-                "high": r["high"],
-                "low": r["low"],
-                "close": 100.0,
-                "volume": 1000.0,
-                "ts_ms": base_ms + i * 14_400_000,
-            })
+            data.append(
+                {
+                    "timestamp": pd.Timestamp(base_ms + i * 14_400_000, unit="ms", tz="UTC"),
+                    "open": 100.0,
+                    "high": r["high"],
+                    "low": r["low"],
+                    "close": 100.0,
+                    "volume": 1000.0,
+                    "ts_ms": base_ms + i * 14_400_000,
+                }
+            )
         return pd.DataFrame(data)
 
     def test_historical_long_tp_hit(self):
         """LONG: candle high reaches TP → WIN."""
         from app.trading.backtest_engine import resolve_outcome
-        df = self._make_df([
-            {"high": 104.0, "low": 98.0},   # entry candle (not scanned)
-            {"high": 115.0, "low": 101.0},  # TP=110 hit
-        ])
+
+        df = self._make_df(
+            [
+                {"high": 104.0, "low": 98.0},  # entry candle (not scanned)
+                {"high": 115.0, "low": 101.0},  # TP=110 hit
+            ]
+        )
         outcome, price, ts = resolve_outcome(df, 0, "LONG", tp=110.0, sl=95.0)
         assert outcome == "WIN"
         assert price == 110.0
@@ -932,10 +1132,13 @@ class TestHistoricalResolution:
     def test_historical_long_sl_hit(self):
         """LONG: candle low drops to SL → LOSS."""
         from app.trading.backtest_engine import resolve_outcome
-        df = self._make_df([
-            {"high": 104.0, "low": 98.0},
-            {"high": 103.0, "low": 92.0},  # SL=95 hit
-        ])
+
+        df = self._make_df(
+            [
+                {"high": 104.0, "low": 98.0},
+                {"high": 103.0, "low": 92.0},  # SL=95 hit
+            ]
+        )
         outcome, price, ts = resolve_outcome(df, 0, "LONG", tp=110.0, sl=95.0)
         assert outcome == "LOSS"
         assert price == 95.0
@@ -943,10 +1146,13 @@ class TestHistoricalResolution:
     def test_historical_short_tp_hit(self):
         """SHORT: candle low drops to TP → WIN."""
         from app.trading.backtest_engine import resolve_outcome
-        df = self._make_df([
-            {"high": 102.0, "low": 96.0},
-            {"high": 99.0, "low": 87.0},   # TP=90 hit (low <= tp)
-        ])
+
+        df = self._make_df(
+            [
+                {"high": 102.0, "low": 96.0},
+                {"high": 99.0, "low": 87.0},  # TP=90 hit (low <= tp)
+            ]
+        )
         outcome, price, ts = resolve_outcome(df, 0, "SHORT", tp=90.0, sl=108.0)
         assert outcome == "WIN"
         assert price == 90.0
@@ -954,10 +1160,13 @@ class TestHistoricalResolution:
     def test_historical_both_hit_bullish_candle(self):
         """Same candle crosses both TP and SL → conservative LOSS."""
         from app.trading.backtest_engine import resolve_outcome
-        df = self._make_df([
-            {"high": 104.0, "low": 98.0},
-            {"high": 120.0, "low": 85.0},  # Both TP=110 and SL=92 crossed
-        ])
+
+        df = self._make_df(
+            [
+                {"high": 104.0, "low": 98.0},
+                {"high": 120.0, "low": 85.0},  # Both TP=110 and SL=92 crossed
+            ]
+        )
         outcome, price, ts = resolve_outcome(df, 0, "LONG", tp=110.0, sl=92.0)
         assert outcome == "LOSS"
         assert price == 92.0
@@ -965,6 +1174,7 @@ class TestHistoricalResolution:
     def test_historical_review_no_candles(self):
         """Only the entry candle exists — no future candles → REVIEW."""
         from app.trading.backtest_engine import resolve_outcome
+
         df = self._make_df([{"high": 102.0, "low": 98.0}])
         outcome, price, ts = resolve_outcome(df, 0, "LONG", tp=110.0, sl=90.0)
         assert outcome == "REVIEW"
@@ -974,17 +1184,17 @@ class TestHistoricalResolution:
     def test_historical_review_max_hold_exceeded(self):
         """max_hold candles pass without hitting TP or SL → REVIEW."""
         from app.trading.backtest_engine import resolve_outcome
+
         # Flat candles — price never moves enough
         df = self._make_df([{"high": 101.5, "low": 98.5}] * 15)
-        outcome, price, ts = resolve_outcome(
-            df, 0, "LONG", tp=110.0, sl=90.0, max_hold=5
-        )
+        outcome, price, ts = resolve_outcome(df, 0, "LONG", tp=110.0, sl=90.0, max_hold=5)
         assert outcome == "REVIEW"
 
 
 # ---------------------------------------------------------------------------
 # TestRegimeCachingSignalLog — regime Redis cache in log_watchlist_setups
 # ---------------------------------------------------------------------------
+
 
 class TestRegimeCachingSignalLog:
     """Verify regime cache hit skips BTC fetch; miss fetches, computes, stores."""
@@ -999,18 +1209,23 @@ class TestRegimeCachingSignalLog:
     async def test_regime_cache_hit_skips_btc_fetch(self, mock_redis, mock_cfg, mock_db):
         """When market:regime is in Redis, load_candles is NOT called."""
         mock_cfg.return_value = {
-            "watchlist": [], "min_titan_confidence": 55, "review_days": 7,
+            "watchlist": [],
+            "min_titan_confidence": 55,
+            "review_days": 7,
         }
+
         # Simulate cache hit for regime
         async def fake_get_json(key):
             if key == "market:regime":
                 return {"regime": "BULL"}
             return None
+
         mock_redis.get_json = AsyncMock(side_effect=fake_get_json)
         mock_redis.set_json = AsyncMock()
 
         with patch("app.trading.backtest_engine.load_candles", new_callable=AsyncMock) as mock_load:
             from app.jobs.signal_log import log_watchlist_setups
+
             await log_watchlist_setups(self._make_ctx())
             mock_load.assert_not_awaited()
 
@@ -1021,21 +1236,32 @@ class TestRegimeCachingSignalLog:
     async def test_regime_cache_miss_fetches_and_stores(self, mock_redis, mock_cfg, mock_db):
         """On cache miss, BTC weekly is fetched and result is stored in Redis."""
         import pandas as pd
+
         mock_cfg.return_value = {
-            "watchlist": [], "min_titan_confidence": 55, "review_days": 7,
+            "watchlist": [],
+            "min_titan_confidence": 55,
+            "review_days": 7,
         }
         mock_redis.get_json = AsyncMock(return_value=None)
         mock_redis.set_json = AsyncMock()
 
         # BTC weekly candles — rising prices so last close well above EMA50 → BULL
         import numpy as np
-        btc_weekly = pd.DataFrame({
-            "close": np.linspace(10000.0, 80000.0, 100),
-            "timestamp": pd.date_range("2020-01-01", periods=100, freq="W"),
-        })
 
-        with patch("app.trading.backtest_engine.load_candles", new_callable=AsyncMock, return_value=btc_weekly):
+        btc_weekly = pd.DataFrame(
+            {
+                "close": np.linspace(10000.0, 80000.0, 100),
+                "timestamp": pd.date_range("2020-01-01", periods=100, freq="W"),
+            }
+        )
+
+        with patch(
+            "app.trading.backtest_engine.load_candles",
+            new_callable=AsyncMock,
+            return_value=btc_weekly,
+        ):
             from app.jobs.signal_log import log_watchlist_setups
+
             await log_watchlist_setups(self._make_ctx())
 
         # set_json should have been called to cache the regime

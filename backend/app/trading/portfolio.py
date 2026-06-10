@@ -2,12 +2,13 @@
 Portfolio Tracker — balance, exposure, and performance statistics.
 All numbers are derived from the Position table + current prices from Redis.
 """
-import logging
-from typing import Optional
 
-from sqlalchemy import select, func
-from app.storage import Database, RedisClient
+import logging
+
+from sqlalchemy import func, select
+
 from app.schemas.trading import Position
+from app.storage import Database, RedisClient
 
 logger = logging.getLogger(__name__)
 
@@ -24,7 +25,6 @@ def _price_map_from_tickers(tickers_raw: list) -> dict[str, float]:
 
 
 class PortfolioTracker:
-
     def __init__(self, initial_capital: float = 100.0):
         self.initial_capital = initial_capital
 
@@ -32,8 +32,9 @@ class PortfolioTracker:
         """Sum of pnl_usd on all CLOSED positions."""
         async with Database.get_session() as session:
             result = await session.execute(
-                select(func.coalesce(func.sum(Position.pnl_usd), 0.0))
-                .where(Position.status == "CLOSED")
+                select(func.coalesce(func.sum(Position.pnl_usd), 0.0)).where(
+                    Position.status == "CLOSED"
+                )
             )
             return float(result.scalar())
 
@@ -42,16 +43,14 @@ class PortfolioTracker:
         closed_pnl = await self._get_closed_pnl()
         return self.initial_capital + closed_pnl
 
-    async def get_unrealized_pnl(self, prices: Optional[dict] = None) -> float:
+    async def get_unrealized_pnl(self, prices: dict | None = None) -> float:
         """Mark-to-market PnL on all OPEN positions."""
         if prices is None:
             tickers_raw = await RedisClient.get_json("market:tickers") or []
             prices = _price_map_from_tickers(tickers_raw)
 
         async with Database.get_session() as session:
-            result = await session.execute(
-                select(Position).where(Position.status == "OPEN")
-            )
+            result = await session.execute(select(Position).where(Position.status == "OPEN"))
             open_positions = result.scalars().all()
 
         total_unrealized = 0.0
@@ -92,9 +91,7 @@ class PortfolioTracker:
     async def get_stats(self) -> dict:
         """Performance stats from all closed positions."""
         async with Database.get_session() as session:
-            result = await session.execute(
-                select(Position).where(Position.status == "CLOSED")
-            )
+            result = await session.execute(select(Position).where(Position.status == "CLOSED"))
             closed = result.scalars().all()
 
         if not closed:
@@ -148,7 +145,7 @@ class PortfolioTracker:
         peak = equity
         max_dd = 0.0
         for p in sorted_pos:
-            equity += (p.pnl_usd or 0.0)
+            equity += p.pnl_usd or 0.0
             if equity > peak:
                 peak = equity
             if peak > 0:
@@ -161,22 +158,22 @@ class PortfolioTracker:
         """Running balance after each closed trade, for charting."""
         async with Database.get_session() as session:
             result = await session.execute(
-                select(Position)
-                .where(Position.status == "CLOSED")
-                .order_by(Position.closed_at)
+                select(Position).where(Position.status == "CLOSED").order_by(Position.closed_at)
             )
             closed = result.scalars().all()
 
         curve = []
         balance = self.initial_capital
         for p in closed:
-            balance += (p.pnl_usd or 0.0)
-            curve.append({
-                "timestamp": p.closed_at,
-                "balance": round(balance, 2),
-                "symbol": p.symbol,
-                "outcome": p.outcome,
-                "pnl_usd": round(p.pnl_usd or 0.0, 2),
-            })
+            balance += p.pnl_usd or 0.0
+            curve.append(
+                {
+                    "timestamp": p.closed_at,
+                    "balance": round(balance, 2),
+                    "symbol": p.symbol,
+                    "outcome": p.outcome,
+                    "pnl_usd": round(p.pnl_usd or 0.0, 2),
+                }
+            )
 
         return curve

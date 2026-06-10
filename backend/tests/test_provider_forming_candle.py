@@ -7,16 +7,18 @@ Change 1 of the P0 Trading Correctness plan:
   - The last row (the forming candle) is stripped before returning.
   - Callers that ask for N candles receive N closed candles.
 """
+
+from unittest.mock import AsyncMock, MagicMock
+
 import pytest
-from unittest.mock import AsyncMock, patch, MagicMock
 
 from app.providers.binance_provider import BinanceProvider
 from app.providers.okx_provider import OKXProvider
 
-
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
+
 
 def _make_raw_ohlcv(n: int) -> list:
     """Return n synthetic OHLCV rows as the exchange would: [[ts, o, h, l, c, v], ...]."""
@@ -49,8 +51,8 @@ def _patch_okx_exchange(raw_rows: list):
 # BinanceProvider tests
 # ---------------------------------------------------------------------------
 
-class TestBinanceProviderFormingCandle:
 
+class TestBinanceProviderFormingCandle:
     @pytest.mark.asyncio
     async def test_drops_forming_candle_returns_limit_rows(self):
         """When exchange returns limit+1 rows, provider drops last and returns limit rows."""
@@ -63,9 +65,7 @@ class TestBinanceProviderFormingCandle:
 
         candles = await provider.get_ohlcv("BTC/USDT", timeframe="4h", limit=limit)
 
-        assert len(candles) == limit, (
-            f"Expected {limit} closed candles, got {len(candles)}"
-        )
+        assert len(candles) == limit, f"Expected {limit} closed candles, got {len(candles)}"
 
     @pytest.mark.asyncio
     async def test_last_candle_is_not_forming(self):
@@ -132,8 +132,8 @@ class TestBinanceProviderFormingCandle:
 # OKXProvider tests
 # ---------------------------------------------------------------------------
 
-class TestOKXProviderFormingCandle:
 
+class TestOKXProviderFormingCandle:
     @pytest.mark.asyncio
     async def test_drops_forming_candle_returns_limit_rows(self):
         """When exchange returns limit+1 rows, provider drops last and returns limit rows."""
@@ -146,9 +146,7 @@ class TestOKXProviderFormingCandle:
 
         candles = await provider.get_ohlcv("BTC/USDT", timeframe="4h", limit=limit)
 
-        assert len(candles) == limit, (
-            f"Expected {limit} closed candles, got {len(candles)}"
-        )
+        assert len(candles) == limit, f"Expected {limit} closed candles, got {len(candles)}"
 
     @pytest.mark.asyncio
     async def test_last_candle_is_not_forming(self):

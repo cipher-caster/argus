@@ -3,41 +3,41 @@ Futures analytics API routes
 Uses CCXT-based OKXProvider for data fetching
 Redis caching for performance optimization
 """
+
+import asyncio
 import logging
 import time
+
 import pandas as pd
-import asyncio
-from fastapi import APIRouter, HTTPException, Query
-from typing import List, Dict, Any, Optional
+from fastapi import APIRouter, Query
 
-from app.schemas.analytics import (
-    ScreenerResponse,
-    MeanReversionResponse,
-    MeanReversionItem,
-    OracleSignalSummaryResponse,
-    TitanRadarResponse,
-    TitanRadarItem,
-    BestSetupItem,
-    BestSetupsResponse,
-    SignalLogConfig,
-    SignalLogItem,
-    SignalLogSummary,
-    SignalLogResponse,
-)
-
-from app.routes.strategy import get_candles_df, titan, oracle
-from app.indicators.screener import run_oracle_screener
+from app.exceptions import CalculationError, DataProviderError
 from app.indicators.mean_reversion import detect_mean_reversion
-from app.providers import get_provider, owns_provider
-from app.services.market_data import MarketDataService
-from app.storage import RedisClient
-from app.exceptions import DataProviderError, CacheError, CalculationError
-from app.utils.trading_utils import calculate_conviction
+from app.indicators.screener import run_oracle_screener
 from app.jobs.signal_log import (
-    DEFAULT_WATCHLIST,
     DEFAULT_MIN_TITAN_CONFIDENCE,
     DEFAULT_REVIEW_DAYS,
+    DEFAULT_WATCHLIST,
 )
+from app.providers import get_provider, owns_provider
+from app.routes.strategy import get_candles_df, oracle, titan
+from app.schemas.analytics import (
+    BestSetupItem,
+    BestSetupsResponse,
+    MeanReversionItem,
+    MeanReversionResponse,
+    OracleSignalSummaryResponse,
+    ScreenerResponse,
+    SignalLogConfig,
+    SignalLogItem,
+    SignalLogResponse,
+    SignalLogSummary,
+    TitanRadarItem,
+    TitanRadarResponse,
+)
+from app.services.market_data import MarketDataService
+from app.storage import RedisClient
+from app.utils.trading_utils import calculate_conviction
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/analytics", tags=["Analytics"])
@@ -54,13 +54,10 @@ CACHE_TTL = 360  # 6 minutes
 async def get_supported_symbols(limit: int = 20):
     """Get list of commonly used futures symbols"""
     symbols = await MarketDataService.get_top_symbols(limit=limit)
-    return {
-        "symbols": symbols,
-        "default": "BTCUSDT"
-    }
+    return {"symbols": symbols, "default": "BTCUSDT"}
 
 
-async def fetch_all_candles(symbols: List[str], timeframe: str = "1h", limit: int = 250):
+async def fetch_all_candles(symbols: list[str], timeframe: str = "1h", limit: int = 250):
     """Helper to fetch candles for multiple symbols concurrently, reusing provider"""
     provider = get_provider()
     # owns_provider() is True when we created a fresh instance (worker / test context)
@@ -69,6 +66,7 @@ async def fetch_all_candles(symbols: List[str], timeframe: str = "1h", limit: in
     _should_close = owns_provider(provider)
 
     try:
+
         async def _fetch_one(sym):
             async with _FETCH_SEMAPHORE:
                 return await get_candles_df(sym, timeframe, limit, provider=provider)
@@ -77,11 +75,14 @@ async def fetch_all_candles(symbols: List[str], timeframe: str = "1h", limit: in
         dataframes = await asyncio.gather(*tasks, return_exceptions=True)
 
         result = {
-            sym: df for sym, df in zip(symbols, dataframes)
+            sym: df
+            for sym, df in zip(symbols, dataframes)
             if not isinstance(df, Exception) and df is not None and not df.empty
         }
 
-        logger.info(f"Fetched candles for {len(result)}/{len(symbols)} symbols ({timeframe}, limit={limit})")
+        logger.info(
+            f"Fetched candles for {len(result)}/{len(symbols)} symbols ({timeframe}, limit={limit})"
+        )
         return result
     except Exception as e:
         logger.error(f"Failed to fetch candles: {e}", exc_info=True)
@@ -92,52 +93,60 @@ async def fetch_all_candles(symbols: List[str], timeframe: str = "1h", limit: in
 
 
 @router.get("/screener", response_model=ScreenerResponse)
-async def get_oracle_screener(limit: int = 50, timeframe: str = Query(default="1h", pattern="^(1m|5m|15m|30m|1h|4h|12h|1d|3d|1w)$")):
+async def get_oracle_screener(
+    limit: int = 50,
+    timeframe: str = Query(default="1h", pattern="^(1m|5m|15m|30m|1h|4h|12h|1d|3d|1w)$"),
+):
     """Get Oracle analysis for top coins with specific timeframe"""
     cache_key = f"analytics:screener:{timeframe}:{limit}"
-    
+
     # Try cache first
     cached = await RedisClient.get_json(cache_key)
     if cached:
         logger.debug(f"Cache HIT: {cache_key}")
-        if isinstance(cached, list): return ScreenerResponse(data=cached, last_updated=0)
+        if isinstance(cached, list):
+            return ScreenerResponse(data=cached, last_updated=0)
         return ScreenerResponse(**cached)
-    
+
     # Cache miss - compute fresh data
     logger.debug(f"Cache MISS: {cache_key}")
     symbols = await MarketDataService.get_top_symbols(limit=limit)
     df_data = await fetch_all_candles(symbols, timeframe=timeframe)
     btc_df = df_data.get("BTCUSDT", pd.DataFrame())
-    
+
     data = run_oracle_screener(df_data, btc_df)
-    
+
     # Cache the result
     response = {"data": data, "last_updated": int(time.time() * 1000)}
     await RedisClient.set_json(cache_key, response, ttl=CACHE_TTL)
     return ScreenerResponse(**response)
 
 
-
-
 @router.get("/contrarian-radar", response_model=MeanReversionResponse)
-async def get_contrarian_radar(limit: int = 50, timeframe: str = Query(default="1h", pattern="^(1m|5m|15m|30m|1h|4h|12h|1d|3d|1w)$")):
+async def get_contrarian_radar(
+    limit: int = 50,
+    timeframe: str = Query(default="1h", pattern="^(1m|5m|15m|30m|1h|4h|12h|1d|3d|1w)$"),
+):
     """Identify overextended coins for potential reversal with specific timeframe"""
     cache_key = f"analytics:contrarian:{timeframe}:{limit}"
-    
+
     cached = await RedisClient.get_json(cache_key)
     if cached:
-        if isinstance(cached, list): return MeanReversionResponse(data=[MeanReversionItem(**item) for item in cached], last_updated=0)
+        if isinstance(cached, list):
+            return MeanReversionResponse(
+                data=[MeanReversionItem(**item) for item in cached], last_updated=0
+            )
         return MeanReversionResponse(**cached)
-    
+
     symbols = await MarketDataService.get_top_symbols(limit=limit)
     df_data = await fetch_all_candles(symbols, timeframe=timeframe)
-    
+
     results = []
     for sym, df in df_data.items():
         rev = detect_mean_reversion(df)
-        if rev['is_extended']:
+        if rev["is_extended"]:
             results.append(MeanReversionItem(symbol=sym, **rev))
-    
+
     response = {"data": [r.model_dump() for r in results], "last_updated": int(time.time() * 1000)}
     await RedisClient.set_json(cache_key, response, ttl=CACHE_TTL)
     return MeanReversionResponse(**response)
@@ -147,28 +156,30 @@ async def get_contrarian_radar(limit: int = 50, timeframe: str = Query(default="
 async def get_oracle_signal_summary():
     """High-level summary for the dashboard - fixed at top 20 for performance"""
     cache_key = "analytics:signal-summary"
-    
+
     cached = await RedisClient.get_json(cache_key)
     if cached:
         return OracleSignalSummaryResponse(**cached)
-    
+
     symbols = await MarketDataService.get_top_symbols(limit=20)
     df_data = await fetch_all_candles(symbols)
     btc_df = df_data.get("BTCUSDT", pd.DataFrame())
-    
+
     screener_data = run_oracle_screener(df_data, btc_df)
 
-    bullish = len([s for s in screener_data if s['score'] >= 3])
-    bearish = len([s for s in screener_data if s['score'] <= -3])
+    bullish = len([s for s in screener_data if s["score"] >= 3])
+    bearish = len([s for s in screener_data if s["score"] <= -3])
 
-    top_signals = [f"{s['symbol']} {s['score']}/4" for s in screener_data if abs(s['score']) >= 3][:5]
+    top_signals = [f"{s['symbol']} {s['score']}/4" for s in screener_data if abs(s["score"]) >= 3][
+        :5
+    ]
 
     # Derive market state directly from screener scores
     total = len(screener_data)
     if total > 0:
-        bulls = len([s for s in screener_data if s['score'] >= 1])
-        bears = len([s for s in screener_data if s['score'] <= -1])
-        sleeping = len([s for s in screener_data if s['score'] == 0])
+        bulls = len([s for s in screener_data if s["score"] >= 1])
+        bears = len([s for s in screener_data if s["score"] <= -1])
+        sleeping = len([s for s in screener_data if s["score"] == 0])
         bull_pct = bulls / total
         bear_pct = bears / total
         if bull_pct > 0.5 and bulls > 2 * max(bears, 1):
@@ -187,16 +198,18 @@ async def get_oracle_signal_summary():
         "bearish_pct": round((bearish / len(screener_data)) * 100, 1) if screener_data else 0,
         "top_signals": top_signals,
         "market_state": market_state,
-        "last_updated": int(time.time() * 1000)
+        "last_updated": int(time.time() * 1000),
     }
-    
+
     await RedisClient.set_json(cache_key, result, ttl=CACHE_TTL)
     return OracleSignalSummaryResponse(**result)
 
 
-
 @router.get("/best-setups", response_model=BestSetupsResponse)
-async def get_best_setups(timeframe: str = Query(default="4h", pattern="^(1m|5m|15m|30m|1h|4h|12h|1d|3d|1w)$"), limit: int = 50):
+async def get_best_setups(
+    timeframe: str = Query(default="4h", pattern="^(1m|5m|15m|30m|1h|4h|12h|1d|3d|1w)$"),
+    limit: int = 50,
+):
     """
     High-conviction Titan setups filtered by market regime.
     In BULL regime: prioritizes LONG signals.
@@ -214,8 +227,10 @@ async def get_best_setups(timeframe: str = Query(default="4h", pattern="^(1m|5m|
     titan_candles = await fetch_all_candles(symbols, timeframe=timeframe, limit=300)
 
     # Detect regime from BTC weekly EMA50 (cached to avoid recomputing on every call)
-    from app.trading.backtest_engine import load_candles
     import pandas_ta as _ta
+
+    from app.trading.backtest_engine import load_candles
+
     REGIME_CACHE_KEY = "market:regime"
     REGIME_CACHE_TTL = 3600  # 1 hour
 
@@ -265,19 +280,25 @@ async def get_best_setups(timeframe: str = Query(default="4h", pattern="^(1m|5m|
             reasons = t.get("reasons", [])
             # Short regime tag for UI badges + indicator reasons
             reg_tag = "trend" if regime_aligned else "counter"
-            reason = f"({reg_tag}) " + " | ".join(reasons[:2]) if reasons else f"({reg_tag}) {t_signal.replace('_', ' ')}"
+            reason = (
+                f"({reg_tag}) " + " | ".join(reasons[:2])
+                if reasons
+                else f"({reg_tag}) {t_signal.replace('_', ' ')}"
+            )
 
-            results.append(BestSetupItem(
-                symbol=sym,
-                direction="LONG" if is_long else "SHORT",
-                conviction=conviction,
-                entry=round(float(targets.get("entry", price)), 6),
-                tp=round(float(targets.get("tp", 0)), 6),
-                sl=round(float(targets.get("sl", 0)), 6),
-                reason=reason,
-                oracle_score=0,
-                titan_signal=t_signal,
-            ))
+            results.append(
+                BestSetupItem(
+                    symbol=sym,
+                    direction="LONG" if is_long else "SHORT",
+                    conviction=conviction,
+                    entry=round(float(targets.get("entry", price)), 6),
+                    tp=round(float(targets.get("tp", 0)), 6),
+                    sl=round(float(targets.get("sl", 0)), 6),
+                    reason=reason,
+                    oracle_score=0,
+                    titan_signal=t_signal,
+                )
+            )
         except Exception as e:
             logger.warning(f"best-setups error for {sym}: {e}")
             continue
@@ -292,8 +313,12 @@ async def get_best_setups(timeframe: str = Query(default="4h", pattern="^(1m|5m|
             micro_dfs, daily_dfs, h12_dfs, w1_dfs = await asyncio.gather(
                 fetch_all_candles(filtered_syms, timeframe="1h", limit=300),
                 fetch_all_candles(filtered_syms, timeframe="1d", limit=300),
-                fetch_all_candles(filtered_syms, timeframe="12h", limit=250),  # Titan needs 200+ candles
-                fetch_all_candles(filtered_syms, timeframe="1w", limit=200),   # Titan needs 200+ candles
+                fetch_all_candles(
+                    filtered_syms, timeframe="12h", limit=250
+                ),  # Titan needs 200+ candles
+                fetch_all_candles(
+                    filtered_syms, timeframe="1w", limit=200
+                ),  # Titan needs 200+ candles
             )
             for item in results:
                 is_long = item.direction == "LONG"
@@ -312,9 +337,9 @@ async def get_best_setups(timeframe: str = Query(default="4h", pattern="^(1m|5m|
                 # 2. MTF confluence
                 mtf_sources = {
                     "4h": titan_candles.get(item.symbol),  # Eliz — already fetched
-                    "1d": daily_df,                         # Eliz — reuse from above
-                    "12h": h12_dfs.get(item.symbol),        # Mayne
-                    "1w": w1_dfs.get(item.symbol),          # Mayne
+                    "1d": daily_df,  # Eliz — reuse from above
+                    "12h": h12_dfs.get(item.symbol),  # Mayne
+                    "1w": w1_dfs.get(item.symbol),  # Mayne
                 }
                 tf_confirmation = {}
                 for tf, df in mtf_sources.items():
@@ -325,7 +350,8 @@ async def get_best_setups(timeframe: str = Query(default="4h", pattern="^(1m|5m|
                         t = titan.analyze(df, symbol=item.symbol)
                         sig = t.get("signal", "")
                         tf_confirmation[tf] = (
-                            sig in ("BUY", "BUY_LIMIT", "STRONG_BUY") if is_long
+                            sig in ("BUY", "BUY_LIMIT", "STRONG_BUY")
+                            if is_long
                             else sig in ("SELL", "SELL_LIMIT", "STRONG_SELL")
                         )
                     except Exception:
@@ -340,18 +366,22 @@ async def get_best_setups(timeframe: str = Query(default="4h", pattern="^(1m|5m|
 
 
 @router.get("/titan-radar", response_model=TitanRadarResponse)
-async def get_titan_radar(limit: int = 50, timeframe: str = Query(default="4h", pattern="^(1m|5m|15m|30m|1h|4h|12h|1d|3d|1w)$")):
+async def get_titan_radar(
+    limit: int = 50,
+    timeframe: str = Query(default="4h", pattern="^(1m|5m|15m|30m|1h|4h|12h|1d|3d|1w)$"),
+):
     """Titan Unified System Scanner"""
     cache_key = f"analytics:titan:{timeframe}:{limit}"
     cached = await RedisClient.get_json(cache_key)
     if cached:
-        if isinstance(cached, list): return TitanRadarResponse(data=[TitanRadarItem(**i) for i in cached], last_updated=0)
+        if isinstance(cached, list):
+            return TitanRadarResponse(data=[TitanRadarItem(**i) for i in cached], last_updated=0)
         return TitanRadarResponse(**cached)
-    
+
     symbols = await MarketDataService.get_top_symbols(limit=limit)
     # Titan needs 200 candles. 4h is good default.
     df_data = await fetch_all_candles(symbols, timeframe=timeframe, limit=300)
-    
+
     results = []
     for sym, df in df_data.items():
         try:
@@ -359,32 +389,36 @@ async def get_titan_radar(limit: int = 50, timeframe: str = Query(default="4h", 
             if "error" in analysis:
                 logger.debug(f"Titan analysis error for {sym}: {analysis.get('error')}")
                 continue
-            
+
             # Convert analysis dict to Item
             # analysis has signal, confidence, trend, momentum(dict), vol(dict), targets(dict), sizing
-            
+
             # Simplify momentum/vol description
-            mom_str = analysis['momentum']['status']
-            if analysis['momentum']['is_overbought']: mom_str += " (OB)"
-            elif analysis['momentum']['is_oversold']: mom_str += " (OS)"
-            
-            vol_str = "SQUEEZE" if analysis['volatility']['squeeze'] else "NORMAL"
-            
+            mom_str = analysis["momentum"]["status"]
+            if analysis["momentum"]["is_overbought"]:
+                mom_str += " (OB)"
+            elif analysis["momentum"]["is_oversold"]:
+                mom_str += " (OS)"
+
+            vol_str = "SQUEEZE" if analysis["volatility"]["squeeze"] else "NORMAL"
+
             item = TitanRadarItem(
                 symbol=sym,
-                price=df.iloc[-1]['close'],
-                signal=analysis['signal'],
-                confidence=analysis['confidence'],
-                trend=analysis['trend'],
+                price=df.iloc[-1]["close"],
+                signal=analysis["signal"],
+                confidence=analysis["confidence"],
+                trend=analysis["trend"],
                 momentum=mom_str,
                 volatility=vol_str,
-                entry=analysis.get('targets', {}).get('entry', 0), # This will now be ideal_entry from targets
-                tp=analysis['targets'].get('tp', 0),
-                sl=analysis['targets'].get('sl', 0),
-                advice=analysis['sizing'],
-                reasons=analysis.get('reasons', []),
-                mss_type=analysis.get('mss_type'),
-                sweep_type=analysis.get('sweep_type')
+                entry=analysis.get("targets", {}).get(
+                    "entry", 0
+                ),  # This will now be ideal_entry from targets
+                tp=analysis["targets"].get("tp", 0),
+                sl=analysis["targets"].get("sl", 0),
+                advice=analysis["sizing"],
+                reasons=analysis.get("reasons", []),
+                mss_type=analysis.get("mss_type"),
+                sweep_type=analysis.get("sweep_type"),
             )
             results.append(item)
         except CalculationError as e:
@@ -393,24 +427,27 @@ async def get_titan_radar(limit: int = 50, timeframe: str = Query(default="4h", 
         except Exception as e:
             logger.error(f"Unexpected error analyzing {sym}: {e}", exc_info=True)
             continue
-            
+
     # Sort by confidence desc
     results.sort(key=lambda x: x.confidence, reverse=True)
-    
+
     response = {"data": [r.model_dump() for r in results], "last_updated": int(time.time() * 1000)}
     await RedisClient.set_json(cache_key, response, ttl=CACHE_TTL)
     return TitanRadarResponse(**response)
 
 
 @router.get("/signal-log/stats")
-async def get_signal_log_stats(source: str = "backtest", provider: Optional[str] = None, include_legacy: bool = False):
+async def get_signal_log_stats(
+    source: str = "backtest", provider: str | None = None, include_legacy: bool = False
+):
     """
     Return per-coin aggregated performance stats from signal log.
     Used by the Backtest Performance dashboard.
     Filter by provider='binance' or 'okx' when provided.
     Set include_legacy=true to include v1 methodology signals.
     """
-    from sqlalchemy import select as sa_select, func, case
+    from sqlalchemy import select as sa_select
+
     from app.schemas.signal_log import SignalLog
     from app.storage import Database
 
@@ -428,6 +465,7 @@ async def get_signal_log_stats(source: str = "backtest", provider: Optional[str]
 
     # Aggregate per coin
     from collections import defaultdict
+
     by_coin = defaultdict(list)
     for r in rows:
         by_coin[r.symbol].append(r)
@@ -459,21 +497,23 @@ async def get_signal_log_stats(source: str = "backtest", provider: Optional[str]
             elif s.outcome == "LOSS":
                 total_r -= 1.0
 
-        coins.append({
-            "symbol": symbol,
-            "base": symbol.replace("USDT", ""),
-            "total": len(sigs),
-            "wins": wins,
-            "losses": losses,
-            "reviews": reviews,
-            "win_rate": wr,
-            "profit_r": round(total_r, 1),
-            "longs": len(longs),
-            "shorts": len(shorts),
-            "long_wr": round(long_wins / long_closed * 100, 1) if long_closed > 0 else None,
-            "short_wr": round(short_wins / short_closed * 100, 1) if short_closed > 0 else None,
-            "avg_conviction": round(sum(s.conviction for s in sigs) / len(sigs)) if sigs else 0,
-        })
+        coins.append(
+            {
+                "symbol": symbol,
+                "base": symbol.replace("USDT", ""),
+                "total": len(sigs),
+                "wins": wins,
+                "losses": losses,
+                "reviews": reviews,
+                "win_rate": wr,
+                "profit_r": round(total_r, 1),
+                "longs": len(longs),
+                "shorts": len(shorts),
+                "long_wr": round(long_wins / long_closed * 100, 1) if long_closed > 0 else None,
+                "short_wr": round(short_wins / short_closed * 100, 1) if short_closed > 0 else None,
+                "avg_conviction": round(sum(s.conviction for s in sigs) / len(sigs)) if sigs else 0,
+            }
+        )
 
     # Overall stats
     total_wins = sum(c["wins"] for c in coins)
@@ -528,14 +568,25 @@ async def get_signal_log_scan_status():
 
 
 @router.get("/signal-log", response_model=SignalLogResponse)
-async def get_signal_log(symbol: Optional[str] = None, source: Optional[str] = None, provider: Optional[str] = None, limit: int = 50, offset: int = 0, include_legacy: bool = False):
+async def get_signal_log(
+    symbol: str | None = None,
+    source: str | None = None,
+    provider: str | None = None,
+    limit: int = 50,
+    offset: int = 0,
+    include_legacy: bool = False,
+):
     """
     Returns logged swing signals for the watchlist (BTC/ETH/SOL/BNB).
     Each row captures what fired, when, and whether it resolved as WIN/LOSS/REVIEW/OPEN.
     Filter by source='live' or source='backtest'. Filter by provider='binance' or 'okx'.
     Set include_legacy=true to include v1 methodology signals (may have lookahead bias).
     """
-    from sqlalchemy import select as sa_select, desc, func as sa_func, case as sa_case
+    from sqlalchemy import case as sa_case
+    from sqlalchemy import desc
+    from sqlalchemy import func as sa_func
+    from sqlalchemy import select as sa_select
+
     from app.schemas.signal_log import SignalLog
     from app.storage import Database
 
@@ -543,7 +594,9 @@ async def get_signal_log(symbol: Optional[str] = None, source: Optional[str] = N
         # Base query with filters
         base_where = []
         if symbol:
-            sym_upper = symbol.upper() + "USDT" if not symbol.upper().endswith("USDT") else symbol.upper()
+            sym_upper = (
+                symbol.upper() + "USDT" if not symbol.upper().endswith("USDT") else symbol.upper()
+            )
             base_where.append(SignalLog.symbol == sym_upper)
         if source:
             base_where.append(SignalLog.source == source)
@@ -613,10 +666,12 @@ async def get_provider_comparison():
     Only resolved signals (WIN/LOSS) are included in rate calculations.
     Top 5 coins per provider ranked by win rate (min 3 signals).
     """
+    from collections import defaultdict
+
     from sqlalchemy import select as sa_select
+
     from app.schemas.signal_log import SignalLog
     from app.storage import Database
-    from collections import defaultdict
 
     async with Database.get_session() as session:
         result = await session.execute(
@@ -657,11 +712,13 @@ async def get_provider_comparison():
                 continue
             c_wins = sum(1 for s in coin_sigs if s.outcome == "WIN")
             c_total = len(coin_sigs)
-            top_coins.append({
-                "symbol": symbol,
-                "win_rate": round(c_wins / c_total, 4),
-                "total": c_total,
-            })
+            top_coins.append(
+                {
+                    "symbol": symbol,
+                    "win_rate": round(c_wins / c_total, 4),
+                    "total": c_total,
+                }
+            )
         top_coins.sort(key=lambda x: x["win_rate"], reverse=True)
         top_coins = top_coins[:5]
 
@@ -674,10 +731,7 @@ async def get_provider_comparison():
             "top_coins": top_coins,
         }
 
-    return {
-        provider: _build_provider_stats(signals)
-        for provider, signals in by_provider.items()
-    }
+    return {provider: _build_provider_stats(signals) for provider, signals in by_provider.items()}
 
 
 @router.get("/signal-outcomes")
@@ -691,7 +745,9 @@ async def get_signal_outcomes():
         - rejection analysis (why signals were rejected)
         - regime correlation (did regime changes affect outcomes?)
     """
-    from sqlalchemy import select as sa_select, desc, func
+    from sqlalchemy import desc
+    from sqlalchemy import select as sa_select
+
     from app.schemas.signal_log import SignalLog
     from app.schemas.trading import Position
     from app.storage import Database
@@ -699,7 +755,8 @@ async def get_signal_outcomes():
     async with Database.get_session() as session:
         # All resolved signals
         signals_result = await session.execute(
-            sa_select(SignalLog).where(SignalLog.outcome.in_(["WIN", "LOSS", "REVIEW"]))
+            sa_select(SignalLog)
+            .where(SignalLog.outcome.in_(["WIN", "LOSS", "REVIEW"]))
             .order_by(desc(SignalLog.fired_at))
         )
         signals = signals_result.scalars().all()
@@ -723,22 +780,24 @@ async def get_signal_outcomes():
     signal_outcomes = []
     for sig in signals:
         pos = pos_by_signal.get(sig.id)
-        signal_outcomes.append({
-            "symbol": sig.symbol,
-            "direction": sig.direction,
-            "signal_outcome": sig.outcome,
-            "conviction": sig.conviction,
-            "market_state": sig.market_state,
-            "regime_at_resolution": sig.regime_at_resolution,
-            "time_to_resolution_ms": sig.time_to_resolution_ms,
-            "fired_at": sig.fired_at,
-            # Position info (if traded)
-            "was_traded": pos is not None,
-            "pnl_usd": pos.pnl_usd if pos else None,
-            "pnl_pct": pos.pnl_pct if pos else None,
-            "position_outcome": pos.outcome if pos else None,
-            "quote_amount": pos.quote_amount if pos else None,
-        })
+        signal_outcomes.append(
+            {
+                "symbol": sig.symbol,
+                "direction": sig.direction,
+                "signal_outcome": sig.outcome,
+                "conviction": sig.conviction,
+                "market_state": sig.market_state,
+                "regime_at_resolution": sig.regime_at_resolution,
+                "time_to_resolution_ms": sig.time_to_resolution_ms,
+                "fired_at": sig.fired_at,
+                # Position info (if traded)
+                "was_traded": pos is not None,
+                "pnl_usd": pos.pnl_usd if pos else None,
+                "pnl_pct": pos.pnl_pct if pos else None,
+                "position_outcome": pos.outcome if pos else None,
+                "quote_amount": pos.quote_amount if pos else None,
+            }
+        )
 
     # Rejection analysis
     rejection_counts = {}
@@ -796,5 +855,3 @@ async def get_signal_outcomes():
         "regime_correlation": regime_stats,
         "conviction_analysis": conviction_stats,
     }
-
-

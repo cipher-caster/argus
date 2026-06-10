@@ -2,13 +2,15 @@ import asyncio
 import logging
 import os
 import time
-from datetime import datetime, timezone, timedelta
+from datetime import UTC, datetime, timedelta
+
 from arq import cron
-from app.storage import RedisClient, Database
+
 from app.providers import get_provider
 from app.providers.binance_provider import BinanceProvider
 from app.providers.okx_provider import OKXProvider
 from app.schemas.market_data import MarketSummary, MarketTicker
+from app.storage import Database, RedisClient
 from app.utils.trading_utils import calculate_conviction
 
 # Configure Logging
@@ -25,8 +27,11 @@ async def _retry(coro_fn, retries: int = 3, delay: float = 2.0, label: str = "")
             if attempt == retries:
                 logger.error(f"{label} failed after {retries} attempts: {e}", exc_info=True)
                 raise
-            logger.warning(f"{label} attempt {attempt}/{retries} failed: {e} — retrying in {delay}s")
+            logger.warning(
+                f"{label} attempt {attempt}/{retries} failed: {e} — retrying in {delay}s"
+            )
             await asyncio.sleep(delay)
+
 
 # Global Provider Instance (hot-swappable based on Redis config)
 provider = None
@@ -50,14 +55,16 @@ async def get_active_provider():
         logger.info(f"Worker provider set to {target}")
     return _active_provider
 
+
 async def _recover_missed_scans(ctx, missed_closes: list):
     """Recover signals from missed 4H candle closes during downtime.
     Uses regime-based filtering (same as log_watchlist_setups)."""
-    from app.routes.strategy import get_candles_df, titan
-    from app.jobs.signal_log import _get_config
-    from app.schemas.activity_log import log_activity
     from sqlalchemy import text
     from sqlalchemy.dialects.postgresql import insert as pg_insert
+
+    from app.jobs.signal_log import _get_config
+    from app.routes.strategy import get_candles_df, titan
+    from app.schemas.activity_log import log_activity
     from app.schemas.signal_log import SignalLog
 
     config = await _get_config()
@@ -71,7 +78,10 @@ async def _recover_missed_scans(ctx, missed_closes: list):
         regime = "UNKNOWN"
         try:
             import pandas_ta
-            btc_df = await get_candles_df("BTC/USDT", timeframe="1w", limit=60, provider=shared_provider)
+
+            btc_df = await get_candles_df(
+                "BTC/USDT", timeframe="1w", limit=60, provider=shared_provider
+            )
             if btc_df is not None and not btc_df.empty and "close" in btc_df.columns:
                 ema50 = pandas_ta.ema(btc_df["close"], length=50)
                 if ema50 is not None and not ema50.empty:
@@ -87,7 +97,9 @@ async def _recover_missed_scans(ctx, missed_closes: list):
 
             for symbol in config["watchlist"]:
                 try:
-                    df = await get_candles_df(symbol, timeframe="4h", limit=300, provider=shared_provider)
+                    df = await get_candles_df(
+                        symbol, timeframe="4h", limit=300, provider=shared_provider
+                    )
                     if df is None or df.empty:
                         continue
 
@@ -110,7 +122,9 @@ async def _recover_missed_scans(ctx, missed_closes: list):
                         continue
 
                     # Conviction: 60% Titan + 20% regime bonus + 10% signal type
-                    regime_aligned = (regime == "BULL" and is_long) or (regime == "BEAR" and is_short)
+                    regime_aligned = (regime == "BULL" and is_long) or (
+                        regime == "BEAR" and is_short
+                    )
                     conviction = calculate_conviction(
                         confidence=t_confidence,
                         regime_aligned=regime_aligned,
@@ -122,7 +136,10 @@ async def _recover_missed_scans(ctx, missed_closes: list):
                     reasons = t.get("reasons", [])
                     direction = "LONG" if is_long else "SHORT"
                     reg_tag = "trend" if regime_aligned else "counter"
-                    fired_reason = f"[RECOVERED] ({reg_tag}) {t_signal} {t_confidence}% | " + " | ".join(reasons[:2])
+                    fired_reason = (
+                        f"[RECOVERED] ({reg_tag}) {t_signal} {t_confidence}% | "
+                        + " | ".join(reasons[:2])
+                    )
 
                     row = dict(
                         symbol=symbol,
@@ -157,12 +174,16 @@ async def _recover_missed_scans(ctx, missed_closes: list):
 
                         if result.rowcount > 0:
                             recovered += 1
-                            await log_activity("SIGNAL_RECOVERED",
-                                               symbol=symbol,
-                                               direction=direction,
-                                               conviction=conviction,
-                                               candle_close=close_dt.isoformat())
-                            logger.info(f"Recovery: {symbol} {direction} signal recovered from {close_dt}")
+                            await log_activity(
+                                "SIGNAL_RECOVERED",
+                                symbol=symbol,
+                                direction=direction,
+                                conviction=conviction,
+                                candle_close=close_dt.isoformat(),
+                            )
+                            logger.info(
+                                f"Recovery: {symbol} {direction} signal recovered from {close_dt}"
+                            )
 
                 except Exception as e:
                     logger.warning(f"Recovery error for {symbol} at {close_dt}: {e}")
@@ -170,9 +191,12 @@ async def _recover_missed_scans(ctx, missed_closes: list):
         await shared_provider.close()
 
     if recovered:
-        await log_activity("RECOVERY_SCAN", severity="INFO",
-                           signals_recovered=recovered,
-                           message=f"Recovered {recovered} signal(s) from {len(missed_closes)} missed candle close(s)")
+        await log_activity(
+            "RECOVERY_SCAN",
+            severity="INFO",
+            signals_recovered=recovered,
+            message=f"Recovered {recovered} signal(s) from {len(missed_closes)} missed candle close(s)",
+        )
 
     logger.info(f"Startup: recovery complete — {recovered} signal(s) recovered")
 
@@ -184,7 +208,7 @@ async def startup(ctx):
     Database.init()
     await Database.create_tables()
     provider = get_provider()
-    ctx['provider'] = provider
+    ctx["provider"] = provider
     logger.info("Worker initialized and ready.")
     # Run initial signal scan so data is available immediately on app open
     # (cron only fires at 4H candle closes, so without this there's a gap)
@@ -204,7 +228,7 @@ async def startup(ctx):
 
     # Schedule OKX backfill 10 minutes after startup (lets market data settle first)
     try:
-        await ctx['redis'].enqueue_job('backfill_okx_candles', _defer_by=timedelta(minutes=10))
+        await ctx["redis"].enqueue_job("backfill_okx_candles", _defer_by=timedelta(minutes=10))
         logger.info("Startup: OKX backfill scheduled for T+10min")
     except Exception as e:
         logger.warning(f"Startup: failed to schedule OKX backfill (non-fatal): {e}")
@@ -221,19 +245,25 @@ async def startup(ctx):
             gap_hours = gap_ms / (1000 * 60 * 60)
 
             if gap_hours > 0.5:  # Only recover if gap > 30 minutes
-                logger.info(f"Startup: detected {gap_hours:.1f}h gap since last heartbeat — deferring recovery scan")
+                logger.info(
+                    f"Startup: detected {gap_hours:.1f}h gap since last heartbeat — deferring recovery scan"
+                )
 
                 # Log the gap
                 from app.schemas.activity_log import log_activity
-                await log_activity("HEARTBEAT_GAP", severity="WARN",
-                                   gap_hours=round(gap_hours, 1),
-                                   last_heartbeat_ms=last_ms)
+
+                await log_activity(
+                    "HEARTBEAT_GAP",
+                    severity="WARN",
+                    gap_hours=round(gap_hours, 1),
+                    last_heartbeat_ms=last_ms,
+                )
 
                 # Defer recovery into an arq job so cron dispatch isn't blocked
                 # while the recovery loop iterates over (missed_closes × watchlist).
                 try:
-                    await ctx['redis'].enqueue_job(
-                        'recover_missed_scans',
+                    await ctx["redis"].enqueue_job(
+                        "recover_missed_scans",
                         last_ms,
                         _defer_by=timedelta(seconds=30),
                     )
@@ -243,6 +273,7 @@ async def startup(ctx):
         else:
             logger.info("Startup: no previous heartbeat found (first boot)")
             from app.schemas.activity_log import log_activity
+
             await log_activity("STARTUP", message="First boot — no recovery needed")
 
         # Update heartbeat
@@ -259,6 +290,7 @@ async def startup(ctx):
         logger.warning(f"Startup: signal execution failed (non-fatal): {e}")
 
     from app.schemas.activity_log import log_activity
+
     await log_activity("STARTUP", message="Worker started successfully")
 
 
@@ -268,6 +300,7 @@ async def shutdown(ctx):
     logger.info("Worker shutting down...")
     try:
         from app.schemas.activity_log import log_activity
+
         await log_activity("SHUTDOWN", message="Worker shutting down")
     except Exception:
         pass  # DB may already be closing
@@ -277,21 +310,24 @@ async def shutdown(ctx):
     await RedisClient.close()
     logger.info("Worker shutdown complete.")
 
+
 # --- Jobs ---
+
 
 async def sync_market_summary(ctx):
     """
     Fetch market data from Binance and cache in Redis.
-    
+
     This job runs every 30 seconds and populates:
     - market:summary - Top gainers, losers, volume leaders
     - market:tickers - All USDT ticker prices (used by /api/ticker and /api/market/coins)
     """
-    provider = ctx['provider']
+    provider = ctx["provider"]
     logger.info("Job: Syncing Market Summary...")
-    
+
     try:
         import time
+
         global _provider_unavailable_until
 
         active = await get_active_provider()
@@ -318,43 +354,40 @@ async def sync_market_summary(ctx):
                 f"skipping sync for {_PROVIDER_BACKOFF_SECONDS // 60}m"
             )
             return
-        
+
         # Convert to list of MarketTicker objects (USDT pairs only)
         ticker_list = []
         for symbol, data in tickers.items():
-            if not symbol.endswith('/USDT'): 
+            if not symbol.endswith("/USDT"):
                 continue
-            
-            ticker_list.append(MarketTicker(
-                symbol=symbol,
-                price=data.get('last') or 0.0,
-                change_24h=data.get('percentage') or 0.0,
-                volume_24h=data.get('quoteVolume') or 0.0,
-                high_24h=data.get('high') or 0.0,
-                low_24h=data.get('low') or 0.0,
-            ))
-            
+
+            ticker_list.append(
+                MarketTicker(
+                    symbol=symbol,
+                    price=data.get("last") or 0.0,
+                    change_24h=data.get("percentage") or 0.0,
+                    volume_24h=data.get("quoteVolume") or 0.0,
+                    high_24h=data.get("high") or 0.0,
+                    low_24h=data.get("low") or 0.0,
+                )
+            )
+
         # Optimization: Keep only Top 250 by Volume
         # This prevents storing thousands of low-liquidity pairs
         ticker_list.sort(key=lambda x: x.volume_24h or 0, reverse=True)
         ticker_list = ticker_list[:250]
-            
+
         # Sort for summary views
         gainers = sorted(ticker_list, key=lambda x: x.change_24h or -999, reverse=True)[:50]
         losers = sorted(ticker_list, key=lambda x: x.change_24h or 999, reverse=False)[:50]
         top_vol = sorted(ticker_list, key=lambda x: x.volume_24h or -1, reverse=True)[:50]
-        
-        summary = MarketSummary(
-            gainers=gainers,
-            losers=losers,
-            top_volume=top_vol,
-            timestamp=0
-        )
-        
+
+        summary = MarketSummary(gainers=gainers, losers=losers, top_volume=top_vol, timestamp=0)
+
         # Cache in Redis
         await RedisClient.set_json("market:summary", summary.model_dump(), ttl=60)
         await RedisClient.set_json("market:tickers", [t.model_dump() for t in ticker_list], ttl=60)
-        
+
         logger.info(f"Job: Market Summary Synced ({len(ticker_list)} tickers)")
 
         # Heartbeat: record last successful sync timestamp
@@ -364,19 +397,21 @@ async def sync_market_summary(ctx):
     except Exception as e:
         logger.error(f"Job Failed: sync_market_summary: {e}", exc_info=True)
 
+
 async def sync_market_snapshot(ctx):
     """
     Fetch comprehensive market data (Top 500) from CoinGecko.
-    
+
     This forms the "Base State" of the market (prices, mcap, volume).
     Runs every 5 minutes.
     """
     import httpx
+
     logger.info("Job: Syncing Market Snapshot (CoinGecko)...")
-    
+
     base_url = "https://api.coingecko.com/api/v3/coins/markets"
     all_coins = []
-    
+
     try:
         async with httpx.AsyncClient() as client:
             # Fetch 1 page (250 coins) - Optimized to save API calls
@@ -387,7 +422,7 @@ async def sync_market_snapshot(ctx):
                     "per_page": 250,
                     "page": page,
                     "sparkline": "true",
-                    "price_change_percentage": "1h,7d"
+                    "price_change_percentage": "1h,7d",
                 }
 
                 resp = await _retry(
@@ -404,39 +439,41 @@ async def sync_market_snapshot(ctx):
                 else:
                     logger.error(f"CoinGecko API Error (Page {page}): {resp.status_code}")
                     break
-        
+
         if all_coins:
             # Transform to standard structure
             snapshot = []
             for coin in all_coins:
                 sparkline = coin.get("sparkline_in_7d", {}).get("price", [])
-                
-                snapshot.append({
-                    "symbol": coin["symbol"].upper() + "/USDT",
-                    "price": coin["current_price"],
-                    "change_1h": coin.get("price_change_percentage_1h_in_currency"),
-                    "change_24h": coin["price_change_percentage_24h"],
-                    "change_7d": coin.get("price_change_percentage_7d_in_currency"),
-                    "volume_24h": coin["total_volume"],
-                    "market_cap": coin["market_cap"],
-                    "rank": coin["market_cap_rank"],
-                    "image": coin["image"],
-                    "name": coin["name"],
-                    "sparkline_in_7d": sparkline
-                })
-                
+
+                snapshot.append(
+                    {
+                        "symbol": coin["symbol"].upper() + "/USDT",
+                        "price": coin["current_price"],
+                        "change_1h": coin.get("price_change_percentage_1h_in_currency"),
+                        "change_24h": coin["price_change_percentage_24h"],
+                        "change_7d": coin.get("price_change_percentage_7d_in_currency"),
+                        "volume_24h": coin["total_volume"],
+                        "market_cap": coin["market_cap"],
+                        "rank": coin["market_cap_rank"],
+                        "image": coin["image"],
+                        "name": coin["name"],
+                        "sparkline_in_7d": sparkline,
+                    }
+                )
+
             await RedisClient.set_json("market:snapshot", snapshot, ttl=600)
             logger.info(f"Job: Market Snapshot Synced ({len(snapshot)} coins)")
-            
+
     except Exception as e:
         logger.error(f"Job Failed: sync_market_snapshot: {e}")
+
 
 async def sync_analytics_cache(ctx):
     """
     Pre-compute and cache best-setups for the dashboard.
     Runs every 5 minutes, offset from snapshot job.
     """
-    import time
     from app.routes.analytics import get_best_setups, get_oracle_signal_summary
 
     # Make get_provider() inside analytics functions use the effective provider.
@@ -463,12 +500,15 @@ async def sync_analytics_cache(ctx):
 
     logger.info("Job: Analytics Cache Pre-warm Complete")
 
+
 # --- Worker Settings ---
 
-from arq.connections import RedisSettings
 from urllib.parse import urlparse
-from app.jobs.signal_log import log_watchlist_setups, log_best_setups, resolve_signal_outcomes
-from app.trading.orchestrator import TradeOrchestrator, get_trading_config, _get_prices
+
+from arq.connections import RedisSettings
+
+from app.jobs.signal_log import log_best_setups, log_watchlist_setups, resolve_signal_outcomes
+from app.trading.orchestrator import TradeOrchestrator, _get_prices, get_trading_config
 
 _trade_orchestrator = TradeOrchestrator()
 
@@ -479,9 +519,10 @@ async def execute_signals(ctx):
     Runs every 5 minutes to catch scanner signals promptly.
     """
     from sqlalchemy import select
+
+    from app.jobs.signal_log import _get_config as _get_signal_config
     from app.schemas.signal_log import SignalLog
     from app.schemas.trading import Position
-    from app.jobs.signal_log import _get_config as _get_signal_config
 
     config = await get_trading_config()
     if not config.get("enabled", False):
@@ -501,9 +542,7 @@ async def execute_signals(ctx):
                 SignalLog.outcome == "OPEN",
                 SignalLog.source.in_(["live", "scanner"]),
                 ~SignalLog.id.in_(
-                    select(Position.signal_log_id).where(
-                        Position.signal_log_id.is_not(None)
-                    )
+                    select(Position.signal_log_id).where(Position.signal_log_id.is_not(None))
                 ),
             )
         )
@@ -523,13 +562,16 @@ async def execute_signals(ctx):
     if current_regime != "UNKNOWN":
         before = len(tradeable)
         tradeable = [
-            s for s in tradeable
+            s
+            for s in tradeable
             if (current_regime == "BULL" and s.direction == "LONG")
             or (current_regime == "BEAR" and s.direction == "SHORT")
         ]
         skipped = before - len(tradeable)
         if skipped:
-            logger.info(f"execute_signals: {skipped} signal(s) skipped — counter-trend ({current_regime} regime)")
+            logger.info(
+                f"execute_signals: {skipped} signal(s) skipped — counter-trend ({current_regime} regime)"
+            )
 
     # Staleness gate: skip signals older than 12 hours
     MAX_SIGNAL_AGE_MS = 12 * 60 * 60 * 1000  # 12 hours
@@ -578,6 +620,7 @@ async def sync_trading_balance(ctx):
         return
     try:
         from app.trading.portfolio import PortfolioTracker
+
         portfolio = PortfolioTracker(config["initial_capital"])
         balance = await portfolio.get_balance()
         await RedisClient.set_json("trading:balance", {"balance": round(balance, 2)}, ttl=300)
@@ -605,7 +648,7 @@ async def backfill_okx_candles(ctx) -> None:
     watchlist = config.get("watchlist", [])
     symbols = watchlist  # OKXProvider normalizes BTCUSDT → BTC/USDT internally
 
-    since_ms = int((datetime.now(timezone.utc) - timedelta(days=_OKX_BACKFILL_DAYS)).timestamp() * 1000)
+    since_ms = int((datetime.now(UTC) - timedelta(days=_OKX_BACKFILL_DAYS)).timestamp() * 1000)
     limit = _OKX_BACKFILL_DAYS * 24 * 4  # generous upper bound (covers 15m candles for 7d)
 
     okx = OKXProvider()
@@ -617,7 +660,9 @@ async def backfill_okx_candles(ctx) -> None:
             for timeframe in _OKX_BACKFILL_TIMEFRAMES:
                 try:
                     candles_data = await _retry(
-                        lambda s=symbol, tf=timeframe: okx.get_ohlcv(s, timeframe=tf, limit=limit, since=since_ms),
+                        lambda s=symbol, tf=timeframe: okx.get_ohlcv(
+                            s, timeframe=tf, limit=limit, since=since_ms
+                        ),
                         retries=3,
                         delay=2.0,
                         label=f"backfill_okx_candles:{symbol}:{timeframe}",
@@ -656,7 +701,9 @@ async def backfill_okx_candles(ctx) -> None:
         await okx.close()
 
     if errors:
-        logger.warning(f"Job: backfill_okx_candles — complete with {errors} error(s), {total} candles stored")
+        logger.warning(
+            f"Job: backfill_okx_candles — complete with {errors} error(s), {total} candles stored"
+        )
         await log_activity(
             "OKX_BACKFILL",
             severity="WARN",
@@ -666,7 +713,9 @@ async def backfill_okx_candles(ctx) -> None:
             message=f"OKX backfill complete with {errors} error(s)",
         )
     else:
-        logger.info(f"Job: backfill_okx_candles — complete, {total} candles stored across {len(symbols)} symbols")
+        logger.info(
+            f"Job: backfill_okx_candles — complete, {total} candles stored across {len(symbols)} symbols"
+        )
         await log_activity(
             "OKX_BACKFILL",
             candles_stored=total,
@@ -680,12 +729,12 @@ async def recover_missed_scans(ctx, last_heartbeat_ms: int) -> None:
     resolution in a normal arq job slot, so cron dispatch isn't blocked while
     the recovery loop iterates over (missed_closes × watchlist).
     """
-    from app.schemas.activity_log import log_activity
     from app.jobs.signal_log import resolve_outcomes_historical
+    from app.schemas.activity_log import log_activity
 
     now_ms = int(time.time() * 1000)
-    last_dt = datetime.fromtimestamp(last_heartbeat_ms / 1000, tz=timezone.utc)
-    now_dt = datetime.fromtimestamp(now_ms / 1000, tz=timezone.utc)
+    last_dt = datetime.fromtimestamp(last_heartbeat_ms / 1000, tz=UTC)
+    now_dt = datetime.fromtimestamp(now_ms / 1000, tz=UTC)
 
     missed_closes = []
     candle_hours = [0, 4, 8, 12, 16, 20]
@@ -700,10 +749,12 @@ async def recover_missed_scans(ctx, last_heartbeat_ms: int) -> None:
         return
 
     logger.info(f"Job: recover_missed_scans — {len(missed_closes)} missed close(s), recovering...")
-    await log_activity("RECOVERY_SCAN",
-                       missed_closes=len(missed_closes),
-                       first_missed=missed_closes[0].isoformat(),
-                       last_missed=missed_closes[-1].isoformat())
+    await log_activity(
+        "RECOVERY_SCAN",
+        missed_closes=len(missed_closes),
+        first_missed=missed_closes[0].isoformat(),
+        last_missed=missed_closes[-1].isoformat(),
+    )
     await _recover_missed_scans(ctx, missed_closes)
     await resolve_outcomes_historical(ctx)
     logger.info("Job: recover_missed_scans — complete")
@@ -712,44 +763,62 @@ async def recover_missed_scans(ctx, last_heartbeat_ms: int) -> None:
 class WorkerSettings:
     # Market data and analytics cache jobs
     functions = [
-        sync_market_summary, sync_market_snapshot, sync_analytics_cache,
-        log_watchlist_setups, log_best_setups, resolve_signal_outcomes,
-        execute_signals, manage_positions, sync_trading_balance,
-        backfill_okx_candles, recover_missed_scans,
+        sync_market_summary,
+        sync_market_snapshot,
+        sync_analytics_cache,
+        log_watchlist_setups,
+        log_best_setups,
+        resolve_signal_outcomes,
+        execute_signals,
+        manage_positions,
+        sync_trading_balance,
+        backfill_okx_candles,
+        recover_missed_scans,
     ]
     on_startup = startup
     on_shutdown = shutdown
 
     # Default local Redis
-    redis_settings = RedisSettings(host='localhost', port=6379)
+    redis_settings = RedisSettings(host="localhost", port=6379)
 
     # Override from environment
     redis_url = os.getenv("REDIS_URL")
     if redis_url:
         url = urlparse(redis_url)
         redis_settings = RedisSettings(
-            host=url.hostname,
-            port=url.port,
-            password=url.password,
-            database=0
+            host=url.hostname, port=url.port, password=url.password, database=0
         )
 
     # Jobs
     cron_jobs = [
         cron(sync_market_summary, second={0}),  # Live data every 60s
-        cron(sync_market_snapshot, minute={0, 5, 10, 15, 20, 25, 30, 35, 40, 45, 50, 55}),  # Snapshot (CoinGecko) every 5m
-        cron(sync_analytics_cache, minute={2, 7, 12, 17, 22, 27, 32, 37, 42, 47, 52, 57}),  # Analytics every 5m (offset)
-        cron(log_watchlist_setups, hour={0, 4, 8, 12, 16, 20}, minute={3}),  # Signal log at each 4H candle close (+3m for data)
-        cron(log_best_setups, minute={3, 8, 13, 18, 23, 28, 33, 38, 43, 48, 53, 58}),  # Scanner signals → signal_log
-        cron(resolve_signal_outcomes, minute={0, 5, 10, 15, 20, 25, 30, 35, 40, 45, 50, 55}),  # Resolve every 5m (fast-path)
+        cron(
+            sync_market_snapshot, minute={0, 5, 10, 15, 20, 25, 30, 35, 40, 45, 50, 55}
+        ),  # Snapshot (CoinGecko) every 5m
+        cron(
+            sync_analytics_cache, minute={2, 7, 12, 17, 22, 27, 32, 37, 42, 47, 52, 57}
+        ),  # Analytics every 5m (offset)
+        cron(
+            log_watchlist_setups, hour={0, 4, 8, 12, 16, 20}, minute={3}
+        ),  # Signal log at each 4H candle close (+3m for data)
+        cron(
+            log_best_setups, minute={3, 8, 13, 18, 23, 28, 33, 38, 43, 48, 53, 58}
+        ),  # Scanner signals → signal_log
+        cron(
+            resolve_signal_outcomes, minute={0, 5, 10, 15, 20, 25, 30, 35, 40, 45, 50, 55}
+        ),  # Resolve every 5m (fast-path)
         cron(execute_signals, minute={5, 15, 25, 35, 45, 55}),  # Execute signals every 10min
-        cron(manage_positions, minute={0, 5, 10, 15, 20, 25, 30, 35, 40, 45, 50, 55}),  # Check fills/TP/SL every 5min
+        cron(
+            manage_positions, minute={0, 5, 10, 15, 20, 25, 30, 35, 40, 45, 50, 55}
+        ),  # Check fills/TP/SL every 5min
         cron(sync_trading_balance, minute={1, 11, 21, 31, 41, 51}),  # Cache balance every 10min
         cron(backfill_okx_candles, hour={2}, minute={0}),  # OKX candle backfill daily at 02:00 UTC
     ]
 
+
 if __name__ == "__main__":
     import asyncio
-    from arq import run_worker
-    asyncio.run(run_worker(WorkerSettings))
 
+    from arq import run_worker
+
+    asyncio.run(run_worker(WorkerSettings))

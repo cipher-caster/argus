@@ -7,21 +7,20 @@ Lifecycle:
   check_open_positions() → OPEN → CLOSED when TP/SL hit, or EXPIRED
   check_circuit_breaker() → pauses trading if drawdown threshold hit
 """
+
 import json
 import logging
 import time
-from typing import Optional
 
 import pandas as pd
 from sqlalchemy import select
-from sqlalchemy.dialects.postgresql import insert as pg_insert
 
-from app.storage import Database, RedisClient
 from app.schemas.signal_log import SignalLog
 from app.schemas.trading import Position, TradeEvent
-from app.trading.risk_manager import RiskManager
-from app.trading.portfolio import PortfolioTracker, _price_map_from_tickers
+from app.storage import Database, RedisClient
 from app.trading import notifier
+from app.trading.portfolio import PortfolioTracker, _price_map_from_tickers
+from app.trading.risk_manager import RiskManager
 
 logger = logging.getLogger(__name__)
 
@@ -44,8 +43,11 @@ DEFAULT_TRADING_CONFIG = {
     "trading_provider": "okx",
     "correlation_groups": {
         "btc_correlated": [
-            "BTCUSDT", "ETHUSDT", "BNBUSDT",
-            "ARBUSDT", "NEARUSDT",
+            "BTCUSDT",
+            "ETHUSDT",
+            "BNBUSDT",
+            "ARBUSDT",
+            "NEARUSDT",
         ]
     },
 }
@@ -79,7 +81,7 @@ async def _log_event(session, position_id: int, event_type: str, details: dict) 
     session.add(event)
 
 
-async def _fill_telemetry(intended: Optional[float], actual: Optional[float]) -> dict:
+async def _fill_telemetry(intended: float | None, actual: float | None) -> dict:
     """Build entry_delta + regime_at_fill fields for FILLED events. Cache-miss safe."""
     regime = "UNKNOWN"
     try:
@@ -103,19 +105,16 @@ async def _fill_telemetry(intended: Optional[float], actual: Optional[float]) ->
 
 
 async def _get_active_positions(session) -> list:
-    result = await session.execute(
-        select(Position).where(Position.status.in_(["PENDING", "OPEN"]))
-    )
+    result = await session.execute(select(Position).where(Position.status.in_(["PENDING", "OPEN"])))
     return list(result.scalars().all())
 
 
 class TradeOrchestrator:
-
     def __init__(self):
         self.risk_manager = RiskManager()
-        self._portfolio: Optional[PortfolioTracker] = None
+        self._portfolio: PortfolioTracker | None = None
 
-    async def _get_portfolio(self, config: Optional[dict] = None) -> PortfolioTracker:
+    async def _get_portfolio(self, config: dict | None = None) -> PortfolioTracker:
         if config is None:
             config = await get_trading_config()
         if self._portfolio is None or self._portfolio.initial_capital != config["initial_capital"]:
@@ -125,7 +124,9 @@ class TradeOrchestrator:
     # ------------------------------------------------------------------
     # process_signal: called by execute_signals job
     # ------------------------------------------------------------------
-    async def process_signal(self, signal: SignalLog, batch_positions: list | None = None) -> Optional[Position]:
+    async def process_signal(
+        self, signal: SignalLog, batch_positions: list | None = None
+    ) -> Position | None:
         config = await get_trading_config()
         if not config.get("enabled", False):
             return None
@@ -254,9 +255,7 @@ class TradeOrchestrator:
         now_ms = int(time.time() * 1000)
 
         async with Database.get_session() as session:
-            result = await session.execute(
-                select(Position).where(Position.status == "PENDING")
-            )
+            result = await session.execute(select(Position).where(Position.status == "PENDING"))
             pending = result.scalars().all()
 
             for pos in pending:
@@ -268,10 +267,15 @@ class TradeOrchestrator:
                     pos.outcome = "EXPIRED"
                     pos.closed_at = now_ms
                     session.add(pos)
-                    await _log_event(session, pos.id, "CANCELLED", {
-                        "reason": "order_expiry",
-                        "age_hours": (now_ms - pos.created_at) / 3_600_000,
-                    })
+                    await _log_event(
+                        session,
+                        pos.id,
+                        "CANCELLED",
+                        {
+                            "reason": "order_expiry",
+                            "age_hours": (now_ms - pos.created_at) / 3_600_000,
+                        },
+                    )
                     logger.info(f"Orchestrator: {pos.symbol} {pos.direction} CANCELLED (expired)")
                     continue
 
@@ -306,7 +310,9 @@ class TradeOrchestrator:
                 await session.commit()
             except Exception as e:
                 await session.rollback()
-                logger.error(f"Orchestrator: check_pending_fills commit failed — {e}", exc_info=True)
+                logger.error(
+                    f"Orchestrator: check_pending_fills commit failed — {e}", exc_info=True
+                )
 
     # ------------------------------------------------------------------
     # check_open_positions: OPEN → CLOSED (WIN/LOSS)
@@ -324,16 +330,14 @@ class TradeOrchestrator:
         now_ms = int(time.time() * 1000)
 
         async with Database.get_session() as session:
-            result = await session.execute(
-                select(Position).where(Position.status == "OPEN")
-            )
+            result = await session.execute(select(Position).where(Position.status == "OPEN"))
             open_positions = result.scalars().all()
 
             if not open_positions:
                 return
 
-            from app.routes.strategy import get_candles_df
             from app.providers import BinanceProvider, OKXProvider
+            from app.routes.strategy import get_candles_df
 
             def _provider_instance(name: str):
                 return OKXProvider() if name == "okx" else BinanceProvider()
@@ -344,7 +348,9 @@ class TradeOrchestrator:
                 cache_key = (pos.symbol, pos_provider)
                 if cache_key not in candle_cache:
                     provider_obj = _provider_instance(pos_provider)
-                    df = await get_candles_df(pos.symbol, timeframe="4h", limit=100, provider=provider_obj)
+                    df = await get_candles_df(
+                        pos.symbol, timeframe="4h", limit=100, provider=provider_obj
+                    )
                     candle_cache[cache_key] = df if (df is not None and not df.empty) else None
 
             for pos in open_positions:
@@ -373,7 +379,9 @@ class TradeOrchestrator:
                     c_open = float(candle.get("open", 0))
                     c_close = float(candle.get("close", 0))
                     c_ts = candle.get("timestamp", 0)
-                    c_time = int(c_ts.timestamp() * 1000) if hasattr(c_ts, "timestamp") else int(c_ts)
+                    c_time = (
+                        int(c_ts.timestamp() * 1000) if hasattr(c_ts, "timestamp") else int(c_ts)
+                    )
 
                     tp_hit = False
                     sl_hit = False
@@ -393,9 +401,12 @@ class TradeOrchestrator:
                         # Both hit in same 4H candle — fetch 5min candles
                         # to determine which level was actually hit first.
                         from app.jobs.signal_log import _resolve_tiebreaker_5m
+
                         tiebreak = await _resolve_tiebreaker_5m(
-                            pos.symbol, pos.direction,
-                            pos.intended_tp, pos.intended_sl,
+                            pos.symbol,
+                            pos.direction,
+                            pos.intended_tp,
+                            pos.intended_sl,
                             c_time,
                             provider=_provider_instance(pos_provider),
                         )
@@ -442,11 +453,16 @@ class TradeOrchestrator:
                 session.add(pos)
 
                 event_type = "TP_HIT" if outcome == "WIN" else "SL_HIT"
-                await _log_event(session, pos.id, event_type, {
-                    "exit_price": exit_price,
-                    "pnl_usd": pos.pnl_usd,
-                    "pnl_pct": pos.pnl_pct,
-                })
+                await _log_event(
+                    session,
+                    pos.id,
+                    event_type,
+                    {
+                        "exit_price": exit_price,
+                        "pnl_usd": pos.pnl_usd,
+                        "pnl_pct": pos.pnl_pct,
+                    },
+                )
 
                 logger.info(
                     f"Orchestrator: {pos.symbol} {pos.direction} CLOSED {outcome} "
@@ -458,7 +474,9 @@ class TradeOrchestrator:
                 await session.commit()
             except Exception as e:
                 await session.rollback()
-                logger.error(f"Orchestrator: check_open_positions commit failed — {e}", exc_info=True)
+                logger.error(
+                    f"Orchestrator: check_open_positions commit failed — {e}", exc_info=True
+                )
                 return
 
     # ------------------------------------------------------------------
@@ -493,13 +511,20 @@ class TradeOrchestrator:
                         pos.outcome = "EXPIRED"
                         pos.closed_at = now_ms
                         session.add(pos)
-                        await _log_event(session, pos.id, "CIRCUIT_BREAKER", {
-                            "balance": balance,
-                            "floor": floor,
-                        })
+                        await _log_event(
+                            session,
+                            pos.id,
+                            "CIRCUIT_BREAKER",
+                            {
+                                "balance": balance,
+                                "floor": floor,
+                            },
+                        )
                     await session.commit()
             except Exception as e:
-                logger.error(f"Orchestrator: circuit breaker DB operations failed — {e}", exc_info=True)
+                logger.error(
+                    f"Orchestrator: circuit breaker DB operations failed — {e}", exc_info=True
+                )
                 # Config was already saved disabled — log but don't re-raise
                 # (better to be safe: trading stays disabled even if cancel fails)
 
@@ -510,14 +535,12 @@ class TradeOrchestrator:
     # ------------------------------------------------------------------
     # manual_close: close a position at current market price
     # ------------------------------------------------------------------
-    async def manual_close(self, position_id: int) -> Optional[Position]:
+    async def manual_close(self, position_id: int) -> Position | None:
         prices = await _get_prices()
         now_ms = int(time.time() * 1000)
 
         async with Database.get_session() as session:
-            result = await session.execute(
-                select(Position).where(Position.id == position_id)
-            )
+            result = await session.execute(select(Position).where(Position.id == position_id))
             pos = result.scalars().first()
             if pos is None or pos.status not in ("PENDING", "OPEN"):
                 return None
@@ -561,11 +584,16 @@ class TradeOrchestrator:
                 pos.closed_at = now_ms
                 session.add(pos)
                 event_type = "TP_HIT" if outcome == "WIN" else "SL_HIT"
-                await _log_event(session, pos.id, event_type, {
-                    "exit_price": exit_price,
-                    "reason": "manual_close",
-                    "pnl_usd": pos.pnl_usd,
-                })
+                await _log_event(
+                    session,
+                    pos.id,
+                    event_type,
+                    {
+                        "exit_price": exit_price,
+                        "reason": "manual_close",
+                        "pnl_usd": pos.pnl_usd,
+                    },
+                )
 
             await session.commit()
             await session.refresh(pos)

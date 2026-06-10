@@ -1,17 +1,17 @@
 """
 Optimization API routes — experiment log and trade analysis endpoints.
 """
+
 import json
 import logging
-import time
 
 from fastapi import APIRouter, HTTPException, Query
 from pydantic import BaseModel
-from sqlmodel import select
 from sqlalchemy import desc
+from sqlmodel import select
 
-from app.storage import Database, RedisClient
 from app.schemas.optimization import OptimizationExperiment
+from app.storage import Database, RedisClient
 from app.trading.analyzer import TradeAnalyzer
 
 logger = logging.getLogger(__name__)
@@ -23,6 +23,7 @@ analysis_router = APIRouter(prefix="/api/trading", tags=["trading"])
 # ---------------------------------------------------------------------------
 # Experiment endpoints
 # ---------------------------------------------------------------------------
+
 
 @router.get("/experiments")
 async def list_experiments(
@@ -55,7 +56,9 @@ async def get_experiment(experiment_id: int):
             )
             exp = result.scalar_one_or_none()
     except Exception as exc:
-        logger.error("get_experiment: DB query failed for id=%s: %s", experiment_id, exc, exc_info=True)
+        logger.error(
+            "get_experiment: DB query failed for id=%s: %s", experiment_id, exc, exc_info=True
+        )
         raise HTTPException(status_code=500, detail="Failed to retrieve experiment")
 
     if not exp:
@@ -84,8 +87,7 @@ async def get_best_experiment(min_signals: int = Query(30, ge=1)):
 
     if not exp:
         raise HTTPException(
-            status_code=404,
-            detail=f"No experiments with >= {min_signals} signals found"
+            status_code=404, detail=f"No experiments with >= {min_signals} signals found"
         )
 
     d = _exp_to_dict(exp)
@@ -106,12 +108,16 @@ async def apply_experiment(body: ApplyRequest):
     async with Database.get_session() as session:
         try:
             result = await session.execute(
-                select(OptimizationExperiment).where(OptimizationExperiment.id == body.experiment_id)
+                select(OptimizationExperiment).where(
+                    OptimizationExperiment.id == body.experiment_id
+                )
             )
             exp = result.scalar_one_or_none()
         except Exception as exc:
             logger.error("apply_experiment: DB lookup failed: %s", exc, exc_info=True)
-            raise HTTPException(status_code=500, detail="Failed to apply experiment — no changes were committed")
+            raise HTTPException(
+                status_code=500, detail="Failed to apply experiment — no changes were committed"
+            )
 
     if not exp:
         raise HTTPException(status_code=404, detail="Experiment not found")
@@ -152,7 +158,9 @@ async def apply_experiment(body: ApplyRequest):
                 p.is_production = False
                 session.add(p)
             result2 = await session.execute(
-                select(OptimizationExperiment).where(OptimizationExperiment.id == body.experiment_id)
+                select(OptimizationExperiment).where(
+                    OptimizationExperiment.id == body.experiment_id
+                )
             )
             exp2 = result2.scalar_one()
             exp2.is_production = True
@@ -164,7 +172,9 @@ async def apply_experiment(body: ApplyRequest):
     except Exception as exc:
         logger.error(
             "apply_experiment: operation failed for experiment_id=%s, attempting Redis rollback: %s",
-            body.experiment_id, exc, exc_info=True,
+            body.experiment_id,
+            exc,
+            exc_info=True,
         )
         # Attempt to restore original Redis values
         try:
@@ -173,8 +183,12 @@ async def apply_experiment(body: ApplyRequest):
             if t_cfg_raw_original is not None:
                 await r.set("trading:config", t_cfg_raw_original)
         except Exception as rollback_exc:
-            logger.error("apply_experiment: Redis rollback also failed: %s", rollback_exc, exc_info=True)
-        raise HTTPException(status_code=500, detail="Failed to apply experiment — no changes were committed")
+            logger.error(
+                "apply_experiment: Redis rollback also failed: %s", rollback_exc, exc_info=True
+            )
+        raise HTTPException(
+            status_code=500, detail="Failed to apply experiment — no changes were committed"
+        )
 
     return {
         "status": "applied",
@@ -198,6 +212,7 @@ async def apply_experiment(body: ApplyRequest):
 # Trade analysis endpoints (mounted under /api/trading)
 # ---------------------------------------------------------------------------
 
+
 @analysis_router.get("/analysis")
 async def get_trade_analysis():
     """Analyze closed paper trading positions."""
@@ -220,6 +235,7 @@ async def get_analysis_report():
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
+
 
 def _exp_to_dict(e: OptimizationExperiment) -> dict:
     return {

@@ -1,4 +1,4 @@
-from app.constants import TIMEFRAME_MS, DEFAULT_TIMEFRAME_MS
+from app.constants import DEFAULT_TIMEFRAME_MS, TIMEFRAME_MS
 
 
 def test_all_standard_timeframes_present():

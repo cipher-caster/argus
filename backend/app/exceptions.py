@@ -8,42 +8,46 @@ and debugging throughout the application.
 
 class ArgusException(Exception):
     """Base exception for all Argus errors"""
+
     pass
 
 
 class DataProviderError(ArgusException):
     """
     Raised when external data provider fails.
-    
+
     Examples:
         - Binance API timeout
         - CoinGecko rate limit exceeded
         - Invalid response from exchange
     """
+
     pass
 
 
 class CacheError(ArgusException):
     """
     Raised when Redis cache operation fails.
-    
+
     Examples:
         - Redis connection refused
         - Cache key not found when expected
         - Serialization/deserialization errors
     """
+
     pass
 
 
 class CalculationError(ArgusException):
     """
     Raised when indicator calculation fails.
-    
+
     Examples:
         - Insufficient data for indicator
         - Invalid indicator parameters
         - Mathematical errors (division by zero, etc.)
     """
+
     pass
 
 
@@ -56,6 +60,7 @@ class ValidationError(ArgusException):
         - Invalid timeframe
         - Out of range parameters
     """
+
     pass
 
 
@@ -68,6 +73,7 @@ class ExecutionError(ArgusException):
         - Price lookup failed during fill check
         - Unexpected state transition
     """
+
     pass
 
 
@@ -80,4 +86,5 @@ class RiskCheckError(ArgusException):
         - Drawdown threshold breached
         - Conviction below minimum
     """
+
     pass

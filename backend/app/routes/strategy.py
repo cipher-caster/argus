@@ -7,19 +7,20 @@ import asyncio
 import logging
 import os
 import time
-from fastapi import APIRouter, HTTPException, Query
-from typing import Dict, Any, Optional
+
 import pandas as pd
+from fastapi import APIRouter, HTTPException, Query
 from sqlmodel import select
-from app.constants import TIMEFRAME_MS, DEFAULT_TIMEFRAME_MS
+
+from app.constants import DEFAULT_TIMEFRAME_MS, TIMEFRAME_MS
 
 logger = logging.getLogger(__name__)
 
+from app.providers import BinanceProvider, DataProvider, OKXProvider, get_provider
+from app.schemas.candle import Candle as DbCandle
+from app.storage import Database, RedisClient
 from app.strategies.oracle import OracleStrategy
 from app.strategies.titan import TitanStrategy
-from app.storage import Database, RedisClient
-from app.schemas.candle import Candle as DbCandle
-from app.providers import get_provider, DataProvider, BinanceProvider, OKXProvider
 
 router = APIRouter(prefix="/api/strategy", tags=["strategy"])
 
@@ -27,27 +28,37 @@ router = APIRouter(prefix="/api/strategy", tags=["strategy"])
 oracle = OracleStrategy()
 titan = TitanStrategy()
 
-async def get_candles_df(symbol: str, timeframe: str, limit: int = 500, provider: Optional[DataProvider] = None) -> pd.DataFrame:
+
+async def get_candles_df(
+    symbol: str, timeframe: str, limit: int = 500, provider: DataProvider | None = None
+) -> pd.DataFrame:
     """
     Helper to get candles as DataFrame.
     Fetches from DB first, then falls back to Binance if insufficient.
     """
     # 1. Try DB (filter by active provider to avoid duplicate timestamps)
-    active_provider = os.getenv("DATA_PROVIDER", "okx").lower() if provider is None else provider.name
+    active_provider = (
+        os.getenv("DATA_PROVIDER", "okx").lower() if provider is None else provider.name
+    )
     async with Database.get_session() as session:
-        statement = select(DbCandle).where(
-            DbCandle.symbol == symbol,
-            DbCandle.timeframe == timeframe,
-            DbCandle.provider == active_provider,
-        ).order_by(DbCandle.timestamp.desc()).limit(limit)
-        
+        statement = (
+            select(DbCandle)
+            .where(
+                DbCandle.symbol == symbol,
+                DbCandle.timeframe == timeframe,
+                DbCandle.provider == active_provider,
+            )
+            .order_by(DbCandle.timestamp.desc())
+            .limit(limit)
+        )
+
         results = await session.execute(statement)
         db_candles = results.scalars().all()
-    
+
     # 2. Check sufficiency
     # We need enough candles AND they must be fresh
     now_ms = int(time.time() * 1000)
-    
+
     # Calculate timeframe in ms
     tf_ms = TIMEFRAME_MS.get(timeframe, DEFAULT_TIMEFRAME_MS)
 
@@ -58,19 +69,21 @@ async def get_candles_df(symbol: str, timeframe: str, limit: int = 500, provider
         last_candle_ts = db_candles[0].timestamp  # Sorted desc, so 0 is latest
         # Stale if the latest candle is older than 1 full timeframe period
         is_fresh = (now_ms - last_candle_ts) < tf_ms
-        
+
     is_sufficient = is_count_sufficient and is_fresh
-    
+
     # 3. Fetch from exchange if missing/stale
     if not is_sufficient:
         try:
             local_provider = provider or get_provider()
             try:
                 fetch_limit = min(limit, 1000)
-                
+
                 logger.info(f"Fetching {timeframe} for {symbol} from {local_provider.name}")
-                fresh = await local_provider.get_ohlcv(symbol, timeframe=timeframe, limit=fetch_limit)
-                
+                fresh = await local_provider.get_ohlcv(
+                    symbol, timeframe=timeframe, limit=fetch_limit
+                )
+
                 # Save to DB (Async)
                 async with Database.get_session() as session:
                     for c in fresh:
@@ -83,46 +96,52 @@ async def get_candles_df(symbol: str, timeframe: str, limit: int = 500, provider
                             high=c.high,
                             low=c.low,
                             close=c.close,
-                            volume=c.volume
+                            volume=c.volume,
                         )
                         await session.merge(candle_db)
                     await session.commit()
-                
+
                 # Use fresh data directly
-                data = [{
-                    'timestamp': c.timestamp,
-                    'open': c.open,
-                    'high': c.high,
-                    'low': c.low,
-                    'close': c.close,
-                    'volume': c.volume
-                } for c in fresh]
-                
+                data = [
+                    {
+                        "timestamp": c.timestamp,
+                        "open": c.open,
+                        "high": c.high,
+                        "low": c.low,
+                        "close": c.close,
+                        "volume": c.volume,
+                    }
+                    for c in fresh
+                ]
+
             finally:
                 if not provider:  # Only close if we created it locally
                     await local_provider.close()
         except Exception as e:
-             logger.error(f"Failed to fetch strategy data for {symbol} {timeframe}: {e}")
-             return pd.DataFrame()
+            logger.error(f"Failed to fetch strategy data for {symbol} {timeframe}: {e}")
+            return pd.DataFrame()
     else:
         # Use DB data
-        data = [{
-            'timestamp': c.timestamp,
-            'open': c.open,
-            'high': c.high,
-            'low': c.low,
-            'close': c.close,
-            'volume': c.volume
-        } for c in db_candles]
-        
+        data = [
+            {
+                "timestamp": c.timestamp,
+                "open": c.open,
+                "high": c.high,
+                "low": c.low,
+                "close": c.close,
+                "volume": c.volume,
+            }
+            for c in db_candles
+        ]
+
     # 4. Create DataFrame
     if not data:
         return pd.DataFrame()
-        
+
     df = pd.DataFrame(data)
-    df['timestamp'] = pd.to_datetime(df['timestamp'], unit='ms')
-    df = df.sort_values('timestamp').reset_index(drop=True)
-    
+    df["timestamp"] = pd.to_datetime(df["timestamp"], unit="ms")
+    df = df.sort_values("timestamp").reset_index(drop=True)
+
     return df
 
 
@@ -130,7 +149,7 @@ async def get_candles_df(symbol: str, timeframe: str, limit: int = 500, provider
 async def get_oracle_strategy(
     symbol: str,
     micro_tf: str = Query(default="4h", description="Timeframe for voters"),
-    macro_tf: str = Query(default="1d", description="Timeframe for trend")
+    macro_tf: str = Query(default="1d", description="Timeframe for trend"),
 ):
     """
     Runs the Oracle Strategy on a symbol.
@@ -149,21 +168,21 @@ async def get_oracle_strategy(
         )
 
         if df_micro.empty or df_macro.empty:
-             raise HTTPException(status_code=404, detail=f"Insufficient data for {symbol}")
+            raise HTTPException(status_code=404, detail=f"Insufficient data for {symbol}")
 
         # Run Strategy
         result = oracle.analyze(df_micro, df_macro)
 
         # Add metadata
-        result['symbol'] = symbol
-        result['micro_tf'] = micro_tf
-        result['macro_tf'] = macro_tf
-        result['price'] = df_micro.iloc[-1]['close']
-        result['last_updated'] = int(time.time() * 1000)
+        result["symbol"] = symbol
+        result["micro_tf"] = micro_tf
+        result["macro_tf"] = macro_tf
+        result["price"] = df_micro.iloc[-1]["close"]
+        result["last_updated"] = int(time.time() * 1000)
 
         await RedisClient.set_json(cache_key, result, ttl=60)
         return result
-        
+
     except HTTPException:
         raise
     except Exception as e:
@@ -175,7 +194,9 @@ async def get_oracle_strategy(
 async def get_titan_strategy(
     symbol: str,
     timeframe: str = Query(default="4h", description="Timeframe for analysis"),
-    provider: Optional[str] = Query(default=None, description="Data provider override: 'binance' or 'okx'"),
+    provider: str | None = Query(
+        default=None, description="Data provider override: 'binance' or 'okx'"
+    ),
 ):
     """
     Runs the Titan Unified Trading System on a symbol.
@@ -191,7 +212,7 @@ async def get_titan_strategy(
             return cached
 
         # Instantiate a one-off provider if an override was requested
-        override_provider: Optional[DataProvider] = None
+        override_provider: DataProvider | None = None
         if provider_name == "okx":
             override_provider = OKXProvider()
         elif provider_name == "binance":
@@ -205,17 +226,17 @@ async def get_titan_strategy(
                 await override_provider.close()
 
         if df.empty:
-             raise HTTPException(status_code=404, detail=f"Insufficient data for {symbol}")
+            raise HTTPException(status_code=404, detail=f"Insufficient data for {symbol}")
 
         # Run Strategy (pass symbol for per-symbol risk overrides)
         result = titan.analyze(df, symbol=symbol)
 
         # Add metadata
-        result['symbol'] = symbol
-        result['timeframe'] = timeframe
-        result['provider'] = provider_name or os.getenv("DATA_PROVIDER", "okx").lower()
-        result['price'] = df.iloc[-1]['close']
-        result['last_updated'] = int(time.time() * 1000)
+        result["symbol"] = symbol
+        result["timeframe"] = timeframe
+        result["provider"] = provider_name or os.getenv("DATA_PROVIDER", "okx").lower()
+        result["price"] = df.iloc[-1]["close"]
+        result["last_updated"] = int(time.time() * 1000)
 
         await RedisClient.set_json(cache_key, result, ttl=60)
         return result
@@ -231,18 +252,18 @@ async def get_titan_strategy(
 async def get_market_regime():
     """
     Returns the current market regime based on BTC weekly EMA50.
-    
+
     BULL: BTC weekly close > EMA50 → HODL, long-only alts
     BEAR: BTC weekly close < EMA50 → shorts, stablecoins
-    
+
     Also returns anticipation: distance to EMA50 and next cross target.
     """
     try:
         # Canonical regime key shared with signal_log + worker (single source of truth).
         from app.jobs.signal_log import (
-            compute_btc_weekly_regime,
             REGIME_CACHE_KEY,
             REGIME_CACHE_TTL,
+            compute_btc_weekly_regime,
         )
 
         cached = await RedisClient.get_json(REGIME_CACHE_KEY)

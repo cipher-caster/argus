@@ -9,17 +9,13 @@ WR vs live WR and generates config recommendations.
 from __future__ import annotations
 
 import json
-import time
 from collections import defaultdict
-from typing import Optional
 
 from sqlmodel import select
-from sqlalchemy import desc
 
-from app.storage import Database, RedisClient
-from app.schemas.trading import Position
 from app.schemas.signal_log import SignalLog
-from app.schemas.optimization import OptimizationExperiment
+from app.schemas.trading import Position
+from app.storage import Database, RedisClient
 
 
 def _bucket(conviction: int) -> str:
@@ -57,7 +53,6 @@ def _coin_stats(positions: list[Position]) -> dict:
 
 
 class TradeAnalyzer:
-
     @staticmethod
     async def analyze_closed_trades() -> dict:
         """
@@ -65,9 +60,7 @@ class TradeAnalyzer:
         market state, and conviction bucket.
         """
         async with Database.get_session() as session:
-            result = await session.execute(
-                select(Position).where(Position.status == "CLOSED")
-            )
+            result = await session.execute(select(Position).where(Position.status == "CLOSED"))
             positions: list[Position] = result.scalars().all()
 
             # Count rejections from SignalLog (RISK_REJECTED is recorded there
@@ -206,13 +199,15 @@ class TradeAnalyzer:
         """
         analysis = await TradeAnalyzer.analyze_closed_trades()
         if analysis["total_closed"] < 10:
-            return [{
-                "param": "data",
-                "current_value": analysis["total_closed"],
-                "suggested_value": 10,
-                "reason": "Not enough closed trades for reliable recommendations",
-                "evidence": f"Only {analysis['total_closed']} closed trades. Need at least 10.",
-            }]
+            return [
+                {
+                    "param": "data",
+                    "current_value": analysis["total_closed"],
+                    "suggested_value": 10,
+                    "reason": "Not enough closed trades for reliable recommendations",
+                    "evidence": f"Only {analysis['total_closed']} closed trades. Need at least 10.",
+                }
+            ]
 
         recs = []
 
@@ -220,77 +215,97 @@ class TradeAnalyzer:
         buckets = analysis.get("by_conviction_bucket", {})
         high = buckets.get("75+", {})
         low = buckets.get("55-64", {})
-        if (high.get("win_rate") and low.get("win_rate") and
-                high["win_rate"] - low["win_rate"] > 15 and high["count"] >= 5):
+        if (
+            high.get("win_rate")
+            and low.get("win_rate")
+            and high["win_rate"] - low["win_rate"] > 15
+            and high["count"] >= 5
+        ):
             r = RedisClient.get_instance()
             t_cfg_raw = await r.get("trading:config")
             t_cfg = json.loads(t_cfg_raw) if t_cfg_raw else {}
             cur_conv = t_cfg.get("min_conviction", 65)
             if cur_conv < 70:
-                recs.append({
-                    "param": "min_conviction",
-                    "current_value": cur_conv,
-                    "suggested_value": 70,
-                    "reason": "High-conviction trades (75+) significantly outperform low-conviction",
-                    "evidence": f"75+ WR={high['win_rate']}% ({high['count']} trades) vs "
-                                f"55-64 WR={low['win_rate']}% ({low['count']} trades)",
-                })
+                recs.append(
+                    {
+                        "param": "min_conviction",
+                        "current_value": cur_conv,
+                        "suggested_value": 70,
+                        "reason": "High-conviction trades (75+) significantly outperform low-conviction",
+                        "evidence": f"75+ WR={high['win_rate']}% ({high['count']} trades) vs "
+                        f"55-64 WR={low['win_rate']}% ({low['count']} trades)",
+                    }
+                )
 
         # Per-coin: if a coin is consistently losing (WR < 35%, >= 5 trades), suggest removal
         for sym, stats in analysis.get("by_symbol", {}).items():
             if stats["count"] >= 5 and stats["win_rate"] is not None and stats["win_rate"] < 35:
-                recs.append({
-                    "param": "watchlist",
-                    "current_value": sym,
-                    "suggested_value": f"remove {sym}",
-                    "reason": f"{sym} is consistently losing in live trading",
-                    "evidence": f"WR={stats['win_rate']}% over {stats['count']} trades, "
-                                f"profit={stats['profit_r']:+.2f}R",
-                })
+                recs.append(
+                    {
+                        "param": "watchlist",
+                        "current_value": sym,
+                        "suggested_value": f"remove {sym}",
+                        "reason": f"{sym} is consistently losing in live trading",
+                        "evidence": f"WR={stats['win_rate']}% over {stats['count']} trades, "
+                        f"profit={stats['profit_r']:+.2f}R",
+                    }
+                )
 
         # Market state: if a state always loses (WR < 30%, >= 3 trades), suggest blocking
         for state, stats in analysis.get("by_market_state", {}).items():
             if stats["count"] >= 3 and stats["win_rate"] is not None and stats["win_rate"] < 30:
-                recs.append({
-                    "param": "block_market_state",
-                    "current_value": state,
-                    "suggested_value": f"block {state}",
-                    "reason": f"{state} market state underperforms consistently",
-                    "evidence": f"WR={stats['win_rate']}% over {stats['count']} trades",
-                })
+                recs.append(
+                    {
+                        "param": "block_market_state",
+                        "current_value": state,
+                        "suggested_value": f"block {state}",
+                        "reason": f"{state} market state underperforms consistently",
+                        "evidence": f"WR={stats['win_rate']}% over {stats['count']} trades",
+                    }
+                )
 
         # Shorts: if shorts WR < 35% with >= 5 trades, suggest blocking
         by_dir = analysis.get("by_direction", {})
         shorts = by_dir.get("SHORT", {})
-        if shorts.get("count", 0) >= 5 and shorts.get("win_rate") is not None and shorts["win_rate"] < 35:
-            recs.append({
-                "param": "block_shorts",
-                "current_value": False,
-                "suggested_value": True,
-                "reason": "SHORT trades are underperforming",
-                "evidence": f"SHORT WR={shorts['win_rate']}% over {shorts['count']} trades",
-            })
+        if (
+            shorts.get("count", 0) >= 5
+            and shorts.get("win_rate") is not None
+            and shorts["win_rate"] < 35
+        ):
+            recs.append(
+                {
+                    "param": "block_shorts",
+                    "current_value": False,
+                    "suggested_value": True,
+                    "reason": "SHORT trades are underperforming",
+                    "evidence": f"SHORT WR={shorts['win_rate']}% over {shorts['count']} trades",
+                }
+            )
 
         # Backtest vs live divergence
         comparison = await TradeAnalyzer.compare_backtest_vs_live()
         flagged = [sym for sym, c in comparison.items() if c["flagged"]]
         if flagged:
-            recs.append({
-                "param": "re_optimization",
-                "current_value": "current config",
-                "suggested_value": "run /optimize",
-                "reason": "Live WR diverges from backtest by >15% for some coins",
-                "evidence": f"Flagged coins: {', '.join(flagged)}",
-            })
+            recs.append(
+                {
+                    "param": "re_optimization",
+                    "current_value": "current config",
+                    "suggested_value": "run /optimize",
+                    "reason": "Live WR diverges from backtest by >15% for some coins",
+                    "evidence": f"Flagged coins: {', '.join(flagged)}",
+                }
+            )
 
         if not recs:
-            recs.append({
-                "param": "none",
-                "current_value": "current config",
-                "suggested_value": "no change",
-                "reason": "Config looks healthy based on current data",
-                "evidence": f"{analysis['total_closed']} closed trades analyzed",
-            })
+            recs.append(
+                {
+                    "param": "none",
+                    "current_value": "current config",
+                    "suggested_value": "no change",
+                    "reason": "Config looks healthy based on current data",
+                    "evidence": f"{analysis['total_closed']} closed trades analyzed",
+                }
+            )
 
         return recs
 
@@ -313,14 +328,18 @@ class TradeAnalyzer:
         # By symbol
         lines.append("## Performance by Symbol")
         for sym, s in sorted(analysis["by_symbol"].items()):
-            lines.append(f"- **{sym}**: {s['count']} trades | WR={s['win_rate']}% | "
-                         f"Profit={s['profit_r']:+.2f}R | Hold={s['avg_hold_hours']}h")
+            lines.append(
+                f"- **{sym}**: {s['count']} trades | WR={s['win_rate']}% | "
+                f"Profit={s['profit_r']:+.2f}R | Hold={s['avg_hold_hours']}h"
+            )
         lines.append("")
 
         # By direction
         lines.append("## Performance by Direction")
         for d, s in analysis["by_direction"].items():
-            lines.append(f"- **{d}**: {s['count']} trades | WR={s['win_rate']}% | Profit={s['profit_r']:+.2f}R")
+            lines.append(
+                f"- **{d}**: {s['count']} trades | WR={s['win_rate']}% | Profit={s['profit_r']:+.2f}R"
+            )
         lines.append("")
 
         # By market state
@@ -334,7 +353,9 @@ class TradeAnalyzer:
         for bucket in ["55-64", "65-74", "75+"]:
             s = analysis["by_conviction_bucket"].get(bucket, {})
             if s:
-                lines.append(f"- **{bucket}**: {s['count']} trades | WR={s['win_rate']}% | Profit={s['profit_r']:+.2f}R")
+                lines.append(
+                    f"- **{bucket}**: {s['count']} trades | WR={s['win_rate']}% | Profit={s['profit_r']:+.2f}R"
+                )
         lines.append("")
 
         # Streak
@@ -352,8 +373,10 @@ class TradeAnalyzer:
         if flagged:
             lines.append("## ⚠ Backtest vs Live Divergence (>15%)")
             for sym, c in flagged.items():
-                lines.append(f"- **{sym}**: backtest={c['backtest_wr']}% vs live={c['live_wr']}% "
-                             f"(Δ{c['divergence']}%)")
+                lines.append(
+                    f"- **{sym}**: backtest={c['backtest_wr']}% vs live={c['live_wr']}% "
+                    f"(Δ{c['divergence']}%)"
+                )
             lines.append("")
 
         # Recommendations

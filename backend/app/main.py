@@ -3,21 +3,22 @@ Argus Crypto Dashboard - Backend API
 FastAPI application for market data and analysis
 """
 
-import os
 from contextlib import asynccontextmanager
+
+from dotenv import load_dotenv
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from dotenv import load_dotenv
 
-from app.routes import market_router, indicators_router, strategy_router
+from app.routes import indicators_router, market_router, strategy_router
 from app.routes.analytics import router as analytics_router
-from app.routes.trading import router as trading_router
-from app.routes.optimization import router as optimization_router, analysis_router
+from app.routes.optimization import analysis_router
+from app.routes.optimization import router as optimization_router
 from app.routes.system import router as system_router
-
+from app.routes.trading import router as trading_router
 from app.storage import Database
 
 load_dotenv()
+
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -35,6 +36,7 @@ async def lifespan(app: FastAPI):
     try:
         from app.providers import get_provider, set_shared_provider
         from app.routes.market import set_provider
+
         provider = get_provider()
         set_shared_provider(provider)
         set_provider(provider)
@@ -58,7 +60,7 @@ app = FastAPI(
     title="Argus Crypto Dashboard API",
     description="High-performance trading interface backend",
     version="0.1.0",
-    lifespan=lifespan
+    lifespan=lifespan,
 )
 
 # CORS configuration for frontend
@@ -84,11 +86,11 @@ app.include_router(analysis_router)
 app.include_router(system_router)
 
 
-
 @app.get("/health")
 async def health_check():
     """Health check endpoint"""
-    from app.storage import RedisClient, Database
+    from app.storage import Database, RedisClient
+
     checks = {"service": "argus-backend", "database": "ok", "redis": "ok"}
     try:
         r = RedisClient.get_instance()
@@ -97,9 +99,11 @@ async def health_check():
         checks["redis"] = "unavailable"
     if Database._engine is None:
         checks["database"] = "unavailable"
-    status = "healthy" if all(v == "ok" for k, v in checks.items() if k != "service") else "degraded"
+    status = (
+        "healthy" if all(v == "ok" for k, v in checks.items() if k != "service") else "degraded"
+    )
     checks["status"] = status
     from fastapi.responses import JSONResponse
+
     code = 200 if status == "healthy" else 503
     return JSONResponse(content=checks, status_code=code)
-

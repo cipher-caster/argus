@@ -7,13 +7,15 @@ enabling rejection pattern analysis in the analytics endpoint.
 
 All tests mock the database session — no live DB required.
 """
-import pytest
-from unittest.mock import AsyncMock, patch, MagicMock
 
+from unittest.mock import AsyncMock, MagicMock, patch
+
+import pytest
 
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
+
 
 def _make_rejected_signal(
     id_: int = 1,
@@ -74,15 +76,13 @@ def _make_outcomes_ctx(signals, rejected_signals, positions):
 # C3: Rejected signal persistence
 # ---------------------------------------------------------------------------
 
-class TestRejectedSignalPersisted:
 
+class TestRejectedSignalPersisted:
     @pytest.mark.asyncio
     async def test_rejected_signal_has_rejection_reason(self, async_client):
         """Rejected signals have rejection_reason populated."""
         rejected = [
-            _make_rejected_signal(
-                id_=1, rejection_reason="low_conviction", direction="LONG"
-            ),
+            _make_rejected_signal(id_=1, rejection_reason="low_conviction", direction="LONG"),
         ]
 
         ctx = _make_outcomes_ctx([], rejected, [])
@@ -120,9 +120,7 @@ class TestRejectedSignalPersisted:
     async def test_rejected_not_mixed_with_resolved(self, async_client):
         """Rejected signals appear in rejection_analysis, not signal_outcomes."""
         resolved = [
-            _make_rejected_signal(
-                id_=1, rejection_reason=None
-            ),
+            _make_rejected_signal(id_=1, rejection_reason=None),
         ]
         resolved[0].outcome = "WIN"
         resolved[0].rejection_reason = None
@@ -166,8 +164,8 @@ class TestRejectedSignalPersisted:
 # C3: Rejection rate analysis
 # ---------------------------------------------------------------------------
 
-class TestRejectionRates:
 
+class TestRejectionRates:
     @pytest.mark.asyncio
     async def test_rejection_rate_computable_from_data(self, async_client):
         """Rejection rate = total_rejected / (total_resolved + total_rejected)."""
@@ -243,8 +241,8 @@ class TestRejectionRates:
 # C3: Rejection reason types
 # ---------------------------------------------------------------------------
 
-class TestRejectionReasonTypes:
 
+class TestRejectionReasonTypes:
     @pytest.mark.asyncio
     async def test_low_conviction_rejection(self, async_client):
         """Signals below min conviction threshold are rejected with 'low_conviction'."""

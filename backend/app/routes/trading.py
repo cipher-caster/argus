@@ -1,18 +1,17 @@
 """
 Trading API routes — paper trading engine endpoints.
 """
+
 import json
 import logging
-import time
-from typing import Optional
+from typing import Literal
 
 from fastapi import APIRouter, HTTPException, Query
 from pydantic import BaseModel, Field
-from typing import Literal
-from sqlalchemy import select, desc
+from sqlalchemy import desc, select
 
-from app.storage import Database, RedisClient
 from app.schemas.trading import Position, TradeEvent
+from app.storage import Database, RedisClient
 from app.trading.orchestrator import (
     TradeOrchestrator,
     get_trading_config,
@@ -31,25 +30,27 @@ _orchestrator = TradeOrchestrator()
 # Pydantic models
 # ------------------------------------------------------------------
 
+
 class TradingConfigUpdate(BaseModel):
-    initial_capital: Optional[float] = Field(None, gt=0, le=1_000_000)
-    max_position_size_pct: Optional[float] = Field(None, gt=0, le=100)
-    max_concurrent_positions: Optional[int] = Field(None, ge=1, le=20)
-    max_correlated_positions: Optional[int] = Field(None, ge=1, le=10)
-    max_drawdown_pct: Optional[float] = Field(None, gt=0, le=100)
-    max_leverage: Optional[float] = Field(None, ge=1.0, le=10.0)
-    min_conviction: Optional[int] = Field(None, ge=0, le=100)
-    max_total_exposure_pct: Optional[float] = Field(None, gt=0, le=1000)
-    order_expiry_hours: Optional[int] = Field(None, ge=1, le=168)
-    enabled: Optional[bool] = None
-    trading_provider: Optional[Literal["binance", "okx"]] = None
+    initial_capital: float | None = Field(None, gt=0, le=1_000_000)
+    max_position_size_pct: float | None = Field(None, gt=0, le=100)
+    max_concurrent_positions: int | None = Field(None, ge=1, le=20)
+    max_correlated_positions: int | None = Field(None, ge=1, le=10)
+    max_drawdown_pct: float | None = Field(None, gt=0, le=100)
+    max_leverage: float | None = Field(None, ge=1.0, le=10.0)
+    min_conviction: int | None = Field(None, ge=0, le=100)
+    max_total_exposure_pct: float | None = Field(None, gt=0, le=1000)
+    order_expiry_hours: int | None = Field(None, ge=1, le=168)
+    enabled: bool | None = None
+    trading_provider: Literal["binance", "okx"] | None = None
 
 
 # ------------------------------------------------------------------
 # Helpers
 # ------------------------------------------------------------------
 
-async def _get_portfolio(config: Optional[dict] = None) -> PortfolioTracker:
+
+async def _get_portfolio(config: dict | None = None) -> PortfolioTracker:
     if config is None:
         config = await get_trading_config()
     return PortfolioTracker(config["initial_capital"])
@@ -92,6 +93,7 @@ def _serialize_position(pos: Position) -> dict:
 # GET /api/trading/portfolio
 # ------------------------------------------------------------------
 
+
 @router.get("/portfolio")
 async def get_portfolio():
     config = await get_trading_config()
@@ -120,10 +122,11 @@ async def get_portfolio():
 # GET /api/trading/positions
 # ------------------------------------------------------------------
 
+
 @router.get("/positions")
 async def get_positions(
-    status: Optional[str] = Query(None),
-    symbol: Optional[str] = Query(None),
+    status: str | None = Query(None),
+    symbol: str | None = Query(None),
 ):
     async with Database.get_session() as session:
         stmt = select(Position)
@@ -152,9 +155,9 @@ async def get_positions(
                     unrealized = (pos.actual_entry - current) * pos.quantity
                 serialized["current_price"] = current
                 serialized["unrealized_pnl_usd"] = round(unrealized, 4)
-                serialized["unrealized_pnl_pct"] = round(
-                    unrealized / pos.quote_amount * 100, 2
-                ) if pos.quote_amount > 0 else 0.0
+                serialized["unrealized_pnl_pct"] = (
+                    round(unrealized / pos.quote_amount * 100, 2) if pos.quote_amount > 0 else 0.0
+                )
         data.append(serialized)
 
     return {"data": data, "total": len(data)}
@@ -164,12 +167,11 @@ async def get_positions(
 # GET /api/trading/positions/{id}
 # ------------------------------------------------------------------
 
+
 @router.get("/positions/{position_id}")
 async def get_position(position_id: int):
     async with Database.get_session() as session:
-        result = await session.execute(
-            select(Position).where(Position.id == position_id)
-        )
+        result = await session.execute(select(Position).where(Position.id == position_id))
         pos = result.scalars().first()
         if pos is None:
             raise HTTPException(status_code=404, detail="Position not found")
@@ -199,16 +201,20 @@ async def get_position(position_id: int):
 # GET /api/trading/history
 # ------------------------------------------------------------------
 
+
 @router.get("/history")
 async def get_history(
     limit: int = Query(50, ge=1, le=500),
     offset: int = Query(0, ge=0),
-    symbol: Optional[str] = Query(None),
+    symbol: str | None = Query(None),
 ):
     async with Database.get_session() as session:
         # Total count
         from sqlalchemy import func as sa_func
-        count_stmt = select(sa_func.count()).select_from(Position).where(Position.status == "CLOSED")
+
+        count_stmt = (
+            select(sa_func.count()).select_from(Position).where(Position.status == "CLOSED")
+        )
         if symbol:
             count_stmt = count_stmt.where(Position.symbol == symbol.upper())
         total_result = await session.execute(count_stmt)
@@ -216,9 +222,7 @@ async def get_history(
 
         # Paginated data
         stmt = (
-            select(Position)
-            .where(Position.status == "CLOSED")
-            .order_by(desc(Position.closed_at))
+            select(Position).where(Position.status == "CLOSED").order_by(desc(Position.closed_at))
         )
         if symbol:
             stmt = stmt.where(Position.symbol == symbol.upper())
@@ -239,6 +243,7 @@ async def get_history(
 # GET /api/trading/config
 # ------------------------------------------------------------------
 
+
 @router.get("/config")
 async def get_config():
     return await get_trading_config()
@@ -247,6 +252,7 @@ async def get_config():
 # ------------------------------------------------------------------
 # PUT /api/trading/config
 # ------------------------------------------------------------------
+
 
 @router.put("/config")
 async def update_config(update: TradingConfigUpdate):
@@ -261,20 +267,19 @@ async def update_config(update: TradingConfigUpdate):
 # POST /api/trading/close/{id}
 # ------------------------------------------------------------------
 
+
 @router.post("/close/{position_id}")
 async def close_position(position_id: int):
     pos = await _orchestrator.manual_close(position_id)
     if pos is None:
-        raise HTTPException(
-            status_code=404,
-            detail="Position not found or not in an active state"
-        )
+        raise HTTPException(status_code=404, detail="Position not found or not in an active state")
     return _serialize_position(pos)
 
 
 # ------------------------------------------------------------------
 # POST /api/trading/close-all
 # ------------------------------------------------------------------
+
 
 @router.post("/close-all")
 async def close_all_positions():
@@ -297,6 +302,7 @@ async def close_all_positions():
 # POST /api/trading/pause
 # ------------------------------------------------------------------
 
+
 @router.post("/pause")
 async def pause_trading():
     config = await get_trading_config()
@@ -308,6 +314,7 @@ async def pause_trading():
 # ------------------------------------------------------------------
 # GET /api/trading/stats
 # ------------------------------------------------------------------
+
 
 @router.get("/stats")
 async def get_stats():

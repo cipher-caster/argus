@@ -18,17 +18,15 @@ Public API:
 
 from __future__ import annotations
 
-import asyncio
 import logging
-from dataclasses import dataclass, field
 from collections import defaultdict
-from typing import Optional
+from dataclasses import dataclass, field
 
 import pandas as pd
 from sqlmodel import select
 
-from app.storage import Database
 from app.schemas.candle import Candle as DbCandle
+from app.storage import Database
 from app.strategies.oracle import OracleStrategy
 from app.strategies.titan import TitanStrategy, calculate_risk_levels
 from app.utils.trading_utils import calculate_conviction
@@ -39,25 +37,42 @@ oracle = OracleStrategy()
 titan = TitanStrategy()
 
 WARMUP = 200
-DEFAULT_COINS = ["BTC", "ETH", "BNB", "TRX", "XRP", "FET", "NEAR", "ATOM", "DOGE", "STRK", "POL", "AVAX", "SUI", "RENDER", "AAVE"]
+DEFAULT_COINS = [
+    "BTC",
+    "ETH",
+    "BNB",
+    "TRX",
+    "XRP",
+    "FET",
+    "NEAR",
+    "ATOM",
+    "DOGE",
+    "STRK",
+    "POL",
+    "AVAX",
+    "SUI",
+    "RENDER",
+    "AAVE",
+]
 
 
 # ---------------------------------------------------------------------------
 # Config
 # ---------------------------------------------------------------------------
 
+
 @dataclass
 class BacktestConfig:
     symbols: list[str] = field(default_factory=lambda: list(DEFAULT_COINS))
-    provider: str = "okx"    # which exchange's candle data to use
+    provider: str = "okx"  # which exchange's candle data to use
     sl_mult: float = 1.5
     tp_mult: float = 2.0
     tp_adaptive: bool = False
     min_titan_confidence: int = 55
     block_sleeping: bool = True
     block_volatile: bool = True
-    macro_guard: bool = True     # soft macro guard
-    strict_macro: bool = False   # strict macro (overrides macro_guard if True)
+    macro_guard: bool = True  # soft macro guard
+    strict_macro: bool = False  # strict macro (overrides macro_guard if True)
     max_hold_candles: int = 42
 
     @property
@@ -79,6 +94,7 @@ class BacktestConfig:
 # Data loading
 # ---------------------------------------------------------------------------
 
+
 async def load_candles(symbol: str, timeframe: str, provider: str = "okx") -> pd.DataFrame:
     """Load candles from DB (filtered by provider) and return as DataFrame."""
     async with Database.get_session() as session:
@@ -97,12 +113,20 @@ async def load_candles(symbol: str, timeframe: str, provider: str = "okx") -> pd
     if not rows:
         return pd.DataFrame()
 
-    df = pd.DataFrame([{
-        "timestamp": pd.Timestamp(r.timestamp, unit="ms", tz="UTC"),
-        "open": r.open, "high": r.high, "low": r.low,
-        "close": r.close, "volume": r.volume,
-        "ts_ms": r.timestamp,
-    } for r in rows])
+    df = pd.DataFrame(
+        [
+            {
+                "timestamp": pd.Timestamp(r.timestamp, unit="ms", tz="UTC"),
+                "open": r.open,
+                "high": r.high,
+                "low": r.low,
+                "close": r.close,
+                "volume": r.volume,
+                "ts_ms": r.timestamp,
+            }
+            for r in rows
+        ]
+    )
     return df
 
 
@@ -162,6 +186,7 @@ async def load_and_prepare_data(symbols: list[str], provider: str = "okx") -> di
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
+
 
 def build_macro_biases(df_1d: pd.DataFrame) -> dict:
     """Pre-compute Oracle macro bias for every 1D candle."""
@@ -289,7 +314,11 @@ async def resolve_outcome_with_tiebreaker(
         if sl_hit and tp_hit:
             # Both hit in same 4H candle — fetch 5min to determine order
             tiebreak = await _tiebreaker_5m_from_db(
-                symbol, direction, tp, sl, c_ts_ms,
+                symbol,
+                direction,
+                tp,
+                sl,
+                c_ts_ms,
             )
             return tiebreak["outcome"], tiebreak["resolved_price"], tiebreak["resolved_at_ms"]
 
@@ -363,6 +392,7 @@ def derive_market_state(row: pd.Series) -> str:
 # Core backtest per symbol
 # ---------------------------------------------------------------------------
 
+
 async def backtest_symbol(
     symbol: str,
     df_4h: pd.DataFrame,
@@ -370,7 +400,7 @@ async def backtest_symbol(
     btc_4h: pd.DataFrame,
     btc_macro_biases: dict,
     config: BacktestConfig,
-    btc_weekly_regime: Optional[pd.DataFrame] = None,
+    btc_weekly_regime: pd.DataFrame | None = None,
 ) -> list:
     """Walk-forward simulation for one coin. Returns list of signal dicts.
 
@@ -464,10 +494,12 @@ async def backtest_symbol(
         momentum = titan._analyze_momentum(row)
         volatility = titan._analyze_volatility(row)
 
-        recent_window = df_4h.iloc[max(0, i - 4):i + 1]
+        recent_window = df_4h.iloc[max(0, i - 4) : i + 1]
         bull_sweeps = recent_window[recent_window["sweep_type"] == "bullish"]
         bear_sweeps = recent_window[recent_window["sweep_type"] == "bearish"]
-        recent_sweep = "bullish" if not bull_sweeps.empty else ("bearish" if not bear_sweeps.empty else None)
+        recent_sweep = (
+            "bullish" if not bull_sweeps.empty else ("bearish" if not bear_sweeps.empty else None)
+        )
 
         t_result = titan._generate_signal(trend, momentum, volatility, row, recent_sweep)
         t_signal = t_result["type"]
@@ -527,9 +559,8 @@ async def backtest_symbol(
         # regime gate above uses weekly EMA50 to match live, so conviction's
         # alignment must use the same source.
         btc_bias = btc_macro["bias"]  # informational; not used as a gate
-        regime_aligned = (
-            (weekly_regime == "BULL" and is_long)
-            or (weekly_regime == "BEAR" and is_short)
+        regime_aligned = (weekly_regime == "BULL" and is_long) or (
+            weekly_regime == "BEAR" and is_short
         )
         conviction = calculate_conviction(
             confidence=int(t_confidence),
@@ -539,7 +570,13 @@ async def backtest_symbol(
 
         # --- Resolve outcome ---
         outcome, resolved_price, resolved_ts_ms = await resolve_outcome_with_tiebreaker(
-            df_4h, i, direction, tp, sl, symbol, config.max_hold_candles,
+            df_4h,
+            i,
+            direction,
+            tp,
+            sl,
+            symbol,
+            config.max_hold_candles,
         )
 
         db_symbol = symbol.replace("/", "")
@@ -577,6 +614,7 @@ async def backtest_symbol(
 # Stats
 # ---------------------------------------------------------------------------
 
+
 def compute_stats(signals: list) -> dict:
     """
     Summarise a list of signal dicts.
@@ -586,9 +624,14 @@ def compute_stats(signals: list) -> dict:
     """
     if not signals:
         return {
-            "total": 0, "wins": 0, "losses": 0, "reviews": 0,
-            "win_rate": None, "total_r": 0.0,
-            "ev_per_trade": None, "avg_rr": None,
+            "total": 0,
+            "wins": 0,
+            "losses": 0,
+            "reviews": 0,
+            "win_rate": None,
+            "total_r": 0.0,
+            "ev_per_trade": None,
+            "avg_rr": None,
             "coin_results": {},
         }
 

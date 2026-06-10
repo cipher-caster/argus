@@ -3,17 +3,16 @@ Telegram notifier — fire-and-forget alerts for key trading events.
 Requires TELEGRAM_BOT_TOKEN and TELEGRAM_CHAT_ID env vars (both optional).
 If not set, all notify calls are no-ops.
 """
-import json
+
 import logging
 import os
-from typing import Optional
 
 import httpx
 
 logger = logging.getLogger(__name__)
 
-_BOT_TOKEN: Optional[str] = os.getenv("TELEGRAM_BOT_TOKEN")
-_CHAT_ID: Optional[str] = os.getenv("TELEGRAM_CHAT_ID")
+_BOT_TOKEN: str | None = os.getenv("TELEGRAM_BOT_TOKEN")
+_CHAT_ID: str | None = os.getenv("TELEGRAM_CHAT_ID")
 
 _TELEGRAM_URL = "https://api.telegram.org/bot{token}/sendMessage"
 
@@ -83,11 +82,7 @@ async def notify_position_closed(position) -> None:
 
 
 async def notify_risk_rejected(symbol: str, direction: str, reason: str) -> None:
-    msg = (
-        f"⛔ <b>Risk Rejected</b>\n"
-        f"{symbol} {direction}\n"
-        f"Reason: {reason}"
-    )
+    msg = f"⛔ <b>Risk Rejected</b>\n{symbol} {direction}\nReason: {reason}"
     await _send(msg)
 
 

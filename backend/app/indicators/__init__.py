@@ -3,17 +3,17 @@ Indicators Package
 """
 
 from .calculator import (
-    get_available_indicators,
-    calculate_indicator,
+    INDICATOR_REGISTRY,
     IndicatorDefinition,
     IndicatorResult,
-    INDICATOR_REGISTRY
+    calculate_indicator,
+    get_available_indicators,
 )
 
 __all__ = [
-    'get_available_indicators',
-    'calculate_indicator', 
-    'IndicatorDefinition',
-    'IndicatorResult',
-    'INDICATOR_REGISTRY'
+    "get_available_indicators",
+    "calculate_indicator",
+    "IndicatorDefinition",
+    "IndicatorResult",
+    "INDICATOR_REGISTRY",
 ]

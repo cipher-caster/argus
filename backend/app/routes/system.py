@@ -1,5 +1,3 @@
-from typing import Optional
-
 from fastapi import APIRouter, Query
 from sqlalchemy import desc, func, select
 
@@ -13,7 +11,7 @@ router = APIRouter(prefix="/api/system", tags=["system"])
 async def get_activity_log(
     limit: int = Query(30, ge=1, le=200),
     offset: int = Query(0, ge=0),
-    event_type: Optional[str] = Query(None),
+    event_type: str | None = Query(None),
 ):
     async with Database.get_session() as session:
         base = select(ActivityLog)

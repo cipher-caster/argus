@@ -3,8 +3,8 @@ Risk Manager — gates every signal before a position is created.
 
 All gates run in order; the first failure rejects the trade.
 """
+
 import logging
-from typing import Optional
 
 logger = logging.getLogger(__name__)
 
@@ -13,7 +13,6 @@ MIN_QUOTE_USD = 3.0
 
 
 class RiskManager:
-
     @staticmethod
     def check_drawdown(balance: float, config: dict) -> tuple[bool, str]:
         """Circuit breaker: stop trading if drawdown exceeds threshold."""
@@ -21,7 +20,10 @@ class RiskManager:
         max_dd = config.get("max_drawdown_pct", 15.0)
         floor = initial * (1 - max_dd / 100)
         if balance < floor:
-            return False, f"Circuit breaker: balance ${balance:.2f} < floor ${floor:.2f} ({max_dd}% drawdown)"
+            return (
+                False,
+                f"Circuit breaker: balance ${balance:.2f} < floor ${floor:.2f} ({max_dd}% drawdown)",
+            )
         return True, ""
 
     @staticmethod
@@ -53,7 +55,10 @@ class RiskManager:
         """Reject stablecoin-like trades where SL is too close to entry."""
         distance_pct = abs(entry - sl) / entry if entry > 0 else 0
         if distance_pct < 0.002:
-            return False, f"Min volatility gate: SL distance {distance_pct:.4%} < 0.20% (stablecoin-like)"
+            return (
+                False,
+                f"Min volatility gate: SL distance {distance_pct:.4%} < 0.20% (stablecoin-like)",
+            )
         return True, ""
 
     @staticmethod
@@ -126,7 +131,7 @@ class RiskManager:
         config: dict,
         open_positions: list,
         balance: float,
-    ) -> tuple[bool, str, Optional[tuple]]:
+    ) -> tuple[bool, str, tuple | None]:
         """
         Run all gates in order.
         Returns (approved, reason, sizing_tuple).

@@ -17,30 +17,39 @@ show 48.4% / 47.2% / 60.0% WR respectively across 32 / 37 / 10 signals.
 
 import logging
 import math
-import os
 import time
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 import pandas as pd
 from sqlalchemy import select, text
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 
-from app.storage import RedisClient, Database
 from app.schemas.signal_log import SignalLog
 from app.schemas.trading import Position, TradeEvent
+from app.storage import Database, RedisClient
 from app.utils.trading_utils import calculate_conviction
 
 logger = logging.getLogger(__name__)
 
 # Defaults (overridable via Redis config)
 DEFAULT_WATCHLIST = [
-    "BTCUSDT", "ETHUSDT", "BNBUSDT",
-    "TRXUSDT", "XRPUSDT", "FETUSDT", "NEARUSDT",
+    "BTCUSDT",
+    "ETHUSDT",
+    "BNBUSDT",
+    "TRXUSDT",
+    "XRPUSDT",
+    "FETUSDT",
+    "NEARUSDT",
     # ARBUSDT removed 2026-04-25: 36.1% WR over 83 signals — underperformer.
-    "ATOMUSDT", "DOGEUSDT",
+    "ATOMUSDT",
+    "DOGEUSDT",
     # APTUSDT removed 2026-04-20: 39.2% WR over 125 signals — worst performer with meaningful sample.
-    "STRKUSDT", "POLUSDT", "AVAXUSDT",  # added 2026-04-20: OKX backtest 59.4%/51.4%/52.5% WR
-    "SUIUSDT", "RENDERUSDT", "AAVEUSDT",  # added 2026-04-25: backtest 48.4%/47.2%/60.0% WR
+    "STRKUSDT",
+    "POLUSDT",
+    "AVAXUSDT",  # added 2026-04-20: OKX backtest 59.4%/51.4%/52.5% WR
+    "SUIUSDT",
+    "RENDERUSDT",
+    "AAVEUSDT",  # added 2026-04-25: backtest 48.4%/47.2%/60.0% WR
 ]
 DEFAULT_MIN_TITAN_CONFIDENCE = 55
 DEFAULT_REVIEW_DAYS = 3
@@ -67,8 +76,9 @@ async def compute_btc_weekly_regime() -> dict:
     Returns the rich shape consumed by the /api/strategy/regime endpoint
     and the UI; readers in the trading pipeline only need .get("regime").
     """
-    from app.trading.backtest_engine import load_candles
     import pandas_ta as _ta
+
+    from app.trading.backtest_engine import load_candles
 
     df = await load_candles("BTC/USDT", "1w")
     if df.empty or len(df) < 51:
@@ -116,7 +126,9 @@ async def compute_btc_weekly_regime() -> dict:
         "ema50_slope": ema_slope,
         "approaching_cross": approaching,
         "anticipation": anticipation,
-        "weekly_candle_ts": int(last["ts_ms"]) if "ts_ms" in last.index and not pd.isna(last["ts_ms"]) else None,
+        "weekly_candle_ts": int(last["ts_ms"])
+        if "ts_ms" in last.index and not pd.isna(last["ts_ms"])
+        else None,
     }
 
 
@@ -145,6 +157,7 @@ async def _get_config() -> dict:
 # Helpers
 # ---------------------------------------------------------------------------
 
+
 def _price_round(value: float) -> float:
     """Round a price to enough decimal places to preserve precision.
 
@@ -164,12 +177,12 @@ async def _get_market_state() -> str:
     data = await RedisClient.get_json("analytics:signal-summary")
     if data and data.get("market_state"):
         return data.get("market_state")
-    
+
     # 2. Fallback to BTC Weekly Regime (Broad bias)
     regime_data = await RedisClient.get_json("market:regime")
     if regime_data and regime_data.get("regime"):
         return regime_data.get("regime")
-        
+
     return "UNKNOWN"
 
 
@@ -261,6 +274,7 @@ async def _resolve_tiebreaker_5m(
 # Job A: log_watchlist_setups
 # ---------------------------------------------------------------------------
 
+
 async def log_watchlist_setups(ctx):
     """
     Runs at 4H candle close. For each watchlist coin:
@@ -268,8 +282,8 @@ async def log_watchlist_setups(ctx):
     2. If signal qualifies (direction + conviction), log it
     Direction is filtered by regime: BULL → longs, BEAR → shorts
     """
-    from app.routes.strategy import get_candles_df, titan
     from app.providers import get_provider
+    from app.routes.strategy import get_candles_df, titan
 
     logger.info("Job: log_watchlist_setups — checking watchlist...")
 
@@ -291,7 +305,9 @@ async def log_watchlist_setups(ctx):
             logger.warning(f"Regime detection failed: {e}, using UNKNOWN")
 
     if regime == "UNKNOWN":
-        logger.warning("log_watchlist_setups: regime UNKNOWN — skipping scan to avoid unfiltered signals")
+        logger.warning(
+            "log_watchlist_setups: regime UNKNOWN — skipping scan to avoid unfiltered signals"
+        )
         return
 
     # BTC price at signal fire time (fetched once, reused for all rows)
@@ -314,7 +330,9 @@ async def log_watchlist_setups(ctx):
         for symbol in config["watchlist"]:
             try:
                 # Fetch 4H candles
-                df = await get_candles_df(symbol, timeframe="4h", limit=300, provider=shared_provider)
+                df = await get_candles_df(
+                    symbol, timeframe="4h", limit=300, provider=shared_provider
+                )
                 if df is None or df.empty:
                     continue
 
@@ -335,7 +353,9 @@ async def log_watchlist_setups(ctx):
                 # Regime-based direction filter: BEAR → shorts only, BULL → longs only
                 regime_aligned = (regime == "BULL" and is_long) or (regime == "BEAR" and is_short)
                 if regime != "UNKNOWN" and not regime_aligned:
-                    logger.info(f"Signal log: SKIP {symbol} {t_signal} — counter-trend ({regime} regime)")
+                    logger.info(
+                        f"Signal log: SKIP {symbol} {t_signal} — counter-trend ({regime} regime)"
+                    )
                     skipped_regime += 1
                     continue
 
@@ -349,7 +369,9 @@ async def log_watchlist_setups(ctx):
                 # Regime tag for reason
                 reg_tag = "trend" if regime_aligned else "counter"
                 reasons = t.get("reasons", [])
-                fired_reason = f"({reg_tag}) {t_signal} {t_confidence}% | " + " | ".join(reasons[:2])
+                fired_reason = f"({reg_tag}) {t_signal} {t_confidence}% | " + " | ".join(
+                    reasons[:2]
+                )
 
                 targets = t.get("targets", {})
                 price = float(df.iloc[-1]["close"])
@@ -379,7 +401,9 @@ async def log_watchlist_setups(ctx):
                 logged += 1
                 adx_val = t.get("indicators", {}).get("adx")
                 adx_str = f" ADX={adx_val:.1f}" if adx_val is not None else ""
-                logger.info(f"Signal log: {symbol} {row['direction']} conviction={conviction} regime={regime}{adx_str}")
+                logger.info(
+                    f"Signal log: {symbol} {row['direction']} conviction={conviction} regime={regime}{adx_str}"
+                )
 
             except Exception as e:
                 logger.warning(f"log_watchlist_setups error for {symbol}: {e}")
@@ -406,14 +430,18 @@ async def log_watchlist_setups(ctx):
     # Cache scan summary for UI status display
     SCAN_STATUS_KEY = "signal:scan:last"
     SCAN_STATUS_TTL = 6 * 3600  # 6 hours — covers gap between scans
-    await RedisClient.set_json(SCAN_STATUS_KEY, {
-        "timestamp_ms": now_ms,
-        "checked": len(config["watchlist"]),
-        "fired": logged,
-        "skipped_regime": skipped_regime,
-        "skipped_no_signal": skipped_no_signal,
-        "regime": regime,
-    }, ttl=SCAN_STATUS_TTL)
+    await RedisClient.set_json(
+        SCAN_STATUS_KEY,
+        {
+            "timestamp_ms": now_ms,
+            "checked": len(config["watchlist"]),
+            "fired": logged,
+            "skipped_regime": skipped_regime,
+            "skipped_no_signal": skipped_no_signal,
+            "regime": regime,
+        },
+        ttl=SCAN_STATUS_TTL,
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -423,6 +451,7 @@ async def log_watchlist_setups(ctx):
 # ---------------------------------------------------------------------------
 # Job B: log_best_setups (scanner signals)
 # ---------------------------------------------------------------------------
+
 
 async def log_best_setups(ctx):
     """
@@ -455,6 +484,7 @@ async def log_best_setups(ctx):
     btc_price_at_signal_bs = None
     try:
         from app.routes.strategy import get_candles_df as _get_candles_df_bs
+
         btc_df_bs = await _get_candles_df_bs("BTCUSDT", timeframe="4h", limit=2, provider=None)
         if btc_df_bs is not None and not btc_df_bs.empty:
             btc_price_at_signal_bs = float(btc_df_bs.iloc[-1]["close"])
@@ -491,16 +521,22 @@ async def log_best_setups(ctx):
                 continue
 
             if (symbol, direction) in recently_fired:
-                logger.debug(f"log_best_setups: skipping {symbol} {direction} — fired within last 4H")
+                logger.debug(
+                    f"log_best_setups: skipping {symbol} {direction} — fired within last 4H"
+                )
                 rejected += 1
                 continue
 
             # Regime gate: BEAR → shorts only, BULL → longs only
             if regime_bs not in ("UNKNOWN", ""):
                 is_long_bs = direction == "LONG"
-                regime_aligned_bs = (regime_bs == "BULL" and is_long_bs) or (regime_bs == "BEAR" and not is_long_bs)
+                regime_aligned_bs = (regime_bs == "BULL" and is_long_bs) or (
+                    regime_bs == "BEAR" and not is_long_bs
+                )
                 if not regime_aligned_bs:
-                    logger.debug(f"log_best_setups: skipping {symbol} {direction} — counter-trend ({regime_bs} regime)")
+                    logger.debug(
+                        f"log_best_setups: skipping {symbol} {direction} — counter-trend ({regime_bs} regime)"
+                    )
                     rejected += 1
                     continue
 
@@ -555,9 +591,10 @@ async def log_best_setups(ctx):
 # Job C: resolve_signal_outcomes
 # ---------------------------------------------------------------------------
 
+
 async def resolve_signal_outcomes(ctx):
     """
-    Runs every 30min. 
+    Runs every 30min.
     1. Fast-path: Check current ticker price for all OPEN signals.
     2. Historical: Walk candles chronologically from fired_at to catch hits during downtime.
     - WIN   — TP hit before SL
@@ -568,7 +605,7 @@ async def resolve_signal_outcomes(ctx):
     from app.schemas.trading import Position
 
     logger.info("Job: resolve_signal_outcomes — checking ticker prices and historical candles...")
-    
+
     # 1. Fast-path: Current Ticker Resolution
     provider = get_provider()
     try:
@@ -578,21 +615,21 @@ async def resolve_signal_outcomes(ctx):
                 stmt = select(SignalLog).where(SignalLog.outcome == "OPEN")
                 res = await session.execute(stmt)
                 open_signals = res.scalars().all()
-                
+
                 now_ms = int(time.time() * 1000)
                 fast_resolved = 0
-                
+
                 # Create a normalized ticker map (no slashes)
                 ticker_map = {s.replace("/", ""): t for s, t in tickers.items()}
-                
+
                 for sig in open_signals:
                     ticker = ticker_map.get(sig.symbol.replace("/", ""))
                     if not ticker or "last" not in ticker:
                         continue
-                        
+
                     price = float(ticker["last"])
                     new_outcome = None
-                    
+
                     if sig.direction == "LONG":
                         if sig.tp > 0 and price >= sig.tp:
                             new_outcome = "WIN"
@@ -603,7 +640,7 @@ async def resolve_signal_outcomes(ctx):
                             new_outcome = "WIN"
                         elif sig.sl > 0 and price >= sig.sl:
                             new_outcome = "LOSS"
-                            
+
                     if new_outcome:
                         sig.outcome = new_outcome
                         sig.resolved_at = now_ms
@@ -612,11 +649,11 @@ async def resolve_signal_outcomes(ctx):
                         sig.time_to_resolution_ms = now_ms - sig.fired_at
                         session.add(sig)
                         fast_resolved += 1
-                        
+
                         # Bridge to Position
                         pos_stmt = select(Position).where(
                             Position.signal_log_id == sig.id,
-                            Position.status.in_(["PENDING", "OPEN"])
+                            Position.status.in_(["PENDING", "OPEN"]),
                         )
                         pos_res = await session.execute(pos_stmt)
                         linked_pos = pos_res.scalars().first()
@@ -634,36 +671,45 @@ async def resolve_signal_outcomes(ctx):
                                     raw_pnl = (exit_price - entry) * linked_pos.quantity
                                 else:
                                     raw_pnl = (entry - exit_price) * linked_pos.quantity
-                                
+
                                 linked_pos.actual_exit = exit_price
                                 linked_pos.status = "CLOSED"
                                 linked_pos.closed_at = now_ms
                                 fee = linked_pos.quote_amount * 0.001
                                 linked_pos.pnl_usd = round(raw_pnl - fee, 4)
-                                linked_pos.pnl_pct = round((linked_pos.pnl_usd / linked_pos.quote_amount * 100), 2) if linked_pos.quote_amount > 0 else 0.0
+                                linked_pos.pnl_pct = (
+                                    round((linked_pos.pnl_usd / linked_pos.quote_amount * 100), 2)
+                                    if linked_pos.quote_amount > 0
+                                    else 0.0
+                                )
                                 linked_pos.outcome = "WIN" if linked_pos.pnl_usd >= 0 else "LOSS"
-                            
+
                             session.add(linked_pos)
 
                             # Log trade event
                             import json as _json
+
                             event_type = "TP_HIT" if new_outcome == "WIN" else "SL_HIT"
                             event = TradeEvent(
                                 position_id=linked_pos.id,
                                 event_type=event_type,
-                                details=_json.dumps({
-                                    "exit_price": price,
-                                    "pnl_usd": linked_pos.pnl_usd,
-                                    "pnl_pct": linked_pos.pnl_pct,
-                                    "source": "fast_resolution",
-                                }),
+                                details=_json.dumps(
+                                    {
+                                        "exit_price": price,
+                                        "pnl_usd": linked_pos.pnl_usd,
+                                        "pnl_pct": linked_pos.pnl_pct,
+                                        "source": "fast_resolution",
+                                    }
+                                ),
                                 timestamp=now_ms,
                             )
                             session.add(event)
 
                 if fast_resolved:
                     await session.commit()
-                    logger.info(f"Fast-path resolution: {fast_resolved} signal(s) resolved via ticker")
+                    logger.info(
+                        f"Fast-path resolution: {fast_resolved} signal(s) resolved via ticker"
+                    )
     except Exception as e:
         logger.warning(f"Ticker resolution failed: {e}")
     finally:
@@ -671,7 +717,7 @@ async def resolve_signal_outcomes(ctx):
 
     # 2. Historical Resolution (to catch hits that happened between scans)
     # Only run the expensive candle-walk logic every 30 minutes
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     if now.minute in {0, 30}:
         await resolve_outcomes_historical(ctx)
 
@@ -679,6 +725,7 @@ async def resolve_signal_outcomes(ctx):
 # ---------------------------------------------------------------------------
 # Job D: resolve_outcomes_historical
 # ---------------------------------------------------------------------------
+
 
 async def resolve_outcomes_historical(ctx):
     """
@@ -691,8 +738,8 @@ async def resolve_outcomes_historical(ctx):
     3. Check if candle high/low crossed TP or SL
     4. If both hit in same candle, use candle direction to determine which hit first
     """
-    from app.routes.strategy import get_candles_df
     from app.providers import get_provider
+    from app.routes.strategy import get_candles_df
 
     logger.info("Job: resolve_outcomes_historical — checking open signals with candle data...")
 
@@ -736,7 +783,9 @@ async def resolve_outcomes_historical(ctx):
                     continue
 
                 if "timestamp" not in df.columns:
-                    logger.warning(f"Historical resolve: no timestamp column for {sig.symbol}, skipping")
+                    logger.warning(
+                        f"Historical resolve: no timestamp column for {sig.symbol}, skipping"
+                    )
                     continue
 
                 # Only look at candles at or after the signal fired, oldest first
@@ -762,7 +811,9 @@ async def resolve_outcomes_historical(ctx):
                     c_open = float(candle.get("open", 0))
                     c_close = float(candle.get("close", 0))
                     c_ts = candle.get("timestamp", 0)
-                    c_time = int(c_ts.timestamp() * 1000) if hasattr(c_ts, "timestamp") else int(c_ts)
+                    c_time = (
+                        int(c_ts.timestamp() * 1000) if hasattr(c_ts, "timestamp") else int(c_ts)
+                    )
 
                     tp_hit = False
                     sl_hit = False
@@ -784,7 +835,10 @@ async def resolve_outcomes_historical(ctx):
                         # Pass provider=None so get_candles_df manages its own
                         # lifecycle (shared_provider is already closed at this point).
                         tiebreak = await _resolve_tiebreaker_5m(
-                            sig.symbol, sig.direction, sig.tp, sig.sl,
+                            sig.symbol,
+                            sig.direction,
+                            sig.tp,
+                            sig.sl,
                             c_time,
                         )
                         new_outcome = tiebreak["outcome"]
@@ -849,7 +903,11 @@ async def resolve_outcomes_historical(ctx):
                                     raw_pnl = (entry - exit_price) * linked_pos.quantity
                                 fee = linked_pos.quote_amount * FEE_PCT
                                 pnl_usd = raw_pnl - fee
-                                pnl_pct = (pnl_usd / linked_pos.quote_amount * 100) if linked_pos.quote_amount > 0 else 0.0
+                                pnl_pct = (
+                                    (pnl_usd / linked_pos.quote_amount * 100)
+                                    if linked_pos.quote_amount > 0
+                                    else 0.0
+                                )
                                 linked_pos.status = "CLOSED"
                                 linked_pos.outcome = "WIN" if pnl_usd >= 0 else "LOSS"
                                 linked_pos.actual_exit = exit_price
@@ -862,16 +920,19 @@ async def resolve_outcomes_historical(ctx):
 
                             # Log trade event so it shows in trade history
                             import json as _json
+
                             event_type = "TP_HIT" if new_outcome == "WIN" else "SL_HIT"
                             event = TradeEvent(
                                 position_id=linked_pos.id,
                                 event_type=event_type,
-                                details=_json.dumps({
-                                    "exit_price": resolved_price,
-                                    "pnl_usd": linked_pos.pnl_usd,
-                                    "pnl_pct": linked_pos.pnl_pct,
-                                    "source": "signal_resolution",
-                                }),
+                                details=_json.dumps(
+                                    {
+                                        "exit_price": resolved_price,
+                                        "pnl_usd": linked_pos.pnl_usd,
+                                        "pnl_pct": linked_pos.pnl_pct,
+                                        "source": "signal_resolution",
+                                    }
+                                ),
                                 timestamp=resolved_at_ms,
                             )
                             session.add(event)
@@ -881,20 +942,27 @@ async def resolve_outcomes_historical(ctx):
                                 f"pnl=${linked_pos.pnl_usd}"
                             )
                     except Exception as pos_err:
-                        logger.warning(f"Historical resolve: position bridge error for {sig.symbol}: {pos_err}")
+                        logger.warning(
+                            f"Historical resolve: position bridge error for {sig.symbol}: {pos_err}"
+                        )
 
                     try:
                         from app.schemas.activity_log import log_activity
-                        await log_activity("OUTCOME_RESOLVED",
-                                          symbol=sig.symbol,
-                                          direction=sig.direction,
-                                          outcome=new_outcome,
-                                          resolved_price=resolved_price,
-                                          regime_at_resolution=sig.regime_at_resolution,
-                                          time_to_resolution_ms=sig.time_to_resolution_ms,
-                                          method="historical_candle")
+
+                        await log_activity(
+                            "OUTCOME_RESOLVED",
+                            symbol=sig.symbol,
+                            direction=sig.direction,
+                            outcome=new_outcome,
+                            resolved_price=resolved_price,
+                            regime_at_resolution=sig.regime_at_resolution,
+                            time_to_resolution_ms=sig.time_to_resolution_ms,
+                            method="historical_candle",
+                        )
                     except Exception as act_err:
-                        logger.warning(f"Historical resolve: activity log failed for {sig.symbol}: {act_err}")
+                        logger.warning(
+                            f"Historical resolve: activity log failed for {sig.symbol}: {act_err}"
+                        )
 
                     logger.info(
                         f"Historical resolve: {sig.symbol} {sig.direction} → {new_outcome} "
@@ -909,5 +977,3 @@ async def resolve_outcomes_historical(ctx):
             await session.commit()
 
     logger.info(f"Job: resolve_outcomes_historical complete — {resolved} signal(s) resolved")
-
-

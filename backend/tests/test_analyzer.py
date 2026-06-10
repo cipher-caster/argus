@@ -4,14 +4,17 @@ A3: TradeAnalyzer unit tests.
 Tests _bucket(), _coin_stats(), streak analysis, backtest-vs-live comparison,
 and empty-positions handling — all with mocked DB sessions.
 """
-import pytest
-from unittest.mock import AsyncMock, patch, MagicMock
-from app.trading.analyzer import _bucket, _coin_stats, TradeAnalyzer
 
+from unittest.mock import AsyncMock, MagicMock, patch
+
+import pytest
+
+from app.trading.analyzer import TradeAnalyzer, _bucket, _coin_stats
 
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
+
 
 def make_position(
     outcome: str,
@@ -82,8 +85,8 @@ def _mock_compare_ctx(bt_signals, live_positions):
 # A3: _bucket
 # ---------------------------------------------------------------------------
 
-class TestBucketFunction:
 
+class TestBucketFunction:
     def test_high_conviction(self):
         assert _bucket(75) == "75+"
         assert _bucket(80) == "75+"
@@ -104,8 +107,8 @@ class TestBucketFunction:
 # A3: _coin_stats
 # ---------------------------------------------------------------------------
 
-class TestCoinStats:
 
+class TestCoinStats:
     def test_win_rate_two_wins_one_loss(self):
         positions = [
             make_position("WIN"),
@@ -119,7 +122,9 @@ class TestCoinStats:
 
     def test_profit_r_on_win(self):
         # RR = (106-100)/(100-97) = 6/3 = 2.0
-        stats = _coin_stats([make_position("WIN", intended_entry=100, intended_tp=106, intended_sl=97)])
+        stats = _coin_stats(
+            [make_position("WIN", intended_entry=100, intended_tp=106, intended_sl=97)]
+        )
         assert stats["profit_r"] == pytest.approx(2.0, rel=0.01)
 
     def test_profit_r_minus_one_on_loss(self):
@@ -143,17 +148,19 @@ class TestCoinStats:
 # A3: streak analysis (via analyze_closed_trades)
 # ---------------------------------------------------------------------------
 
-class TestStreakAnalysis:
 
+class TestStreakAnalysis:
     @pytest.mark.asyncio
     async def test_longest_win_streak_detected(self):
         positions = [
-            make_position("WIN",  closed_at=1000),
-            make_position("WIN",  closed_at=2000),
-            make_position("WIN",  closed_at=3000),
+            make_position("WIN", closed_at=1000),
+            make_position("WIN", closed_at=2000),
+            make_position("WIN", closed_at=3000),
             make_position("LOSS", closed_at=4000),
         ]
-        with patch("app.trading.analyzer.Database.get_session", return_value=_mock_session_ctx(positions)):
+        with patch(
+            "app.trading.analyzer.Database.get_session", return_value=_mock_session_ctx(positions)
+        ):
             result = await TradeAnalyzer.analyze_closed_trades()
 
         streak = result["streak_analysis"]
@@ -165,12 +172,14 @@ class TestStreakAnalysis:
     @pytest.mark.asyncio
     async def test_longest_loss_streak_detected(self):
         positions = [
-            make_position("WIN",  closed_at=1000),
+            make_position("WIN", closed_at=1000),
             make_position("LOSS", closed_at=2000),
             make_position("LOSS", closed_at=3000),
             make_position("LOSS", closed_at=4000),
         ]
-        with patch("app.trading.analyzer.Database.get_session", return_value=_mock_session_ctx(positions)):
+        with patch(
+            "app.trading.analyzer.Database.get_session", return_value=_mock_session_ctx(positions)
+        ):
             result = await TradeAnalyzer.analyze_closed_trades()
 
         streak = result["streak_analysis"]
@@ -191,15 +200,17 @@ class TestStreakAnalysis:
 # A3: compare_backtest_vs_live
 # ---------------------------------------------------------------------------
 
-class TestCompareBacktestVsLive:
 
+class TestCompareBacktestVsLive:
     @pytest.mark.asyncio
     async def test_divergence_flagged_when_over_15pct(self):
         """backtest 0% WR, live 100% WR → divergence=100, flagged=True."""
         bt = [make_signal_log("LOSS", "BTCUSDT")]
         live = [make_position("WIN", symbol="BTCUSDT")]
 
-        with patch("app.trading.analyzer.Database.get_session", return_value=_mock_compare_ctx(bt, live)):
+        with patch(
+            "app.trading.analyzer.Database.get_session", return_value=_mock_compare_ctx(bt, live)
+        ):
             result = await TradeAnalyzer.compare_backtest_vs_live()
 
         assert result["BTCUSDT"]["flagged"] is True
@@ -211,7 +222,9 @@ class TestCompareBacktestVsLive:
         bt = [make_signal_log("WIN", "XRPUSDT"), make_signal_log("LOSS", "XRPUSDT")]
         live = [make_position("WIN", symbol="XRPUSDT"), make_position("LOSS", symbol="XRPUSDT")]
 
-        with patch("app.trading.analyzer.Database.get_session", return_value=_mock_compare_ctx(bt, live)):
+        with patch(
+            "app.trading.analyzer.Database.get_session", return_value=_mock_compare_ctx(bt, live)
+        ):
             result = await TradeAnalyzer.compare_backtest_vs_live()
 
         assert result["XRPUSDT"]["flagged"] is False
@@ -223,7 +236,9 @@ class TestCompareBacktestVsLive:
         bt = [make_signal_log("WIN", "SOLUSDT")]
         live = []
 
-        with patch("app.trading.analyzer.Database.get_session", return_value=_mock_compare_ctx(bt, live)):
+        with patch(
+            "app.trading.analyzer.Database.get_session", return_value=_mock_compare_ctx(bt, live)
+        ):
             result = await TradeAnalyzer.compare_backtest_vs_live()
 
         assert result["SOLUSDT"]["live_wr"] is None

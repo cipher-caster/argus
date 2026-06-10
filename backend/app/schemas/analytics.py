@@ -1,12 +1,13 @@
 """
 Futures analytics data schemas
 """
-from pydantic import BaseModel
-from typing import List, Optional, Dict, Any
-from app.jobs.signal_log import DEFAULT_WATCHLIST, DEFAULT_MIN_TITAN_CONFIDENCE, DEFAULT_REVIEW_DAYS
 
+from pydantic import BaseModel
+
+from app.jobs.signal_log import DEFAULT_MIN_TITAN_CONFIDENCE, DEFAULT_REVIEW_DAYS, DEFAULT_WATCHLIST
 
 # New Analytics Schemas
+
 
 class ScreenerItem(BaseModel):
     symbol: str
@@ -20,9 +21,11 @@ class ScreenerItem(BaseModel):
     opportunity: str
     advice: str
 
+
 class ScreenerResponse(BaseModel):
-    data: List[ScreenerItem]
+    data: list[ScreenerItem]
     last_updated: int = 0
+
 
 class MeanReversionItem(BaseModel):
     symbol: str
@@ -33,21 +36,24 @@ class MeanReversionItem(BaseModel):
     mean: float
     target: float
 
+
 class MeanReversionResponse(BaseModel):
-    data: List[MeanReversionItem]
+    data: list[MeanReversionItem]
     last_updated: int = 0
+
 
 class OracleSignalSummaryResponse(BaseModel):
     bullish_pct: float
     bearish_pct: float
-    top_signals: List[str] # e.g. ["SOL STRONG_BUY", "ETH BUY"]
+    top_signals: list[str]  # e.g. ["SOL STRONG_BUY", "ETH BUY"]
     market_state: str
     last_updated: int = 0
 
+
 class BestSetupItem(BaseModel):
     symbol: str
-    direction: str       # LONG or SHORT
-    conviction: int      # 0-100 combined score
+    direction: str  # LONG or SHORT
+    conviction: int  # 0-100 combined score
     entry: float
     tp: float
     sl: float
@@ -55,16 +61,18 @@ class BestSetupItem(BaseModel):
     oracle_score: int
     titan_signal: str
     # Oracle backtest stats (None when < 10 trades — insufficient sample)
-    win_rate: Optional[float] = None   # % of winning trades; break-even at 33.3% for 2:1 RR
-    total_trades: Optional[int] = None
+    win_rate: float | None = None  # % of winning trades; break-even at 33.3% for 2:1 RR
+    total_trades: int | None = None
     # Eliz+Mayne MTF confluence: Titan signal direction confirmed on each timeframe
     # Eliz lane: 4h (entry trigger) + 1d (swing structure)
     # Mayne lane: 12h (higher bias) + 1w (macro/weekly direction)
-    timeframe_confirmation: Optional[Dict[str, bool]] = None
+    timeframe_confirmation: dict[str, bool] | None = None
+
 
 class BestSetupsResponse(BaseModel):
-    data: List[BestSetupItem]
+    data: list[BestSetupItem]
     last_updated: int = 0
+
 
 class TitanRadarItem(BaseModel):
     symbol: str
@@ -78,16 +86,18 @@ class TitanRadarItem(BaseModel):
     tp: float
     sl: float
     advice: str
-    reasons: List[str] = []
-    mss_type: Optional[str] = None
-    sweep_type: Optional[str] = None
+    reasons: list[str] = []
+    mss_type: str | None = None
+    sweep_type: str | None = None
+
 
 class TitanRadarResponse(BaseModel):
-    data: List[TitanRadarItem]
+    data: list[TitanRadarItem]
     last_updated: int = 0
 
+
 class SignalLogConfig(BaseModel):
-    watchlist: List[str] = DEFAULT_WATCHLIST
+    watchlist: list[str] = DEFAULT_WATCHLIST
     min_titan_confidence: int = DEFAULT_MIN_TITAN_CONFIDENCE
     review_days: int = DEFAULT_REVIEW_DAYS
     block_sleeping: bool = True
@@ -98,7 +108,7 @@ class SignalLogConfig(BaseModel):
 class SignalLogItem(BaseModel):
     id: int
     symbol: str
-    direction: str          # LONG | SHORT
+    direction: str  # LONG | SHORT
     timeframe: str
     entry: float
     tp: float
@@ -110,21 +120,22 @@ class SignalLogItem(BaseModel):
     titan_confidence: int
     market_state: str
     fired_reason: str
-    fired_at: int           # epoch ms
-    source: str = "live"   # "live" | "backtest" | "scanner"
+    fired_at: int  # epoch ms
+    source: str = "live"  # "live" | "backtest" | "scanner"
     provider: str = "okx"  # "binance" | "okx"
-    outcome: str            # OPEN | WIN | LOSS | REVIEW | REJECTED
-    resolved_at: Optional[int] = None
-    resolved_price: Optional[float] = None
+    outcome: str  # OPEN | WIN | LOSS | REVIEW | REJECTED
+    resolved_at: int | None = None
+    resolved_price: float | None = None
     # Resolution-time context (v0.9.1)
-    regime_at_resolution: Optional[str] = None
-    btc_price_at_resolution: Optional[float] = None
-    time_to_resolution_ms: Optional[int] = None
-    rejection_reason: Optional[str] = None
+    regime_at_resolution: str | None = None
+    btc_price_at_resolution: float | None = None
+    time_to_resolution_ms: int | None = None
+    rejection_reason: str | None = None
     # Entry-time context (Phase 18)
-    regime_at_signal: Optional[str] = None
-    btc_price_at_signal: Optional[float] = None
-    methodology_version: Optional[str] = None
+    regime_at_signal: str | None = None
+    btc_price_at_signal: float | None = None
+    methodology_version: str | None = None
+
 
 class SignalLogSummary(BaseModel):
     total: int
@@ -132,11 +143,12 @@ class SignalLogSummary(BaseModel):
     win: int
     loss: int
     review: int
-    rejected: Optional[int] = None
-    win_rate: Optional[float] = None   # WIN / (WIN + LOSS), None if no closed trades
+    rejected: int | None = None
+    win_rate: float | None = None  # WIN / (WIN + LOSS), None if no closed trades
+
 
 class SignalLogResponse(BaseModel):
-    data: List[SignalLogItem]
+    data: list[SignalLogItem]
     summary: SignalLogSummary
     total: int = 0  # Total count of matching signals (for pagination)
     last_updated: int = 0

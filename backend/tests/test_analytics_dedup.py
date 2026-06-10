@@ -7,13 +7,15 @@ supports source filtering, and default behaviour excludes backtest signals.
 
 All tests mock the database session — no live DB required.
 """
-import pytest
-from unittest.mock import AsyncMock, patch, MagicMock
 
+from unittest.mock import AsyncMock, MagicMock, patch
+
+import pytest
 
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
+
 
 def _make_signal_row(
     id_: int = 1,
@@ -84,8 +86,8 @@ def _make_signal_log_session(signals, count=0, wins=0, losses=0, opens=0, review
 # C2: Source filter tests
 # ---------------------------------------------------------------------------
 
-class TestSignalLogSourceFilter:
 
+class TestSignalLogSourceFilter:
     @pytest.mark.asyncio
     async def test_backtest_source_filter_returns_only_backtest(self, async_client):
         """source=backtest → only backtest signals returned."""
@@ -94,9 +96,7 @@ class TestSignalLogSourceFilter:
             _make_signal_row(id_=2, source="backtest", symbol="ETHUSDT"),
         ]
 
-        ctx = _make_signal_log_session(
-            backtest_signals, count=2, wins=1, losses=1
-        )
+        ctx = _make_signal_log_session(backtest_signals, count=2, wins=1, losses=1)
         with patch("app.storage.Database.get_session", return_value=ctx):
             resp = await async_client.get("/api/analytics/signal-log?source=backtest")
 
@@ -166,8 +166,8 @@ class TestSignalLogSourceFilter:
 # C2: Symbol filter tests
 # ---------------------------------------------------------------------------
 
-class TestSignalLogSymbolFilter:
 
+class TestSignalLogSymbolFilter:
     @pytest.mark.asyncio
     async def test_symbol_filter(self, async_client):
         """symbol=BTC → only BTCUSDT signals returned."""
@@ -194,9 +194,7 @@ class TestSignalLogSymbolFilter:
 
         ctx = _make_signal_log_session(signals, count=1, wins=1)
         with patch("app.storage.Database.get_session", return_value=ctx):
-            resp = await async_client.get(
-                "/api/analytics/signal-log?symbol=BTC&source=backtest"
-            )
+            resp = await async_client.get("/api/analytics/signal-log?symbol=BTC&source=backtest")
 
         assert resp.status_code == 200
         body = resp.json()
@@ -210,8 +208,8 @@ class TestSignalLogSymbolFilter:
 # C2: Pagination
 # ---------------------------------------------------------------------------
 
-class TestSignalLogPagination:
 
+class TestSignalLogPagination:
     @pytest.mark.asyncio
     async def test_pagination_params_accepted(self, async_client):
         """limit and offset params are passed through to the query."""
@@ -219,9 +217,7 @@ class TestSignalLogPagination:
 
         ctx = _make_signal_log_session(signals, count=20, wins=10, losses=5, opens=5)
         with patch("app.storage.Database.get_session", return_value=ctx):
-            resp = await async_client.get(
-                "/api/analytics/signal-log?limit=5&offset=10"
-            )
+            resp = await async_client.get("/api/analytics/signal-log?limit=5&offset=10")
 
         assert resp.status_code == 200
         body = resp.json()
@@ -246,15 +242,21 @@ class TestSignalLogPagination:
 # C2: Signal-log stats (backtest leaderboard)
 # ---------------------------------------------------------------------------
 
-class TestSignalLogStats:
 
+class TestSignalLogStats:
     @pytest.mark.asyncio
     async def test_stats_endpoint_returns_leaderboard(self, async_client):
         """/signal-log/stats returns per-coin aggregated stats for backtest source."""
         signals = [
-            _make_signal_row(id_=1, symbol="BTCUSDT", source="backtest", outcome="WIN", direction="LONG"),
-            _make_signal_row(id_=2, symbol="BTCUSDT", source="backtest", outcome="LOSS", direction="LONG"),
-            _make_signal_row(id_=3, symbol="ETHUSDT", source="backtest", outcome="WIN", direction="SHORT"),
+            _make_signal_row(
+                id_=1, symbol="BTCUSDT", source="backtest", outcome="WIN", direction="LONG"
+            ),
+            _make_signal_row(
+                id_=2, symbol="BTCUSDT", source="backtest", outcome="LOSS", direction="LONG"
+            ),
+            _make_signal_row(
+                id_=3, symbol="ETHUSDT", source="backtest", outcome="WIN", direction="SHORT"
+            ),
         ]
 
         for s in signals:

@@ -2,13 +2,16 @@
 Tests for market data endpoints and staleness logic.
 Verifies that stale DB data triggers a Binance fetch, and fresh data does not.
 """
-import pytest
+
 import time
 from unittest.mock import AsyncMock, MagicMock, patch
+
+import pytest
 
 
 class MockCandle:
     """Mock DB candle object with required OHLCV fields."""
+
     def __init__(self, timestamp):
         self.timestamp = timestamp
         self.open = 100
@@ -45,7 +48,9 @@ async def test_ohlcv_stale_data_triggers_binance_fetch():
     with patch("app.storage.Database.get_session") as mock_get_session:
         mock_get_session.return_value.__aenter__.return_value = mock_session
 
-        with patch("app.providers.get_provider", return_value=mock_provider_instance) as mock_get_provider:
+        with patch(
+            "app.providers.get_provider", return_value=mock_provider_instance
+        ) as mock_get_provider:
             # The endpoint may raise because mock returns empty data — that's OK.
             # We're testing that the provider was called when data is stale.
             try:
@@ -53,10 +58,10 @@ async def test_ohlcv_stale_data_triggers_binance_fetch():
             except Exception:
                 pass  # Expected — incomplete mock chain
 
-            assert mock_get_provider.called, \
-                "get_provider should be called when data is stale"
-            assert mock_provider_instance.get_ohlcv.called, \
+            assert mock_get_provider.called, "get_provider should be called when data is stale"
+            assert mock_provider_instance.get_ohlcv.called, (
                 "provider.get_ohlcv should be called when data is stale"
+            )
 
 
 @pytest.mark.asyncio
@@ -83,8 +88,9 @@ async def test_ohlcv_fresh_data_skips_binance_fetch():
             except Exception:
                 pass  # Expected — incomplete mock chain
 
-            assert not mock_provider_instance.get_ohlcv.called, \
+            assert not mock_provider_instance.get_ohlcv.called, (
                 "BinanceProvider.get_ohlcv should NOT be called when data is fresh"
+            )
 
 
 @pytest.mark.asyncio

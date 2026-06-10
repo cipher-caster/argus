@@ -1,65 +1,77 @@
 from pydantic import BaseModel
-from typing import Optional, List
+
 from app.providers import Candle as ProviderCandle
+
 
 class MarketTicker(BaseModel):
     symbol: str
     price: float
-    change_24h: Optional[float] = None
-    volume_24h: Optional[float] = None
-    high_24h: Optional[float] = None
-    low_24h: Optional[float] = None
-    market_cap: Optional[float] = None
-    rank: Optional[int] = None
-    name: Optional[str] = None
+    change_24h: float | None = None
+    volume_24h: float | None = None
+    high_24h: float | None = None
+    low_24h: float | None = None
+    market_cap: float | None = None
+    rank: int | None = None
+    name: str | None = None
     provider: str = "okx"
-    
+
+
 class MarketSummary(BaseModel):
-    gainers: List[MarketTicker] = []
-    losers: List[MarketTicker] = []
-    top_volume: List[MarketTicker] = []
-    timestamp: int # Epoch ms
+    gainers: list[MarketTicker] = []
+    losers: list[MarketTicker] = []
+    top_volume: list[MarketTicker] = []
+    timestamp: int  # Epoch ms
+
 
 class OHLCVResponse(BaseModel):
     """Response model for OHLCV endpoint"""
+
     symbol: str
     timeframe: str
     provider: str
-    candles: List[ProviderCandle]
+    candles: list[ProviderCandle]
+
 
 class TickerResponse(BaseModel):
     """Response model for ticker price"""
+
     symbol: str
-    price: Optional[float]
+    price: float | None
     provider: str
+
 
 class CoinInfo(BaseModel):
     """Coin information for display"""
+
     rank: int
     symbol: str
     name: str
     price: float
-    change_1h: Optional[float] = None
-    change_24h: Optional[float] = None
-    change_7d: Optional[float] = None
-    volume_24h: Optional[float] = None
-    high_24h: Optional[float] = None
-    low_24h: Optional[float] = None
-    market_cap: Optional[float] = None
-    image: Optional[str] = None
-    sparkline_in_7d: Optional[List[float]] = None
+    change_1h: float | None = None
+    change_24h: float | None = None
+    change_7d: float | None = None
+    volume_24h: float | None = None
+    high_24h: float | None = None
+    low_24h: float | None = None
+    market_cap: float | None = None
+    image: str | None = None
+    sparkline_in_7d: list[float] | None = None
+
 
 class CoinsResponse(BaseModel):
     """Paginated coins list response"""
-    coins: List[CoinInfo]
+
+    coins: list[CoinInfo]
     total: int
     page: int
     page_size: int
 
+
 class MarketSummaryResponse(BaseModel):
     """Market summary statistics"""
+
     total_coins: int
     provider: str
-    top_gainers: List[CoinInfo] = []
-    top_losers: List[CoinInfo] = []
-    top_volume: List[CoinInfo] = []
+    top_gainers: list[CoinInfo] = []
+    top_losers: list[CoinInfo] = []
+    top_volume: list[CoinInfo] = []

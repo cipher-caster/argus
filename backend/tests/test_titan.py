@@ -2,22 +2,22 @@
 Unit tests for TitanStrategy.
 Tests signal validity, confidence range, insufficient data handling, and directional logic.
 """
-import pytest
+
 import numpy as np
 import pandas as pd
+from conftest import make_bearish_ohlcv, make_bullish_ohlcv, make_ohlcv
+
 from app.strategies.titan import TitanStrategy
-from conftest import make_ohlcv, make_bullish_ohlcv, make_bearish_ohlcv
 
 titan = TitanStrategy()
 
 VALID_SIGNALS = {"BUY", "SELL", "BUY_LIMIT", "SELL_LIMIT", "WAIT_OB", "WAIT_OS", "NEUTRAL"}
 
 
-
-
 # ---------------------------------------------------------------------------
 # Insufficient data
 # ---------------------------------------------------------------------------
+
 
 class TestInsufficientData:
     def test_empty_df_returns_error(self):
@@ -44,6 +44,7 @@ class TestInsufficientData:
 # ---------------------------------------------------------------------------
 # Output shape and validity
 # ---------------------------------------------------------------------------
+
 
 class TestOutputShape:
     def test_analyze_returns_required_keys(self):
@@ -101,6 +102,7 @@ class TestOutputShape:
 # Confidence levels per signal type
 # ---------------------------------------------------------------------------
 
+
 class TestConfidenceLevels:
     def test_wait_signals_have_zero_confidence(self):
         # Run many seeds and check any WAIT signal always has 0 confidence
@@ -109,7 +111,9 @@ class TestConfidenceLevels:
             df = make_ohlcv(250)
             result = titan.analyze(df)
             if "error" not in result and result["signal"] in ("WAIT_OB", "WAIT_OS"):
-                assert result["confidence"] == 0, f"WAIT signal should have 0 confidence, got {result['confidence']}"
+                assert result["confidence"] == 0, (
+                    f"WAIT signal should have 0 confidence, got {result['confidence']}"
+                )
 
     def test_buy_sell_signals_have_80_confidence(self):
         for seed in range(30):
@@ -132,20 +136,23 @@ class TestConfidenceLevels:
 # Directional logic
 # ---------------------------------------------------------------------------
 
+
 class TestDirectionalLogic:
     def test_bullish_trend_produces_no_sell_signal(self):
         df = make_bullish_ohlcv()
         result = titan.analyze(df)
         if "error" not in result:
-            assert result["signal"] not in ("SELL", "SELL_LIMIT", "WAIT_OS"), \
+            assert result["signal"] not in ("SELL", "SELL_LIMIT", "WAIT_OS"), (
                 f"Bullish trend should not produce {result['signal']}"
+            )
 
     def test_bearish_trend_produces_no_buy_signal(self):
         df = make_bearish_ohlcv()
         result = titan.analyze(df)
         if "error" not in result:
-            assert result["signal"] not in ("BUY", "BUY_LIMIT", "WAIT_OB"), \
+            assert result["signal"] not in ("BUY", "BUY_LIMIT", "WAIT_OB"), (
                 f"Bearish trend should not produce {result['signal']}"
+            )
 
     def test_buy_signal_requires_bullish_trend(self):
         # If we get a BUY or BUY_LIMIT, trend must be BULLISH

@@ -2,15 +2,14 @@
 Unit tests for OracleStrategy.
 Tests score bounds, voter logic, signal synthesis, and backtest stats.
 """
-import pytest
+
 import numpy as np
 import pandas as pd
-from app.strategies.oracle import OracleStrategy
 from conftest import make_ohlcv
 
+from app.strategies.oracle import OracleStrategy
+
 oracle = OracleStrategy()
-
-
 
 
 def make_row(**kwargs) -> pd.Series:
@@ -33,17 +32,36 @@ def make_row(**kwargs) -> pd.Series:
 # _calculate_earnest_score — voter unit tests
 # ---------------------------------------------------------------------------
 
+
 class TestEarnestVoters:
     def test_all_bullish_gives_plus_five(self):
         # RSI in (50,70): +1, BB pos > 0.1: +1, ADX > 20 & close > ema: +1, EMA close > ema: +1, SMC FVG bullish: +1
-        row = make_row(rsi=60, close=108, bb_upper=110, bb_lower=90, bb_mid=100, adx=30, ema200=95, active_fvg_type='bullish')
+        row = make_row(
+            rsi=60,
+            close=108,
+            bb_upper=110,
+            bb_lower=90,
+            bb_mid=100,
+            adx=30,
+            ema200=95,
+            active_fvg_type="bullish",
+        )
         result = oracle._calculate_earnest_score(row)
         assert result["score"] == 5
         assert all(v == 1 for v in result["voters"].values())
 
     def test_all_bearish_gives_minus_five(self):
         # RSI in (30,50): -1, BB pos < -0.1: -1, ADX > 20 & close < ema: -1, EMA close < ema: -1, SMC FVG bearish: -1
-        row = make_row(rsi=40, close=88, bb_upper=110, bb_lower=90, bb_mid=100, adx=30, ema200=95, active_fvg_type='bearish')
+        row = make_row(
+            rsi=40,
+            close=88,
+            bb_upper=110,
+            bb_lower=90,
+            bb_mid=100,
+            adx=30,
+            ema200=95,
+            active_fvg_type="bearish",
+        )
         result = oracle._calculate_earnest_score(row)
         assert result["score"] == -5
         assert all(v == -1 for v in result["voters"].values())
@@ -97,6 +115,7 @@ class TestEarnestVoters:
 # _synthesize_signal
 # ---------------------------------------------------------------------------
 
+
 class TestSynthesizeSignal:
     def test_strong_buy_requires_macro_ge2_and_earnest_ge3(self):
         assert oracle._synthesize_signal(3, 2) == "STRONG_BUY"
@@ -127,6 +146,7 @@ class TestSynthesizeSignal:
 # analyze() — integration with real indicator computation
 # ---------------------------------------------------------------------------
 
+
 class TestOracleAnalyze:
     def test_empty_df_returns_error(self):
         result = oracle.analyze(pd.DataFrame(), pd.DataFrame())
@@ -136,7 +156,17 @@ class TestOracleAnalyze:
         df = make_ohlcv(300, trend="up")
         result = oracle.analyze(df, df)
         assert "error" not in result
-        for key in ("signal", "confidence", "bias", "state", "earnest", "macro", "targets", "advice", "performance"):
+        for key in (
+            "signal",
+            "confidence",
+            "bias",
+            "state",
+            "earnest",
+            "macro",
+            "targets",
+            "advice",
+            "performance",
+        ):
             assert key in result, f"Missing key: {key}"
 
     def test_earnest_score_in_bounds(self):

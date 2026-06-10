@@ -5,15 +5,17 @@ Tests resolve_outcome() and compute_stats() in isolation — no DB, no network.
 Covers: LONG/SHORT WIN/LOSS, same-candle tiebreak (conservative LOSS),
 REVIEW on max_hold expiry, and stats aggregation.
 """
+
 import pandas as pd
 import pytest
-from app.trading.backtest_engine import resolve_outcome, compute_stats
-from app.utils.trading_utils import calculate_conviction
 
+from app.trading.backtest_engine import compute_stats, resolve_outcome
+from app.utils.trading_utils import calculate_conviction
 
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
+
 
 def make_candles(rows: list[dict]) -> pd.DataFrame:
     """Build a minimal 4H candle DataFrame from a list of high/low dicts."""
@@ -21,15 +23,17 @@ def make_candles(rows: list[dict]) -> pd.DataFrame:
     data = []
     for i, r in enumerate(rows):
         price = r.get("close", 100.0)
-        data.append({
-            "timestamp": pd.Timestamp(base_ms + i * 14_400_000, unit="ms", tz="UTC"),
-            "open": price,
-            "high": r["high"],
-            "low": r["low"],
-            "close": price,
-            "volume": 1000.0,
-            "ts_ms": base_ms + i * 14_400_000,
-        })
+        data.append(
+            {
+                "timestamp": pd.Timestamp(base_ms + i * 14_400_000, unit="ms", tz="UTC"),
+                "open": price,
+                "high": r["high"],
+                "low": r["low"],
+                "close": price,
+                "volume": 1000.0,
+                "ts_ms": base_ms + i * 14_400_000,
+            }
+        )
     return pd.DataFrame(data)
 
 
@@ -41,14 +45,16 @@ def _signal(outcome: str, entry=100.0, tp=106.0, sl=97.0, symbol="BTCUSDT") -> d
 # A1: resolve_outcome — candle-walk logic
 # ---------------------------------------------------------------------------
 
-class TestResolveOutcome:
 
+class TestResolveOutcome:
     def test_long_win_outcome(self):
         """LONG: price reaches TP before SL → WIN."""
-        df = make_candles([
-            {"high": 104.0, "low": 98.0},   # entry idx=0 (not checked)
-            {"high": 112.0, "low": 101.0},  # TP=110 hit
-        ])
+        df = make_candles(
+            [
+                {"high": 104.0, "low": 98.0},  # entry idx=0 (not checked)
+                {"high": 112.0, "low": 101.0},  # TP=110 hit
+            ]
+        )
         outcome, price, ts = resolve_outcome(df, entry_idx=0, direction="LONG", tp=110.0, sl=95.0)
         assert outcome == "WIN"
         assert price == 110.0
@@ -56,50 +62,60 @@ class TestResolveOutcome:
 
     def test_long_loss_outcome(self):
         """LONG: price drops below SL → LOSS."""
-        df = make_candles([
-            {"high": 104.0, "low": 98.0},
-            {"high": 103.0, "low": 93.0},  # SL=95 hit
-        ])
+        df = make_candles(
+            [
+                {"high": 104.0, "low": 98.0},
+                {"high": 103.0, "low": 93.0},  # SL=95 hit
+            ]
+        )
         outcome, price, ts = resolve_outcome(df, entry_idx=0, direction="LONG", tp=110.0, sl=95.0)
         assert outcome == "LOSS"
         assert price == 95.0
 
     def test_short_win_outcome(self):
         """SHORT: price drops to TP → WIN."""
-        df = make_candles([
-            {"high": 101.0, "low": 95.0},
-            {"high": 99.0, "low": 88.0},   # TP=90 hit (low <= tp)
-        ])
+        df = make_candles(
+            [
+                {"high": 101.0, "low": 95.0},
+                {"high": 99.0, "low": 88.0},  # TP=90 hit (low <= tp)
+            ]
+        )
         outcome, price, ts = resolve_outcome(df, entry_idx=0, direction="SHORT", tp=90.0, sl=105.0)
         assert outcome == "WIN"
         assert price == 90.0
 
     def test_short_loss_outcome(self):
         """SHORT: price rises above SL → LOSS."""
-        df = make_candles([
-            {"high": 101.0, "low": 95.0},
-            {"high": 107.0, "low": 99.0},  # SL=105 hit (high >= sl)
-        ])
+        df = make_candles(
+            [
+                {"high": 101.0, "low": 95.0},
+                {"high": 107.0, "low": 99.0},  # SL=105 hit (high >= sl)
+            ]
+        )
         outcome, price, ts = resolve_outcome(df, entry_idx=0, direction="SHORT", tp=90.0, sl=105.0)
         assert outcome == "LOSS"
         assert price == 105.0
 
     def test_both_hit_same_candle_is_loss(self):
         """Same candle hits both TP and SL → conservative LOSS."""
-        df = make_candles([
-            {"high": 104.0, "low": 98.0},
-            {"high": 115.0, "low": 88.0},  # Both TP=110 and SL=92 crossed
-        ])
+        df = make_candles(
+            [
+                {"high": 104.0, "low": 98.0},
+                {"high": 115.0, "low": 88.0},  # Both TP=110 and SL=92 crossed
+            ]
+        )
         outcome, price, ts = resolve_outcome(df, entry_idx=0, direction="LONG", tp=110.0, sl=92.0)
         assert outcome == "LOSS"
         assert price == 92.0
 
     def test_short_both_hit_same_candle_is_loss(self):
         """SHORT same-candle both hit → conservative LOSS."""
-        df = make_candles([
-            {"high": 101.0, "low": 95.0},
-            {"high": 115.0, "low": 82.0},  # Both SL=110 and TP=85 hit
-        ])
+        df = make_candles(
+            [
+                {"high": 101.0, "low": 95.0},
+                {"high": 115.0, "low": 82.0},  # Both SL=110 and TP=85 hit
+            ]
+        )
         outcome, price, ts = resolve_outcome(df, entry_idx=0, direction="SHORT", tp=85.0, sl=110.0)
         assert outcome == "LOSS"
         assert price == 110.0
@@ -118,9 +134,7 @@ class TestResolveOutcome:
     def test_review_at_end_of_data(self):
         """Only one candle (entry) — no future candles → REVIEW."""
         df = make_candles([{"high": 102.0, "low": 98.0}])
-        outcome, price, ts = resolve_outcome(
-            df, entry_idx=0, direction="LONG", tp=110.0, sl=90.0
-        )
+        outcome, price, ts = resolve_outcome(df, entry_idx=0, direction="LONG", tp=110.0, sl=90.0)
         assert outcome == "REVIEW"
 
 
@@ -128,8 +142,8 @@ class TestResolveOutcome:
 # A1: compute_stats — aggregation
 # ---------------------------------------------------------------------------
 
-class TestComputeStats:
 
+class TestComputeStats:
     def test_empty_returns_zero_stats(self):
         result = compute_stats([])
         assert result["total"] == 0
@@ -160,7 +174,7 @@ class TestComputeStats:
             _signal("WIN"),
             _signal("WIN"),
             _signal("LOSS"),
-            _signal("REVIEW"),   # reviews excluded from win_rate denominator
+            _signal("REVIEW"),  # reviews excluded from win_rate denominator
         ]
         result = compute_stats(signals)
         assert result["total"] == 4
@@ -172,8 +186,8 @@ class TestComputeStats:
 
     def test_per_coin_breakdown(self):
         signals = [
-            _signal("WIN",  symbol="BTCUSDT"),
-            _signal("WIN",  symbol="BTCUSDT"),
+            _signal("WIN", symbol="BTCUSDT"),
+            _signal("WIN", symbol="BTCUSDT"),
             _signal("LOSS", symbol="ETHUSDT"),
         ]
         result = compute_stats(signals)
@@ -198,6 +212,7 @@ class TestComputeStats:
 # A1: TestBacktestConviction — conviction formula unit tests
 # ---------------------------------------------------------------------------
 
+
 class TestBacktestConviction:
     """Unit tests for the conviction formula used in backtest_symbol.
 
@@ -210,7 +225,9 @@ class TestBacktestConviction:
         """BULLISH bias + is_long=True → regime_aligned=True → +20 bonus."""
         btc_bias = "BULLISH"
         is_long = True
-        regime_aligned = (btc_bias == "BULLISH" and is_long) or (btc_bias == "BEARISH" and not is_long)
+        regime_aligned = (btc_bias == "BULLISH" and is_long) or (
+            btc_bias == "BEARISH" and not is_long
+        )
         conviction = calculate_conviction(
             confidence=50,
             regime_aligned=regime_aligned,
@@ -223,7 +240,9 @@ class TestBacktestConviction:
         """BEARISH bias + is_short=True → regime_aligned=True → +20 bonus."""
         btc_bias = "BEARISH"
         is_short = True
-        regime_aligned = (btc_bias == "BULLISH" and not is_short) or (btc_bias == "BEARISH" and is_short)
+        regime_aligned = (btc_bias == "BULLISH" and not is_short) or (
+            btc_bias == "BEARISH" and is_short
+        )
         conviction = calculate_conviction(
             confidence=50,
             regime_aligned=regime_aligned,
@@ -236,7 +255,9 @@ class TestBacktestConviction:
         """BEARISH bias + is_long=True → regime_aligned=False → no bonus."""
         btc_bias = "BEARISH"
         is_long = True
-        regime_aligned = (btc_bias == "BULLISH" and is_long) or (btc_bias == "BEARISH" and not is_long)
+        regime_aligned = (btc_bias == "BULLISH" and is_long) or (
+            btc_bias == "BEARISH" and not is_long
+        )
         conviction = calculate_conviction(
             confidence=50,
             regime_aligned=regime_aligned,
@@ -249,7 +270,9 @@ class TestBacktestConviction:
         """NEUTRAL bias → regime_aligned=False regardless of direction → no bonus."""
         btc_bias = "NEUTRAL"
         is_long = True
-        regime_aligned = (btc_bias == "BULLISH" and is_long) or (btc_bias == "BEARISH" and not is_long)
+        regime_aligned = (btc_bias == "BULLISH" and is_long) or (
+            btc_bias == "BEARISH" and not is_long
+        )
         conviction = calculate_conviction(
             confidence=50,
             regime_aligned=regime_aligned,
@@ -262,7 +285,9 @@ class TestBacktestConviction:
         """BULLISH + is_long + MARKET signal → both bonuses apply (+20 +10)."""
         btc_bias = "BULLISH"
         is_long = True
-        regime_aligned = (btc_bias == "BULLISH" and is_long) or (btc_bias == "BEARISH" and not is_long)
+        regime_aligned = (btc_bias == "BULLISH" and is_long) or (
+            btc_bias == "BEARISH" and not is_long
+        )
         conviction = calculate_conviction(
             confidence=50,
             regime_aligned=regime_aligned,

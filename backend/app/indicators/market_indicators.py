@@ -3,55 +3,56 @@ Market-Level Indicators Module
 Dashboard metrics computed from market data (separate from chart indicators)
 """
 
-from typing import Dict, List, Any, Optional
-from pydantic import BaseModel
-import pandas as pd
+from typing import Any
+
 import numpy as np
+import pandas as pd
 import pandas_ta as ta
+from pydantic import BaseModel
 
 
 class IndicatorValue(BaseModel):
     """Single indicator metric for dashboard display"""
+
     value: float
     label: str
-    timestamp: Optional[str] = None
-    min_value: Optional[float] = None
-    max_value: Optional[float] = None
-    history: List[float] = []  # Sparkline data
+    timestamp: str | None = None
+    min_value: float | None = None
+    max_value: float | None = None
+    history: list[float] = []  # Sparkline data
 
 
-
-def calculate_volatility(closes: List[float], period: int = 14) -> IndicatorValue:
+def calculate_volatility(closes: list[float], period: int = 14) -> IndicatorValue:
     """
     Calculate BTC volatility from closing prices.
     Uses standard deviation of daily returns, annualized and scaled to 1-100.
-    
+
     Args:
         closes: List of closing prices (newest last)
         period: Lookback period for volatility calculation
-    
+
     Returns:
         IndicatorValue with volatility score 1-100
     """
     if len(closes) < period + 1:
         return IndicatorValue(value=0, label="N/A", history=[])
-    
-    df = pd.DataFrame({'close': closes})
-    
+
+    df = pd.DataFrame({"close": closes})
+
     # Calculate daily returns
-    df['returns'] = df['close'].pct_change()
-    
+    df["returns"] = df["close"].pct_change()
+
     # Rolling volatility (std of returns)
-    df['volatility'] = df['returns'].rolling(window=period).std()
-    
+    df["volatility"] = df["returns"].rolling(window=period).std()
+
     # Annualize and scale to rough 1-100 range
     # Typical crypto volatility: 0.02-0.08 daily std -> annualized 30-150%
-    latest_vol = df['volatility'].iloc[-1]
+    latest_vol = df["volatility"].iloc[-1]
     annualized = latest_vol * np.sqrt(365) * 100 if not np.isnan(latest_vol) else 0
-    
+
     # Scale to 1-100 (assuming 0-200% annualized maps to 1-100)
     scaled = max(1, min(100, annualized / 2))
-    
+
     # Determine label
     if scaled < 25:
         label = "Low Vol"
@@ -61,59 +62,59 @@ def calculate_volatility(closes: List[float], period: int = 14) -> IndicatorValu
         label = "High"
     else:
         label = "Extreme"
-    
+
     # History for sparkline (last 14 days of volatility)
-    history = df['volatility'].dropna().tail(period).tolist()
+    history = df["volatility"].dropna().tail(period).tolist()
     # Scale history too
-    history = [max(1, min(100, v * np.sqrt(365) * 100 / 2)) if not np.isnan(v) else 0 for v in history]
-    
+    history = [
+        max(1, min(100, v * np.sqrt(365) * 100 / 2)) if not np.isnan(v) else 0 for v in history
+    ]
+
     min_val = min(history) if history else 1
     max_val = max(history) if history else 100
-    
+
     return IndicatorValue(
         value=round(scaled, 1),
         label=label,
         min_value=round(min_val, 1),
         max_value=round(max_val, 1),
-        history=history
+        history=history,
     )
 
 
-def calculate_adx(highs: List[float], lows: List[float], closes: List[float], period: int = 14) -> IndicatorValue:
+def calculate_adx(
+    highs: list[float], lows: list[float], closes: list[float], period: int = 14
+) -> IndicatorValue:
     """
     Calculate ADX (Average Directional Index) for trend strength.
-    
+
     Args:
         highs: List of high prices
         lows: List of low prices
         closes: List of closing prices
         period: ADX period (default 14)
-    
+
     Returns:
         IndicatorValue with ADX score 0-100
     """
     if len(closes) < period * 2:
         return IndicatorValue(value=0, label="N/A", history=[])
-    
-    df = pd.DataFrame({
-        'high': highs,
-        'low': lows,
-        'close': closes
-    })
-    
+
+    df = pd.DataFrame({"high": highs, "low": lows, "close": closes})
+
     # Calculate ADX using pandas_ta
-    adx_data = ta.adx(df['high'], df['low'], df['close'], length=period)
-    
+    adx_data = ta.adx(df["high"], df["low"], df["close"], length=period)
+
     if adx_data is None or adx_data.empty:
         return IndicatorValue(value=0, label="N/A", history=[])
-    
+
     # ADX column name varies, find it
-    adx_col = [c for c in adx_data.columns if 'ADX' in c and 'DM' not in c][0]
-    
+    adx_col = [c for c in adx_data.columns if "ADX" in c and "DM" not in c][0]
+
     latest_adx = adx_data[adx_col].iloc[-1]
     if np.isnan(latest_adx):
         latest_adx = 0
-    
+
     # ADX interpretation:
     # < 20: Ranging/No trend
     # 20-40: Trending
@@ -127,32 +128,32 @@ def calculate_adx(highs: List[float], lows: List[float], closes: List[float], pe
         label = "Strong"
     else:
         label = "V. Strong"
-    
+
     # History for sparkline
     history = adx_data[adx_col].dropna().tail(period).tolist()
     history = [round(v, 1) if not np.isnan(v) else 0 for v in history]
-    
+
     min_val = min(history) if history else 0
     max_val = max(history) if history else 100
-    
+
     return IndicatorValue(
         value=round(latest_adx, 1),
         label=label,
         min_value=round(min_val, 1),
         max_value=round(max_val, 1),
-        history=history
+        history=history,
     )
 
 
-def calculate_market_cap_stats(coins: List[Dict[str, Any]]) -> Dict[str, Any]:
+def calculate_market_cap_stats(coins: list[dict[str, Any]]) -> dict[str, Any]:
     """
     Calculate total market cap (or volume) and market regime.
     Prioritizes 'market_cap' if available, falls back to 'volume_24h'.
     Uses sparkline_in_7d to generate history for the chart.
-    
+
     Args:
         coins: List of coin dicts
-    
+
     Returns:
         Dict with total value, regime, and changes
     """
@@ -164,20 +165,20 @@ def calculate_market_cap_stats(coins: List[Dict[str, Any]]) -> Dict[str, Any]:
             "regime_detail": "No Data",
             "min_value": 0,
             "max_value": 0,
-            "history": []
+            "history": [],
         }
-    
+
     # Check if we have valid market cap data (heuristic: check first few)
-    has_mcap = any(c.get('market_cap', 0) and c.get('market_cap', 0) > 0 for c in coins[:5])
-    value_key = 'market_cap' if has_mcap else 'volume_24h'
-    
+    has_mcap = any(c.get("market_cap", 0) and c.get("market_cap", 0) > 0 for c in coins[:5])
+    value_key = "market_cap" if has_mcap else "volume_24h"
+
     # Sum values
     total_value = sum(c.get(value_key, 0) or 0 for c in coins)
-    
+
     # Calculate average change (market sentiment)
-    changes = [c.get('change_24h', 0) or 0 for c in coins if c.get('change_24h') is not None]
+    changes = [c.get("change_24h", 0) or 0 for c in coins if c.get("change_24h") is not None]
     avg_change = sum(changes) / len(changes) if changes else 0
-    
+
     # Determine regime based on average change
     if avg_change > 2:
         regime = "BULLISH"
@@ -185,30 +186,32 @@ def calculate_market_cap_stats(coins: List[Dict[str, Any]]) -> Dict[str, Any]:
         regime = "BEARISH"
     else:
         regime = "NEUTRAL"
-    
+
     # Count green vs red
     green_count = sum(1 for c in changes if c > 0)
     total_count = len(changes)
     green_pct = (green_count / total_count * 100) if total_count > 0 else 50
-    
+
     # Build history from sparklines (aggregate weighted by market cap)
     history = []
     # Get coins with sparkline data
-    coins_with_sparkline = [c for c in coins if c.get('sparkline_in_7d') and len(c.get('sparkline_in_7d', [])) > 0]
-    
+    coins_with_sparkline = [
+        c for c in coins if c.get("sparkline_in_7d") and len(c.get("sparkline_in_7d", [])) > 0
+    ]
+
     if coins_with_sparkline and has_mcap:
         # Use last 14 data points (roughly 2 days at 4h intervals from CoinGecko)
-        sample_size = min(14, min(len(c.get('sparkline_in_7d', [])) for c in coins_with_sparkline))
-        
+        sample_size = min(14, min(len(c.get("sparkline_in_7d", [])) for c in coins_with_sparkline))
+
         for i in range(sample_size):
             # For each time point, estimate total market cap
             # by using the ratio of sparkline price to current price
             point_total = 0
             for coin in coins_with_sparkline:
-                sparkline = coin.get('sparkline_in_7d', [])
-                current_price = coin.get('price', 0) or 1
-                mcap = coin.get('market_cap', 0) or 0
-                
+                sparkline = coin.get("sparkline_in_7d", [])
+                current_price = coin.get("price", 0) or 1
+                mcap = coin.get("market_cap", 0) or 0
+
                 if sparkline and len(sparkline) > i:
                     # Sample from end (most recent)
                     idx = len(sparkline) - sample_size + i
@@ -217,14 +220,14 @@ def calculate_market_cap_stats(coins: List[Dict[str, Any]]) -> Dict[str, Any]:
                         # Estimate historical mcap from price ratio
                         ratio = historical_price / current_price if current_price > 0 else 1
                         point_total += mcap * ratio
-            
+
             if point_total > 0:
                 history.append(point_total)
-    
+
     # Calculate min/max from history for proper scaling
     min_val = min(history) if history else total_value * 0.9
     max_val = max(history) if history else total_value * 1.1
-    
+
     return {
         "value": total_value,
         "metric_type": value_key,
@@ -233,47 +236,47 @@ def calculate_market_cap_stats(coins: List[Dict[str, Any]]) -> Dict[str, Any]:
         "regime_detail": f"{int(green_pct)}% up",
         "min_value": min_val,
         "max_value": max_val,
-        "history": history
+        "history": history,
     }
 
 
-def calculate_btc_dominance(coins: List[Dict[str, Any]]) -> IndicatorValue:
+def calculate_btc_dominance(coins: list[dict[str, Any]]) -> IndicatorValue:
     """
     Calculate BTC Dominance (BTC Value / Total Value).
     Prioritizes 'market_cap', falls back to 'volume_24h'.
     Uses sparkline_in_7d to generate history for the chart.
-    
+
     Args:
         coins: List of coin dicts
-    
+
     Returns:
         IndicatorValue with dominance percentage
     """
     if not coins:
         return IndicatorValue(value=0, label="N/A", history=[])
-    
+
     # Check if we have valid market cap data
-    has_mcap = any(c.get('market_cap', 0) and c.get('market_cap', 0) > 0 for c in coins[:5])
-    value_key = 'market_cap' if has_mcap else 'volume_24h'
-    
+    has_mcap = any(c.get("market_cap", 0) and c.get("market_cap", 0) > 0 for c in coins[:5])
+    value_key = "market_cap" if has_mcap else "volume_24h"
+
     total_value = sum(c.get(value_key, 0) or 0 for c in coins)
-    
+
     # Find BTC coin
     btc_coin = None
     for c in coins:
-        symbol = c.get('symbol', '').upper()
+        symbol = c.get("symbol", "").upper()
         # Handle various BTC symbol formats
-        if symbol in ('BTC/USDT', 'BTCUSDT', 'BTC', 'BITCOIN'):
+        if symbol in ("BTC/USDT", "BTCUSDT", "BTC", "BITCOIN"):
             btc_coin = c
             break
-    
+
     btc_value = btc_coin.get(value_key, 0) or 0 if btc_coin else 0
-    
+
     if total_value == 0:
         return IndicatorValue(value=0, label="N/A", history=[])
-    
+
     dominance = (btc_value / total_value) * 100
-    
+
     # Label based on dominance level (Standard MC Dom levels)
     if dominance > 60:
         label = "Maximalist"
@@ -283,73 +286,76 @@ def calculate_btc_dominance(coins: List[Dict[str, Any]]) -> IndicatorValue:
         label = "Normal"
     else:
         label = "Alt Season"
-    
+
     # Build history from sparklines
     history = []
-    coins_with_sparkline = [c for c in coins if c.get('sparkline_in_7d') and len(c.get('sparkline_in_7d', [])) > 0]
-    btc_sparkline = btc_coin.get('sparkline_in_7d', []) if btc_coin else []
-    
+    coins_with_sparkline = [
+        c for c in coins if c.get("sparkline_in_7d") and len(c.get("sparkline_in_7d", [])) > 0
+    ]
+    btc_sparkline = btc_coin.get("sparkline_in_7d", []) if btc_coin else []
+
     if coins_with_sparkline and btc_sparkline and has_mcap:
-        sample_size = min(14, min(len(c.get('sparkline_in_7d', [])) for c in coins_with_sparkline))
-        
+        sample_size = min(14, min(len(c.get("sparkline_in_7d", [])) for c in coins_with_sparkline))
+
         for i in range(sample_size):
             # Calculate total market cap at this historical point
             total_at_point = 0
             btc_at_point = 0
-            
+
             for coin in coins_with_sparkline:
-                sparkline = coin.get('sparkline_in_7d', [])
-                current_price = coin.get('price', 0) or 1
-                mcap = coin.get('market_cap', 0) or 0
-                
+                sparkline = coin.get("sparkline_in_7d", [])
+                current_price = coin.get("price", 0) or 1
+                mcap = coin.get("market_cap", 0) or 0
+
                 idx = len(sparkline) - sample_size + i
                 if idx >= 0 and sparkline:
                     historical_price = sparkline[idx]
                     ratio = historical_price / current_price if current_price > 0 else 1
                     estimated_mcap = mcap * ratio
                     total_at_point += estimated_mcap
-                    
+
                     # Check if this is BTC
-                    symbol = coin.get('symbol', '').upper()
-                    if symbol in ('BTC/USDT', 'BTCUSDT', 'BTC', 'BITCOIN'):
+                    symbol = coin.get("symbol", "").upper()
+                    if symbol in ("BTC/USDT", "BTCUSDT", "BTC", "BITCOIN"):
                         btc_at_point = estimated_mcap
-            
+
             if total_at_point > 0:
                 dom_at_point = (btc_at_point / total_at_point) * 100
                 history.append(round(dom_at_point, 1))
-    
+
     # Calculate min/max from history
     min_val = min(history) if history else 30
     max_val = max(history) if history else 70
-    
+
     return IndicatorValue(
         value=round(dominance, 1),
         label=label,
         min_value=min_val,
         max_value=max_val,
-        history=history
+        history=history,
     )
 
 
-def calculate_average_rsi(coins: List[Dict[str, Any]], period: int = 14) -> IndicatorValue:
+def calculate_average_rsi(coins: list[dict[str, Any]], period: int = 14) -> IndicatorValue:
     """
     Calculate Average RSI across all provided coins.
-    Uses 'sparkline_in_7d' (hourly max 168 points) resampled to 4h to get 
+    Uses 'sparkline_in_7d' (hourly max 168 points) resampled to 4h to get
     sufficient history for RSI(14).
-    
+
     Args:
         coins: List of coin dicts with 'sparkline_in_7d'
         period: RSI lookback period
-        
+
     Returns:
         IndicatorValue with average RSI
     """
     # Filter coins with sufficient sparkline data
     valid_coins = [
-        c for c in coins 
-        if c.get('sparkline_in_7d') and len(c.get('sparkline_in_7d', [])) >= period * 4
+        c
+        for c in coins
+        if c.get("sparkline_in_7d") and len(c.get("sparkline_in_7d", [])) >= period * 4
     ]
-    
+
     if not valid_coins:
         return IndicatorValue(value=50, label="Neutral", history=[])
 
@@ -357,33 +363,33 @@ def calculate_average_rsi(coins: List[Dict[str, Any]], period: int = 14) -> Indi
         # Build DataFrame of prices: columns=symbol, index=time_step
         # sparkline_in_7d is typically 168 points (7 days * 24h)
         # We'll take the minimum length to ensure alignment
-        min_len = min(len(c['sparkline_in_7d']) for c in valid_coins)
-        
+        min_len = min(len(c["sparkline_in_7d"]) for c in valid_coins)
+
         data = {
-            c['symbol']: c['sparkline_in_7d'][-min_len:] 
+            c["symbol"]: c["sparkline_in_7d"][-min_len:]
             for c in valid_coins[:100]  # Limit to top 100 to save compute
         }
         df = pd.DataFrame(data)
-        
+
         # Resample to ~4h intervals (take every 4th row) to capture meaningful RSI trends
         # RSI on 1h candles is too noisy and short-term
-        df_resampled = df.iloc[::4, :] 
-        
+        df_resampled = df.iloc[::4, :]
+
         if len(df_resampled) < period + 1:
-             # Fallback if resampling reduces data too much
-             df_resampled = df.iloc[::2, :] # try 2h
-        
+            # Fallback if resampling reduces data too much
+            df_resampled = df.iloc[::2, :]  # try 2h
+
         # Calculate RSI for each column
         rsi_df = df_resampled.apply(lambda x: ta.rsi(x, length=period))
-        
+
         # Average RSI across all coins at each timestep
         avg_rsi_series = rsi_df.mean(axis=1).dropna()
-        
+
         if avg_rsi_series.empty:
             return IndicatorValue(value=50, label="Neutral", history=[])
-            
+
         latest_rsi = avg_rsi_series.iloc[-1]
-        
+
         # Interpret RSI
         if latest_rsi >= 70:
             label = "Overbought"
@@ -395,18 +401,13 @@ def calculate_average_rsi(coins: List[Dict[str, Any]], period: int = 14) -> Indi
             label = "Low"
         else:
             label = "Neutral"
-            
+
         history = avg_rsi_series.tolist()
-        
+
         return IndicatorValue(
-            value=round(latest_rsi, 1),
-            label=label,
-            min_value=0,
-            max_value=100,
-            history=history
+            value=round(latest_rsi, 1), label=label, min_value=0, max_value=100, history=history
         )
-        
+
     except Exception as e:
         logger.error(f"Error calculating Average RSI: {e}")
         return IndicatorValue(value=50, label="Error", history=[])
-

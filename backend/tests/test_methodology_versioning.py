@@ -10,16 +10,16 @@ Covers:
 6. GET /api/analytics/signal-log includes v1 rows with ?include_legacy=true
 """
 
-import pytest
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import MagicMock, patch
 
+import pytest
 
 # ---------------------------------------------------------------------------
 # 1. Model default
 # ---------------------------------------------------------------------------
 
-class TestSignalLogModelDefault:
 
+class TestSignalLogModelDefault:
     def test_model_default_is_v2(self):
         """SignalLog.methodology_version defaults to 'v2'."""
         from app.schemas.signal_log import SignalLog
@@ -71,6 +71,7 @@ class TestSignalLogModelDefault:
 # 2. Insert paths include methodology_version="v2"
 # ---------------------------------------------------------------------------
 
+
 class TestInsertPathsVersion:
     """Verify insert dicts from all production paths carry methodology_version='v2'."""
 
@@ -78,7 +79,9 @@ class TestInsertPathsVersion:
         """backtest_symbol() signal dict includes methodology_version='v2'."""
         # We inspect the source rather than running a full simulation
         import inspect
+
         from app.trading import backtest_engine
+
         src = inspect.getsource(backtest_engine.backtest_symbol)
         assert 'methodology_version="v2"' in src, (
             "backtest_symbol() must include methodology_version='v2' in the signal dict"
@@ -87,7 +90,9 @@ class TestInsertPathsVersion:
     def test_log_watchlist_setups_row_has_v2(self):
         """log_watchlist_setups() row dict includes methodology_version='v2'."""
         import inspect
+
         from app.jobs import signal_log
+
         src = inspect.getsource(signal_log.log_watchlist_setups)
         assert 'methodology_version="v2"' in src, (
             "log_watchlist_setups() must include methodology_version='v2' in the row dict"
@@ -96,20 +101,21 @@ class TestInsertPathsVersion:
     def test_log_best_setups_row_has_v2(self):
         """log_best_setups() row dict includes methodology_version='v2'."""
         import inspect
+
         from app.jobs import signal_log
+
         src = inspect.getsource(signal_log.log_best_setups)
         assert 'methodology_version="v2"' in src, (
             "log_best_setups() must include methodology_version='v2' in the row dict"
         )
 
 
-
 # ---------------------------------------------------------------------------
 # 3 & 4. Analyzer filters
 # ---------------------------------------------------------------------------
 
-class TestAnalyzerMethodologyFilter:
 
+class TestAnalyzerMethodologyFilter:
     def _make_signal(self, outcome="WIN", methodology_version="v2"):
         sig = MagicMock()
         sig.symbol = "BTCUSDT"
@@ -128,6 +134,7 @@ class TestAnalyzerMethodologyFilter:
         class FakeResult:
             def scalars(self):
                 return self
+
             def all(self):
                 return []
 
@@ -135,8 +142,10 @@ class TestAnalyzerMethodologyFilter:
             async def execute(self, stmt):
                 captured_stmts.append(stmt)
                 return FakeResult()
+
             async def __aenter__(self):
                 return self
+
             async def __aexit__(self, *_):
                 pass
 
@@ -162,6 +171,7 @@ class TestAnalyzerMethodologyFilter:
         class FakeResult:
             def scalars(self):
                 return self
+
             def all(self):
                 return []
 
@@ -169,8 +179,10 @@ class TestAnalyzerMethodologyFilter:
             async def execute(self, stmt):
                 captured_stmts.append(stmt)
                 return FakeResult()
+
             async def __aenter__(self):
                 return self
+
             async def __aexit__(self, *_):
                 pass
 
@@ -191,8 +203,8 @@ class TestAnalyzerMethodologyFilter:
 # 5 & 6. API route — ?include_legacy query param
 # ---------------------------------------------------------------------------
 
-class TestSignalLogRouteMethodologyFilter:
 
+class TestSignalLogRouteMethodologyFilter:
     @pytest.mark.asyncio
     async def test_signal_log_defaults_to_v2_only(self, async_client):
         """GET /api/analytics/signal-log without include_legacy only returns v2 rows."""
@@ -228,35 +240,54 @@ class TestSignalLogRouteMethodologyFilter:
         v1_sig.btc_price_at_signal = None
         v1_sig.methodology_version = "v1"
         v1_sig.__dict__ = {
-            "id": 1, "symbol": "BTCUSDT", "direction": "LONG", "timeframe": "4h",
-            "entry": 50000.0, "tp": 55000.0, "sl": 48000.0, "conviction": 70,
-            "oracle_signal": "N/A", "titan_signal": "BUY", "oracle_score": 0,
-            "titan_confidence": 70, "market_state": "BULL", "fired_reason": "legacy",
-            "fired_at": 1700000000000, "source": "live", "provider": "binance",
-            "outcome": "WIN", "resolved_at": None, "resolved_price": None,
-            "regime_at_resolution": None, "btc_price_at_resolution": None,
-            "time_to_resolution_ms": None, "rejection_reason": None,
-            "regime_at_signal": None, "btc_price_at_signal": None,
+            "id": 1,
+            "symbol": "BTCUSDT",
+            "direction": "LONG",
+            "timeframe": "4h",
+            "entry": 50000.0,
+            "tp": 55000.0,
+            "sl": 48000.0,
+            "conviction": 70,
+            "oracle_signal": "N/A",
+            "titan_signal": "BUY",
+            "oracle_score": 0,
+            "titan_confidence": 70,
+            "market_state": "BULL",
+            "fired_reason": "legacy",
+            "fired_at": 1700000000000,
+            "source": "live",
+            "provider": "binance",
+            "outcome": "WIN",
+            "resolved_at": None,
+            "resolved_price": None,
+            "regime_at_resolution": None,
+            "btc_price_at_resolution": None,
+            "time_to_resolution_ms": None,
+            "rejection_reason": None,
+            "regime_at_signal": None,
+            "btc_price_at_signal": None,
             "methodology_version": "v1",
         }
 
         # The actual DB filtering is done at the SQLAlchemy level — we verify
         # the route adds the filter by inspecting route source
         import inspect
+
         from app.routes import analytics
+
         src = inspect.getsource(analytics.get_signal_log)
         assert "methodology_version" in src, (
             "get_signal_log route must filter by methodology_version"
         )
-        assert "include_legacy" in src, (
-            "get_signal_log route must accept include_legacy parameter"
-        )
+        assert "include_legacy" in src, "get_signal_log route must accept include_legacy parameter"
 
     @pytest.mark.asyncio
     async def test_signal_log_stats_has_methodology_filter(self):
         """GET /api/analytics/signal-log/stats filters by methodology_version by default."""
         import inspect
+
         from app.routes import analytics
+
         src = inspect.getsource(analytics.get_signal_log_stats)
         assert "methodology_version" in src
         assert "include_legacy" in src

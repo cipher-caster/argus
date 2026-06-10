@@ -1,9 +1,10 @@
 """
 Tests for Mean Reversion indicator.
 """
-import pytest
-import pandas as pd
+
 import numpy as np
+import pandas as pd
+
 from app.indicators.mean_reversion import detect_mean_reversion
 
 
@@ -11,10 +12,10 @@ def test_detect_mean_reversion_insufficient_data():
     """Ensure it handles empty or short DataFrames gracefully."""
     empty_df = pd.DataFrame()
     short_df = pd.DataFrame({"close": [1, 2, 3]})
-    
+
     res1 = detect_mean_reversion(empty_df)
     res2 = detect_mean_reversion(short_df)
-    
+
     assert res1["opportunity"] == "NONE"
     assert res1["is_extended"] is False
     assert res2["opportunity"] == "NONE"
@@ -27,9 +28,9 @@ def test_detect_mean_reversion_not_extended():
     high = close + 2
     low = close - 2
     df = pd.DataFrame({"close": close, "high": high, "low": low})
-    
+
     res = detect_mean_reversion(df)
-    
+
     assert res["is_extended"] is False
     assert res["opportunity"] == "NONE"
     assert res["extension_atr"] < 1.0
@@ -42,9 +43,9 @@ def test_detect_mean_reversion_spot_buy():
     high = close + 2
     low = close - 2
     df = pd.DataFrame({"close": close, "high": high, "low": low})
-    
+
     res = detect_mean_reversion(df, atr_mult=2.0)
-    
+
     assert res["is_extended"] is True
     assert res["opportunity"] == "SPOT_BUY"
     assert res["price"] == 50.0
@@ -58,9 +59,9 @@ def test_detect_mean_reversion_sell():
     high = close + 2
     low = close - 2
     df = pd.DataFrame({"close": close, "high": high, "low": low})
-    
+
     res = detect_mean_reversion(df, atr_mult=2.0)
-    
+
     assert res["is_extended"] is True
     assert res["opportunity"] == "DE-RISK_LONG"
     assert res["price"] == 150.0

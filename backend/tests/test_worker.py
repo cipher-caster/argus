@@ -1,33 +1,60 @@
 """
 Tests for background worker jobs (`worker.py`).
 """
+
 import time
+from unittest.mock import AsyncMock, MagicMock, patch
+
 import pytest
-from unittest.mock import patch, AsyncMock, MagicMock, call
-from app.worker import sync_market_summary, sync_market_snapshot, sync_analytics_cache, _retry, backfill_okx_candles, execute_signals
+
+from app.worker import (
+    _retry,
+    backfill_okx_candles,
+    execute_signals,
+    sync_market_snapshot,
+    sync_market_summary,
+)
 
 
 @pytest.fixture
 def mock_ctx():
     """Provides a mock worker context dictionary with a mock Binance provider."""
     provider_mock = AsyncMock()
-    return {'provider': provider_mock}
+    return {"provider": provider_mock}
 
 
 @pytest.mark.asyncio
 async def test_sync_market_summary_success(mock_ctx):
     """Test that sync_market_summary successfully fetches tickers and caches them."""
     # Mock return data matching Binance format
-    mock_ctx['provider'].get_all_tickers.return_value = {
-        "BTC/USDT": {"last": 50000.0, "percentage": 5.0, "quoteVolume": 1000000.0, "high": 51000.0, "low": 49000.0},
-        "ETH/USDT": {"last": 3000.0, "percentage": -2.0, "quoteVolume": 500000.0, "high": 3100.0, "low": 2900.0},
-        "DOGE/BTC": {"last": 0.00001, "percentage": 1.0, "quoteVolume": 100.0} # Should be ignored (not USDT)
+    mock_ctx["provider"].get_all_tickers.return_value = {
+        "BTC/USDT": {
+            "last": 50000.0,
+            "percentage": 5.0,
+            "quoteVolume": 1000000.0,
+            "high": 51000.0,
+            "low": 49000.0,
+        },
+        "ETH/USDT": {
+            "last": 3000.0,
+            "percentage": -2.0,
+            "quoteVolume": 500000.0,
+            "high": 3100.0,
+            "low": 2900.0,
+        },
+        "DOGE/BTC": {
+            "last": 0.00001,
+            "percentage": 1.0,
+            "quoteVolume": 100.0,
+        },  # Should be ignored (not USDT)
     }
 
-    mock_provider = mock_ctx['provider']
+    mock_provider = mock_ctx["provider"]
     mock_provider.name = "okx"
 
-    with patch("app.worker.get_active_provider", new_callable=AsyncMock, return_value=mock_provider):
+    with patch(
+        "app.worker.get_active_provider", new_callable=AsyncMock, return_value=mock_provider
+    ):
         with patch("app.worker.RedisClient.set_json", new_callable=AsyncMock) as mock_set_json:
             with patch("app.worker.RedisClient.get_instance"):
                 await sync_market_summary(mock_ctx)
@@ -39,7 +66,7 @@ async def test_sync_market_summary_success(mock_ctx):
             tickers_call_args = mock_set_json.call_args_list[1][0]
             assert tickers_call_args[0] == "market:tickers"
             tickers_data = tickers_call_args[1]
-            assert len(tickers_data) == 2 # Only USDT pairs
+            assert len(tickers_data) == 2  # Only USDT pairs
 
 
 @pytest.mark.asyncio
@@ -51,7 +78,9 @@ async def test_sync_market_summary_handles_provider_error(mock_ctx):
 
     # Should not raise an exception or crash the worker
     # New behavior: sets backoff and returns early (no Binance fallback)
-    with patch("app.worker.get_active_provider", new_callable=AsyncMock, return_value=mock_provider):
+    with patch(
+        "app.worker.get_active_provider", new_callable=AsyncMock, return_value=mock_provider
+    ):
         with patch("asyncio.sleep", new_callable=AsyncMock):
             with patch("app.worker.logger.warning") as mock_logger:
                 await sync_market_summary(mock_ctx)
@@ -62,7 +91,7 @@ async def test_sync_market_summary_handles_provider_error(mock_ctx):
 @pytest.mark.asyncio
 async def test_sync_market_snapshot_success():
     """Test the CoinGecko snapshot fetcher handles pagination and transforms correctly."""
-    
+
     mock_response = MagicMock()
     mock_response.status_code = 200
     mock_response.json.return_value = [
@@ -77,28 +106,30 @@ async def test_sync_market_snapshot_success():
             "market_cap_rank": 1,
             "image": "btc.png",
             "name": "Bitcoin",
-            "sparkline_in_7d": {"price": [49000, 49500, 50000]}
+            "sparkline_in_7d": {"price": [49000, 49500, 50000]},
         }
     ]
-    
+
     class MockClient:
         async def __aenter__(self):
             return self
+
         async def __aexit__(self, exc_type, exc_val, exc_tb):
             pass
+
         async def get(self, *args, **kwargs):
             return mock_response
-            
+
     with patch("httpx.AsyncClient", return_value=MockClient()):
         with patch("app.worker.RedisClient.set_json", new_callable=AsyncMock) as mock_set_json:
             # We also need to mock asyncio.sleep so we don't wait 1s during the test
             with patch("asyncio.sleep", new_callable=AsyncMock):
                 await sync_market_snapshot({})
-                
+
                 mock_set_json.assert_called_once()
                 args = mock_set_json.call_args[0]
                 assert args[0] == "market:snapshot"
-                
+
                 snapshot_data = args[1]
                 assert len(snapshot_data) == 1
                 assert snapshot_data[0]["symbol"] == "BTC/USDT"
@@ -106,6 +137,7 @@ async def test_sync_market_snapshot_success():
 
 
 # --- Tests for _retry helper ---
+
 
 @pytest.mark.asyncio
 async def test_retry_succeeds_on_second_attempt():
@@ -145,6 +177,7 @@ async def test_retry_raises_after_max_retries():
 
 # --- Tests for backfill_okx_candles ---
 
+
 @pytest.fixture
 def mock_candle():
     c = MagicMock()
@@ -174,10 +207,14 @@ async def test_backfill_okx_candles_uses_okx_provider(mock_candle):
 
     with patch("app.worker.OKXProvider", return_value=mock_okx):
         with patch("app.worker.Database.get_session", return_value=mock_session):
-            with patch("app.jobs.signal_log._get_config", new_callable=AsyncMock, return_value=mock_config):
+            with patch(
+                "app.jobs.signal_log._get_config", new_callable=AsyncMock, return_value=mock_config
+            ):
                 with patch("app.worker.asyncio.sleep", new_callable=AsyncMock):
                     with patch("app.schemas.activity_log.log_activity", new_callable=AsyncMock):
-                        with patch("app.worker._retry", new_callable=AsyncMock, return_value=[mock_candle]) as mock_retry:
+                        with patch(
+                            "app.worker._retry", new_callable=AsyncMock, return_value=[mock_candle]
+                        ) as mock_retry:
                             await backfill_okx_candles({})
 
     mock_okx.close.assert_awaited_once()
@@ -194,9 +231,15 @@ async def test_backfill_okx_candles_handles_provider_error():
 
     with patch("app.worker.OKXProvider", return_value=mock_okx):
         with patch("app.worker.asyncio.sleep", new_callable=AsyncMock):
-            with patch("app.jobs.signal_log._get_config", new_callable=AsyncMock, return_value=mock_config):
+            with patch(
+                "app.jobs.signal_log._get_config", new_callable=AsyncMock, return_value=mock_config
+            ):
                 with patch("app.schemas.activity_log.log_activity", new_callable=AsyncMock):
-                    with patch("app.worker._retry", new_callable=AsyncMock, side_effect=Exception("OKX unreachable")):
+                    with patch(
+                        "app.worker._retry",
+                        new_callable=AsyncMock,
+                        side_effect=Exception("OKX unreachable"),
+                    ):
                         # Must not raise
                         await backfill_okx_candles({})
 
@@ -206,6 +249,7 @@ async def test_backfill_okx_candles_handles_provider_error():
 # ---------------------------------------------------------------------------
 # execute_signals — regime gate + staleness gate
 # ---------------------------------------------------------------------------
+
 
 def _make_signal(symbol="BTCUSDT", direction="LONG", fired_at_offset_ms=0):
     """Create a mock SignalLog for execute_signals tests.
@@ -238,9 +282,17 @@ def _build_patches(signals, regime_payload, trading_enabled=True):
     return [
         patch("app.worker.get_trading_config", new_callable=AsyncMock, return_value=config),
         patch("app.worker.Database.get_session", return_value=mock_session),
-        patch("app.jobs.signal_log._get_config", new_callable=AsyncMock, return_value=signal_config),
-        patch("app.worker.RedisClient.get_json", new_callable=AsyncMock, return_value=regime_payload),
-        patch("app.worker._trade_orchestrator.process_signal", new_callable=AsyncMock, return_value=None),
+        patch(
+            "app.jobs.signal_log._get_config", new_callable=AsyncMock, return_value=signal_config
+        ),
+        patch(
+            "app.worker.RedisClient.get_json", new_callable=AsyncMock, return_value=regime_payload
+        ),
+        patch(
+            "app.worker._trade_orchestrator.process_signal",
+            new_callable=AsyncMock,
+            return_value=None,
+        ),
     ]
 
 

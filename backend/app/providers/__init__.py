@@ -3,13 +3,12 @@ Data Providers Package
 """
 
 import os
-from typing import Optional
-from .data_provider import DataProvider, Candle, SymbolInfo
+
 from .binance_provider import BinanceProvider
+from .data_provider import Candle, DataProvider, SymbolInfo
 from .okx_provider import OKXProvider
 
-
-_shared: Optional[DataProvider] = None
+_shared: DataProvider | None = None
 
 
 def set_shared_provider(provider: DataProvider) -> None:
@@ -38,12 +37,12 @@ def get_provider() -> DataProvider:
 
 
 __all__ = [
-    'DataProvider',
-    'Candle',
-    'SymbolInfo',
-    'BinanceProvider',
-    'OKXProvider',
-    'get_provider',
-    'set_shared_provider',
-    'owns_provider',
+    "DataProvider",
+    "Candle",
+    "SymbolInfo",
+    "BinanceProvider",
+    "OKXProvider",
+    "get_provider",
+    "set_shared_provider",
+    "owns_provider",
 ]

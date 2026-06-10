@@ -1,8 +1,9 @@
-import os
 import json
+import os
+from typing import Any
+
 import redis.asyncio as redis
-from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession, async_sessionmaker
-from typing import Optional, Any
+from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 
 # Environment Variables
 REDIS_URL = os.getenv("REDIS_URL", "redis://localhost:6379/0")
@@ -13,8 +14,9 @@ if not DATABASE_URL:
         "Example: postgresql+asyncpg://user:pass@host:5432/dbname"
     )
 
+
 class RedisClient:
-    _instance: Optional[redis.Redis] = None
+    _instance: redis.Redis | None = None
 
     @classmethod
     def get_instance(cls) -> redis.Redis:
@@ -27,9 +29,9 @@ class RedisClient:
         if cls._instance:
             await cls._instance.aclose()
             cls._instance = None
-            
+
     @classmethod
-    async def get_json(cls, key: str) -> Optional[Any]:
+    async def get_json(cls, key: str) -> Any | None:
         r = cls.get_instance()
         data = await r.get(key)
         return json.loads(data) if data else None
@@ -56,19 +58,20 @@ class Database:
                 pool_pre_ping=True,
             )
             cls._sessionmaker = async_sessionmaker(cls._engine, expire_on_commit=False)
-            
+
     @classmethod
     async def create_tables(cls):
         from sqlmodel import SQLModel
-        # Ensure models are imported so metadata is populated
-        from app.schemas.candle import Candle
-        from app.schemas.signal_log import SignalLog
-        from app.schemas.trading import Position, TradeEvent  # noqa: F401
-        from app.schemas.optimization import OptimizationExperiment  # noqa: F401
+
         from app.schemas.activity_log import ActivityLog  # noqa: F401
+
+        # Ensure models are imported so metadata is populated
+        from app.schemas.optimization import OptimizationExperiment  # noqa: F401
+        from app.schemas.trading import Position, TradeEvent  # noqa: F401
+
         async with cls._engine.begin() as conn:
             await conn.run_sync(SQLModel.metadata.create_all)
-    
+
     @classmethod
     def get_session(cls) -> AsyncSession:
         if cls._sessionmaker is None:
@@ -80,6 +83,7 @@ class Database:
         if cls._engine:
             await cls._engine.dispose()
             cls._engine = None
+
 
 # Dependency for FastAPI
 async def get_db():

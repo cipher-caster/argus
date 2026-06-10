@@ -9,13 +9,15 @@ Tests the /signal-outcomes endpoint:
 
 All tests mock the database session — no live DB required.
 """
-import pytest
-from unittest.mock import AsyncMock, patch, MagicMock
 
+from unittest.mock import AsyncMock, MagicMock, patch
+
+import pytest
 
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
+
 
 def make_signal(
     id_: int = 1,
@@ -93,8 +95,8 @@ def _make_outcomes_ctx(signals, rejected_signals, positions):
 # C1: Signal→Position join
 # ---------------------------------------------------------------------------
 
-class TestSignalPositionJoin:
 
+class TestSignalPositionJoin:
     @pytest.mark.asyncio
     async def test_was_traded_true_when_position_linked(self, async_client):
         """Signal with a matching position (signal_log_id) → was_traded=True."""
@@ -160,8 +162,8 @@ class TestSignalPositionJoin:
 # C1: Regime capture at resolution
 # ---------------------------------------------------------------------------
 
-class TestRegimeCapture:
 
+class TestRegimeCapture:
     @pytest.mark.asyncio
     async def test_regime_at_resolution_in_outcome(self, async_client):
         """regime_at_resolution is preserved in each signal outcome entry."""
@@ -192,10 +194,10 @@ class TestRegimeCapture:
     async def test_regime_correlation_win_rate_per_regime(self, async_client):
         """Regime correlation computes win rates grouped by regime."""
         signals = [
-            make_signal(id_=1, outcome="WIN",  regime_at_resolution="BEAR"),
-            make_signal(id_=2, outcome="WIN",  regime_at_resolution="BEAR"),
+            make_signal(id_=1, outcome="WIN", regime_at_resolution="BEAR"),
+            make_signal(id_=2, outcome="WIN", regime_at_resolution="BEAR"),
             make_signal(id_=3, outcome="LOSS", regime_at_resolution="BEAR"),
-            make_signal(id_=4, outcome="WIN",  regime_at_resolution="BULL"),
+            make_signal(id_=4, outcome="WIN", regime_at_resolution="BULL"),
         ]
 
         ctx = _make_outcomes_ctx(signals, [], [])
@@ -233,8 +235,8 @@ class TestRegimeCapture:
 # C1: Rejection analysis
 # ---------------------------------------------------------------------------
 
-class TestRejectionAnalysis:
 
+class TestRejectionAnalysis:
     @pytest.mark.asyncio
     async def test_rejection_counts_by_reason(self, async_client):
         """Rejection reasons are counted and grouped correctly."""

@@ -1,0 +1,18 @@
+[tool.ruff]
+target-version = "py311"
+line-length = 100
+# Cleanup is scoped to the application + tests; exclude one-off / historical scripts.
+extend-exclude = ["scripts", "migrate_*.py", "debug_*.py"]
+
+[tool.ruff.lint]
+# E/F  - pycodestyle errors + pyflakes (correctness)
+# I    - isort (import ordering)
+# UP   - pyupgrade (PEP 585/604 modern syntax)
+# B    - flake8-bugbear (likely bugs)
+# SIM  - flake8-simplify (readability)
+select = ["E", "F", "I", "UP", "B", "SIM"]
+# E501 line-length is enforced by the formatter, not the linter.
+ignore = ["E501"]
+
+[tool.ruff.format]
+quote-style = "double"
