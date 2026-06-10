@@ -95,3 +95,64 @@ def test_calculate_auto_fib(mock_df):
     assert "top" in first_valid
     assert "bottom" in first_valid
     assert "fib_0_618" in first_valid
+
+
+def test_calculate_fvg_detects_bullish_gap():
+    """A bullish Fair Value Gap is detected between candle 0 high and candle 2 low."""
+    df = pd.DataFrame(
+        {
+            "timestamp": [1000, 2000, 3000, 4000],
+            "open": [90, 101, 115, 112],
+            "high": [100, 115, 120, 118],
+            "low": [85, 101, 110, 108],
+            "close": [95, 114, 112, 115],
+            "volume": [100, 200, 150, 180],
+        }
+    )
+
+    result = calculate_indicator(df, "fvg", {})
+
+    assert len(result.data) > 0
+    assert result.data[0]["type"] == "bullish"
+    assert result.data[0]["bottom"] == 100.0
+    assert result.data[0]["top"] == 110.0
+
+
+def test_calculate_mss_detects_bullish_break():
+    """A bullish Market Structure Shift fires when price breaks the prior pivot high."""
+    df = pd.DataFrame(
+        {
+            "timestamp": [1000, 2000, 3000, 4000, 5000, 6000, 7000, 8000],
+            "open": [90, 95, 100, 95, 90, 105, 110, 115],
+            "high": [95, 100, 110, 100, 95, 115, 120, 125],  # pivot high 110 at index 2
+            "low": [85, 90, 95, 90, 85, 100, 105, 110],
+            "close": [92, 98, 105, 92, 88, 112, 115, 120],  # break 110 at index 5
+            "volume": [100, 100, 100, 100, 100, 100, 100, 100],
+        }
+    )
+
+    result = calculate_indicator(df, "mss", {"lookback": 2})
+
+    assert len(result.data) > 0
+    assert result.data[0]["type"] == "bullish"
+    assert result.data[0]["price"] == 110.0
+
+
+def test_calculate_sweep_detects_bullish_sweep():
+    """A bullish liquidity sweep fires when price wicks below the range low then reclaims it."""
+    df = pd.DataFrame(
+        {
+            "timestamp": [1000, 2000, 3000, 4000, 5000, 6000],
+            "open": [110, 110, 110, 110, 110, 105],
+            "high": [120, 120, 120, 120, 120, 115],
+            "low": [100, 105, 102, 108, 101, 95],  # range low 100, candle 5 wicks to 95
+            "close": [115, 115, 115, 115, 115, 102],  # candle 5 reclaims (closes 102 > 100)
+            "volume": [100, 100, 100, 100, 100, 100],
+        }
+    )
+
+    result = calculate_indicator(df, "sweep", {"lookback": 5})
+
+    assert len(result.data) > 0
+    assert result.data[0]["type"] == "bullish"
+    assert result.data[0]["level"] == 100.0
