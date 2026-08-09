@@ -56,15 +56,12 @@ export function useCalculatedIndicators(symbol: string, timeframe: string, limit
         return { symbol, timeframe, results: [] };
       }
 
-      // TODO: support endTimestamp for historical indicators once the backend
-      // exposes it. For now we rely on limit; endTimestamp is still part of the
-      // query key so the result refetches when the user scrolls back in time.
-
       return calculateIndicators(
         symbol,
         timeframe,
         visibleIndicators.map((i) => ({ type: i.type, params: i.params })),
         limit,
+        endTimestamp,
       );
     },
     refetchInterval: 60000, // Refetch with OHLCV

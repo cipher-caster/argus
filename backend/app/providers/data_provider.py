@@ -38,17 +38,19 @@ class DataProvider(ABC):
     async def get_ohlcv(
         self, 
         symbol: str, 
-        timeframe: str = "1h", 
-        limit: int = 100
+        timeframe: str = "1h",
+        limit: int = 100,
+        since: Optional[int] = None
     ) -> List[Candle]:
         """
         Fetch OHLCV candlestick data
-        
+
         Args:
             symbol: Trading pair (e.g., "BTC/USDT")
             timeframe: Candle timeframe (1m, 5m, 15m, 1h, 4h, 1d, 1w)
             limit: Number of candles to fetch
-            
+            since: Epoch ms to start from; None fetches the most recent candles
+
         Returns:
             List of Candle objects, oldest first
         """

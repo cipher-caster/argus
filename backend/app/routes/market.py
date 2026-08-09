@@ -7,6 +7,7 @@ import logging
 from fastapi import APIRouter, HTTPException, Query
 from typing import List, Optional
 
+from app.constants import active_provider_name
 from app.providers import SymbolInfo
 from app.storage import RedisClient, Database
 from app.services.market_data import MarketDataService
@@ -139,10 +140,9 @@ async def get_ticker(symbol: str):
 @router.get("/provider")
 async def get_provider_info():
     """Get current data provider"""
-    import os
     r = RedisClient.get_instance()
     stored = await r.get("config:provider")
-    name = stored if stored else os.getenv("DATA_PROVIDER", "okx").lower()
+    name = stored if stored else active_provider_name()
     return {"provider": name}
 
 

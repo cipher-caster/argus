@@ -2,8 +2,8 @@
 Data Providers Package
 """
 
-import os
 from typing import Optional
+from app.constants import active_provider_name
 from .data_provider import DataProvider, Candle, SymbolInfo
 from .binance_provider import BinanceProvider
 from .okx_provider import OKXProvider
@@ -31,8 +31,7 @@ def get_provider() -> DataProvider:
     """
     if _shared is not None:
         return _shared
-    name = os.getenv("DATA_PROVIDER", "okx").lower()
-    if name == "binance":
+    if active_provider_name() == "binance":
         return BinanceProvider()
     return OKXProvider()
 

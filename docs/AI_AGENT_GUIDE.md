@@ -19,7 +19,7 @@ Argus is a **real-time cryptocurrency analytics dashboard** that provides:
 
 - **Backend**: Python 3.11, FastAPI, PostgreSQL, Redis
 - **Frontend**: Next.js 14, React, TanStack Query, TypeScript
-- **Data Source**: Binance API (CCXT library)
+- **Data Source**: OKX API via CCXT (default; Binance selectable via `DATA_PROVIDER`)
 - **Deployment**: Docker Compose
 
 ---
@@ -33,7 +33,7 @@ argus/
 │   │   ├── main.py       # FastAPI app entry point
 │   │   ├── routes/       # API endpoints (market, indicators, analytics, trading, optimization)
 │   │   ├── services/     # Business logic
-│   │   ├── providers/    # External API wrappers (Binance)
+│   │   ├── providers/    # External API wrappers (OKX, Binance)
 │   │   ├── indicators/   # TA calculation modules
 │   │   ├── strategies/   # Trading signal logic
 │   │   ├── trading/      # Paper trading engine
@@ -72,7 +72,7 @@ argus/
 **Data Flow**:
 
 ```
-External API (Binance)
+External API (OKX by default)
     ↓
 Worker (background sync) → Redis Cache (30s-5min TTL)
     ↓                            ↓
@@ -94,7 +94,8 @@ PostgreSQL (historical) ← Routes/Services → Frontend
 
 3. **Providers** (`app/providers/*.py`):
    - External API wrappers
-   - `BinanceProvider`: CCXT wrapper for Binance
+   - `OKXProvider`: CCXT wrapper for OKX (default venue)
+   - `BinanceProvider`: CCXT wrapper for Binance (alternate, selected via `DATA_PROVIDER=binance`)
    - Handles rate limiting, retries
 
 4. **Indicators** (`app/indicators/*.py`):
@@ -191,7 +192,7 @@ Component → TanStack Query Hook → API Client → Backend
 
 ```python
 ArgusException (base)
-├── DataProviderError (Binance API issues) → 503
+├── DataProviderError (exchange API issues) → 503
 ├── CacheError (Redis issues) → 500
 ├── CalculationError (TA calculation failures) → 500
 └── ValidationError (invalid input) → 400
