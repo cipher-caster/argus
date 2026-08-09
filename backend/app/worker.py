@@ -6,6 +6,7 @@ from datetime import UTC, datetime, timedelta
 
 from arq import cron
 
+from app.constants import active_provider_name
 from app.providers import get_provider, provider_for
 from app.providers.okx_provider import OKXProvider
 from app.schemas.market_data import MarketSummary, MarketTicker
@@ -45,7 +46,7 @@ async def get_active_provider():
     global _active_provider, _active_provider_name
     r = RedisClient.get_instance()
     config_name = await r.get("config:provider")
-    target = config_name or os.getenv("DATA_PROVIDER", "okx")
+    target = config_name or active_provider_name()
     if _active_provider_name != target:
         if _active_provider:
             await _active_provider.close()
@@ -476,7 +477,7 @@ async def sync_analytics_cache(ctx):
     from app.routes.analytics import get_best_setups, get_oracle_signal_summary
 
     # Make get_provider() inside analytics functions use the effective provider.
-    effective = _active_provider_name or os.getenv("DATA_PROVIDER", "okx")
+    effective = _active_provider_name or active_provider_name()
     os.environ["DATA_PROVIDER"] = effective
     logger.info(f"Job: Pre-warming Analytics Cache (provider={effective})...")
 

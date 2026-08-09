@@ -268,6 +268,10 @@ export interface TitanStrategyResponse {
   volatility: {
     atr: number;
     squeeze: boolean;
+    /** BB width / price for the latest candle. Null when history is too short. */
+    bandwidth: number | null;
+    /** Percentile rank (0-100) of `bandwidth` within the trailing window. */
+    bandwidth_percentile: number | null;
   };
   targets: {
     entry: number;

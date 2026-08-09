@@ -62,7 +62,13 @@ export async function fetchIndicators(): Promise<IndicatorDefinition[]> {
 /**
  * Calculate indicators for a symbol
  */
-export async function calculateIndicators(symbol: string, timeframe: string, indicators: Array<{ type: string; params: Record<string, number> }>, limit: number = 300): Promise<CalculateResponse> {
+export async function calculateIndicators(
+  symbol: string,
+  timeframe: string,
+  indicators: Array<{ type: string; params: Record<string, number> }>,
+  limit: number = 300,
+  endTimestamp?: number,
+): Promise<CalculateResponse> {
   const response = await fetch(`${API_URL}/api/indicators/calculate`, {
     method: "POST",
     headers: {
@@ -73,6 +79,7 @@ export async function calculateIndicators(symbol: string, timeframe: string, ind
       timeframe,
       limit,
       indicators,
+      end_timestamp: endTimestamp,
     }),
   });
 

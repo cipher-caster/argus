@@ -6,13 +6,12 @@ from multiple sources (Database, Redis cache, external providers like Binance).
 """
 
 import logging
-import os
 from typing import Any
 
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlmodel import select
 
-from app.constants import DEFAULT_TIMEFRAME_MS, TIMEFRAME_MS
+from app.constants import DEFAULT_TIMEFRAME_MS, TIMEFRAME_MS, active_provider_name
 from app.providers import Candle as ProviderCandle
 from app.schemas.candle import Candle as DbCandle
 from app.schemas.market_data import CoinInfo
@@ -57,7 +56,7 @@ class MarketDataService:
         """
         from app.providers import get_provider, owns_provider
 
-        active_provider = provider or os.getenv("DATA_PROVIDER", "binance").lower()
+        active_provider = provider or active_provider_name()
 
         async with Database.get_session() as session:
             # Base query — filter by active provider to avoid duplicate timestamps

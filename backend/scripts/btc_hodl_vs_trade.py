@@ -119,7 +119,7 @@ def run_titan_trades(df, sl_mult=1.75, tp_mult=4.0, min_conf=55):
         ema = row.get("ema200")
         trend = "BULLISH" if not pd.isna(ema) and price > ema else "BEARISH"
         mom = titan._analyze_momentum(row)
-        vol = titan._analyze_volatility(row)
+        vol = titan._analyze_volatility(df.iloc[max(0, i - titan.squeeze_lookback + 1) : i + 1])
         rw = df.iloc[max(0,i-4):i+1]
         bs = rw[rw["sweep_type"] == "bullish"]
         rs = "bullish" if not bs.empty else ("bearish" if not rw[rw["sweep_type"] == "bearish"].empty else None)

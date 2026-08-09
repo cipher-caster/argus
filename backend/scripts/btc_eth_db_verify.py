@@ -31,7 +31,7 @@ def backtest(df, sl=1.5, tp=0, mc=55):
             if r: active["r"]=r; trades.append(active); active=None; continue
         if pd.isna(row.get("rsi")) or pd.isna(row.get("ema200")): continue
         ema=row.get("ema200"); trend="BULLISH" if not pd.isna(ema) and price>ema else "BEARISH"
-        mom=titan._analyze_momentum(row); vol=titan._analyze_volatility(row)
+        mom=titan._analyze_momentum(row); vol=titan._analyze_volatility(df.iloc[max(0, i - titan.squeeze_lookback + 1) : i + 1])
         rw=df.iloc[max(0,i-4):i+1]
         bs=rw[rw["sweep_type"]=="bullish"]; rs="bullish" if not bs.empty else ("bearish" if not rw[rw["sweep_type"]=="bearish"].empty else None)
         t=titan._generate_signal(trend,mom,vol,row,rs); sig,conf=t["type"],t["confidence"]

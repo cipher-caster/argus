@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-Argus is a cryptocurrency analytics dashboard — real-time market data, technical indicators, and AI-powered trading signals for 400+ pairs from Binance.
+Argus is a cryptocurrency analytics dashboard — real-time market data, technical indicators, and AI-powered trading signals for 400+ pairs, sourced from OKX by default.
 
 ## Commands
 
@@ -56,7 +56,7 @@ docker compose exec redis redis-cli
 **Data flow:**
 1. Frontend calls FastAPI REST endpoints
 2. FastAPI checks Redis cache (30–180s TTL), falls back to PostgreSQL
-3. Worker background jobs fetch from Binance via CCXT, populate Redis/Postgres
+3. Worker background jobs fetch from the active exchange (OKX by default) via CCXT, populate Redis/Postgres
 
 **Backend layers** (`backend/app/`):
 - `routes/` — FastAPI route handlers with input validation (`strategy.py` for regime endpoint)
@@ -65,7 +65,7 @@ docker compose exec redis redis-cli
 - `strategies/` — Trading signal generation: `oracle.py` (removed from UI but still used by `trading/backtest_engine.py` and `routes/analytics.py` — do not delete without migrating those callers), `titan.py` (hybrid trend-momentum with ADX(14), primary strategy)
 - `jobs/` — Worker background jobs: `signal_log.py` (scan watchlist at 4H candle close with regime-based filtering, resolve outcomes every 30min)
 - `trading/` — Paper trading engine: orchestrator, risk manager, portfolio, backtest engine, optimizer
-- `providers/` — CCXT Binance wrapper (`binance_provider.py`)
+- `providers/` — CCXT exchange wrappers: `okx_provider.py` (default), `binance_provider.py`; `provider_for()` / `get_provider()` select by `DATA_PROVIDER`
 - `schemas/` — Pydantic v2 models
 - `storage.py` — Redis + Postgres connection pooling
 - `exceptions.py` — Custom exception hierarchy (`ArgusException` → `DataProviderError` / `CacheError` / `CalculationError` / `ValidationError`)
@@ -84,7 +84,8 @@ docker compose exec redis redis-cli
 
 - **Error handling:** Raise from the `exceptions.py` hierarchy — `DataProviderError` → 503, `ValidationError` → 400, `CacheError`/`CalculationError` → 500.
 - **Type safety:** Strict TypeScript on the frontend; type hints on all Python functions with Pydantic validation at API boundaries.
-- **Caching:** Always check Redis before hitting Binance. Cache keys and TTLs are managed in `services/market_data.py`.
+- **Data provider:** Never read `os.getenv("DATA_PROVIDER")` directly — call `active_provider_name()` from `app/constants.py`. The candle `provider` column is written and queried with this value, so a divergent default silently returns zero rows.
+- **Caching:** Always check Redis before hitting the exchange. Cache keys and TTLs are managed in `services/market_data.py`.
 - **API docs:** Swagger UI available at `http://localhost:8000/docs` during development.
 - **Key endpoint:** `GET /api/strategy/regime` — BTC weekly EMA50 regime detection.
 - **Trading provider:** `trading_provider` defaults to `"okx"` in `DEFAULT_TRADING_CONFIG`. Binance fallback was removed; assume OKX as the canonical execution venue.

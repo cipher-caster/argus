@@ -4,13 +4,13 @@ Endpoints for listing and calculating technical indicators
 """
 
 import logging
-import os
 from typing import Any
 
 import pandas as pd
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 
+from app.constants import DEFAULT_TIMEFRAME_MS, TIMEFRAME_MS, active_provider_name
 from app.exceptions import CacheError, CalculationError, DataProviderError, ValidationError
 from app.indicators import (
     IndicatorDefinition,
@@ -46,6 +46,9 @@ class CalculateRequest(BaseModel):
     timeframe: str = "1h"
     limit: int = 300
     indicators: list[IndicatorRequest]
+    # Exclusive upper bound (ms epoch) for the candle window. Set when the user
+    # scrolls back in time so indicators match the visible chart range.
+    end_timestamp: int | None = None
 
 
 class CalculateResponse(BaseModel):
@@ -90,17 +93,15 @@ async def calculate_indicators(request: CalculateRequest):
         from app.storage import Database
 
         async with Database.get_session() as session:
-            active_provider = os.getenv("DATA_PROVIDER", "binance").lower()
-            query = (
-                select(DbCandle)
-                .where(
-                    DbCandle.symbol == request.symbol,
-                    DbCandle.timeframe == request.timeframe,
-                    DbCandle.provider == active_provider,
-                )
-                .order_by(DbCandle.timestamp.desc())
-                .limit(request.limit)
+            active_provider = active_provider_name()
+            query = select(DbCandle).where(
+                DbCandle.symbol == request.symbol,
+                DbCandle.timeframe == request.timeframe,
+                DbCandle.provider == active_provider,
             )
+            if request.end_timestamp is not None:
+                query = query.where(DbCandle.timestamp < request.end_timestamp)
+            query = query.order_by(DbCandle.timestamp.desc()).limit(request.limit)
 
             results = await session.execute(query)
             db_candles = results.scalars().all()
@@ -112,9 +113,18 @@ async def calculate_indicators(request: CalculateRequest):
             )
             provider = get_provider()
             try:
-                candles = await provider.get_ohlcv(request.symbol, request.timeframe, request.limit)
+                since = None
+                if request.end_timestamp is not None:
+                    tf_ms = TIMEFRAME_MS.get(request.timeframe, DEFAULT_TIMEFRAME_MS)
+                    since = request.end_timestamp - (request.limit * tf_ms)
+                candles = await provider.get_ohlcv(
+                    request.symbol, request.timeframe, request.limit, since=since
+                )
             except Exception as e:
                 raise DataProviderError(f"Failed to fetch from provider: {e}")
+            if request.end_timestamp is not None:
+                # `since` only bounds the window from below; enforce the upper bound.
+                candles = [c for c in candles if c.timestamp < request.end_timestamp]
         else:
             # Sort ascending for calculation (oldest to newest)
             db_candles = sorted(db_candles, key=lambda x: x.timestamp)
@@ -207,7 +217,7 @@ async def get_market_dashboard_indicators():
     try:
         # Fetch BTC/USDT daily candles for volatility + ADX calculation
         async with Database.get_session() as session:
-            active_provider = os.getenv("DATA_PROVIDER", "binance").lower()
+            active_provider = active_provider_name()
             query = (
                 select(DbCandle)
                 .where(

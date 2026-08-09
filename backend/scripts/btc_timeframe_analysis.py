@@ -321,7 +321,7 @@ def titan_backtest(df: pd.DataFrame, timeframe: str) -> Dict[str, Any]:
         ema = row.get("ema200")
         trend = "BULLISH" if not pd.isna(ema) and price > ema else "BEARISH"
         momentum = titan._analyze_momentum(row)
-        volatility = titan._analyze_volatility(row)
+        volatility = titan._analyze_volatility(df.iloc[max(0, i - titan.squeeze_lookback + 1) : i + 1])
 
         # Check for recent sweeps
         recent_window = df.iloc[max(0, i - 4):i + 1]

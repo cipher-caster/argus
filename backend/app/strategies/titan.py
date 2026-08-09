@@ -51,6 +51,10 @@ class TitanStrategy:
         self.macd_signal = 9
         self.bb_len = 20
         self.bb_std = 2.0
+        # Squeeze = bandwidth in the bottom 20% of the trailing 120 bars
+        self.squeeze_lookback = 120
+        self.squeeze_min_samples = 30
+        self.squeeze_percentile = 0.20
         self.atr_len = 14
         self.st_len = 10
         self.st_mult = 3.0
@@ -83,7 +87,7 @@ class TitanStrategy:
         momentum = self._analyze_momentum(row)
 
         # 5. Volatility (Bollinger Squeeze + ATR)
-        volatility = self._analyze_volatility(row)
+        volatility = self._analyze_volatility(df)
 
         # SMC: Check for recent sweeps (last 5 candles)
         recent_df = df.tail(5)
@@ -160,6 +164,9 @@ class TitanStrategy:
             df["bb_upper"] = bb[f"BBU_{self.bb_len}_{self.bb_std}"]
             df["bb_lower"] = bb[f"BBL_{self.bb_len}_{self.bb_std}"]
             df["bb_width"] = df["bb_upper"] - df["bb_lower"]
+            # Normalise by price so the width is comparable across the lookback
+            # window (and across symbols) rather than drifting with the quote level.
+            df["bb_bandwidth"] = df["bb_width"] / df["close"]
 
         # ATR
         df["atr"] = ta.atr(df["high"], df["low"], df["close"], length=self.atr_len)
@@ -237,20 +244,36 @@ class TitanStrategy:
             "macd_crossed": "UP" if macd_bullish else "DOWN",
         }
 
-    def _analyze_volatility(self, row: pd.Series) -> dict[str, Any]:
-        """Analyzes Bollinger Bands for Squeeze conditions."""
-        # Simple squeeze detection: BB Width is relatively low?
-        # A real squeeze compares BB Width to Keltner Channel Width, but we'll use a simplified heuristic if KC not computed.
-        # Or just return ATR.
+    def _analyze_volatility(self, df: pd.DataFrame) -> dict[str, Any]:
+        """Analyzes Bollinger Bands for Squeeze conditions.
 
-        # PDF: "Bollinger Squeeze" - volatility contraction.
-        # We can flag if bandwidth is in lowest percentile, but that requires history stats.
-        # For single row, we can just report ATR.
-
-        return {
+        A squeeze is bandwidth (BB width / price) sitting in the bottom
+        SQUEEZE_PERCENTILE of its own recent history — i.e. the band has
+        contracted relative to how this symbol normally trades, which is the
+        comparison a fixed threshold cannot make.
+        """
+        row = df.iloc[-1]
+        result: dict[str, Any] = {
             "atr": row.get("atr", 0),
-            "squeeze": False,  # TODO: Implement historical percentile check
+            "squeeze": False,
+            "bandwidth": None,
+            "bandwidth_percentile": None,
         }
+
+        if "bb_bandwidth" not in df.columns:
+            return result
+
+        history = df["bb_bandwidth"].tail(self.squeeze_lookback).dropna()
+        current = row.get("bb_bandwidth")
+        # Need a meaningful sample before a percentile means anything.
+        if len(history) < self.squeeze_min_samples or pd.isna(current):
+            return result
+
+        percentile = float((history <= current).sum()) / len(history)
+        result["bandwidth"] = float(current)
+        result["bandwidth_percentile"] = round(percentile * 100, 2)
+        result["squeeze"] = bool(percentile <= self.squeeze_percentile)
+        return result
 
     def _generate_signal(
         self,

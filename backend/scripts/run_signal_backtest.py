@@ -41,6 +41,7 @@ from collections import defaultdict
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
+from app.constants import active_provider_name
 from app.storage import Database
 from app.schemas.signal_log import SignalLog
 from app.trading.backtest_engine import (
@@ -73,7 +74,7 @@ def _parse_provider() -> str:
     for arg in sys.argv:
         if arg.startswith("--provider="):
             return arg.split("=")[1].strip().lower()
-    return os.getenv("DATA_PROVIDER", "binance").lower()
+    return active_provider_name()
 
 
 DRY_RUN = "--dry-run" in sys.argv

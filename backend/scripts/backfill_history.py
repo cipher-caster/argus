@@ -16,6 +16,7 @@ import os
 # Add parent directory to path for imports
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
+from app.constants import active_provider_name
 from app.storage import Database
 from app.providers import get_provider, BinanceProvider, OKXProvider
 from app.schemas.candle import Candle
@@ -31,7 +32,7 @@ def _get_flag(prefix, default=None):
     return default
 
 
-PROVIDER_NAME = (_get_flag("--provider=") or os.getenv("DATA_PROVIDER", "binance")).lower()
+PROVIDER_NAME = (_get_flag("--provider=") or active_provider_name()).lower()
 CUSTOM_SYMBOLS = _get_flag("--symbols=")
 if CUSTOM_SYMBOLS:
     SYMBOLS = [s.strip() for s in CUSTOM_SYMBOLS.split(",") if s.strip()]

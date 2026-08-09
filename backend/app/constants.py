@@ -1,5 +1,18 @@
 """Application-wide constants."""
 
+import os
+
+# Canonical data venue when DATA_PROVIDER is unset. Every provider lookup must go
+# through active_provider_name() — a split default silently desynchronises the
+# `provider` column written to Postgres from the one read back.
+DEFAULT_DATA_PROVIDER: str = "okx"
+
+
+def active_provider_name() -> str:
+    """Name of the data provider the process should read and write candles under."""
+    return os.getenv("DATA_PROVIDER", DEFAULT_DATA_PROVIDER).lower()
+
+
 # Maps CCXT-style timeframe strings to their duration in milliseconds.
 TIMEFRAME_MS: dict[str, int] = {
     "1m": 60 * 1_000,

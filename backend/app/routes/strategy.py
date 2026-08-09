@@ -5,14 +5,13 @@ Endpoints for running technical strategies on market data
 
 import asyncio
 import logging
-import os
 import time
 
 import pandas as pd
 from fastapi import APIRouter, HTTPException, Query
 from sqlmodel import select
 
-from app.constants import DEFAULT_TIMEFRAME_MS, TIMEFRAME_MS
+from app.constants import DEFAULT_TIMEFRAME_MS, TIMEFRAME_MS, active_provider_name
 
 logger = logging.getLogger(__name__)
 
@@ -37,9 +36,7 @@ async def get_candles_df(
     Fetches from DB first, then falls back to Binance if insufficient.
     """
     # 1. Try DB (filter by active provider to avoid duplicate timestamps)
-    active_provider = (
-        os.getenv("DATA_PROVIDER", "okx").lower() if provider is None else provider.name
-    )
+    active_provider = active_provider_name() if provider is None else provider.name
     async with Database.get_session() as session:
         statement = (
             select(DbCandle)
@@ -234,7 +231,7 @@ async def get_titan_strategy(
         # Add metadata
         result["symbol"] = symbol
         result["timeframe"] = timeframe
-        result["provider"] = provider_name or os.getenv("DATA_PROVIDER", "okx").lower()
+        result["provider"] = provider_name or active_provider_name()
         result["price"] = df.iloc[-1]["close"]
         result["last_updated"] = int(time.time() * 1000)
 
